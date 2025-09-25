@@ -11,6 +11,7 @@ public class PatientDTO {
     private Integer patientId;
     private String createdAt;
     private String status;
+    private String img;
     
     @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")

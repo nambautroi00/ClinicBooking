@@ -42,6 +42,9 @@ public class User {
     @Column(name = "Address")
     private String address;
 
+    @Column(name = "ImageURL")
+    private String img;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "RoleID", nullable = false)
     private Role role;

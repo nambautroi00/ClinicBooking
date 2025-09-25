@@ -44,6 +44,7 @@ public class PatientService {
             user.setDob(java.time.LocalDate.parse(patientDTO.getDob()));
         }
         user.setAddress(patientDTO.getAddress());
+        user.setImg(patientDTO.getImg());
         user.setRole(patientRole);
         userRepository.save(user);
 
@@ -114,6 +115,7 @@ public class PatientService {
         dto.setGender(patient.getUser().getGender());
         dto.setDob(patient.getUser().getDob() != null ? patient.getUser().getDob().toString() : null);
         dto.setAddress(patient.getUser().getAddress());
+        dto.setImg(patient.getUser().getImg());
         dto.setHealthInsuranceNumber(patient.getHealthInsuranceNumber());
         dto.setMedicalHistory(patient.getMedicalHistory());
         return dto;

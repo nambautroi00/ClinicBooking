@@ -50,6 +50,7 @@ public class DoctorService {
             user.setDob(java.time.LocalDate.parse(doctorDTO.getDob()));
         }
         user.setAddress(doctorDTO.getAddress());
+        user.setImg(doctorDTO.getImg());
         user.setRole(doctorRole);
         userRepository.save(user);
 
@@ -127,6 +128,7 @@ public class DoctorService {
         dto.setGender(doctor.getUser().getGender());
         dto.setDob(doctor.getUser().getDob() != null ? doctor.getUser().getDob().toString() : null);
         dto.setAddress(doctor.getUser().getAddress());
+        dto.setImg(doctor.getUser().getImg());
         dto.setSpecialty(doctor.getSpecialty());
         dto.setBio(doctor.getBio());
         dto.setDepartmentId(doctor.getDepartment().getDepartmentId());

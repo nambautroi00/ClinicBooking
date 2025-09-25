@@ -12,6 +12,7 @@ public class DoctorDTO {
     private Integer doctorId;
     private String createdAt;
     private String status;
+    private String img;
     
     @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")
