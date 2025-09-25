@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import org.springframework.validation.annotation.Validated;
+import com.example.backend.validation.CreateValidation;
 
 import com.example.backend.dto.PatientDTO;
 import com.example.backend.service.PatientService;
@@ -24,7 +27,7 @@ public class PatientController {
     private final PatientService patientService;
 
     @PostMapping
-    public ResponseEntity<PatientDTO> createPatient(@RequestBody PatientDTO patientDTO) {
+    public ResponseEntity<PatientDTO> createPatient(@Validated(CreateValidation.class) @RequestBody PatientDTO patientDTO) {
         return ResponseEntity.ok(patientService.createPatient(patientDTO));
     }
 
@@ -39,7 +42,7 @@ public class PatientController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PatientDTO> updatePatient(@PathVariable Integer id, @RequestBody PatientDTO patientDTO) {
+    public ResponseEntity<PatientDTO> updatePatient(@PathVariable Integer id, @Valid @RequestBody PatientDTO patientDTO) {
         return ResponseEntity.ok(patientService.updatePatient(id, patientDTO));
     }
 

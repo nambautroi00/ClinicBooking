@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.util.List;
 
 @Data
@@ -15,16 +14,14 @@ import java.util.List;
 public class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "DepartmentID")
     private Integer departmentId;
 
-    @Column(name = "DepartmentName", nullable = false)
-    private String departmentName;
+    @Column(name = "Name", nullable = false)
+    private String name;
 
     @Column(name = "Description")
     private String description;
-
-    @Column(name = "Status", columnDefinition = "NVARCHAR(20) DEFAULT 'ACTIVE'")
-    private String status = "ACTIVE";
 
     @OneToMany(mappedBy = "department")
     private List<Doctor> doctors;
