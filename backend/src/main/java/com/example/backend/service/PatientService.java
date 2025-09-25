@@ -36,7 +36,7 @@ public class PatientService {
         patient.setUser(user);
         patient.setHealthInsuranceNumber(patientDTO.getHealthInsuranceNumber());
         patient.setMedicalHistory(patientDTO.getMedicalHistory());
-        
+
         Patient savedPatient = patientRepository.save(patient);
         return convertToDTO(savedPatient);
     }
@@ -62,10 +62,10 @@ public class PatientService {
         user.setFirstName(patientDTO.getFirstName());
         user.setLastName(patientDTO.getLastName());
         user.setPhone(patientDTO.getPhone());
-        
+
         patient.setHealthInsuranceNumber(patientDTO.getHealthInsuranceNumber());
         patient.setMedicalHistory(patientDTO.getMedicalHistory());
-        
+
         Patient updatedPatient = patientRepository.save(patient);
         return convertToDTO(updatedPatient);
     }
