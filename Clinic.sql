@@ -18,3 +18,4 @@ INSERT INTO Departments (Name, Description) VALUES
 
 select * from users
 select * from patients
+select * from doctors
