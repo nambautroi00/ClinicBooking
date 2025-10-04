@@ -1,0 +1,307 @@
+﻿CREATE DATABASE CLINIC;
+GO
+USE CLINIC;
+GO
+
+/* ===========================================================
+   1) QUYỀN NGƯỜI DÙNG
+   =========================================================== */
+CREATE TABLE Roles (
+    RoleID INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL UNIQUE,
+    Description NVARCHAR(255)
+);
+GO
+
+/* ===========================================================
+   2) NGƯỜI DÙNG
+   =========================================================== */
+CREATE TABLE Users (
+    UserID INT IDENTITY(1,1) PRIMARY KEY,
+    Email NVARCHAR(100) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    FirstName NVARCHAR(50) NOT NULL,
+    LastName NVARCHAR(50) NOT NULL,
+    Phone NVARCHAR(20),
+    Gender CHAR(1) CHECK (Gender IN ('M','F','O')),
+    DOB DATE,
+    Address NVARCHAR(255),
+    RoleID INT NOT NULL,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    Status NVARCHAR(20) DEFAULT 'ACTIVE',
+    FOREIGN KEY (RoleID) REFERENCES Roles(RoleID)
+);
+GO
+
+/* ===========================================================
+   3) KHOA
+   =========================================================== */
+CREATE TABLE Departments (
+    DepartmentID INT IDENTITY(1,1) PRIMARY KEY,
+    DepartmentName NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(255),
+    Status NVARCHAR(20) DEFAULT 'ACTIVE'
+);
+GO
+
+/* ===========================================================
+   4) BÁC SĨ
+   =========================================================== */
+CREATE TABLE Doctors (
+    DoctorID INT PRIMARY KEY, -- = Users.UserID
+    DepartmentID INT NOT NULL,
+    Specialty NVARCHAR(100),
+    Bio NVARCHAR(255),
+    FOREIGN KEY (DoctorID) REFERENCES Users(UserID),
+    FOREIGN KEY (DepartmentID) REFERENCES Departments(DepartmentID)
+);
+GO
+
+/* ===========================================================
+   5) BỆNH NHÂN
+   =========================================================== */
+CREATE TABLE Patients (
+    PatientID INT PRIMARY KEY,
+    HealthInsuranceNumber NVARCHAR(50) NULL,
+    MedicalHistory NVARCHAR(MAX) NULL,
+    FOREIGN KEY (PatientID) REFERENCES Users(UserID) 
+);
+GO
+
+/* ===========================================================
+   6) LỊCH LÀM VIỆC BÁC SĨ
+   =========================================================== */
+CREATE TABLE DoctorSchedules (
+    ScheduleID INT IDENTITY(1,1) PRIMARY KEY,
+    DoctorID INT NOT NULL,
+    WorkDate DATE NOT NULL,
+    StartTime TIME NOT NULL,
+    EndTime TIME NOT NULL,
+    Status NVARCHAR(20) DEFAULT 'Available',
+    Notes NVARCHAR(255),
+    FOREIGN KEY (DoctorID) REFERENCES Doctors(DoctorID) ON DELETE CASCADE
+);
+GO
+
+/* ===========================================================
+   7) CUỘC HẸN
+   =========================================================== */
+   CREATE TABLE Appointments (
+    AppointmentID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientID INT NOT NULL,
+    DoctorID INT NOT NULL,
+    ScheduleID INT NULL,                
+    AppointmentTime DATETIME NOT NULL,
+    Status NVARCHAR(30) DEFAULT 'Scheduled',
+    Notes NVARCHAR(255),
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctors(DoctorID),
+    FOREIGN KEY (ScheduleID) REFERENCES DoctorSchedules(ScheduleID)
+);
+
+/* ===========================================================
+   8) BỆNH ÁN
+   =========================================================== */
+CREATE TABLE MedicalRecords (
+    RecordID INT IDENTITY PRIMARY KEY,
+    AppointmentID INT NOT NULL,
+    Diagnosis NVARCHAR(255),
+    Advice NVARCHAR(255),
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (AppointmentID) REFERENCES Appointments(AppointmentID) ON DELETE CASCADE
+);
+GO
+
+/* ===========================================================
+   9) THUỐC & ĐƠN THUỐC
+   =========================================================== */
+CREATE TABLE Medicines (
+    MedicineID INT IDENTITY PRIMARY KEY,
+    Name NVARCHAR(150) NOT NULL UNIQUE,
+    Strength NVARCHAR(50) NULL,
+    UnitPrice DECIMAL(12,2) NULL,
+    Note NVARCHAR(255) NULL
+);
+GO
+
+CREATE TABLE Prescriptions (
+    PrescriptionID INT IDENTITY PRIMARY KEY,
+    RecordID INT NOT NULL,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    Notes NVARCHAR(255) NULL,
+    FOREIGN KEY (RecordID) REFERENCES MedicalRecords(RecordID) ON DELETE CASCADE
+);
+GO
+
+CREATE TABLE PrescriptionItems (
+    ItemID INT IDENTITY PRIMARY KEY,
+    PrescriptionID INT NOT NULL,
+    MedicineID INT NOT NULL,
+    Dosage NVARCHAR(50),
+    Duration NVARCHAR(50),
+    Note NVARCHAR(255) NULL,
+    FOREIGN KEY (PrescriptionID) REFERENCES Prescriptions(PrescriptionID) ON DELETE CASCADE,
+    FOREIGN KEY (MedicineID) REFERENCES Medicines(MedicineID)
+);
+GO
+
+/* ===========================================================
+   10) BÀI VIẾT
+   =========================================================== */
+CREATE TABLE Articles (
+    ArticleID INT IDENTITY(1,1) PRIMARY KEY,
+    Title NVARCHAR(200) NOT NULL,
+    Content NVARCHAR(MAX) NULL,
+    ImageURL NVARCHAR(500) NULL,            
+    AuthorID INT NOT NULL,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    Status NVARCHAR(20) DEFAULT 'ACTIVE',
+    FOREIGN KEY (AuthorID) REFERENCES Users(UserID)
+);
+
+/* ===========================================================
+   11) ĐÁNH GIÁ BÁC SĨ
+   =========================================================== */
+CREATE TABLE Reviews (
+    ReviewID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientID INT NOT NULL,
+    DoctorID INT NOT NULL,
+    Rating INT NOT NULL CHECK (Rating BETWEEN 1 AND 5),
+    Comment NVARCHAR(255) NULL,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    Status NVARCHAR(20) DEFAULT 'ACTIVE',
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctors(DoctorID)
+);
+GO
+
+/* ===========================================================
+   12) THANH TOÁN
+   =========================================================== */
+CREATE TABLE Payments (
+    PaymentID INT IDENTITY PRIMARY KEY,
+	OrderID NVARCHAR(100) NOT NULL UNIQUE,
+    AppointmentID INT NOT NULL,
+    Amount DECIMAL(12,2) NOT NULL,
+    Status NVARCHAR(20) DEFAULT 'Pending',
+	TransactionID NVARCHAR(100),
+	CreatedAt DATETIME DEFAULT GETDATE(),
+	UpdatedAt DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (AppointmentID) REFERENCES Appointments(AppointmentID)
+);
+GO
+
+/* ===========================================================
+   13) TIN NHẮN
+   =========================================================== */
+CREATE TABLE Conversations (
+    ConversationID INT IDENTITY(1,1) PRIMARY KEY,
+    PatientID INT NOT NULL,                   -- Ví dụ: Bệnh nhân
+    DoctorID INT NOT NULL,                   -- Ví dụ: Bác sĩ
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctors(DoctorID)
+);
+
+CREATE TABLE Messages (
+    MessageID INT IDENTITY(1,1) PRIMARY KEY,
+    ConversationID INT NOT NULL,
+    SenderID INT NOT NULL,
+    Content NVARCHAR(MAX),
+    AttachmentURL NVARCHAR(500),
+    SentAt DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (ConversationID) REFERENCES Conversations(ConversationID) ON DELETE CASCADE,
+	FOREIGN KEY (SenderID) REFERENCES Users(UserID)
+);
+GO
+/* ===========================================================
+   14) THÔNG BÁO
+   =========================================================== */
+CREATE TABLE SystemNotifications (
+    NotificationID INT IDENTITY(1,1) PRIMARY KEY,
+    Title NVARCHAR(200) NOT NULL,          
+    Message NVARCHAR(MAX) NOT NULL,
+    AppointmentID INT NULL,               
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (AppointmentID) REFERENCES Appointments(AppointmentID)
+);
+
+
+-- Insert Roles
+INSERT INTO roles (Name, Description) VALUES 
+('Admin', 'Qu?n tr? h? th?ng'),
+('Doctor', 'Bác s? có th? khám, t?o l?ch tr?nh, qu?n l? b?nh án'),
+('Patient', 'B?nh nhân có th? đ?t l?ch và tr? chuy?n v?i bác s?')
+
+-- Insert Departments
+INSERT INTO departments (department_name, Description, Status) VALUES 
+('Tim m?ch', 'Khoa Tim m?ch - Chuyên đi?u tr? các b?nh v? tim và m?ch máu', 'ACTIVE'),
+('Th?n kinh', 'Khoa Th?n kinh - Chuyên đi?u tr? các b?nh v? th?n kinh', 'ACTIVE'),
+('Ch?n thương ch?nh h?nh', 'Khoa Ch?n thương ch?nh h?nh - Chuyên đi?u tr? các b?nh v? xương kh?p', 'ACTIVE'),
+('Nhi khoa', 'Khoa Nhi - Chuyên khám và đi?u tr? cho tr? em', 'ACTIVE'),
+('N?i t?ng h?p', 'Khoa N?i t?ng h?p - Khám và đi?u tr? các b?nh n?i khoa', 'ACTIVE');
+
+-- Insert Users
+-- Admin
+INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
+VALUES ('admin@clinic.com', 'admin123', 'System', 'Admin', '0123456789', 'MALE', '1980-01-01', 'Hà N?i', 1, 'ACTIVE', GETDATE());
+
+-- Doctors
+INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
+VALUES ('doctor1@clinic.com', 'doctor123', 'Hùng', 'Nguy?n', '0987654321', 'MALE', '1975-05-10', 'HCM', 2, 'ACTIVE', GETDATE());
+
+INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
+VALUES ('doctor2@clinic.com', 'doctor123', 'Lan', 'Tr?n', '0977777777', 'FEMALE', '1982-08-15', 'Đà N?ng', 2, 'ACTIVE', GETDATE());
+
+-- Patients
+INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
+VALUES ('patient1@clinic.com', 'patient123', 'An', 'Ph?m', '0911111111', 'MALE', '2000-03-20', 'Hà N?i', 3, 'ACTIVE', GETDATE());
+
+INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
+VALUES ('patient2@clinic.com', 'patient123', 'Hoa', 'Ngô', '0922222222', 'FEMALE', '1995-07-12', 'HCM', 3, 'ACTIVE', GETDATE());
+
+-- patient1
+INSERT INTO patients(patientid, health_insurance_number, medical_history)
+SELECT u.UserID, NULL, NULL
+FROM Users u
+WHERE u.Email = 'patient1@clinic.com';
+
+-- patient2
+INSERT INTO patients(patientid, health_insurance_number, medical_history)
+SELECT u.UserID, NULL, NULL
+FROM Users u
+WHERE u.Email = 'patient2@clinic.com';
+
+-- Link doctor users to Doctors table with Departments
+INSERT INTO doctors(doctorid, departmentid, specialty, bio)
+SELECT u.UserID, 1, N'Tim mạch', N'Bác sĩ chuyên khoa tim mạch'
+FROM Users u WHERE u.Email = 'doctor1@clinic.com';
+
+INSERT INTO doctors(doctorid, departmentid, specialty, bio)
+SELECT u.UserID, 2, N'Thần kinh', N'Bác sĩ chuyên khoa thần kinh'
+FROM Users u WHERE u.Email = 'doctor2@clinic.com';
+
+
+-- Seed some DoctorSchedules for quick CRUD testing
+-- Today schedules for doctor1
+INSERT INTO doctor_schedules(doctorid, work_date, start_time, end_time, status, notes)
+SELECT u.UserID, CAST(GETDATE() AS DATE), '09:00', '11:00', N'Available', N'Khung giờ sáng'
+FROM Users u WHERE u.Email = 'doctor1@clinic.com';
+
+INSERT INTO doctor_schedules(doctorid, work_date, start_time, end_time, status, notes)
+SELECT u.UserID, CAST(GETDATE() AS DATE), '13:00', '15:00', N'Available', N'Khung giờ chiều'
+FROM Users u WHERE u.Email = 'doctor1@clinic.com';
+
+-- Tomorrow schedule for doctor2
+INSERT INTO doctor_schedules(doctorid, work_date, start_time, end_time, status, notes)
+SELECT u.UserID, DATEADD(DAY, 1, CAST(GETDATE() AS DATE)), '10:00', '12:00', N'Available', N'Lịch ngày mai'
+FROM Users u WHERE u.Email = 'doctor2@clinic.com';
+
+select * from users
+select * from doctors
+select * from patients
+select * from doctor_schedules
+select * from appointments
+
+delete from appointments
+delete from doctor_schedules
