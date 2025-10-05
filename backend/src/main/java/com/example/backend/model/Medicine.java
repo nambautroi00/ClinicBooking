@@ -1,11 +1,18 @@
 package com.example.backend.model;
 
-import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.util.List;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -22,6 +29,7 @@ public class Medicine {
 
     private String strength;
     private BigDecimal unitPrice;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String note;
 
     @OneToMany(mappedBy = "medicine")

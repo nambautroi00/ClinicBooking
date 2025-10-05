@@ -1,10 +1,18 @@
 package com.example.backend.model;
 
-import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -20,7 +28,9 @@ public class MedicalRecord {
     @JoinColumn(name = "AppointmentID", nullable = false)
     private Appointment appointment;
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String diagnosis;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String advice;
 
     private LocalDateTime createdAt;
