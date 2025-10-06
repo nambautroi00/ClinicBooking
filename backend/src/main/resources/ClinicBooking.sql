@@ -303,5 +303,27 @@ select * from patients
 select * from doctor_schedules
 select * from appointments
 
+insert into appointments(patientid, doctorid, scheduleid, start_time, end_time, notes, fee)
+
 delete from appointments
 delete from doctor_schedules
+
+-- 1. MEDICINES (Thuốc) - Dữ liệu chính để test
+-- ===============================================  
+INSERT INTO medicines(name, strength, unit_price, note) VALUES
+(N'Paracetamol', '500mg', 2000.00, N'Thuốc giảm đau hạ sốt'),
+(N'Ibuprofen', '400mg', 3500.00, N'Thuốc chống viêm'),
+(N'Amoxicillin', '250mg', 15000.00, N'Thuốc kháng sinh'),
+(N'Vitamin C', '1000mg', 1500.00, N'Bổ sung vitamin'),
+(N'Aspirin', '325mg', 2500.00, N'Thuốc giảm đau chống viêm'),
+(N'Metformin', '500mg', 5000.00, N'Thuốc điều trị tiểu đường'),
+(N'Loratadine', '10mg', 4000.00, N'Thuốc chống dị ứng'),
+(N'Omeprazole', '20mg', 6500.00, N'Thuốc điều trị loét dạ dày'),
+(N'Atorvastatin', '10mg', 8000.00, N'Thuốc hạ cholesterol'),
+(N'Lisinopril', '10mg', 7500.00, N'Thuốc hạ huyết áp');
+
+
+-- 2. MEDICAL RECORDS (Bệnh án) dữ liệu mẫu cho MedicalRecords dựa trên appointments có sẵn
+INSERT INTO medical_records (appointmentid, diagnosis, advice, created_at) VALUES
+(1, 'Tăng huyết áp nhẹ, cần theo dõi định kỳ', 'Giảm muối trong ăn uống, tập thể dục nhẹ nhàng, đo huyết áp hàng ngày. Tái khám sau 2 tuần để điều chỉnh thuốc nếu cần.', '2025-10-07 09:35:00'),
+(2, 'Viêm họng cấp do nhiễm khuẩn', 'Uống kháng sinh theo đơn đầy đủ, nghỉ ngơi nhiều, uống nước ấm. Tránh thức ăn cay nóng. Tái khám nếu triệu chứng không giảm sau 3 ngày.', '2025-10-07 15:35:00');
