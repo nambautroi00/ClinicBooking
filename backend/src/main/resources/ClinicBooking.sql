@@ -1,4 +1,4 @@
-﻿CREATE DATABASE CLINIC;
+﻿ CREATE DATABASE CLINIC;
 GO
 USE CLINIC;
 GO
@@ -327,3 +327,23 @@ INSERT INTO medicines(name, strength, unit_price, note) VALUES
 INSERT INTO medical_records (appointmentid, diagnosis, advice, created_at) VALUES
 (1, 'Tăng huyết áp nhẹ, cần theo dõi định kỳ', 'Giảm muối trong ăn uống, tập thể dục nhẹ nhàng, đo huyết áp hàng ngày. Tái khám sau 2 tuần để điều chỉnh thuốc nếu cần.', '2025-10-07 09:35:00'),
 (2, 'Viêm họng cấp do nhiễm khuẩn', 'Uống kháng sinh theo đơn đầy đủ, nghỉ ngơi nhiều, uống nước ấm. Tránh thức ăn cay nóng. Tái khám nếu triệu chứng không giảm sau 3 ngày.', '2025-10-07 15:35:00');
+
+select * from medicines
+select * from medical_records
+select * from prescriptions
+select * from prescription_items
+
+-- 3. Thêm prescriptions cho 2 medical records
+-- Prescription cho Medical Record ID = 1 (Tăng huyết áp)
+INSERT INTO prescriptions (recordid, created_at, notes) VALUES
+(1, '2025-10-07 09:40:00', 'Thuốc hạ huyết áp, uống đúng giờ. Theo dõi huyết áp hàng ngày và ghi chép lại.'),
+(2, '2025-10-07 15:40:00', 'Thuốc kháng sinh và chống viêm cho viêm họng. Uống đủ liệu trình.');
+
+-- 4. Thêm prescription items (chi tiết từng loại thuốc trong đơn) - ĐÃ SỬA
+-- Prescription Items cho Prescription ID = 1 (Tăng huyết áp - cần thuốc hạ huyết áp)
+INSERT INTO prescription_items (prescriptionid, medicineid, dosage, duration, note) VALUES
+(3, 10, '1 viên/ngày, uống vào buổi sáng', '30 ngày', 'Uống cùng với thức ăn để giảm kích ứng dạ dày'),
+(4, 3, '1 viên x 3 lần/ngày, uống trước ăn 30 phút', '7 ngày', 'Uống đủ liệu trình kể cả khi đã hết triệu chứng');
+
+
+
