@@ -48,12 +48,12 @@ public class User {
 
     @NotBlank(message = "Tên không được để trống")
     @Size(max = 50, message = "Tên không được quá 50 ký tự")
-    @Column(name = "FirstName", nullable = false)
+    @Column(name = "FirstName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String firstName;
 
     @NotBlank(message = "Họ không được để trống")
     @Size(max = 50, message = "Họ không được quá 50 ký tự")
-    @Column(name = "LastName", nullable = false)
+    @Column(name = "LastName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String lastName;
 
     @Size(max = 20, message = "Số điện thoại không được quá 20 ký tự")
@@ -68,7 +68,7 @@ public class User {
     private LocalDate dateOfBirth;
 
     @Size(max = 255, message = "Địa chỉ không được quá 255 ký tự")
-    @Column(name = "Address")
+    @Column(name = "Address", columnDefinition = "NVARCHAR(MAX)")
     private String address;
 
     @CreationTimestamp
