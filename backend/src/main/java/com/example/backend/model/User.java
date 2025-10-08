@@ -1,9 +1,10 @@
 package com.example.backend.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.hibernate.annotations.CreationTimestamp;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,7 +15,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -23,33 +23,22 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Entity class cho bảng Users
- * Chứa thông tin cơ bản của người dùng trong hệ thống
- */
 @Entity
 @Table(name = "Users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
-    /**
-     * Primary key của bảng Users
-     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "userid")
-    private Long userId;
+    @Column(name = "UserID")
+    private Long id;
 
-    /**
-     * Email của người dùng (unique, not null)
-     */
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không hợp lệ")
     @Size(max = 100, message = "Email không được quá 100 ký tự")
-    @Column(name = "email", unique = true, nullable = false )
+    @Column(name = "Email", unique = true, nullable = false)
     private String email;
 
     @NotBlank(message = "Mật khẩu không được để trống")
@@ -57,88 +46,48 @@ public class User {
     @Column(name = "PasswordHash", nullable = false)
     private String passwordHash;
 
-    /**
-     * Tên của người dùng
-     */
     @NotBlank(message = "Tên không được để trống")
     @Size(max = 50, message = "Tên không được quá 50 ký tự")
-    @Column(name = "first_name", nullable = false, columnDefinition = "NVARCHAR(50)")
+    @Column(name = "FirstName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String firstName;
 
-    /**
-     * Họ của người dùng
-     */
     @NotBlank(message = "Họ không được để trống")
     @Size(max = 50, message = "Họ không được quá 50 ký tự")
-    @Column(name = "last_name", nullable = false, columnDefinition = "NVARCHAR(50)")
+    @Column(name = "LastName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String lastName;
 
-    /**
-     * Số điện thoại
-     */
     @Size(max = 20, message = "Số điện thoại không được quá 20 ký tự")
-    @Column(name = "phone" )
+    @Column(name = "Phone")
     private String phone;
 
-    /**
-     * Giới tính
-     */
     @Enumerated(EnumType.STRING)
-    @Column(name = "gender")
+    @Column(name = "Gender")
     private Gender gender;
 
-    /**
-     * Ngày sinh
-     */
-    @Column(name = "date_of_birth")
+    @Column(name = "DOB")
     private LocalDate dateOfBirth;
 
-    /**
-     * Địa chỉ
-     */
     @Size(max = 255, message = "Địa chỉ không được quá 255 ký tự")
-    @Column(name = "address", columnDefinition = "NVARCHAR(255)")
+    @Column(name = "Address", columnDefinition = "NVARCHAR(MAX)")
     private String address;
 
-    /**
-     * Trạng thái của người dùng
-     */
+    @CreationTimestamp
+    @Column(name = "CreatedAt", updatable = false)
+    private LocalDateTime createdAt;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "Status")
     private UserStatus status = UserStatus.ACTIVE;
 
-    /**
-     * Foreign key tới bảng Roles
-     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "roleid", referencedColumnName = "roleid", nullable = false)
+    @JoinColumn(name = "RoleID", referencedColumnName = "RoleID", nullable = false)
     private Role role;
 
-    /**
-     * Quan hệ OneToOne với Doctor (nếu user là doctor)
-     * @JsonIgnore để tránh LazyInitializationException khi serialize JSON
-     */
-    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
-    @JsonIgnore
-    private Doctor doctor;
-
-    /**
-     * Quan hệ OneToOne với Patient (nếu user là patient)
-     * @JsonIgnore để tránh LazyInitializationException khi serialize JSON
-     */
-    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
-    @JsonIgnore
-    private Patient patient;
-
-    /**
-     * Enum cho giới tính
-     */
     public enum Gender {
         MALE("M"), FEMALE("F"), OTHER("O");
         
         private final String code;
-        
-        Gender(String code) {
+Gender(String code) {
             this.code = code;
         }
         
@@ -147,38 +96,7 @@ public class User {
         }
     }
 
-    /**
-     * Enum cho trạng thái người dùng
-     */
     public enum UserStatus {
         ACTIVE, INACTIVE, SUSPENDED, DELETED
     }
-
-    /**
-     * Kiểm tra xem user có phải là Doctor không
-     * @return true nếu roleid = 2 (Doctor)
-     */
-    public boolean isDoctor() {
-        try {
-            return this.role != null && this.role.getId() != null && this.role.getId() == 2L;
-        } catch (Exception e) {
-            // Tránh lỗi Hibernate proxy
-            return false;
-        }
-    }
-
-    /**
-     * Kiểm tra xem user có phải là Patient không
-     * @return true nếu roleid = 3 (Patient)
-     */
-    public boolean isPatient() {
-        try {
-            return this.role != null && this.role.getId() != null && this.role.getId() == 3L;
-        } catch (Exception e) {
-            // Tránh lỗi Hibernate proxy
-            return false;
-        }
-    }
 }
-
-
