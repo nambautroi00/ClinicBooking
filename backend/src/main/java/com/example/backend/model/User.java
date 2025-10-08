@@ -49,7 +49,7 @@ public class User {
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không hợp lệ")
     @Size(max = 100, message = "Email không được quá 100 ký tự")
-    @Column(name = "email", unique = true, nullable = false)
+    @Column(name = "email", unique = true, nullable = false )
     private String email;
 
     @NotBlank(message = "Mật khẩu không được để trống")
@@ -62,7 +62,7 @@ public class User {
      */
     @NotBlank(message = "Tên không được để trống")
     @Size(max = 50, message = "Tên không được quá 50 ký tự")
-    @Column(name = "first_name", nullable = false)
+    @Column(name = "first_name", nullable = false, columnDefinition = "NVARCHAR(50)")
     private String firstName;
 
     /**
@@ -70,14 +70,14 @@ public class User {
      */
     @NotBlank(message = "Họ không được để trống")
     @Size(max = 50, message = "Họ không được quá 50 ký tự")
-    @Column(name = "last_name", nullable = false)
+    @Column(name = "last_name", nullable = false, columnDefinition = "NVARCHAR(50)")
     private String lastName;
 
     /**
      * Số điện thoại
      */
     @Size(max = 20, message = "Số điện thoại không được quá 20 ký tự")
-    @Column(name = "phone")
+    @Column(name = "phone" )
     private String phone;
 
     /**
@@ -97,7 +97,7 @@ public class User {
      * Địa chỉ
      */
     @Size(max = 255, message = "Địa chỉ không được quá 255 ký tự")
-    @Column(name = "address")
+    @Column(name = "address", columnDefinition = "NVARCHAR(255)")
     private String address;
 
     /**
