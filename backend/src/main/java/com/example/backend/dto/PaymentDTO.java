@@ -49,10 +49,14 @@ public class PaymentDTO {
     public static class ResponseDTO {
         private Long paymentId;
         private Long appointmentId;
-        private String paymentMethod;
-        private String paymentStatus;
+        private String orderId;
+        private java.math.BigDecimal amount;
+        private String status;
+        private String transactionId;
+        private String description;
+        private LocalDateTime createdAt;
         private LocalDateTime paidAt;
-        private String notes;
+        private LocalDateTime updatedAt;
     }
 }
 

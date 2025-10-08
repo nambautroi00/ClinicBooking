@@ -1,13 +1,12 @@
+
 package com.example.backend.service;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.backend.dto.PaymentDTO;
-import com.example.backend.exception.NotFoundException;
-import com.example.backend.mapper.PaymentMapper;
 import com.example.backend.model.Appointment;
 import com.example.backend.model.Payment;
 import com.example.backend.repository.AppointmentRepository;
@@ -19,69 +18,70 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional
 public class PaymentService {
-
     private final PaymentRepository paymentRepository;
     private final AppointmentRepository appointmentRepository;
-    private final PaymentMapper paymentMapper;
+    private final EmailService emailService;
 
-    @Transactional(readOnly = true)
-    public Page<PaymentDTO.ResponseDTO> getAllPayments(Pageable pageable) {
-        return paymentRepository.findAll(pageable)
-                .map(paymentMapper::entityToResponseDTO);
+    public Payment createPayment(String orderId, Long appointmentId, java.math.BigDecimal amount, String description) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new RuntimeException("Appointment not found: " + appointmentId));
+        Payment payment = new Payment();
+        payment.setOrderId(orderId);
+        payment.setAppointment(appointment);
+        payment.setAmount(amount);
+        payment.setDescription(description);
+        payment.setStatus("Pending");
+        payment.setCreatedAt(LocalDateTime.now());
+        payment.setUpdatedAt(LocalDateTime.now());
+        return paymentRepository.save(payment);
     }
 
-    @Transactional(readOnly = true)
-    public PaymentDTO.ResponseDTO getPaymentById(Long id) {
-        Payment payment = findPaymentById(id);
-        return paymentMapper.entityToResponseDTO(payment);
-    }
+    @Transactional
+    public Payment updatePaymentStatus(String orderId, String transactionId, boolean success) {
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + orderId));
 
-    @Transactional(readOnly = true)
-    public Page<PaymentDTO.ResponseDTO> searchPayments(String status, String method, Long appointmentId, Pageable pageable) {
-        return paymentRepository.findPaymentsWithFilters(status, method, appointmentId, pageable)
-                .map(paymentMapper::entityToResponseDTO);
-    }
+        if (success) {
+            payment.setStatus("Paid");
+            payment.setTransactionId(transactionId);
+            payment.setPaidAt(LocalDateTime.now());
 
-    public PaymentDTO.ResponseDTO createPayment(PaymentDTO.Create createDTO) {
-        Appointment appointment = appointmentRepository.findById(createDTO.getAppointmentId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc hẹn với ID: " + createDTO.getAppointmentId()));
-
-        Payment payment = paymentMapper.createDTOToEntity(createDTO, appointment);
-        Payment saved = paymentRepository.save(payment);
-        return paymentMapper.entityToResponseDTO(saved);
-    }
-
-    public PaymentDTO.ResponseDTO updatePayment(Long id, PaymentDTO.Update updateDTO) {
-        Payment payment = findPaymentById(id);
-
-        if (updateDTO.getPaymentMethod() != null) {
-            payment.setPaymentMethod(updateDTO.getPaymentMethod());
+            Appointment appointment = payment.getAppointment();
+            if (appointment != null) {
+                appointment.setStatus("Paid");
+                appointmentRepository.save(appointment);
+                // send receipt/confirmation to patient
+                try {
+                    String patientEmail = appointment.getPatient() != null && appointment.getPatient().getUser() != null
+                            ? appointment.getPatient().getUser().getEmail()
+                            : null;
+                    String subject = "Xác nhận thanh toán";
+                    String body = String.format("Thanh toán cho lịch khám (ID: %s) đã thành công. Mã giao dịch: %s", appointment.getAppointmentId(), transactionId);
+                    emailService.sendSimpleEmail(patientEmail, subject, body);
+                } catch (Exception ex) {
+                    // ignore email failures
+                }
+            }
+        } else {
+            payment.setStatus("Failed");
         }
-        if (updateDTO.getPaymentStatus() != null) {
-            payment.setPaymentStatus(updateDTO.getPaymentStatus());
-        }
-        if (updateDTO.getPaidAt() != null) {
-            payment.setPaidAt(updateDTO.getPaidAt());
-        }
-        if (updateDTO.getNotes() != null) {
-            payment.setNotes(updateDTO.getNotes());
-        }
 
-        Payment updated = paymentRepository.save(payment);
-        return paymentMapper.entityToResponseDTO(updated);
+        payment.setUpdatedAt(LocalDateTime.now());
+        return paymentRepository.save(payment);
     }
-
-    public void deletePayment(Long id) {
-        // Hard delete cho Payment (không có cờ status soft delete ở model)
-        if (!paymentRepository.existsById(id)) {
-            throw new NotFoundException("Không tìm thấy thanh toán với ID: " + id);
-        }
-        paymentRepository.deleteById(id);
+   
+    public String generateQrUrl(String description, java.math.BigDecimal amount) {
+        String addInfo = java.net.URLEncoder.encode(description, java.nio.charset.StandardCharsets.UTF_8);
+        return "https://img.vietqr.io/image/MB-1021072004-compact.png?amount="
+                + amount.longValue() + "&addInfo=" + addInfo;
     }
-
-    private Payment findPaymentById(Long id) {
-        return paymentRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy thanh toán với ID: " + id));
+    public java.util.List<Payment> getPaymentsByPatientId(Long patientId) {
+        // Lấy tất cả payment theo patientId qua appointment
+        return paymentRepository.findAll().stream()
+            .filter(p -> p.getAppointment() != null &&
+                p.getAppointment().getPatient() != null &&
+                patientId.equals(p.getAppointment().getPatient().getPatientId()))
+            .toList();
     }
 }
 

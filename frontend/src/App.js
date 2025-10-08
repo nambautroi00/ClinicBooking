@@ -1,24 +1,49 @@
-import logo from "./logo.svg";
-import "./App.css";
+import React from 'react';
+import { BrowserRouter as Router, useLocation } from 'react-router-dom';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import './App.css';
+
+// Import components
+import Header from './components/layout/Header';
+import Sidebar from './components/layout/Sidebar';
+import Footer from './components/layout/Footer';
+import AppRoutes from './routes/AppRoutes';
+
+const AppContent = () => {
+  const location = useLocation();
+  const isDoctorRoute = location.pathname.startsWith('/doctor');
+
+  // Nếu đang ở trong doctor layout, không hiển thị header/sidebar chính
+  if (isDoctorRoute) {
+    return <AppRoutes />;
+  }
+
+  // Layout chính cho các trang khác
+  return (
+    <div className="App">
+      <Header />
+      
+      <div className="container-fluid">
+        <div className="row">
+          <Sidebar />
+          
+          <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <AppRoutes />
+          </main>
+        </div>
+      </div>
+      
+      <Footer />
+    </div>
+  );
+};
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

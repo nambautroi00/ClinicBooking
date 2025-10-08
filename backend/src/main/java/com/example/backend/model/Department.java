@@ -28,11 +28,11 @@ public class Department {
 
     @NotBlank(message = "Tên khoa không được để trống")
     @Size(max = 100, message = "Tên khoa không được quá 100 ký tự")
-    @Column(name = "DepartmentName", nullable = false)
+    @Column(name = "DepartmentName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String departmentName;
 
     @Size(max = 255, message = "Mô tả không được quá 255 ký tự")
-    @Column(name = "Description")
+    @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @Enumerated(EnumType.STRING)
