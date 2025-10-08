@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final AppointmentRepository appointmentRepository;
+    private final EmailService emailService;
 
     public Payment createPayment(String orderId, Long appointmentId, java.math.BigDecimal amount, String description) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
@@ -49,6 +50,17 @@ public class PaymentService {
             if (appointment != null) {
                 appointment.setStatus("Paid");
                 appointmentRepository.save(appointment);
+                // send receipt/confirmation to patient
+                try {
+                    String patientEmail = appointment.getPatient() != null && appointment.getPatient().getUser() != null
+                            ? appointment.getPatient().getUser().getEmail()
+                            : null;
+                    String subject = "Xác nhận thanh toán";
+                    String body = String.format("Thanh toán cho lịch khám (ID: %s) đã thành công. Mã giao dịch: %s", appointment.getAppointmentId(), transactionId);
+                    emailService.sendSimpleEmail(patientEmail, subject, body);
+                } catch (Exception ex) {
+                    // ignore email failures
+                }
             }
         } else {
             payment.setStatus("Failed");

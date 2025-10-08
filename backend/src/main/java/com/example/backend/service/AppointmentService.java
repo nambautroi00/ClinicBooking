@@ -29,6 +29,7 @@ public class AppointmentService {
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository doctorScheduleRepository;
     private final AppointmentMapper appointmentMapper;
+    private final EmailService emailService;
 
     public AppointmentDTO.Response create(AppointmentDTO.Create dto) {
         Patient patient = patientRepository.findById(dto.getPatientId())
@@ -56,6 +57,13 @@ public class AppointmentService {
         return appointmentMapper.entityToResponseDTO(saved);
     }
 
+    // Helper to send notification emails for appointment events
+    private void notifyPatient(Appointment appointment, String subject, String body) {
+        if (appointment == null || appointment.getPatient() == null || appointment.getPatient().getUser() == null) return;
+        String email = appointment.getPatient().getUser().getEmail();
+        emailService.sendSimpleEmail(email, subject, body);
+    }
+
     @Transactional(readOnly = true)
     public AppointmentDTO.Response getById(Long appointmentId) {
         Appointment entity = appointmentRepository.findById(appointmentId)
@@ -80,6 +88,13 @@ public class AppointmentService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc hẹn với ID: " + appointmentId));
         appointmentMapper.applyUpdateToEntity(entity, dto);
         Appointment saved = appointmentRepository.save(entity);
+        try {
+            String subject = "Lịch khám đã được cập nhật";
+            String body = "Lịch khám của bạn đã được cập nhật. Vui lòng kiểm tra chi tiết trong ứng dụng.";
+            notifyPatient(saved, subject, body);
+        } catch (Exception ex) {
+            // swallow - email failures shouldn't prevent update
+        }
         return appointmentMapper.entityToResponseDTO(saved);
     }
 
@@ -104,6 +119,13 @@ public class AppointmentService {
         }
         
         Appointment saved = appointmentRepository.save(entity);
+        try {
+            String subject = "Lịch khám đã bị hủy";
+            String body = "Lịch khám của bạn đã bị hủy. Vui lòng liên hệ nếu cần đặt lại.";
+            notifyPatient(saved, subject, body);
+        } catch (Exception ex) {
+            // ignore
+        }
         return appointmentMapper.entityToResponseDTO(saved);
     }
     

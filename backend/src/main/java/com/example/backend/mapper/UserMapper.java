@@ -27,7 +27,7 @@ public class UserMapper {
 
     public UserDTO.Response entityToResponseDTO(User user) {
         UserDTO.Response dto = new UserDTO.Response();
-        dto.setId(user.getId());
+        dto.setId(user.getUserId());
         dto.setEmail(user.getEmail());
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());
@@ -35,7 +35,7 @@ public class UserMapper {
         dto.setGender(user.getGender());
         dto.setDateOfBirth(user.getDateOfBirth());
         dto.setAddress(user.getAddress());
-        dto.setCreatedAt(user.getCreatedAt());
+        // dto.setCreatedAt(user.getCreatedAt()); // Commented out - field not in new User entity
         dto.setStatus(user.getStatus());
 
         if (user.getRole() != null) {

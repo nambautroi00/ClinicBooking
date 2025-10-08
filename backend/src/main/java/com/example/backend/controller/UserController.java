@@ -1,29 +1,22 @@
 package com.example.backend.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.example.backend.constant.AppConstants;
-import com.example.backend.dto.UserDTO;
 import com.example.backend.model.User;
 import com.example.backend.service.UserService;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * REST Controller cho User entity
+ * Cung cấp các API endpoints để quản lý thông tin người dùng
+ */
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -32,71 +25,247 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping(value = {"", "/"})
-    public ResponseEntity<Page<UserDTO.Response>> getAllUsers(
-            @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = AppConstants.DEFAULT_SORT_FIELD) Pageable pageable) {
-        System.out.println("DEBUG: Getting all users");
-        Page<UserDTO.Response> users = userService.getAllUsers(pageable);
-        System.out.println("DEBUG: Found " + users.getTotalElements() + " users");
+    /**
+     * Lấy tất cả user với thông tin role
+     * GET /api/users
+     */
+    @GetMapping
+    public ResponseEntity<Page<User>> getAllUsersWithRole(Pageable pageable) {
+        Page<User> users = userService.getAllUsersWithRole(pageable);
         return ResponseEntity.ok(users);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<UserDTO.Response> getUserById(@PathVariable Long id) {
-        System.out.println("DEBUG: Getting user with ID: " + id);
-        UserDTO.Response user = userService.getUserById(id);
-        System.out.println("DEBUG: Found user: " + user.getEmail());
+    /**
+     * Lấy user theo ID với thông tin role
+     * GET /api/users/{userId}
+     */
+    @GetMapping("/{userId}")
+    public ResponseEntity<User> getUserByIdWithRole(@PathVariable Long userId) {
+        User user = userService.getUserByIdWithRole(userId);
         return ResponseEntity.ok(user);
     }
 
+    /**
+     * Lấy user theo email với thông tin role
+     * GET /api/users/email/{email}
+     */
     @GetMapping("/email/{email}")
-    public ResponseEntity<UserDTO.Response> getUserByEmail(@PathVariable String email) {
-        System.out.println("DEBUG: Getting user with email: " + email);
-        UserDTO.Response user = userService.getUserByEmail(email);
-        System.out.println("DEBUG: Found user: " + user.getFirstName() + " " + user.getLastName());
+    public ResponseEntity<User> getUserByEmailWithRole(@PathVariable String email) {
+        User user = userService.getUserByEmailWithRole(email);
         return ResponseEntity.ok(user);
     }
 
+    /**
+     * Tìm user với các bộ lọc
+     * GET /api/users/search?email=...&firstName=...&lastName=...&status=...&roleId=...
+     */
     @GetMapping("/search")
-    public ResponseEntity<Page<UserDTO.Response>> searchUsers(
+    public ResponseEntity<Page<User>> searchUsersWithFilters(
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String firstName,
             @RequestParam(required = false) String lastName,
             @RequestParam(required = false) User.UserStatus status,
             @RequestParam(required = false) Long roleId,
-            @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = AppConstants.DEFAULT_SORT_FIELD) Pageable pageable) {
+            Pageable pageable) {
         
-        System.out.println("DEBUG: Searching users with filters - email: " + email + ", firstName: " + firstName);
-        Page<UserDTO.Response> users = userService.searchUsers(email, firstName, lastName, status, roleId, pageable);
-        System.out.println("DEBUG: Found " + users.getTotalElements() + " users");
+        Page<User> users = userService.searchUsersWithFilters(email, firstName, lastName, status, roleId, pageable);
         return ResponseEntity.ok(users);
     }
 
+    /**
+     * Lấy tất cả user cùng dữ liệu Doctor/Patient nếu có
+     * GET /api/users/with-roles-info
+     */
+    @GetMapping("/with-roles-info")
+    public ResponseEntity<List<User>> getAllUsersWithDoctorAndPatientInfo() {
+        List<User> users = userService.getAllUsersWithDoctorAndPatientInfo();
+        return ResponseEntity.ok(users);
+    }
+
+    /**
+     * Lấy user theo roleId với thông tin Doctor/Patient
+     * GET /api/users/role/{roleId}/with-roles-info
+     */
+    @GetMapping("/role/{roleId}/with-roles-info")
+    public ResponseEntity<List<User>> getUsersByRoleIdWithDoctorAndPatientInfo(@PathVariable Long roleId) {
+        List<User> users = userService.getUsersByRoleIdWithDoctorAndPatientInfo(roleId);
+        return ResponseEntity.ok(users);
+    }
+
+    /**
+     * Tìm user theo tên với thông tin Doctor/Patient
+     * GET /api/users/search-with-roles-info?keyword={keyword}
+     */
+    @GetMapping("/search-with-roles-info")
+    public ResponseEntity<List<User>> getUsersByNameWithDoctorAndPatientInfo(@RequestParam String keyword) {
+        List<User> users = userService.getUsersByNameWithDoctorAndPatientInfo(keyword);
+        return ResponseEntity.ok(users);
+    }
+
+    /**
+     * Tạo user mới
+     * POST /api/users
+     */
     @PostMapping
-    public ResponseEntity<UserDTO.Response> createUser(@Valid @RequestBody UserDTO.Create createDTO) {
-        UserDTO.Response createdUser = userService.createUser(createDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+    public ResponseEntity<User> createUser(@RequestBody CreateUserRequest request) {
+        User user = userService.createUser(
+            request.getEmail(),
+            request.getPasswordHash(),
+            request.getFirstName(),
+            request.getLastName(),
+            request.getPhone(),
+            request.getGender(),
+            request.getDateOfBirth(),
+            request.getAddress(),
+            request.getRoleId()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 
-    @PutMapping(AppConstants.USER_BY_ID)
-    public ResponseEntity<UserDTO.Response> updateUser(
-            @PathVariable Long id,
-            @Valid @RequestBody UserDTO.Update updateDTO) {
-        UserDTO.Response updatedUser = userService.updateUser(id, updateDTO);
-        return ResponseEntity.ok(updatedUser);
+    /**
+     * Cập nhật thông tin user
+     * PUT /api/users/{userId}
+     */
+    @PutMapping("/{userId}")
+    public ResponseEntity<User> updateUser(@PathVariable Long userId, @RequestBody UpdateUserRequest request) {
+        User user = userService.updateUser(
+            userId,
+            request.getEmail(),
+            request.getFirstName(),
+            request.getLastName(),
+            request.getPhone(),
+            request.getGender(),
+            request.getDateOfBirth(),
+            request.getAddress(),
+            request.getStatus(),
+            request.getRoleId()
+        );
+        return ResponseEntity.ok(user);
     }
 
-    @DeleteMapping(AppConstants.USER_BY_ID)
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
+    /**
+     * Xóa user (soft delete)
+     * DELETE /api/users/{userId}
+     */
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        userService.deleteUser(userId);
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping(AppConstants.HARD_DELETE_USER)
-    public ResponseEntity<Void> hardDeleteUser(@PathVariable Long id) {
-        userService.hardDeleteUser(id);
+    /**
+     * Xóa user vĩnh viễn (hard delete)
+     * DELETE /api/users/{userId}/hard
+     */
+    @DeleteMapping("/{userId}/hard")
+    public ResponseEntity<Void> hardDeleteUser(@PathVariable Long userId) {
+        userService.hardDeleteUser(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Đếm số user theo roleId
+     * GET /api/users/count-by-role/{roleId}
+     */
+    @GetMapping("/count-by-role/{roleId}")
+    public ResponseEntity<Long> countUsersByRoleId(@PathVariable Long roleId) {
+        long count = userService.countUsersByRoleId(roleId);
+        return ResponseEntity.ok(count);
+    }
+
+    /**
+     * Kiểm tra email đã tồn tại chưa
+     * GET /api/users/check-email/{email}
+     */
+    @GetMapping("/check-email/{email}")
+    public ResponseEntity<Boolean> isEmailExists(@PathVariable String email) {
+        boolean exists = userService.isEmailExists(email);
+        return ResponseEntity.ok(exists);
+    }
+
+    /**
+     * Request DTO cho tạo user mới
+     */
+    public static class CreateUserRequest {
+        private String email;
+        private String passwordHash;
+        private String firstName;
+        private String lastName;
+        private String phone;
+        private User.Gender gender;
+        private java.time.LocalDate dateOfBirth;
+        private String address;
+        private Long roleId;
+
+        // Getters and Setters
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        
+        public String getPasswordHash() { return passwordHash; }
+        public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+        
+        public String getFirstName() { return firstName; }
+        public void setFirstName(String firstName) { this.firstName = firstName; }
+        
+        public String getLastName() { return lastName; }
+        public void setLastName(String lastName) { this.lastName = lastName; }
+        
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        
+        public User.Gender getGender() { return gender; }
+        public void setGender(User.Gender gender) { this.gender = gender; }
+        
+        public java.time.LocalDate getDateOfBirth() { return dateOfBirth; }
+        public void setDateOfBirth(java.time.LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+        
+        public String getAddress() { return address; }
+        public void setAddress(String address) { this.address = address; }
+        
+        public Long getRoleId() { return roleId; }
+        public void setRoleId(Long roleId) { this.roleId = roleId; }
+    }
+
+    /**
+     * Request DTO cho cập nhật user
+     */
+    public static class UpdateUserRequest {
+        private String email;
+        private String firstName;
+        private String lastName;
+        private String phone;
+        private User.Gender gender;
+        private java.time.LocalDate dateOfBirth;
+        private String address;
+        private User.UserStatus status;
+        private Long roleId;
+
+        // Getters and Setters
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        
+        public String getFirstName() { return firstName; }
+        public void setFirstName(String firstName) { this.firstName = firstName; }
+        
+        public String getLastName() { return lastName; }
+        public void setLastName(String lastName) { this.lastName = lastName; }
+        
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        
+        public User.Gender getGender() { return gender; }
+        public void setGender(User.Gender gender) { this.gender = gender; }
+        
+        public java.time.LocalDate getDateOfBirth() { return dateOfBirth; }
+        public void setDateOfBirth(java.time.LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+        
+        public String getAddress() { return address; }
+        public void setAddress(String address) { this.address = address; }
+        
+        public User.UserStatus getStatus() { return status; }
+        public void setStatus(User.UserStatus status) { this.status = status; }
+        
+        public Long getRoleId() { return roleId; }
+        public void setRoleId(Long roleId) { this.roleId = roleId; }
     }
 }
-
-

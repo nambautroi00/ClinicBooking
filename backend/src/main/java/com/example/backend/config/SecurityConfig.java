@@ -19,14 +19,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.disable()) // Disable CORS temporarily for testing
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/auth/**").permitAll()  // Cho phép tất cả auth endpoints
-                .requestMatchers("/api/users/**").permitAll() // Cho phép user endpoints (temporary)
-                .requestMatchers("/api/roles/**").permitAll() // Cho phép role endpoints (temporary)
-                .requestMatchers("/api/departments/**").permitAll() // Cho phép department endpoints (temporary)
-                .requestMatchers("/api/patients/**").permitAll() // Cho phép patient endpoints (temporary)
-                .requestMatchers("/api/doctors/**").permitAll() // Cho phép doctor endpoints (temporary)
-                .requestMatchers("/test-mail").permitAll() // Test endpoint
-                .anyRequest().permitAll() // Temporarily allow all requests for debugging
+                .anyRequest().permitAll() // Allow all requests for testing
             );
         return http.build();
     }

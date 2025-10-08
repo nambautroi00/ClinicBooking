@@ -87,8 +87,7 @@ public class User {
         MALE("M"), FEMALE("F"), OTHER("O");
         
         private final String code;
-        
-        Gender(String code) {
+Gender(String code) {
             this.code = code;
         }
         
@@ -101,5 +100,3 @@ public class User {
         ACTIVE, INACTIVE, SUSPENDED, DELETED
     }
 }
-
-
