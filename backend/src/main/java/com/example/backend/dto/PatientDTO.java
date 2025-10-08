@@ -2,6 +2,7 @@ package com.example.backend.dto;
 
 import java.time.LocalDate;
 
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,6 +14,7 @@ public class PatientDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Create {
+        @NotNull(message = "ID người dùng không được để trống")
         private Long userId;
 
         @Size(max = 50, message = "Số bảo hiểm y tế không được quá 50 ký tự")

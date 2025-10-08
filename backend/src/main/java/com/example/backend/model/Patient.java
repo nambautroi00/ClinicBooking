@@ -1,5 +1,6 @@
 package com.example.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,39 +8,78 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * Entity class cho bảng Patient
+ * Thông tin bổ sung của bệnh nhân, có quan hệ OneToOne với User
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "Patients")
+@Table(name = "Patient")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Patient {
+    
+    /**
+     * Primary key tự tăng
+     */
     @Id
-    @Column(name = "PatientID")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "patientid")
     private Long patientId;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "PatientID")
+    /**
+     * User ID - foreign key tới Users
+     */
+    @Column(name = "userid")
+    private Long userId;
+
+    /**
+     * Quan hệ ManyToOne với User
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "userid", insertable = false, updatable = false)
     private User user;
 
-    @Column(name = "HealthInsuranceNumber")
+    /**
+     * Số bảo hiểm y tế
+     */
+    @Column(name = "health_insurance_number")
     private String healthInsuranceNumber;
 
-    @Column(name = "MedicalHistory", columnDefinition = "NVARCHAR(MAX)")
+    /**
+     * Tiền sử bệnh
+     */
+    @Column(name = "medical_history", columnDefinition = "NVARCHAR(MAX)")
     private String medicalHistory;
 
-    @Column(name = "CreatedAt")
+    /**
+     * Ngày tạo bản ghi
+     */
+    @Column(name = "created_at")
     private LocalDate createdAt;
 
-    @Column(name = "Status")
+    /**
+     * Trạng thái của bệnh nhân
+     */
+    @Column(name = "status")
     private String status;
 
-    @OneToMany(mappedBy = "patient")
+    /**
+     * Danh sách cuộc hẹn của bệnh nhân
+     */
+    @OneToMany(mappedBy = "patient", fetch = FetchType.LAZY)
     private List<Appointment> appointments;
 
-    @OneToMany(mappedBy = "patient")
+    /**
+     * Danh sách đánh giá của bệnh nhân
+     */
+    @OneToMany(mappedBy = "patient", fetch = FetchType.LAZY)
     private List<Review> reviews;
 
+    /**
+     * Tự động set createdAt và status khi tạo mới
+     */
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {

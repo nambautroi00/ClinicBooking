@@ -14,6 +14,7 @@ public class DoctorDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Create {
+        @NotNull(message = "ID người dùng không được để trống")
         private Long userId;
 
         @NotNull(message = "ID khoa không được để trống")

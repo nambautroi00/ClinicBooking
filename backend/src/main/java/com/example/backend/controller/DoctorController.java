@@ -1,27 +1,20 @@
 package com.example.backend.controller;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.example.backend.constant.AppConstants;
-import com.example.backend.dto.DoctorDTO;
+import com.example.backend.model.Doctor;
 import com.example.backend.service.DoctorService;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * REST Controller cho Doctor entity
+ * Cung cấp các API endpoints để quản lý thông tin bác sĩ
+ */
 @RestController
 @RequestMapping("/api/doctors")
 @RequiredArgsConstructor
@@ -30,42 +23,170 @@ public class DoctorController {
 
     private final DoctorService doctorService;
 
-    @GetMapping(value = {"", "/"})
-    public ResponseEntity<Page<DoctorDTO.Response>> getAllDoctors(
-            @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = AppConstants.DEFAULT_SORT_FIELD) Pageable pageable) {
-        Page<DoctorDTO.Response> doctors = doctorService.getAllDoctors(pageable);
+    /**
+     * Lấy tất cả bác sĩ với thông tin User và Role
+     * GET /api/doctors
+     */
+    @GetMapping
+    public ResponseEntity<List<Doctor>> getAllDoctorsWithUserAndRole() {
+        List<Doctor> doctors = doctorService.getAllDoctorsWithUserAndRole();
         return ResponseEntity.ok(doctors);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<DoctorDTO.Response> getDoctorById(@PathVariable Long id) {
-        DoctorDTO.Response doctor = doctorService.getDoctorById(id);
+    /**
+     * Lấy bác sĩ theo ID với thông tin User và Role
+     * GET /api/doctors/{doctorId}
+     */
+    @GetMapping("/{doctorId}")
+    public ResponseEntity<Doctor> getDoctorByIdWithUserAndRole(@PathVariable Long doctorId) {
+        Doctor doctor = doctorService.getDoctorByIdWithUserAndRole(doctorId);
         return ResponseEntity.ok(doctor);
     }
 
+    /**
+     * Lấy bác sĩ theo chuyên khoa với thông tin User và Role
+     * GET /api/doctors/specialty/{specialty}
+     */
+    @GetMapping("/specialty/{specialty}")
+    public ResponseEntity<List<Doctor>> getDoctorsBySpecialtyWithUserAndRole(@PathVariable String specialty) {
+        List<Doctor> doctors = doctorService.getDoctorsBySpecialtyWithUserAndRole(specialty);
+        return ResponseEntity.ok(doctors);
+    }
+
+    /**
+     * Lấy bác sĩ theo khoa với thông tin User và Role
+     * GET /api/doctors/department/{departmentId}
+     */
+    @GetMapping("/department/{departmentId}")
+    public ResponseEntity<List<Doctor>> getDoctorsByDepartmentWithUserAndRole(@PathVariable Long departmentId) {
+        List<Doctor> doctors = doctorService.getDoctorsByDepartmentWithUserAndRole(departmentId);
+        return ResponseEntity.ok(doctors);
+    }
+
+    /**
+     * Tìm bác sĩ theo tên với thông tin User và Role
+     * GET /api/doctors/search?keyword={keyword}
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<Doctor>> getDoctorsByNameWithUserAndRole(@RequestParam String keyword) {
+        List<Doctor> doctors = doctorService.getDoctorsByNameWithUserAndRole(keyword);
+        return ResponseEntity.ok(doctors);
+    }
+
+    /**
+     * Lấy bác sĩ theo userId
+     * GET /api/doctors/user/{userId}
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Doctor> getDoctorByUserId(@PathVariable Long userId) {
+        Doctor doctor = doctorService.getDoctorByUserId(userId);
+        return ResponseEntity.ok(doctor);
+    }
+
+    /**
+     * Tạo bác sĩ mới
+     * POST /api/doctors
+     */
     @PostMapping
-    public ResponseEntity<DoctorDTO.Response> createDoctor(@Valid @RequestBody DoctorDTO.Create createDTO) {
-        DoctorDTO.Response createdDoctor = doctorService.createDoctor(createDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdDoctor);
+    public ResponseEntity<Doctor> createDoctor(@RequestBody CreateDoctorRequest request) {
+        Doctor doctor = doctorService.createDoctor(
+            request.getUserId(),
+            request.getBio(),
+            request.getSpecialty(),
+            request.getDepartmentId()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(doctor);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<DoctorDTO.Response> updateDoctor(
-            @PathVariable Long id,
-            @Valid @RequestBody DoctorDTO.Update updateDTO) {
-        DoctorDTO.Response updatedDoctor = doctorService.updateDoctor(id, updateDTO);
-        return ResponseEntity.ok(updatedDoctor);
+    /**
+     * Cập nhật thông tin bác sĩ
+     * PUT /api/doctors/{doctorId}
+     */
+    @PutMapping("/{doctorId}")
+    public ResponseEntity<Doctor> updateDoctor(@PathVariable Long doctorId, @RequestBody UpdateDoctorRequest request) {
+        Doctor doctor = doctorService.updateDoctor(
+            doctorId,
+            request.getBio(),
+            request.getSpecialty(),
+            request.getDepartmentId(),
+            request.getStatus()
+        );
+        return ResponseEntity.ok(doctor);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteDoctor(@PathVariable Long id) {
-        doctorService.deleteDoctor(id);
+    /**
+     * Xóa bác sĩ (soft delete)
+     * DELETE /api/doctors/{doctorId}
+     */
+    @DeleteMapping("/{doctorId}")
+    public ResponseEntity<Void> deleteDoctor(@PathVariable Long doctorId) {
+        doctorService.deleteDoctor(doctorId);
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDeleteDoctor(@PathVariable Long id) {
-        doctorService.hardDeleteDoctor(id);
+    /**
+     * Xóa bác sĩ vĩnh viễn (hard delete)
+     * DELETE /api/doctors/{doctorId}/hard
+     */
+    @DeleteMapping("/{doctorId}/hard")
+    public ResponseEntity<Void> hardDeleteDoctor(@PathVariable Long doctorId) {
+        doctorService.hardDeleteDoctor(doctorId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Kiểm tra user đã có thông tin bác sĩ chưa
+     * GET /api/doctors/check/{userId}
+     */
+    @GetMapping("/check/{userId}")
+    public ResponseEntity<Boolean> isUserDoctor(@PathVariable Long userId) {
+        boolean isDoctor = doctorService.isUserDoctor(userId);
+        return ResponseEntity.ok(isDoctor);
+    }
+
+    /**
+     * Request DTO cho tạo bác sĩ mới
+     */
+    public static class CreateDoctorRequest {
+        private Long userId;
+        private String bio;
+        private String specialty;
+        private Long departmentId;
+
+        // Getters and Setters
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+        
+        public String getBio() { return bio; }
+        public void setBio(String bio) { this.bio = bio; }
+        
+        public String getSpecialty() { return specialty; }
+        public void setSpecialty(String specialty) { this.specialty = specialty; }
+        
+        public Long getDepartmentId() { return departmentId; }
+        public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+    }
+
+    /**
+     * Request DTO cho cập nhật bác sĩ
+     */
+    public static class UpdateDoctorRequest {
+        private String bio;
+        private String specialty;
+        private Long departmentId;
+        private String status;
+
+        // Getters and Setters
+        public String getBio() { return bio; }
+        public void setBio(String bio) { this.bio = bio; }
+        
+        public String getSpecialty() { return specialty; }
+        public void setSpecialty(String specialty) { this.specialty = specialty; }
+        
+        public Long getDepartmentId() { return departmentId; }
+        public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+        
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
     }
 }

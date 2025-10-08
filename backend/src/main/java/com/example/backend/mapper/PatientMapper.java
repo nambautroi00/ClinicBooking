@@ -15,7 +15,7 @@ public class PatientMapper {
 
     public Patient createDTOToEntity(PatientDTO.Create createDTO, User user) {
         Patient patient = new Patient();
-        patient.setPatientId(user.getId());
+        patient.setPatientId(user.getUserId());
         patient.setUser(user);
         patient.setHealthInsuranceNumber(createDTO.getHealthInsuranceNumber());
         patient.setMedicalHistory(createDTO.getMedicalHistory());
