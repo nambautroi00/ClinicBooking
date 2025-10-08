@@ -9,12 +9,16 @@ import com.example.backend.model.Payment;
 @Component
 public class PaymentMapper {
 
-    public Payment createDTOToEntity(PaymentDTO.Create dto, Appointment appointment) {
+
+    public Payment createDTOToEntity(PaymentDTO.Create dto, Appointment appointment, String orderId, java.math.BigDecimal amount) {
         Payment payment = new Payment();
         payment.setAppointment(appointment);
-        payment.setPaymentMethod(dto.getPaymentMethod());
-        payment.setPaymentStatus("Pending");
-        payment.setNotes(dto.getNotes());
+        payment.setOrderId(orderId);
+        payment.setAmount(amount);
+        payment.setStatus("Pending");
+        payment.setCreatedAt(java.time.LocalDateTime.now());
+        payment.setUpdatedAt(java.time.LocalDateTime.now());
+        // Các trường transactionId, description, paidAt sẽ được cập nhật sau khi thanh toán Sepay thành công
         return payment;
     }
 
@@ -27,10 +31,14 @@ public class PaymentMapper {
         } else {
             dto.setAppointmentId(null);
         }
-        dto.setPaymentMethod(payment.getPaymentMethod());
-        dto.setPaymentStatus(payment.getPaymentStatus());
+        dto.setOrderId(payment.getOrderId());
+        dto.setAmount(payment.getAmount());
+        dto.setStatus(payment.getStatus());
+        dto.setTransactionId(payment.getTransactionId());
+        dto.setDescription(payment.getDescription());
+        dto.setCreatedAt(payment.getCreatedAt());
         dto.setPaidAt(payment.getPaidAt());
-        dto.setNotes(payment.getNotes());
+        dto.setUpdatedAt(payment.getUpdatedAt());
         return dto;
     }
 }

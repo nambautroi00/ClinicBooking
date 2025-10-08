@@ -1,26 +1,14 @@
 package com.example.backend.controller;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.example.backend.constant.AppConstants;
+import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 import com.example.backend.dto.PaymentDTO;
+import com.example.backend.model.Payment;
 import com.example.backend.service.PaymentService;
-
-import jakarta.validation.Valid;
+import com.example.backend.mapper.PaymentMapper;
+import com.example.backend.repository.AppointmentRepository;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -30,48 +18,52 @@ import lombok.RequiredArgsConstructor;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final PaymentMapper paymentMapper;
+    private final AppointmentRepository appointmentRepository;
 
-    @GetMapping
-    public ResponseEntity<Page<PaymentDTO.ResponseDTO>> getAllPayments(
-            @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = AppConstants.DEFAULT_SORT_FIELD) Pageable pageable) {
-        Page<PaymentDTO.ResponseDTO> payments = paymentService.getAllPayments(pageable);
-        return ResponseEntity.ok(payments);
+
+    @PostMapping("/create")
+    public ResponseEntity<?> createPayment(@RequestBody Map<String, Object> payload) {
+        Long appointmentId = Long.valueOf(payload.get("appointmentId").toString());
+        java.math.BigDecimal amount = new java.math.BigDecimal(payload.get("amount").toString());
+        if (amount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Amount must be greater than 0"));
+        }
+        if (!appointmentRepository.existsById(appointmentId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Appointment does not exist"));
+        }
+        // Backend sinh orderId
+        String orderId = "APPT-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        String description = "Thanh toan lich kham #" + orderId;
+
+        Payment payment = paymentService.createPayment(orderId, appointmentId, amount, description);
+        String qrUrl = paymentService.generateQrUrl(description, amount);
+        PaymentDTO.ResponseDTO paymentDTO = paymentMapper.entityToResponseDTO(payment);
+
+        return ResponseEntity.ok(Map.of(
+                "payment", paymentDTO,
+                "qrUrl", qrUrl
+        ));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<PaymentDTO.ResponseDTO> getPaymentById(@PathVariable Long id) {
-        PaymentDTO.ResponseDTO payment = paymentService.getPaymentById(id);
-        return ResponseEntity.ok(payment);
+    @PostMapping("/webhook")
+    public ResponseEntity<?> webhook(@RequestBody Map<String, Object> payload) {
+        String orderId = (String) payload.get("orderId");
+        String transactionId = (String) payload.get("transactionId");
+        boolean success = "SUCCESS".equals(payload.get("status"));
+
+        Payment updated = paymentService.updatePaymentStatus(orderId, transactionId, success);
+        PaymentDTO.ResponseDTO paymentDTO = paymentMapper.entityToResponseDTO(updated);
+
+        return ResponseEntity.ok(Map.of("status", "updated", "payment", paymentDTO));
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<Page<PaymentDTO.ResponseDTO>> searchPayments(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false, name = "method") String paymentMethod,
-            @RequestParam(required = false) Long appointmentId,
-            @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = AppConstants.DEFAULT_SORT_FIELD) Pageable pageable) {
-        Page<PaymentDTO.ResponseDTO> payments = paymentService.searchPayments(status, paymentMethod, appointmentId, pageable);
-        return ResponseEntity.ok(payments);
-    }
-
-    @PostMapping
-    public ResponseEntity<PaymentDTO.ResponseDTO> createPayment(@Valid @RequestBody PaymentDTO.Create createDTO) {
-        PaymentDTO.ResponseDTO created = paymentService.createPayment(createDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<PaymentDTO.ResponseDTO> updatePayment(
-            @PathVariable Long id,
-            @Valid @RequestBody PaymentDTO.Update updateDTO) {
-        PaymentDTO.ResponseDTO updated = paymentService.updatePayment(id, updateDTO);
-        return ResponseEntity.ok(updated);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePayment(@PathVariable Long id) {
-        paymentService.deletePayment(id);
-        return ResponseEntity.noContent().build();
+    // API tra cứu lịch sử thanh toán theo patientId
+    @GetMapping("/history")
+    public ResponseEntity<?> getPaymentHistoryByPatient(@RequestParam Long patientId) {
+        var payments = paymentService.getPaymentsByPatientId(patientId);
+        var dtos = payments.stream().map(paymentMapper::entityToResponseDTO).toList();
+        return ResponseEntity.ok(dtos);
     }
 }
 
