@@ -25,7 +25,7 @@ public class Article {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long articleId;
 
-    @Column(nullable = false)
+        @Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String title;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")

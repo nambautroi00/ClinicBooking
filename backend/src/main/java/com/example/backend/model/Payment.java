@@ -32,8 +32,8 @@ public class Payment {
 
     @Column(name = "TransactionID", length = 100)
     private String transactionId;
-
-    @Column(name = "Description", length = 255)
+    
+    @Column(name = "Description", length = 255, columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @Column(name = "CreatedAt", nullable = false)
