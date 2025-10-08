@@ -72,9 +72,13 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     boolean existsByUserId(Long userId);
     
     /**
-     * Tìm patient theo userId
+     * Tìm patient theo userId với thông tin User và Role
      */
-    Optional<Patient> findByUserId(Long userId);
+    @Query("SELECT p FROM Patient p " +
+           "JOIN FETCH p.user u " +
+           "JOIN FETCH u.role r " +
+           "WHERE p.userId = :userId")
+    Optional<Patient> findByUserIdWithUserAndRole(@Param("userId") Long userId);
 }
 
 

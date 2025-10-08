@@ -24,6 +24,7 @@ public class PatientController {
 
     private final PatientService patientService;
 
+
     /**
      * Lấy tất cả bệnh nhân với thông tin User và Role
      * GET /api/patients

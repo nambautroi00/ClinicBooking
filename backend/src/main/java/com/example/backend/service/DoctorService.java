@@ -32,7 +32,7 @@ public class DoctorService {
      */
     @Transactional(readOnly = true)
     public List<Doctor> getAllDoctorsWithUserAndRole() {
-        return doctorRepository.findAllWithUserAndRole();
+        return doctorRepository.findAll();
     }
 
     /**
@@ -93,7 +93,7 @@ public class DoctorService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy user với ID: " + userId));
 
         // Kiểm tra user có phải là doctor không (roleId = 2)
-        if (!user.isDoctor()) {
+        if (user.getRole() == null || !user.getRole().getName().equals("Doctor")) {
             throw new ConflictException("User không phải là bác sĩ (roleId phải = 2)");
         }
 
@@ -194,4 +194,5 @@ public class DoctorService {
     public Doctor saveDoctor(Doctor doctor) {
         return doctorRepository.save(doctor);
     }
+
 }

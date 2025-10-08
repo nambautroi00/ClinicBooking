@@ -14,8 +14,6 @@ import com.example.backend.model.Role;
 import com.example.backend.model.User;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
-import com.example.backend.service.DoctorService;
-import com.example.backend.service.PatientService;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.PatientRepository;
 import com.example.backend.model.Doctor;
@@ -34,8 +32,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final DoctorService doctorService;
-    private final PatientService patientService;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
 
@@ -90,32 +86,32 @@ public class UserService {
     }
 
     /**
-     * Lấy tất cả user cùng dữ liệu Doctor/Patient nếu có
-     * @return danh sách user với thông tin Doctor/Patient
+     * Lấy tất cả user với thông tin role
+     * @return danh sách user với thông tin role
      */
     @Transactional(readOnly = true)
-    public List<User> getAllUsersWithDoctorAndPatientInfo() {
-        return userRepository.findAllWithDoctorAndPatientInfo();
+    public List<User> getAllUsersWithRoleInfo() {
+        return userRepository.findAllWithRoleInfo();
     }
 
     /**
-     * Tìm user theo roleId với thông tin Doctor/Patient
+     * Tìm user theo roleId với thông tin role
      * @param roleId ID của role
      * @return danh sách user theo role
      */
     @Transactional(readOnly = true)
-    public List<User> getUsersByRoleIdWithDoctorAndPatientInfo(Long roleId) {
-        return userRepository.findByRoleIdWithDoctorAndPatientInfo(roleId);
+    public List<User> getUsersByRoleIdWithRoleInfo(Long roleId) {
+        return userRepository.findByRoleIdWithRoleInfo(roleId);
     }
 
     /**
-     * Tìm user theo tên với thông tin Doctor/Patient
+     * Tìm user theo tên với thông tin role
      * @param keyword từ khóa tìm kiếm
      * @return danh sách user theo tên
      */
     @Transactional(readOnly = true)
-    public List<User> getUsersByNameWithDoctorAndPatientInfo(String keyword) {
-        return userRepository.findByNameContainingWithDoctorAndPatientInfo(keyword);
+    public List<User> getUsersByNameWithRoleInfo(String keyword) {
+        return userRepository.findByNameContainingWithRoleInfo(keyword);
     }
 
     /**
@@ -166,42 +162,6 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        // Tự động tạo Doctor hoặc Patient record dựa trên role
-        System.out.println("🔍 Bắt đầu tạo record cho userId: " + savedUser.getUserId() + ", roleId: " + roleId);
-        
-        if (roleId == 18L) { // Doctor role
-            System.out.println("👨‍⚕️ Tạo doctor record...");
-            try {
-                Doctor doctor = new Doctor();
-                doctor.setUserId(savedUser.getUserId());
-                doctor.setBio("Bác sĩ chuyên khoa");
-                doctor.setSpecialty("Nội khoa");
-                doctor.setStatus("ACTIVE");
-                
-                Doctor savedDoctor = doctorRepository.save(doctor);
-                System.out.println("✅ Đã tạo doctor record với ID: " + savedDoctor.getDoctorId() + " cho userId: " + savedUser.getUserId());
-            } catch (Exception e) {
-                System.err.println("❌ Lỗi khi tạo doctor record: " + e.getMessage());
-                e.printStackTrace();
-            }
-        } else if (roleId == 19L) { // Patient role
-            System.out.println("🏥 Tạo patient record...");
-            try {
-                Patient patient = new Patient();
-                patient.setUserId(savedUser.getUserId());
-                patient.setHealthInsuranceNumber(null);
-                patient.setMedicalHistory(null);
-                patient.setStatus("ACTIVE");
-                
-                Patient savedPatient = patientRepository.save(patient);
-                System.out.println("✅ Đã tạo patient record với ID: " + savedPatient.getPatientId() + " cho userId: " + savedUser.getUserId());
-            } catch (Exception e) {
-                System.err.println("❌ Lỗi khi tạo patient record: " + e.getMessage());
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("ℹ️ Không cần tạo doctor/patient record cho roleId: " + roleId);
-        }
 
         return savedUser;
     }

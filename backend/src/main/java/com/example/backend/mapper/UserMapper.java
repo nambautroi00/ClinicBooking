@@ -27,7 +27,7 @@ public class UserMapper {
 
     public UserDTO.Response entityToResponseDTO(User user) {
         UserDTO.Response dto = new UserDTO.Response();
-        dto.setId(user.getUserId());
+        dto.setId(user.getId());
         dto.setEmail(user.getEmail());
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());

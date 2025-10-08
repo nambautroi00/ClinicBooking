@@ -67,7 +67,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * Tìm user theo ID với thông tin role
      */
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.role WHERE u.userId = :id")
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.role WHERE u.id = :id")
     Optional<User> findByIdWithRole(@Param("id") Long id);
 
     /**
@@ -77,39 +77,48 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailWithRole(@Param("email") String email);
 
     /**
-     * Lấy tất cả user cùng dữ liệu Doctor/Patient nếu có
-     * Query join với Doctor và Patient tables
+     * Lấy tất cả user với thông tin role
      */
     @Query("SELECT u FROM User u " +
            "LEFT JOIN FETCH u.role r " +
-           "LEFT JOIN FETCH u.doctor d " +
-           "LEFT JOIN FETCH u.patient p " +
            "ORDER BY u.firstName, u.lastName")
-    List<User> findAllWithDoctorAndPatientInfo();
+    List<User> findAllWithRoleInfo();
 
     /**
-     * Tìm user theo roleId với thông tin Doctor/Patient
+     * Tìm user theo roleId với thông tin role
      */
     @Query("SELECT u FROM User u " +
            "LEFT JOIN FETCH u.role r " +
-           "LEFT JOIN FETCH u.doctor d " +
-           "LEFT JOIN FETCH u.patient p " +
            "WHERE r.id = :roleId " +
            "ORDER BY u.firstName, u.lastName")
-    List<User> findByRoleIdWithDoctorAndPatientInfo(@Param("roleId") Long roleId);
+    List<User> findByRoleIdWithRoleInfo(@Param("roleId") Long roleId);
 
     /**
-     * Tìm user theo tên với thông tin Doctor/Patient
+     * Tìm user theo tên với thông tin role
      */
     @Query("SELECT u FROM User u " +
            "LEFT JOIN FETCH u.role r " +
-           "LEFT JOIN FETCH u.doctor d " +
-           "LEFT JOIN FETCH u.patient p " +
            "WHERE (LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(CONCAT(u.firstName, ' ', u.lastName)) LIKE LOWER(CONCAT('%', :keyword, '%')))" +
            "ORDER BY u.firstName, u.lastName")
-    List<User> findByNameContainingWithDoctorAndPatientInfo(@Param("keyword") String keyword);
+    List<User> findByNameContainingWithRoleInfo(@Param("keyword") String keyword);
+
+    /**
+     * Lấy users có role Doctor
+     */
+    @Query("SELECT u FROM User u " +
+           "JOIN FETCH u.role r " +
+           "WHERE r.id = 2")
+    List<User> findUsersWithDoctorRole();
+
+    /**
+     * Lấy users có role Patient
+     */
+    @Query("SELECT u FROM User u " +
+           "JOIN FETCH u.role r " +
+           "WHERE r.id = 3")
+    List<User> findUsersWithPatientRole();
 }
 
 

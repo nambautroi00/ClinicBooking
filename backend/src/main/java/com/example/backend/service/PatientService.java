@@ -93,7 +93,7 @@ public class PatientService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy user với ID: " + userId));
 
         // Kiểm tra user có phải là patient không (roleId = 3)
-        if (!user.isPatient()) {
+        if (user.getRole() == null || !user.getRole().getName().equals("Patient")) {
             throw new ConflictException("User không phải là bệnh nhân (roleId phải = 3)");
         }
 
@@ -187,7 +187,7 @@ public class PatientService {
      */
     @Transactional(readOnly = true)
     public Patient getPatientByUserId(Long userId) {
-        return patientRepository.findByUserId(userId)
+        return patientRepository.findByUserIdWithUserAndRole(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh nhân với userId: " + userId));
     }
 
@@ -209,4 +209,5 @@ public class PatientService {
     public Patient savePatient(Patient patient) {
         return patientRepository.save(patient);
     }
+
 }

@@ -73,32 +73,32 @@ public class UserController {
     }
 
     /**
-     * Lấy tất cả user cùng dữ liệu Doctor/Patient nếu có
+     * Lấy tất cả user với thông tin role
      * GET /api/users/with-roles-info
      */
     @GetMapping("/with-roles-info")
-    public ResponseEntity<List<User>> getAllUsersWithDoctorAndPatientInfo() {
-        List<User> users = userService.getAllUsersWithDoctorAndPatientInfo();
+    public ResponseEntity<List<User>> getAllUsersWithRoleInfo() {
+        List<User> users = userService.getAllUsersWithRoleInfo();
         return ResponseEntity.ok(users);
     }
 
     /**
-     * Lấy user theo roleId với thông tin Doctor/Patient
+     * Lấy user theo roleId với thông tin role
      * GET /api/users/role/{roleId}/with-roles-info
      */
     @GetMapping("/role/{roleId}/with-roles-info")
-    public ResponseEntity<List<User>> getUsersByRoleIdWithDoctorAndPatientInfo(@PathVariable Long roleId) {
-        List<User> users = userService.getUsersByRoleIdWithDoctorAndPatientInfo(roleId);
+    public ResponseEntity<List<User>> getUsersByRoleIdWithRoleInfo(@PathVariable Long roleId) {
+        List<User> users = userService.getUsersByRoleIdWithRoleInfo(roleId);
         return ResponseEntity.ok(users);
     }
 
     /**
-     * Tìm user theo tên với thông tin Doctor/Patient
+     * Tìm user theo tên với thông tin role
      * GET /api/users/search-with-roles-info?keyword={keyword}
      */
     @GetMapping("/search-with-roles-info")
-    public ResponseEntity<List<User>> getUsersByNameWithDoctorAndPatientInfo(@RequestParam String keyword) {
-        List<User> users = userService.getUsersByNameWithDoctorAndPatientInfo(keyword);
+    public ResponseEntity<List<User>> getUsersByNameWithRoleInfo(@RequestParam String keyword) {
+        List<User> users = userService.getUsersByNameWithRoleInfo(keyword);
         return ResponseEntity.ok(users);
     }
 

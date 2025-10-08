@@ -27,18 +27,16 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
      * Query join 3 bảng: Doctor -> User -> Role
      */
     @Query("SELECT d FROM Doctor d " +
-           "JOIN FETCH d.user u " +
-           "JOIN FETCH u.role r " +
-           "WHERE d.status = 'ACTIVE' " +
-           "ORDER BY u.firstName, u.lastName")
+           "LEFT JOIN FETCH d.user u " +
+           "LEFT JOIN FETCH u.role r")
     List<Doctor> findAllWithUserAndRole();
     
     /**
      * Tìm doctor theo specialty
      */
     @Query("SELECT d FROM Doctor d " +
-           "JOIN FETCH d.user u " +
-           "JOIN FETCH u.role r " +
+           "LEFT JOIN FETCH d.user u " +
+           "LEFT JOIN FETCH u.role r " +
            "WHERE d.specialty = :specialty " +
            "AND d.status = 'ACTIVE' " +
            "ORDER BY u.firstName, u.lastName")
@@ -48,9 +46,9 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
      * Tìm doctor theo department
      */
     @Query("SELECT d FROM Doctor d " +
-           "JOIN FETCH d.user u " +
-           "JOIN FETCH u.role r " +
-           "JOIN FETCH d.department dept " +
+           "LEFT JOIN FETCH d.user u " +
+           "LEFT JOIN FETCH u.role r " +
+           "LEFT JOIN FETCH d.department dept " +
            "WHERE dept.id = :departmentId " +
            "AND d.status = 'ACTIVE' " +
            "ORDER BY u.firstName, u.lastName")
@@ -60,8 +58,8 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
      * Tìm doctor theo tên (firstName hoặc lastName chứa keyword)
      */
     @Query("SELECT d FROM Doctor d " +
-           "JOIN FETCH d.user u " +
-           "JOIN FETCH u.role r " +
+           "LEFT JOIN FETCH d.user u " +
+           "LEFT JOIN FETCH u.role r " +
            "WHERE (LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(CONCAT(u.firstName, ' ', u.lastName)) LIKE LOWER(CONCAT('%', :keyword, '%')))" +

@@ -19,7 +19,7 @@ public class DoctorMapper {
 
     public Doctor createDTOToEntity(DoctorDTO.Create createDTO, User user, Department department) {
         Doctor doctor = new Doctor();
-        doctor.setDoctorId(user.getUserId());
+        doctor.setDoctorId(user.getId());
         doctor.setUser(user);
         doctor.setDepartment(department);
         doctor.setSpecialty(createDTO.getSpecialty());
