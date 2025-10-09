@@ -294,10 +294,10 @@ public class UserService {
     public void createDoctorRecordAsync(Long userId) {
         try {
             Doctor doctor = new Doctor();
-            doctor.setUserId(userId);
+            doctor.setDoctorId(userId);
             doctor.setBio("Bác sĩ chuyên khoa");
             doctor.setSpecialty("Nội khoa");
-            doctor.setStatus("ACTIVE");
+            // Status is managed by User entity, not Doctor entity
             // Không set departmentId vì có thể gây lỗi constraint
             
             doctorRepository.save(doctor);
@@ -314,11 +314,14 @@ public class UserService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void createPatientRecordAsync(Long userId) {
         try {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null) return;
+            
             Patient patient = new Patient();
-            patient.setUserId(userId);
+            patient.setPatientId(userId);
+            patient.setUser(user);
             patient.setHealthInsuranceNumber(null);
             patient.setMedicalHistory(null);
-            patient.setStatus("ACTIVE");
             
             patientRepository.save(patient);
             System.out.println("Đã tạo patient record cho userId: " + userId);

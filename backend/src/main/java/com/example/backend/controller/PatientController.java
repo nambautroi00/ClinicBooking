@@ -147,6 +147,16 @@ public class PatientController {
     }
 
     /**
+     * Đăng ký bệnh nhân mới (tạo cả User và Patient)
+     * POST /api/patients/register
+     */
+    @PostMapping("/register")
+    public ResponseEntity<String> registerPatient(@RequestBody PatientService.PatientRegisterRequest request) {
+        patientService.registerPatient(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Đăng ký bệnh nhân thành công");
+    }
+
+    /**
      * Request DTO cho tạo bệnh nhân mới
      */
     public static class CreatePatientRequest {

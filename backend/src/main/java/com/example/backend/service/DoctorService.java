@@ -8,11 +8,18 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.NotFoundException;
 import com.example.backend.model.Doctor;
+import com.example.backend.model.Department;
+import com.example.backend.model.Role;
 import com.example.backend.model.User;
 import com.example.backend.repository.DoctorRepository;
+import com.example.backend.repository.DepartmentRepository;
+import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * Service class cho Doctor entity
@@ -25,6 +32,12 @@ public class DoctorService {
 
     private final DoctorRepository doctorRepository;
     private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /**
      * Lấy tất cả doctor với thông tin User và Role
@@ -102,14 +115,32 @@ public class DoctorService {
             throw new ConflictException("User đã có thông tin bác sĩ");
         }
 
+        // Lấy Department
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy department với ID: " + departmentId));
+
+        // Refresh entities to avoid detached entity issues
+        User refreshedUser = entityManager.merge(user);
+        Department refreshedDepartment = entityManager.merge(department);
+        entityManager.flush();
+
+        // Get next Doctor ID
+        Long nextDoctorId = getNextDoctorId(); 
+        
         // Tạo doctor mới
         Doctor doctor = new Doctor();
-        doctor.setUserId(userId); // Set userId thay vì @MapsId
+        doctor.setDoctorId(nextDoctorId); // Set doctorId manually
+        doctor.setUser(refreshedUser); // Set user reference
+        doctor.setDepartment(refreshedDepartment); // Set department reference
         doctor.setBio(bio);
         doctor.setSpecialty(specialty);
+        doctor.setCreatedAt(java.time.LocalDate.now()); // Set default values
         doctor.setStatus("ACTIVE");
 
-        return doctorRepository.save(doctor);
+        // Save using EntityManager
+        entityManager.persist(doctor);
+        entityManager.flush();
+        return doctor;
     }
 
     /**
@@ -132,6 +163,15 @@ public class DoctorService {
         if (specialty != null) {
             doctor.setSpecialty(specialty);
         }
+        
+        // Update department if provided
+        if (departmentId != null) {
+            Department department = departmentRepository.findById(departmentId)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy department với ID: " + departmentId));
+            doctor.setDepartment(department);
+        }
+        
+        // Update status if provided
         if (status != null) {
             doctor.setStatus(status);
         }
@@ -148,6 +188,14 @@ public class DoctorService {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bác sĩ với ID: " + doctorId));
 
+        // Soft delete by updating both User status and Doctor status
+        if (doctor.getUser() != null) {
+            User user = doctor.getUser();
+            user.setStatus(User.UserStatus.DELETED);
+            userRepository.save(user);
+        }
+        
+        // Also update Doctor status to maintain consistency
         doctor.setStatus("DELETED");
         doctorRepository.save(doctor);
     }
@@ -193,6 +241,141 @@ public class DoctorService {
      */
     public Doctor saveDoctor(Doctor doctor) {
         return doctorRepository.save(doctor);
+    }
+    
+    private Long getNextDoctorId() {
+        // Simple approach: get max ID + 1
+        try {
+            Long maxId = doctorRepository.findMaxDoctorId().orElse(0L);
+            return maxId + 1;
+        } catch (Exception e) {
+            return 1L; // Fallback to 1 if no doctors exist
+        }
+    }
+
+    /**
+     * Đăng ký bác sĩ mới (tạo cả User và Doctor)
+     * @param request thông tin đăng ký bác sĩ
+     * @throws ConflictException nếu email đã tồn tại
+     * @throws NotFoundException nếu không tìm thấy role Doctor hoặc Department
+     */
+    @Transactional
+    public void registerDoctor(DoctorRegisterRequest request) {
+        // 1️⃣ Kiểm tra email đã tồn tại chưa
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ConflictException("Email đã tồn tại: " + request.getEmail());
+        }
+
+        // 2️⃣ Lấy Role Doctor (roleId = 2)
+        Role doctorRole = roleRepository.findById(2L)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy role Doctor (roleId = 2)"));
+
+        // 3️⃣ Lấy Department
+        Department department = departmentRepository.findById(request.getDepartmentId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy department với ID: " + request.getDepartmentId()));
+
+        // 4️⃣ Tạo User
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setPhone(request.getPhone());
+        user.setGender(request.getGender());
+        user.setDateOfBirth(request.getDob());
+        user.setAddress(request.getAddress());
+        user.setRole(doctorRole);
+        user.setStatus(User.UserStatus.ACTIVE);
+
+        // Save User first
+        User savedUser = userRepository.save(user);
+        entityManager.flush(); // Force flush to ensure User is persisted
+        
+        // Get the persisted User ID
+        Long userId = savedUser.getId();
+
+        // 5️⃣ Tạo Doctor với User ID đã tồn tại
+        createDoctorWithExistingUser(userId, request, department);
+    }
+
+    @Transactional
+    private void createDoctorWithExistingUser(Long userId, DoctorRegisterRequest request, Department department) {
+        // Get the User entity by ID (this ensures it's properly loaded)
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with ID: " + userId));
+        
+        // Refresh entities to avoid detached entity issues
+        User refreshedUser = entityManager.merge(user);
+        Department refreshedDepartment = entityManager.merge(department);
+        entityManager.flush();
+
+        // Get next Doctor ID
+        Long nextDoctorId = getNextDoctorId();
+        
+        // Tạo doctor mới
+        Doctor doctor = new Doctor();
+        doctor.setDoctorId(nextDoctorId); // Set doctorId manually
+        doctor.setUser(refreshedUser); // Set user reference
+        doctor.setDepartment(refreshedDepartment); // Set department reference
+        doctor.setBio(request.getBio());
+        doctor.setSpecialty(request.getSpecialty());
+        doctor.setCreatedAt(java.time.LocalDate.now()); // Set default values
+        doctor.setStatus("ACTIVE");
+
+        // Save using EntityManager
+        entityManager.persist(doctor);
+        entityManager.flush();
+    }
+
+    /**
+     * Request DTO cho đăng ký bác sĩ
+     */
+    public static class DoctorRegisterRequest {
+        private String email;
+        private String password;
+        private String firstName;
+        private String lastName;
+        private String phone;
+        private User.Gender gender;
+        private java.time.LocalDate dob;
+        private String address;
+        private Long departmentId;
+        private String specialty;
+        private String bio;
+
+        // Getters and Setters
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        
+        public String getFirstName() { return firstName; }
+        public void setFirstName(String firstName) { this.firstName = firstName; }
+        
+        public String getLastName() { return lastName; }
+        public void setLastName(String lastName) { this.lastName = lastName; }
+        
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        
+        public User.Gender getGender() { return gender; }
+        public void setGender(User.Gender gender) { this.gender = gender; }
+        
+        public java.time.LocalDate getDob() { return dob; }
+        public void setDob(java.time.LocalDate dob) { this.dob = dob; }
+        
+        public String getAddress() { return address; }
+        public void setAddress(String address) { this.address = address; }
+        
+        public Long getDepartmentId() { return departmentId; }
+        public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+        
+        public String getSpecialty() { return specialty; }
+        public void setSpecialty(String specialty) { this.specialty = specialty; }
+        
+        public String getBio() { return bio; }
+        public void setBio(String bio) { this.bio = bio; }
     }
 
 }

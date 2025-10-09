@@ -73,6 +73,12 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     boolean existsByUserId(Long userId);
     
     /**
+     * Tìm Doctor ID lớn nhất
+     */
+    @Query("SELECT MAX(d.doctorId) FROM Doctor d")
+    Optional<Long> findMaxDoctorId();
+    
+    /**
      * Tìm doctor theo userId
      */
     Optional<Doctor> findByUserId(Long userId);
