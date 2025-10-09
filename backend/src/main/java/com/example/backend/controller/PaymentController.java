@@ -65,6 +65,13 @@ public class PaymentController {
         var dtos = payments.stream().map(paymentMapper::entityToResponseDTO).toList();
         return ResponseEntity.ok(dtos);
     }
+
+    // Tổng doanh thu (Paid)
+    @GetMapping("/total-revenue")
+    public ResponseEntity<Map<String, Object>> getTotalRevenue() {
+        java.math.BigDecimal total = paymentService.getTotalRevenue();
+        return ResponseEntity.ok(Map.of("totalRevenue", total));
+    }
 }
 
 

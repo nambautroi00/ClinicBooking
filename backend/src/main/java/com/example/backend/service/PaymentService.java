@@ -83,6 +83,10 @@ public class PaymentService {
                 patientId.equals(p.getAppointment().getPatient().getPatientId()))
             .toList();
     }
+
+    public java.math.BigDecimal getTotalRevenue() {
+        return paymentRepository.getTotalRevenue();
+    }
 }
 
 
