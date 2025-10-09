@@ -24,6 +24,7 @@ public class PatientController {
 
     private final PatientService patientService;
 
+
     /**
      * Lấy tất cả bệnh nhân với thông tin User và Role
      * GET /api/patients
@@ -143,6 +144,16 @@ public class PatientController {
     public ResponseEntity<Boolean> isUserPatient(@PathVariable Long userId) {
         boolean isPatient = patientService.isUserPatient(userId);
         return ResponseEntity.ok(isPatient);
+    }
+
+    /**
+     * Đăng ký bệnh nhân mới (tạo cả User và Patient)
+     * POST /api/patients/register
+     */
+    @PostMapping("/register")
+    public ResponseEntity<String> registerPatient(@RequestBody PatientService.PatientRegisterRequest request) {
+        patientService.registerPatient(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Đăng ký bệnh nhân thành công");
     }
 
     /**

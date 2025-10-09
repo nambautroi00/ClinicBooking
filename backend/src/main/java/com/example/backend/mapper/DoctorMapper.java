@@ -19,12 +19,12 @@ public class DoctorMapper {
 
     public Doctor createDTOToEntity(DoctorDTO.Create createDTO, User user, Department department) {
         Doctor doctor = new Doctor();
-        doctor.setDoctorId(user.getUserId());
+        doctor.setDoctorId(user.getId());
         doctor.setUser(user);
         doctor.setDepartment(department);
         doctor.setSpecialty(createDTO.getSpecialty());
         doctor.setBio(createDTO.getBio());
-        doctor.setStatus("ACTIVE");
+        // Status is managed by User entity, not Doctor entity
         return doctor;
     }
 
@@ -33,8 +33,9 @@ public class DoctorMapper {
         dto.setDoctorId(doctor.getDoctorId());
         dto.setSpecialty(doctor.getSpecialty());
         dto.setBio(doctor.getBio());
-        dto.setCreatedAt(doctor.getCreatedAt());
-        dto.setStatus(doctor.getStatus());
+        // createdAt and status are managed by User entity, not Doctor entity
+        // dto.setCreatedAt(doctor.getUser().getCreatedAt());
+        // dto.setStatus(doctor.getUser().getStatus().toString());
 
         if (doctor.getUser() != null) {
             dto.setUser(userMapper.entityToResponseDTO(doctor.getUser()));
@@ -54,8 +55,9 @@ public class DoctorMapper {
         if (updateDTO.getBio() != null) {
             doctor.setBio(updateDTO.getBio());
         }
-        if (updateDTO.getStatus() != null) {
-            doctor.setStatus(updateDTO.getStatus());
-        }
+        // Status is managed by User entity, not Doctor entity
+        // if (updateDTO.getStatus() != null) {
+        //     doctor.getUser().setStatus(User.UserStatus.valueOf(updateDTO.getStatus()));
+        // }
     }
 }

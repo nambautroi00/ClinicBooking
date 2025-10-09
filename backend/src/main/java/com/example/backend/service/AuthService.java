@@ -3,7 +3,7 @@ package com.example.backend.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.backend.config.SecurityConfig.SimplePasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import com.example.backend.dto.AuthDTO;
 import com.example.backend.dto.UserDTO;
 import com.example.backend.exception.ConflictException;
@@ -24,7 +24,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserMapper userMapper;
-    private final SimplePasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthDTO.LoginResponse login(AuthDTO.LoginRequest loginRequest) {
         try {
@@ -65,9 +65,14 @@ public class AuthService {
                 return new AuthDTO.RegisterResponse("Mật khẩu xác nhận không khớp", false, null);
             }
 
-            // Tìm role Patient (mặc định cho user đăng ký)
-            Role patientRole = roleRepository.findByName("Patient")
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy role Patient"));
+            // Xác định role cho user
+            final String roleName = (registerRequest.getRole() == null || registerRequest.getRole().trim().isEmpty()) 
+                    ? "Patient" 
+                    : registerRequest.getRole();
+            
+            // Tìm role
+            Role userRole = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy role: " + roleName));
 
             // Tạo user mới
             User newUser = new User();
@@ -80,7 +85,7 @@ public class AuthService {
             newUser.setDateOfBirth(registerRequest.getDateOfBirth());
             newUser.setAddress(registerRequest.getAddress());
             newUser.setStatus(User.UserStatus.ACTIVE);
-            newUser.setRole(patientRole);
+            newUser.setRole(userRole);
 
             // Lưu user
             User savedUser = userRepository.save(newUser);

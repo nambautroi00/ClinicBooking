@@ -68,6 +68,8 @@ public class AuthDTO {
 
         @Size(max = 255, message = "Địa chỉ không được quá 255 ký tự")
         private String address;
+
+        private String role; // Role for registration (optional, defaults to PATIENT)
     }
 
     @Data

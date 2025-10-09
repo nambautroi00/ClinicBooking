@@ -23,6 +23,7 @@ public class DoctorController {
 
     private final DoctorService doctorService;
 
+
     /**
      * Lấy tất cả bác sĩ với thông tin User và Role
      * GET /api/doctors
@@ -81,6 +82,16 @@ public class DoctorController {
     public ResponseEntity<Doctor> getDoctorByUserId(@PathVariable Long userId) {
         Doctor doctor = doctorService.getDoctorByUserId(userId);
         return ResponseEntity.ok(doctor);
+    }
+
+    /**
+     * Đăng ký bác sĩ mới (tạo cả User và Doctor)
+     * POST /api/doctors/register
+     */
+    @PostMapping("/register")
+    public ResponseEntity<String> registerDoctor(@RequestBody DoctorService.DoctorRegisterRequest request) {
+        doctorService.registerDoctor(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Đăng ký bác sĩ thành công");
     }
 
     /**

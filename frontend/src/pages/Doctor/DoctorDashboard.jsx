@@ -1,20 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import doctorScheduleApi from '../../api/doctorScheduleApi';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import doctorScheduleApi from "../../api/doctorScheduleApi";
 
 const DoctorDashboard = () => {
   const [stats, setStats] = useState({
     totalSchedules: 0,
     todaySchedules: 0,
     availableSlots: 0,
-    busySlots: 0
+    busySlots: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Mock user for testing - using real doctorId from database
-    const mockUser = { doctorId: 8, fullName: 'Hồng Nguyễn', specialization: 'Nội khoa', department: { departmentName: 'Khoa Nội' } };
-    
+    const mockUser = {
+      doctorId: 8,
+      fullName: "Hồng Nguyễn",
+      specialization: "Nội khoa",
+      department: { departmentName: "Khoa Nội" },
+    };
+
     if (mockUser?.doctorId) {
       loadDashboardData();
     }
@@ -24,22 +29,30 @@ const DoctorDashboard = () => {
     try {
       setLoading(true);
       // Mock user for testing - using real doctorId from database
-      const mockUser = { doctorId: 8, fullName: 'Hồng Nguyễn', specialization: 'Nội khoa', department: { departmentName: 'Khoa Nội' } };
-      
-      const response = await doctorScheduleApi.getSchedulesByDoctor(mockUser.doctorId);
+      const mockUser = {
+        doctorId: 8,
+        fullName: "Hồng Nguyễn",
+        specialization: "Nội khoa",
+        department: { departmentName: "Khoa Nội" },
+      };
+
+      const response = await doctorScheduleApi.getSchedulesByDoctor(
+        mockUser.doctorId
+      );
       const schedules = response.data;
-      
-      const today = new Date().toISOString().split('T')[0];
-      const todaySchedules = schedules.filter(s => s.workDate === today);
-      
+
+      const today = new Date().toISOString().split("T")[0];
+      const todaySchedules = schedules.filter((s) => s.workDate === today);
+
       setStats({
         totalSchedules: schedules.length,
         todaySchedules: todaySchedules.length,
-        availableSlots: schedules.filter(s => s.status === 'Available').length,
-        busySlots: schedules.filter(s => s.status === 'Busy').length
+        availableSlots: schedules.filter((s) => s.status === "Available")
+          .length,
+        busySlots: schedules.filter((s) => s.status === "Busy").length,
       });
     } catch (err) {
-      console.error('Error loading dashboard data:', err);
+      console.error("Error loading dashboard data:", err);
     } finally {
       setLoading(false);
     }
@@ -57,39 +70,6 @@ const DoctorDashboard = () => {
 
   return (
     <div className="container-fluid">
-      <div className="row">
-        <div className="col-12">
-          <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-            <h1 className="h2">Dashboard - Bác sĩ</h1>
-            <div className="btn-toolbar mb-2 mb-md-0">
-              <div className="btn-group me-2">
-                <Link to="/doctor/schedule" className="btn btn-sm btn-primary">
-                  <i className="bi bi-calendar3"></i> Quản lý lịch trình
-                </Link>
-                <Link to="/doctor/appointments" className="btn btn-sm btn-outline-primary">
-                  <i className="bi bi-calendar-check"></i> Lịch hẹn
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Welcome Section */}
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="alert alert-info" role="alert">
-                <h4 className="alert-heading">
-                  <i className="bi bi-person-badge"></i> Chào mừng, Hồng Nguyễn!
-                </h4>
-                <p className="mb-0">
-                  Chuyên khoa: <strong>Nội khoa</strong> | 
-                  Khoa: <strong>Khoa Nội</strong>
-                </p>
-          </div>
-        </div>
-      </div>
-
       {/* Stats Cards */}
       <div className="row mb-4">
         <div className="col-xl-3 col-md-6 mb-4">
@@ -105,7 +85,10 @@ const DoctorDashboard = () => {
                   </div>
                 </div>
                 <div className="col-auto">
-                  <i className="bi bi-calendar3 text-primary" style={{ fontSize: '2rem' }}></i>
+                  <i
+                    className="bi bi-calendar3 text-primary"
+                    style={{ fontSize: "2rem" }}
+                  ></i>
                 </div>
               </div>
             </div>
@@ -125,7 +108,10 @@ const DoctorDashboard = () => {
                   </div>
                 </div>
                 <div className="col-auto">
-                  <i className="bi bi-calendar-day text-success" style={{ fontSize: '2rem' }}></i>
+                  <i
+                    className="bi bi-calendar-day text-success"
+                    style={{ fontSize: "2rem" }}
+                  ></i>
                 </div>
               </div>
             </div>
@@ -145,7 +131,10 @@ const DoctorDashboard = () => {
                   </div>
                 </div>
                 <div className="col-auto">
-                  <i className="bi bi-check-circle text-info" style={{ fontSize: '2rem' }}></i>
+                  <i
+                    className="bi bi-check-circle text-info"
+                    style={{ fontSize: "2rem" }}
+                  ></i>
                 </div>
               </div>
             </div>
@@ -165,7 +154,10 @@ const DoctorDashboard = () => {
                   </div>
                 </div>
                 <div className="col-auto">
-                  <i className="bi bi-clock text-warning" style={{ fontSize: '2rem' }}></i>
+                  <i
+                    className="bi bi-clock text-warning"
+                    style={{ fontSize: "2rem" }}
+                  ></i>
                 </div>
               </div>
             </div>
@@ -178,17 +170,25 @@ const DoctorDashboard = () => {
         <div className="col-lg-6 mb-4">
           <div className="card shadow">
             <div className="card-header py-3">
-              <h6 className="m-0 font-weight-bold text-primary">Thao tác nhanh</h6>
+              <h6 className="m-0 font-weight-bold text-primary">
+                Thao tác nhanh
+              </h6>
             </div>
             <div className="card-body">
               <div className="row">
                 <div className="col-md-6 mb-3">
-                  <Link to="/doctor/schedule" className="btn btn-primary btn-block">
+                  <Link
+                    to="/doctor/schedule"
+                    className="btn btn-primary btn-block"
+                  >
                     <i className="bi bi-calendar-plus"></i> Thêm lịch trình
                   </Link>
                 </div>
                 <div className="col-md-6 mb-3">
-                  <Link to="/doctor/appointments" className="btn btn-success btn-block">
+                  <Link
+                    to="/doctor/appointments"
+                    className="btn btn-success btn-block"
+                  >
                     <i className="bi bi-calendar-check"></i> Xem lịch hẹn
                   </Link>
                 </div>
@@ -210,20 +210,30 @@ const DoctorDashboard = () => {
         <div className="col-lg-6 mb-4">
           <div className="card shadow">
             <div className="card-header py-3">
-              <h6 className="m-0 font-weight-bold text-primary">Lịch trình gần đây</h6>
+              <h6 className="m-0 font-weight-bold text-primary">
+                Lịch trình gần đây
+              </h6>
             </div>
             <div className="card-body">
               {stats.todaySchedules > 0 ? (
                 <div className="text-center">
-                  <i className="bi bi-calendar-day text-success" style={{ fontSize: '3rem' }}></i>
-                  <p className="mt-3">Bạn có {stats.todaySchedules} lịch trình hôm nay</p>
+                  <i
+                    className="bi bi-calendar-day text-success"
+                    style={{ fontSize: "3rem" }}
+                  ></i>
+                  <p className="mt-3">
+                    Bạn có {stats.todaySchedules} lịch trình hôm nay
+                  </p>
                   <Link to="/doctor/appointments" className="btn btn-primary">
                     Xem chi tiết
                   </Link>
                 </div>
               ) : (
                 <div className="text-center">
-                  <i className="bi bi-calendar-x text-muted" style={{ fontSize: '3rem' }}></i>
+                  <i
+                    className="bi bi-calendar-x text-muted"
+                    style={{ fontSize: "3rem" }}
+                  ></i>
                   <p className="mt-3 text-muted">Không có lịch trình hôm nay</p>
                   <Link to="/doctor/schedule" className="btn btn-primary">
                     Thêm lịch trình

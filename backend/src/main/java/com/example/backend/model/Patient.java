@@ -1,85 +1,56 @@
 package com.example.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import java.time.LocalDate;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-/**
- * Entity class cho bảng Patient
- * Thông tin bổ sung của bệnh nhân, có quan hệ OneToOne với User
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "Patient")
+@Table(name = "Patients")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Patient {
-    
-    /**
-     * Primary key tự tăng
-     */
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "patientid")
+    @Column(name = "PatientID")
     private Long patientId;
 
-    /**
-     * User ID - foreign key tới Users
-     */
-    @Column(name = "userid")
-    private Long userId;
-
-    /**
-     * Quan hệ ManyToOne với User
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "userid", insertable = false, updatable = false)
+    // Quan hệ 1-1 với User
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "UserID")
     private User user;
 
-    /**
-     * Số bảo hiểm y tế
-     */
-    @Column(name = "health_insurance_number")
+    // Mã bảo hiểm y tế
+    @Column(name = "HealthInsuranceNumber")
     private String healthInsuranceNumber;
 
-    /**
-     * Tiền sử bệnh
-     */
-    @Column(name = "medical_history", columnDefinition = "NVARCHAR(MAX)")
+    // Tiền sử bệnh án
+    @Column(name = "MedicalHistory", columnDefinition = "NVARCHAR(MAX)")
     private String medicalHistory;
 
-    /**
-     * Ngày tạo bản ghi
-     */
-    @Column(name = "created_at")
+    // Ngày tạo hồ sơ
+    @Column(name = "CreatedAt")
     private LocalDate createdAt;
 
-    /**
-     * Trạng thái của bệnh nhân
-     */
-    @Column(name = "status")
+    // Trạng thái (ACTIVE, INACTIVE, v.v.)
+    @Column(name = "Status")
     private String status;
 
-    /**
-     * Danh sách cuộc hẹn của bệnh nhân
-     */
+    // Danh sách lịch hẹn của bệnh nhân
     @OneToMany(mappedBy = "patient", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Appointment> appointments;
 
-    /**
-     * Danh sách đánh giá của bệnh nhân
-     */
+    // Danh sách đánh giá của bệnh nhân
     @OneToMany(mappedBy = "patient", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Review> reviews;
 
-    /**
-     * Tự động set createdAt và status khi tạo mới
-     */
+    // Gán giá trị mặc định khi tạo mới
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {

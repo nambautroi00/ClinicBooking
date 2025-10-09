@@ -7,7 +7,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -17,7 +22,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.disable()) // Disable CORS temporarily for testing
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(authz -> authz
                 .anyRequest().permitAll() // Allow all requests for testing
             );
@@ -25,16 +30,38 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SimplePasswordEncoder passwordEncoder() {
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
         return new SimplePasswordEncoder();
     }
 
-    public static class SimplePasswordEncoder {
+    public static class SimplePasswordEncoder implements PasswordEncoder {  
         
-        public String encode(String rawPassword) {
+        public String encode(CharSequence rawPassword) {
             try {
+                if (rawPassword == null) {
+                    throw new IllegalArgumentException("Password cannot be null");
+                }
+                
+                String passwordString = rawPassword.toString();
+                if (passwordString.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Password cannot be empty");
+                }
+                
                 MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(rawPassword.getBytes(StandardCharsets.UTF_8));
+                byte[] hash = digest.digest(passwordString.getBytes(StandardCharsets.UTF_8));
                 StringBuilder hexString = new StringBuilder();
                 for (byte b : hash) {
                     String hex = Integer.toHexString(0xff & b);
@@ -45,12 +72,12 @@ public class SecurityConfig {
                 }
                 return hexString.toString();
             } catch (Exception e) {
-                throw new RuntimeException("Error encoding password", e);
+                throw new RuntimeException("Error encoding password: " + e.getMessage(), e);
             }
         }
 
-        public boolean matches(String rawPassword, String encodedPassword) {
-            return encode(rawPassword).equals(encodedPassword);
+        public boolean matches(CharSequence rawPassword, String encodedPassword) {
+            return encode(rawPassword.toString()).equals(encodedPassword);
         }
     }
 }

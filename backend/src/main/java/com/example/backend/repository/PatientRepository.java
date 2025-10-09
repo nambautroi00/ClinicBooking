@@ -29,7 +29,7 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     @Query("SELECT p FROM Patient p " +
            "JOIN FETCH p.user u " +
            "JOIN FETCH u.role r " +
-           "WHERE p.status = 'ACTIVE' " +
+           "WHERE u.status = 'ACTIVE' " +
            "ORDER BY u.firstName, u.lastName")
     List<Patient> findAllWithUserAndRole();
     
@@ -42,7 +42,7 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
            "WHERE (LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(CONCAT(u.firstName, ' ', u.lastName)) LIKE LOWER(CONCAT('%', :keyword, '%')))" +
-           "AND p.status = 'ACTIVE' " +
+           "AND u.status = 'ACTIVE' " +
            "ORDER BY u.firstName, u.lastName")
     List<Patient> findByNameContainingWithUserAndRole(@Param("keyword") String keyword);
     
@@ -53,7 +53,7 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
            "JOIN FETCH p.user u " +
            "JOIN FETCH u.role r " +
            "WHERE p.healthInsuranceNumber = :insuranceNumber " +
-           "AND p.status = 'ACTIVE'")
+           "AND u.status = 'ACTIVE'")
     Optional<Patient> findByHealthInsuranceNumberWithUserAndRole(@Param("insuranceNumber") String insuranceNumber);
     
     /**
@@ -63,18 +63,28 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
            "JOIN FETCH p.user u " +
            "JOIN FETCH u.role r " +
            "WHERE u.email = :email " +
-           "AND p.status = 'ACTIVE'")
+           "AND u.status = 'ACTIVE'")
     Optional<Patient> findByEmailWithUserAndRole(@Param("email") String email);
     
     /**
      * Kiểm tra xem user đã có thông tin patient chưa
      */
-    boolean existsByUserId(Long userId);
+    boolean existsByPatientId(Long patientId);
     
     /**
-     * Tìm patient theo userId
+     * Tìm Patient ID lớn nhất
      */
-    Optional<Patient> findByUserId(Long userId);
+    @Query("SELECT MAX(p.patientId) FROM Patient p")
+    Optional<Long> findMaxPatientId();
+    
+    /**
+     * Tìm patient theo userId với thông tin User và Role
+     */
+    @Query("SELECT p FROM Patient p " +
+           "JOIN FETCH p.user u " +
+           "JOIN FETCH u.role r " +
+           "WHERE p.patientId = :userId")
+    Optional<Patient> findByUserIdWithUserAndRole(@Param("userId") Long userId);
 }
 
 
