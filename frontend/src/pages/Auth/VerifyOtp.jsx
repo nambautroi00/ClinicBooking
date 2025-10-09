@@ -11,10 +11,9 @@ export default function VerifyOtp() {
 
   useEffect(() => {
     if (email) {
-      // send OTP on mount
-      axiosClient.post('/auth/send-otp', { email })
-        .then(res => setMessage('Mã OTP đã được gửi vào email'))
-        .catch(err => setMessage(err.response?.data?.message || 'Không thể gửi OTP'));
+      // Do NOT auto-send OTP here. The backend already sent OTP when you submitted the registration
+      // to /api/patients/register. Showing a hint instead and allow the user to click "Gửi lại OTP"
+      setMessage('Mã OTP đã được gửi tới email của bạn khi đăng ký. Nếu bạn không nhận được, nhấn Gửi lại OTP.');
     }
   }, [email]);
 
@@ -23,10 +22,12 @@ export default function VerifyOtp() {
     setLoading(true);
     setMessage('');
     try {
-      const res = await axiosClient.post('/auth/verify-otp', { email, otp });
-      if (res.status === 200) {
-        // verified
+      // Call patient confirm endpoint so the pending registration is consumed
+      const res = await axiosClient.post('/patients/confirm-register', { email, otp });
+      // Backend returns 201 Created when registration completed
+      if (res.status === 201 || res.status === 200) {
         localStorage.removeItem('pendingOtpEmail');
+        setMessage('Xác thực thành công, chuyển tới trang đăng nhập...');
         navigate('/login');
       } else {
         setMessage(res.data?.message || 'Xác thực thất bại');
@@ -40,9 +41,16 @@ export default function VerifyOtp() {
 
   const handleResend = () => {
     if (!email) return;
+    const key = `otpSent_${email}`;
+    // force resend regardless of guard
+    sessionStorage.setItem(key, String(Date.now()));
     axiosClient.post('/auth/send-otp', { email })
       .then(() => setMessage('Mã OTP đã được gửi lại'))
-      .catch(err => setMessage(err.response?.data?.message || 'Không thể gửi OTP'));
+      .catch(err => {
+        // if resend fails, allow future retry
+        sessionStorage.removeItem(key);
+        setMessage(err.response?.data?.message || 'Không thể gửi OTP');
+      });
   };
 
   return (

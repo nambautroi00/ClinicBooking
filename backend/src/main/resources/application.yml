@@ -22,7 +22,7 @@ spring:
     host: smtp.gmail.com
     port: 587
     username: tungdtde180564@fpt.edu.vn
-    password: kfex qkhu qqij dwxi
+    password: uoet gajv wcsr slqb
     properties:
       mail:
         smtp:

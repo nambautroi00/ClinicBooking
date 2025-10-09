@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
+import { useEffect } from 'react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -8,6 +9,31 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Load Google Identity Services script
+    const existing = document.getElementById('google-client-script');
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.id = 'google-client-script';
+      script.async = true;
+      document.body.appendChild(script);
+      script.onload = () => {
+        /* global google */
+        if (window.google) {
+          window.google.accounts.id.initialize({
+            client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || '431674926667-5l2r6pp7vqre0mkv6ujuj1oj2j2q7kfl.apps.googleusercontent.com',
+            callback: handleGoogleCallback
+          });
+          window.google.accounts.id.renderButton(
+            document.getElementById('googleSignInDiv'),
+            { theme: 'outline', size: 'large' }
+          );
+        }
+      };
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,8 +46,12 @@ export default function Login() {
         // Save token and user to localStorage
         if (data.token) localStorage.setItem('token', data.token);
         if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-        // Redirect to home or patient booking
-        navigate('/patient/book-appointment');
+        // Redirect based on role
+        const roleName = data.user?.role?.name || data.user?.role?.roleName || '';
+        const rn = String(roleName).toLowerCase();
+        if (rn.includes('admin')) navigate('/admin');
+        else if (rn.includes('doctor')) navigate('/doctor');
+        else navigate('/');
       } else {
         setError(data.message || 'Đăng nhập thất bại');
       }
@@ -29,6 +59,27 @@ export default function Login() {
       setError(err.response?.data?.message || err.message || 'Lỗi mạng');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle Google sign-in callback
+  const handleGoogleCallback = async (response) => {
+    try {
+      const idToken = response?.credential;
+      // Optionally decode token on client to extract email/name, but send to backend
+      const res = await axiosClient.post('/auth/google', { idToken });
+      if (res.data?.success) {
+        if (res.data.token) localStorage.setItem('token', res.data.token);
+        if (res.data.user) localStorage.setItem('user', JSON.stringify(res.data.user));
+        // Same role-based redirect as normal login
+        const roleName = res.data.user?.role?.name || res.data.user?.role?.roleName || '';
+        const rn = String(roleName).toLowerCase();
+        if (rn.includes('admin')) navigate('/admin');
+        else if (rn.includes('doctor')) navigate('/doctor/dashboard');
+        else navigate('/');
+      }
+    } catch (err) {
+      setError('Google sign-in failed');
     }
   };
 
@@ -74,6 +125,9 @@ export default function Login() {
             <a href="/register" className="text-sm text-[#0d6efd] hover:underline">Đăng ký</a>
           </div>
         </form>
+        <div className="mt-4 text-center">
+          <div id="googleSignInDiv" />
+        </div>
       </div>
     </div>
   );

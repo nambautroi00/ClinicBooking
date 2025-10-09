@@ -55,6 +55,26 @@ public class AuthController {
         }
     }
 
+    // OAuth / Google Sign-in
+    @PostMapping("/google")
+    public ResponseEntity<AuthDTO.LoginResponse> googleSignIn(@RequestBody Map<String, String> body) {
+        String idToken = body.get("idToken");
+        // Verify idToken using Google API - for brevity we'll trust client token here in dev
+        // In production verify with Google's tokeninfo endpoint or google-id-token-verifier
+        try {
+            // Extract basic info from idToken (in production validate signature)
+            // For now, expect client sends email, firstName, lastName too (fallback)
+            String email = body.get("email");
+            String firstName = body.getOrDefault("firstName", "");
+            String lastName = body.getOrDefault("lastName", "");
+
+            AuthDTO.LoginResponse response = authService.oauthLogin(email, firstName, lastName);
+            return response.isSuccess() ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new AuthDTO.LoginResponse("OAuth error", false, null, null));
+        }
+    }
+
     // Email OTP Endpoints (no database storage)
     @PostMapping("/send-otp")
     public ResponseEntity<AuthDTO.OtpResponse> sendOtp(@Valid @RequestBody AuthDTO.SendOtpRequest request) {

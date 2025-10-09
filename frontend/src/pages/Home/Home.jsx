@@ -1,8 +1,12 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import HeroSection from '../../components/HeroSection';
 
 const Home = () => {
- 
+	return (
+		<div>
+			<HeroSection />
+		</div>
+	);
 };
 
 export default Home;

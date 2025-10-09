@@ -27,6 +27,9 @@ import AppointmentsManagement from "../pages/Admin/AppointmentsManagement";
 import ReviewsManagement from "../pages/Admin/ReviewsManagement";
 import PaymentsManagement from "../pages/Admin/PaymentsManagement";
 import ArticleManagement from "../pages/Admin/ArticleManagement";
+import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
+import VerifyOtp from "../pages/Auth/VerifyOtp";
 
 const AppRoutes = () => {
   return (
@@ -72,6 +75,9 @@ const AppRoutes = () => {
       {/* 404 Route */}
       <Route path="/404" element={<NotFound />} />
       <Route path="*" element={<Navigate to="/404" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
     </Routes>
   );
 };

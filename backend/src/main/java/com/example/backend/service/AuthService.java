@@ -121,4 +121,33 @@ public class AuthService {
             return new AuthDTO.LogoutResponse("Có lỗi xảy ra trong quá trình đăng xuất", false);
         }
     }
+
+    // OAuth login/registration (Google)
+    public AuthDTO.LoginResponse oauthLogin(String email, String firstName, String lastName) {
+        try {
+            // Try to find existing user
+            User user = userRepository.findByEmailWithRole(email).orElse(null);
+            if (user == null) {
+                // Create new user with Patient role
+                final String roleName = "Patient";
+                Role userRole = roleRepository.findByName(roleName)
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy role: " + roleName));
+
+                User newUser = new User();
+                newUser.setEmail(email);
+                newUser.setPasswordHash(""); // oauth user, no local password
+                newUser.setFirstName(firstName);
+                newUser.setLastName(lastName);
+                newUser.setStatus(User.UserStatus.ACTIVE);
+                newUser.setRole(userRole);
+
+                user = userRepository.save(newUser);
+            }
+
+            UserDTO.Response userResponse = userMapper.entityToResponseDTO(user);
+            return new AuthDTO.LoginResponse("Đăng nhập thành công (Google)", true, userResponse, null);
+        } catch (Exception e) {
+            return new AuthDTO.LoginResponse("Đăng nhập OAuth thất bại", false, null, null);
+        }
+    }
 }
