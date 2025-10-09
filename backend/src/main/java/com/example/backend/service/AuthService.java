@@ -3,7 +3,7 @@ package com.example.backend.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.backend.config.SecurityConfig.SimplePasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import com.example.backend.dto.AuthDTO;
 import com.example.backend.dto.UserDTO;
 import com.example.backend.exception.ConflictException;
@@ -24,7 +24,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserMapper userMapper;
-    private final SimplePasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthDTO.LoginResponse login(AuthDTO.LoginRequest loginRequest) {
         try {

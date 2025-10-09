@@ -85,6 +85,16 @@ public class DoctorController {
     }
 
     /**
+     * Đăng ký bác sĩ mới (tạo cả User và Doctor)
+     * POST /api/doctors/register
+     */
+    @PostMapping("/register")
+    public ResponseEntity<String> registerDoctor(@RequestBody DoctorService.DoctorRegisterRequest request) {
+        doctorService.registerDoctor(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Đăng ký bác sĩ thành công");
+    }
+
+    /**
      * Tạo bác sĩ mới
      * POST /api/doctors
      */
