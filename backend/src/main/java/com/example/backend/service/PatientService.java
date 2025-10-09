@@ -3,22 +3,21 @@ package com.example.backend.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Propagation;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.NotFoundException;
 import com.example.backend.model.Patient;
-import com.example.backend.model.User;
 import com.example.backend.model.Role;
+import com.example.backend.model.User;
 import com.example.backend.repository.PatientRepository;
-import com.example.backend.repository.UserRepository;
 import com.example.backend.repository.RoleRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.example.backend.repository.UserRepository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -266,6 +265,12 @@ public class PatientService {
 
         // 4️⃣ Tạo Patient với User ID đã tồn tại
         createPatientWithExistingUser(userId, request);
+    }
+
+    // Check if email already exists in users (helper used before creating pending registration)
+    @Transactional(readOnly = true)
+    public boolean isEmailTaken(String email) {
+        return userRepository.existsByEmail(email);
     }
 
     @Transactional

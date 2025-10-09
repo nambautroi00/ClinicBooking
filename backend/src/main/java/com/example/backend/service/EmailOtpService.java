@@ -29,6 +29,8 @@ public class EmailOtpService {
 
     // Lưu OTP tạm thời trong memory (email -> otp)
     private final Map<String, String> otpStorage = new ConcurrentHashMap<>();
+    // Lưu pending patient registration (email -> PatientRegisterRequest)
+    private final Map<String, com.example.backend.service.PatientService.PatientRegisterRequest> pendingRegistrations = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     public boolean sendOtp(String email) {
@@ -76,6 +78,24 @@ public class EmailOtpService {
             log.error("Failed to send OTP to email: {}", email, e);
             return false;
         }
+    }
+
+    // Save a pending registration (will send OTP)
+    public void savePendingRegistration(com.example.backend.service.PatientService.PatientRegisterRequest req) {
+        if (req == null || req.getEmail() == null) return;
+        pendingRegistrations.put(req.getEmail(), req);
+        // send OTP to email (simulate or real depending on config)
+        sendOtp(req.getEmail());
+    }
+
+    // Consume (remove and return) pending registration
+    public com.example.backend.service.PatientService.PatientRegisterRequest consumePendingRegistration(String email) {
+        return pendingRegistrations.remove(email);
+    }
+
+    // Check if there is a pending registration for email
+    public boolean hasPendingRegistration(String email) {
+        return pendingRegistrations.containsKey(email);
     }
 
     public boolean verifyOtp(String email, String inputOtp) {

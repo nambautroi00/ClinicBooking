@@ -5,7 +5,16 @@ import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.model.Patient;
 import com.example.backend.service.PatientService;
@@ -23,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class PatientController {
 
     private final PatientService patientService;
+    private final com.example.backend.service.EmailOtpService emailOtpService;
 
 
     /**
@@ -151,9 +161,45 @@ public class PatientController {
      * POST /api/patients/register
      */
     @PostMapping("/register")
-    public ResponseEntity<String> registerPatient(@RequestBody PatientService.PatientRegisterRequest request) {
-        patientService.registerPatient(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Đăng ký bệnh nhân thành công");
+    public ResponseEntity<Object> registerPatient(@RequestBody PatientService.PatientRegisterRequest request) {
+        // If email already exists in users DB, reject
+        if (patientService.isEmailTaken(request.getEmail())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email đã tồn tại: " + request.getEmail());
+        }
+
+        // Save pending registration and send OTP via EmailOtpService
+        // We delegate to EmailOtpService to store pending registration
+    emailOtpService.savePendingRegistration(request);
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(java.util.Map.of("message", "Yêu cầu đăng ký đã được nhận. Vui lòng kiểm tra email để xác thực OTP."));
+    }
+
+    @PostMapping("/confirm-register")
+    public ResponseEntity<Object> confirmRegister(@RequestBody ConfirmRequest body) {
+        String email = body.getEmail();
+        String otp = body.getOtp();
+    boolean ok = emailOtpService.verifyOtp(email, otp);
+        if (!ok) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "OTP không hợp lệ hoặc đã hết hạn"));
+        }
+
+        // Consume pending registration
+    PatientService.PatientRegisterRequest pending = emailOtpService.consumePendingRegistration(email);
+        if (pending == null) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Không tìm thấy yêu cầu đăng ký tương ứng"));
+        }
+
+        // Proceed to create user + patient
+        patientService.registerPatient(pending);
+    return ResponseEntity.status(HttpStatus.CREATED).body(java.util.Map.of("message", "Đăng ký bệnh nhân thành công"));
+    }
+
+    public static class ConfirmRequest {
+        private String email;
+        private String otp;
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getOtp() { return otp; }
+        public void setOtp(String otp) { this.otp = otp; }
     }
 
     /**
