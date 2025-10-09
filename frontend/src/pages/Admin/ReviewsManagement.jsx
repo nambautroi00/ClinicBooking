@@ -20,7 +20,9 @@ const ReviewsManagement = () => {
       } else {
         data = [];
       }
-      setReviews(Array.isArray(data) ? data : []);
+      const reviewsList = Array.isArray(data) ? data : [];
+      // Sort reviews by ID
+      setReviews(reviewsList.sort((a, b) => a.id - b.id));
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || "Đã xảy ra lỗi");
       setReviews([]);

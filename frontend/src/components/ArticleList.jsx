@@ -17,7 +17,8 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
       );
       const pageData = res.data;
       const content = pageData?.content || [];
-      setArticles(content);
+      // Sort articles by ID
+      setArticles(content.sort((a, b) => a.articleId - b.articleId));
     } catch (err) {
       console.error('Error fetching articles', err);
       setError('Không tải được danh sách bài viết');

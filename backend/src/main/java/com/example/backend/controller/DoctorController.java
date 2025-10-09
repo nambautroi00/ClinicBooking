@@ -126,6 +126,26 @@ public class DoctorController {
     }
 
     /**
+     * Cập nhật thông tin bác sĩ và user
+     * PUT /api/doctors/{doctorId}/with-user
+     */
+    @PutMapping("/{doctorId}/with-user")
+    public ResponseEntity<Doctor> updateDoctorWithUser(@PathVariable Long doctorId, @RequestBody UpdateDoctorWithUserRequest request) {
+        Doctor doctor = doctorService.updateDoctorWithUser(
+            doctorId,
+            request.getBio(),
+            request.getSpecialty(),
+            request.getDepartmentId(),
+            request.getStatus(),
+            request.getEmail(),
+            request.getFirstName(),
+            request.getLastName(),
+            request.getPhone()
+        );
+        return ResponseEntity.ok(doctor);
+    }
+
+    /**
      * Xóa bác sĩ (soft delete)
      * DELETE /api/doctors/{doctorId}
      */
@@ -135,15 +155,6 @@ public class DoctorController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Xóa bác sĩ vĩnh viễn (hard delete)
-     * DELETE /api/doctors/{doctorId}/hard
-     */
-    @DeleteMapping("/{doctorId}/hard")
-    public ResponseEntity<Void> hardDeleteDoctor(@PathVariable Long doctorId) {
-        doctorService.hardDeleteDoctor(doctorId);
-        return ResponseEntity.noContent().build();
-    }
 
     /**
      * Kiểm tra user đã có thông tin bác sĩ chưa
@@ -199,5 +210,44 @@ public class DoctorController {
         
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+    }
+
+    /**
+     * Request DTO cho cập nhật bác sĩ và user
+     */
+    public static class UpdateDoctorWithUserRequest {
+        private String bio;
+        private String specialty;
+        private Long departmentId;
+        private String status;
+        private String email;
+        private String firstName;
+        private String lastName;
+        private String phone;
+
+        // Getters and Setters
+        public String getBio() { return bio; }
+        public void setBio(String bio) { this.bio = bio; }
+        
+        public String getSpecialty() { return specialty; }
+        public void setSpecialty(String specialty) { this.specialty = specialty; }
+        
+        public Long getDepartmentId() { return departmentId; }
+        public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+        
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+
+        public String getFirstName() { return firstName; }
+        public void setFirstName(String firstName) { this.firstName = firstName; }
+
+        public String getLastName() { return lastName; }
+        public void setLastName(String lastName) { this.lastName = lastName; }
+
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
     }
 }

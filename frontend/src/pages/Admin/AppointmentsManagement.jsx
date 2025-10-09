@@ -24,7 +24,9 @@ const AppointmentsManagement = () => {
     setError("");
     try {
       const data = await appointmentApi.getAppointmentsByDoctor(Number(doctorId)).then(r => r.data ?? r);
-      setAppointments(Array.isArray(data) ? data : []);
+      const appointmentsList = Array.isArray(data) ? data : [];
+      // Sort appointments by ID
+      setAppointments(appointmentsList.sort((a, b) => a.id - b.id));
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || "Không thể tải lịch hẹn");
       setAppointments([]);
