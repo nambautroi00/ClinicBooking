@@ -107,9 +107,8 @@ const ArticleManagement = () => {
                         }))}
                       >
                         <option value="">Tất cả trạng thái</option>
-                        <option value="DRAFT">Nháp</option>
-                        <option value="PUBLISHED">Đã xuất bản</option>
-                        <option value="ARCHIVED">Lưu trữ</option>
+                        <option value="ACTIVE">Đã xuất bản</option>
+                        <option value="INACTIVE">Lưu trữ</option>
                       </select>
                     </div>
                     <div className="col-md-3">

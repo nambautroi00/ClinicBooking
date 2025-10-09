@@ -33,9 +33,9 @@ const DoctorSidebar = ({ doctorInfo }) => {
 
   return (
     <nav className="col-md-3 col-lg-2 d-md-block bg-light doctor-sidebar collapse">
-      <div className="position-sticky pt-3">
+      <div className="position-sticky ">
         {/* Doctor Info */}
-        <div className="doctor-info mb-4">
+        <div className="doctor-info mb-1">
           <div className="text-center">
             <div className="doctor-avatar mb-2">
               {doctorInfo.avatar ? (
@@ -80,29 +80,6 @@ const DoctorSidebar = ({ doctorInfo }) => {
             </li>
           ))}
         </ul>
-
-        {/* Quick Stats */}
-        <div className="mt-4">
-          <div className="card border-0 bg-light">
-            <div className="card-body p-3">
-              <h6 className="card-title text-center mb-3">
-                <i className="bi bi-graph-up text-success"></i> Thống kê nhanh
-              </h6>
-              <div className="row text-center">
-                <div className="col-6">
-                  <div className="border-end">
-                    <h6 className="text-primary mb-1">0</h6>
-                    <small className="text-muted">Hôm nay</small>
-                  </div>
-                </div>
-                <div className="col-6">
-                  <h6 className="text-success mb-1">0</h6>
-                  <small className="text-muted">Tuần này</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </nav>
   );
