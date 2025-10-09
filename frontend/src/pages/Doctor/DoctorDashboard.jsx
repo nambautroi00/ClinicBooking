@@ -14,7 +14,7 @@ const DoctorDashboard = () => {
   useEffect(() => {
     // Mock user for testing - using real doctorId from database
     const mockUser = {
-      doctorId: 8,
+      doctorId: 3,
       fullName: "Hồng Nguyễn",
       specialization: "Nội khoa",
       department: { departmentName: "Khoa Nội" },
@@ -30,10 +30,7 @@ const DoctorDashboard = () => {
       setLoading(true);
       // Mock user for testing - using real doctorId from database
       const mockUser = {
-        doctorId: 8,
-        fullName: "Hồng Nguyễn",
-        specialization: "Nội khoa",
-        department: { departmentName: "Khoa Nội" },
+        doctorId: 3,
       };
 
       const response = await doctorScheduleApi.getSchedulesByDoctor(

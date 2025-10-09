@@ -18,7 +18,7 @@ const appointmentApi = {
 
   // Lấy lịch hẹn theo bác sĩ
   getAppointmentsByDoctor: (doctorId) => {
-    return axiosClient.get(`/appointments/by-doctor`, { params: { doctorId } });
+    return axiosClient.get(`/appointments/by-doctor?doctorId=${doctorId}`);
   },
 
   // Cập nhật lịch hẹn
