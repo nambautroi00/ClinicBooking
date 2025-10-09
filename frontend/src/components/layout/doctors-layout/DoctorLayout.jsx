@@ -14,7 +14,7 @@ const DoctorLayout = () => {
   return (
     <div className="doctor-layout">
       {/* Doctor Header */}
-      <DoctorHeader doctorInfo={doctorInfo} />
+      <DoctorHeader />
 
       <div className="container-fluid">
         <div className="row">
@@ -22,7 +22,10 @@ const DoctorLayout = () => {
           <DoctorSidebar doctorInfo={doctorInfo} />
 
           {/* Main Content */}
-          <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+          <main
+            className="col-md-9 ms-sm-auto col-lg-10 px-md-6"
+            style={{ marginTop: -50 }}
+          >
             <div className="doctor-content">
               <Outlet />
             </div>
