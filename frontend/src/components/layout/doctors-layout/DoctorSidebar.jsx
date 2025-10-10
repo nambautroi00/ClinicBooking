@@ -32,7 +32,7 @@ const DoctorSidebar = ({ doctorInfo }) => {
   ];
 
   return (
-    <nav className="col-md-3 col-lg-2 d-md-block bg-light doctor-sidebar collapse">
+    <nav className="col-md-3 col-lg-2 d-md-block bg-light doctor-sidebar">
       <div className="position-sticky ">
         {/* Doctor Info */}
         <div className="doctor-info mb-1">
