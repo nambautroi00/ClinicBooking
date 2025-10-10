@@ -11,8 +11,14 @@ import com.example.backend.exception.NotFoundException;
 import com.example.backend.mapper.UserMapper;
 import com.example.backend.model.Role;
 import com.example.backend.model.User;
+import com.example.backend.model.Doctor;
+import com.example.backend.model.Patient;
+import com.example.backend.model.Department;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.repository.DoctorRepository;
+import com.example.backend.repository.PatientRepository;
+import com.example.backend.repository.DepartmentRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +31,9 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final DoctorRepository doctorRepository;
+    private final PatientRepository patientRepository;
+    private final DepartmentRepository departmentRepository;
 
     public AuthDTO.LoginResponse login(AuthDTO.LoginRequest loginRequest) {
         try {
@@ -90,6 +99,18 @@ public class AuthService {
             // Lưu user
             User savedUser = userRepository.save(newUser);
             
+            // Tạo Doctor hoặc Patient dựa trên role
+            try {
+                if ("Doctor".equalsIgnoreCase(roleName)) {
+                    createDoctor(savedUser, registerRequest);
+                } else if ("Patient".equalsIgnoreCase(roleName)) {
+                    createPatient(savedUser, registerRequest);
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Error creating Doctor/Patient, but User was created: " + e.getMessage());
+                // Không throw exception để User vẫn được tạo
+            }
+            
             // Chuyển đổi sang DTO
             UserDTO.Response userResponse = userMapper.entityToResponseDTO(savedUser);
 
@@ -99,6 +120,55 @@ public class AuthService {
             return new AuthDTO.RegisterResponse("Email đã được sử dụng", false, null);
         } catch (Exception e) {
             return new AuthDTO.RegisterResponse("Có lỗi xảy ra trong quá trình đăng ký", false, null);
+        }
+    }
+    
+    private void createDoctor(User user, AuthDTO.RegisterRequest request) {
+        try {
+            Doctor doctor = new Doctor();
+            doctor.setDoctorId(user.getId()); // Set doctorId = userId
+            doctor.setUser(user);
+            doctor.setSpecialty(request.getSpecialty() != null ? request.getSpecialty() : "Chưa xác định");
+            doctor.setBio(request.getBio() != null ? request.getBio() : "Chưa có thông tin");
+            
+            // Department là bắt buộc trong database, tìm department mặc định nếu không có
+            Department department = null;
+            if (request.getDepartmentId() != null) {
+                department = departmentRepository.findById(request.getDepartmentId()).orElse(null);
+            }
+            
+            // Nếu không có department, lấy department đầu tiên làm mặc định
+            if (department == null) {
+                department = departmentRepository.findAll().stream().findFirst().orElse(null);
+                if (department == null) {
+                    throw new RuntimeException("Không tìm thấy department nào trong hệ thống");
+                }
+                System.out.println("⚠️ Using default department: " + department.getDepartmentName());
+            }
+            
+            doctor.setDepartment(department);
+            doctorRepository.save(doctor);
+            System.out.println("✅ Created Doctor for user: " + user.getEmail() + " with ID: " + user.getId());
+        } catch (Exception e) {
+            System.err.println("❌ Error creating Doctor: " + e.getMessage());
+            e.printStackTrace();
+            throw e; // Re-throw để transaction rollback
+        }
+    }
+    
+    private void createPatient(User user, AuthDTO.RegisterRequest request) {
+        try {
+            Patient patient = new Patient();
+            patient.setPatientId(user.getId()); // Set patientId = userId
+            patient.setUser(user);
+            patient.setMedicalHistory(request.getMedicalHistory() != null ? request.getMedicalHistory() : "Chưa có thông tin");
+            
+            patientRepository.save(patient);
+            System.out.println("✅ Created Patient for user: " + user.getEmail() + " with ID: " + user.getId());
+        } catch (Exception e) {
+            System.err.println("❌ Error creating Patient: " + e.getMessage());
+            e.printStackTrace();
+            throw e; // Re-throw để transaction rollback
         }
     }
 

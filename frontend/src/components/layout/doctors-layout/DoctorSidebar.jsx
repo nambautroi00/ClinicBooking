@@ -52,7 +52,7 @@ const DoctorSidebar = ({ doctorInfo }) => {
                 ></i>
               )}
             </div>
-            <h6 className="mb-1">{doctorInfo.name}</h6>
+            <h6 className="mb-1">Dr. {doctorInfo.name}</h6>
             <small className="text-muted">Bác sĩ</small>
             <br />
             <small className="text-muted">{doctorInfo.department}</small>

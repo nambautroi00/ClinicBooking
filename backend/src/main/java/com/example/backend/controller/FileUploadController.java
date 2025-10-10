@@ -30,7 +30,9 @@ public class FileUploadController {
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "articleId", required = false) Long articleId) {
+            @RequestParam(value = "articleId", required = false) Long articleId,
+            @RequestParam(value = "doctorId", required = false) Long doctorId,
+            @RequestParam(value = "userId", required = false) Long userId) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -62,11 +64,15 @@ public class FileUploadController {
                 Files.createDirectories(uploadPath);
             }
 
-            // Tạo tên file theo articleId hoặc UUID
+            // Tạo tên file theo articleId, doctorId, userId hoặc UUID
             String fileExtension = getFileExtension(originalFilename);
             String filename;
             if (articleId != null) {
                 filename = "article_" + articleId + fileExtension;
+            } else if (doctorId != null) {
+                filename = "doctor_" + doctorId + fileExtension;
+            } else if (userId != null) {
+                filename = "user_" + userId + fileExtension;
             } else {
                 filename = UUID.randomUUID().toString() + fileExtension;
             }

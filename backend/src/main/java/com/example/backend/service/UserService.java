@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.NotFoundException;
@@ -131,7 +132,7 @@ public class UserService {
      */
     public User createUser(String email, String passwordHash, String firstName, String lastName, 
                           String phone, User.Gender gender, java.time.LocalDate dateOfBirth, 
-                          String address, Long roleId) {
+                          String address, String avatarUrl, Long roleId) {
         
         // Kiểm tra email đã tồn tại chưa
         if (userRepository.existsByEmail(email)) {
@@ -157,6 +158,7 @@ public class UserService {
         user.setGender(gender);
         user.setDateOfBirth(dateOfBirth);
         user.setAddress(address);
+        user.setAvatarUrl(avatarUrl);
         user.setRole(role);
         user.setStatus(User.UserStatus.ACTIVE);
 
@@ -184,7 +186,7 @@ public class UserService {
      */
     public User updateUser(Long userId, String email, String firstName, String lastName, 
                           String phone, User.Gender gender, java.time.LocalDate dateOfBirth, 
-                          String address, User.UserStatus status, Long roleId) {
+                          String address, String avatarUrl, User.UserStatus status, Long roleId) {
         
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy user với ID: " + userId));
@@ -233,6 +235,9 @@ public class UserService {
         }
         if (address != null) {
             user.setAddress(address);
+        }
+        if (avatarUrl != null) {
+            user.setAvatarUrl(avatarUrl);
         }
         if (status != null) {
             user.setStatus(status);
@@ -328,5 +333,21 @@ public class UserService {
         } catch (Exception e) {
             System.err.println("Lỗi khi tạo patient record: " + e.getMessage());
         }
+    }
+
+    /**
+     * Upload ảnh đại diện cho user
+     * @param userId ID của user
+     * @param file file ảnh
+     * @return URL của ảnh đã upload
+     */
+    public String uploadAvatar(Long userId, MultipartFile file) {
+        User user = getUserByIdWithRole(userId);
+        // For now, just return a placeholder URL
+        // In a real implementation, you would save the file and return the actual URL
+        String avatarUrl = "/uploads/avatars/" + userId + "_" + file.getOriginalFilename();
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
+        return avatarUrl;
     }
 }
