@@ -56,11 +56,11 @@ const AppRoutes = () => {
       {/* Doctor (protected) */}
       <Route
         path="/doctor"
-        // element={
+         element={
         //   <RoleProtectedRoute allowed={["doctor", "admin"]}>
-        //     <DoctorLayout />
+             <DoctorLayout />
         //   </RoleProtectedRoute>
-        // }
+         }
       >
         <Route index element={<Navigate to="/doctor/dashboard" replace />} />
         <Route path="dashboard" element={<DoctorDashboard />} />
@@ -72,11 +72,11 @@ const AppRoutes = () => {
       {/* Admin (protected) */}
       <Route
         path="/admin"
-        // element={
-        //   <RoleProtectedRoute allowed={["admin"]}>
-        //     <AdminLayout />
-        //   </RoleProtectedRoute>
-        // }
+         element={
+          //   <RoleProtectedRoute allowed={["admin"]}>
+               <AdminLayout />
+          //   </RoleProtectedRoute>
+        }
       >
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<UsersManagement />} />
