@@ -1,8 +1,12 @@
 package com.example.backend.controller;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.backend.dto.AuthDTO;
 import com.example.backend.service.AuthService;
 import com.example.backend.service.EmailOtpService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +33,8 @@ import lombok.RequiredArgsConstructor;
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class AuthController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
     private final AuthService authService;
     private final EmailOtpService emailOtpService;
 
@@ -35,17 +43,47 @@ public class AuthController {
         AuthDTO.LoginResponse response = authService.login(loginRequest);
         
         if (response.isSuccess()) {
-            Long userId = response.getUser() != null ? response.getUser().getId() : null;
-            if (userId != null) {
-                ResponseCookie cookie = ResponseCookie.from("userId", String.valueOf(userId))
-                        .path("/")
-                        .maxAge(7 * 24 * 60 * 60) // 7 days
-                        .sameSite("Lax")
-                        .httpOnly(false)
-                        .secure(false)
-                        .build();
+            if (response.getUser() != null) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    // Build a simple map with basic fields to avoid serialization problems
+                    Map<String, Object> userMap = new HashMap<>();
+                    if (response.getUser().getId() != null) userMap.put("id", response.getUser().getId());
+                    if (response.getUser().getEmail() != null) userMap.put("email", response.getUser().getEmail());
+                    if (response.getUser().getFirstName() != null) userMap.put("firstName", response.getUser().getFirstName());
+                    if (response.getUser().getLastName() != null) userMap.put("lastName", response.getUser().getLastName());
+                    if (response.getUser().getPhone() != null) userMap.put("phone", response.getUser().getPhone());
+                    if (response.getUser().getAddress() != null) userMap.put("address", response.getUser().getAddress());
+                    if (response.getUser().getDateOfBirth() != null) userMap.put("dateOfBirth", response.getUser().getDateOfBirth().toString());
+                    if (response.getUser().getGender() != null) userMap.put("gender", response.getUser().getGender().toString());
+                    if (response.getUser().getRole() != null && response.getUser().getRole().getName() != null) userMap.put("role", response.getUser().getRole().getName());
 
-                return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+                    String userJson = mapper.writeValueAsString(userMap);
+                    String encoded = URLEncoder.encode(userJson, StandardCharsets.UTF_8);
+
+                    ResponseCookie cookie = ResponseCookie.from("user", encoded)
+                            .path("/")
+                            .maxAge(7 * 24 * 60 * 60) // 7 days
+                            .sameSite("Lax")
+                            .httpOnly(false)
+                            .secure(false)
+                            .build();
+
+                    return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+                } catch (JsonProcessingException e) {
+                    logger.error("Failed to serialize user for cookie", e);
+                    // fallback to previous behavior: set userId cookie
+                    Long userId = response.getUser().getId();
+                    ResponseCookie cookie = ResponseCookie.from("userId", String.valueOf(userId))
+                            .path("/")
+                            .maxAge(7 * 24 * 60 * 60)
+                            .sameSite("Lax")
+                            .httpOnly(false)
+                            .secure(false)
+                            .build();
+
+                    return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+                }
             }
             return ResponseEntity.ok(response);
         } else {
@@ -56,8 +94,8 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<AuthDTO.LogoutResponse> logout(@RequestBody(required = false) AuthDTO.LogoutRequest logoutRequest) {
         AuthDTO.LogoutResponse response = authService.logout(logoutRequest);
-        // Clear the userId cookie on logout
-        ResponseCookie cookie = ResponseCookie.from("userId", "")
+        // Clear the user and userId cookies on logout
+        ResponseCookie cookieUser = ResponseCookie.from("user", "")
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")
@@ -65,7 +103,18 @@ public class AuthController {
                 .secure(false)
                 .build();
 
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+        ResponseCookie cookieUserId = ResponseCookie.from("userId", "")
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .httpOnly(false)
+                .secure(false)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookieUser.toString())
+                .header(HttpHeaders.SET_COOKIE, cookieUserId.toString())
+                .body(response);
     }
 
     @PostMapping("/register")
@@ -82,23 +131,62 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<AuthDTO.LoginResponse> googleSignIn(@RequestBody Map<String, String> body) {
         try {
+            // For now, accept both idToken and direct email/name (temporary solution)
             String email = body.get("email");
-            String firstName = body.getOrDefault("firstName", "");
-            String lastName = body.getOrDefault("lastName", "");
+            String firstName = body.getOrDefault("firstName", "Google");
+            String lastName = body.getOrDefault("lastName", "User");
+            String idToken = body.get("idToken");
+            
+            // If email not provided but idToken exists, we need to decode it
+            if ((email == null || email.trim().isEmpty()) && idToken != null) {
+                // For now, create a dummy user since we don't have proper JWT decoding
+                // TODO: Implement proper Google ID token verification
+                email = "test-google-user@example.com";
+                firstName = "Google";
+                lastName = "User";
+            }
 
             AuthDTO.LoginResponse response = authService.oauthLogin(email, firstName, lastName);
             if (response.isSuccess()) {
-                Long userId = response.getUser() != null ? response.getUser().getId() : null;
-                if (userId != null) {
-                    ResponseCookie cookie = ResponseCookie.from("userId", String.valueOf(userId))
-                            .path("/")
-                            .maxAge(7 * 24 * 60 * 60)
-                            .sameSite("Lax")
-                            .httpOnly(false)
-                            .secure(false)
-                            .build();
+                if (response.getUser() != null) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        Map<String, Object> userMap = new HashMap<>();
+                        if (response.getUser().getId() != null) userMap.put("id", response.getUser().getId());
+                        if (response.getUser().getEmail() != null) userMap.put("email", response.getUser().getEmail());
+                        if (response.getUser().getFirstName() != null) userMap.put("firstName", response.getUser().getFirstName());
+                        if (response.getUser().getLastName() != null) userMap.put("lastName", response.getUser().getLastName());
+                        if (response.getUser().getPhone() != null) userMap.put("phone", response.getUser().getPhone());
+                        if (response.getUser().getAddress() != null) userMap.put("address", response.getUser().getAddress());
+                        if (response.getUser().getDateOfBirth() != null) userMap.put("dateOfBirth", response.getUser().getDateOfBirth().toString());
+                        if (response.getUser().getGender() != null) userMap.put("gender", response.getUser().getGender().toString());
+                        if (response.getUser().getRole() != null && response.getUser().getRole().getName() != null) userMap.put("role", response.getUser().getRole().getName());
 
-                    return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+                        String userJson = mapper.writeValueAsString(userMap);
+                        String encoded = URLEncoder.encode(userJson, StandardCharsets.UTF_8);
+
+                        ResponseCookie cookie = ResponseCookie.from("user", encoded)
+                                .path("/")
+                                .maxAge(7 * 24 * 60 * 60)
+                                .sameSite("Lax")
+                                .httpOnly(false)
+                                .secure(false)
+                                .build();
+
+                        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+                    } catch (JsonProcessingException e) {
+                        logger.error("Failed to serialize user for cookie (google sign-in)", e);
+                        Long userId = response.getUser().getId();
+                        ResponseCookie cookie = ResponseCookie.from("userId", String.valueOf(userId))
+                                .path("/")
+                                .maxAge(7 * 24 * 60 * 60)
+                                .sameSite("Lax")
+                                .httpOnly(false)
+                                .secure(false)
+                                .build();
+
+                        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+                    }
                 }
                 return ResponseEntity.ok(response);
             }

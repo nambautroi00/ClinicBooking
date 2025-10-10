@@ -46,6 +46,8 @@ export default function Login() {
         // Save token and user to localStorage
         if (data.token) localStorage.setItem('token', data.token);
         if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        // Notify other parts of the app that user changed
+        window.dispatchEvent(new Event('userChanged'));
         // Redirect based on role
         const roleName = data.user?.role?.name || data.user?.role?.roleName || '';
         const rn = String(roleName).toLowerCase();
@@ -66,11 +68,19 @@ export default function Login() {
   const handleGoogleCallback = async (response) => {
     try {
       const idToken = response?.credential;
-      // Optionally decode token on client to extract email/name, but send to backend
-      const res = await axiosClient.post('/auth/google', { idToken });
+      
+      // Decode JWT payload (basic decode, no verification)
+      const payload = JSON.parse(atob(idToken.split('.')[1]));
+      const email = payload.email;
+      const firstName = payload.given_name || 'Google';
+      const lastName = payload.family_name || 'User';
+      
+      // Send extracted data to backend
+      const res = await axiosClient.post('/auth/google', { email, firstName, lastName, idToken });
       if (res.data?.success) {
         if (res.data.token) localStorage.setItem('token', res.data.token);
         if (res.data.user) localStorage.setItem('user', JSON.stringify(res.data.user));
+        window.dispatchEvent(new Event('userChanged'));
         // Same role-based redirect as normal login
         const roleName = res.data.user?.role?.name || res.data.user?.role?.roleName || '';
         const rn = String(roleName).toLowerCase();

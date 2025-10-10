@@ -1,9 +1,9 @@
 package com.example.backend.service;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
 import com.example.backend.dto.AuthDTO;
 import com.example.backend.dto.UserDTO;
 import com.example.backend.exception.ConflictException;
@@ -125,29 +125,45 @@ public class AuthService {
     // OAuth login/registration (Google)
     public AuthDTO.LoginResponse oauthLogin(String email, String firstName, String lastName) {
         try {
+            System.out.println("DEBUG OAuth: Searching for email = '" + email + "'");
+            
             // Try to find existing user
             User user = userRepository.findByEmailWithRole(email).orElse(null);
+            
             if (user == null) {
+                System.out.println("DEBUG OAuth: User not found, creating new user with Patient role");
+                
                 // Create new user with Patient role
                 final String roleName = "Patient";
                 Role userRole = roleRepository.findByName(roleName)
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy role: " + roleName));
 
                 User newUser = new User();
-                newUser.setEmail(email);
-                newUser.setPasswordHash(""); // oauth user, no local password
-                newUser.setFirstName(firstName);
-                newUser.setLastName(lastName);
+                newUser.setEmail(email != null ? email : "");
+                newUser.setPasswordHash("oauth_google_user"); // oauth user, dummy password to satisfy validation
+                newUser.setFirstName(firstName != null && !firstName.trim().isEmpty() ? firstName : "Google");
+                newUser.setLastName(lastName != null && !lastName.trim().isEmpty() ? lastName : "User");
                 newUser.setStatus(User.UserStatus.ACTIVE);
                 newUser.setRole(userRole);
 
                 user = userRepository.save(newUser);
+                System.out.println("DEBUG OAuth: Created new user with ID = " + user.getId());
+            } else {
+                System.out.println("DEBUG OAuth: Found existing user with ID = " + user.getId() + ", status = " + user.getStatus());
+                
+                // Kiểm tra trạng thái user
+                if (user.getStatus() != User.UserStatus.ACTIVE) {
+                    return new AuthDTO.LoginResponse("Tài khoản đã bị khóa hoặc không hoạt động", false, null, null);
+                }
             }
 
             UserDTO.Response userResponse = userMapper.entityToResponseDTO(user);
+            System.out.println("DEBUG OAuth: Login successful for user = " + user.getEmail());
             return new AuthDTO.LoginResponse("Đăng nhập thành công (Google)", true, userResponse, null);
         } catch (Exception e) {
-            return new AuthDTO.LoginResponse("Đăng nhập OAuth thất bại", false, null, null);
+            System.err.println("ERROR OAuth: " + e.getMessage());
+            e.printStackTrace();
+            return new AuthDTO.LoginResponse("Đăng nhập OAuth thất bại: " + e.getMessage(), false, null, null);
         }
     }
 }
