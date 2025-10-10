@@ -73,6 +73,10 @@ public class User {
     @Column(name = "Address", columnDefinition = "NVARCHAR(MAX)")
     private String address;
 
+    @Size(max = 500, message = "URL ảnh đại diện không được quá 500 ký tự")
+    @Column(name = "AvatarUrl")
+    private String avatarUrl;
+
     @CreationTimestamp
     @Column(name = "CreatedAt", updatable = false)
     private LocalDateTime createdAt;

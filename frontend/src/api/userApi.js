@@ -79,6 +79,17 @@ const userApi = {
     return axiosClient.delete(`/users/${userId}/hard`);
   },
 
+  // Upload ảnh đại diện
+  uploadAvatar: (userId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return axiosClient.post(`/users/${userId}/upload-avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
   // Thống kê users
   getUserStats: async () => {
     try {

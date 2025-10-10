@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Table, Alert, Badge, Dropdown } from 'react-bootstrap';
 import { BiEdit, BiPlus, BiSearch, BiUser, BiDotsVertical, BiCheckCircle, BiXCircle, BiTrash, BiUserCheck } from 'react-icons/bi';
-import UserSelector from '../../components/UserSelector';
 import doctorApi from '../../api/doctorApi';
 import departmentApi from '../../api/departmentApi';
+import fileUploadApi from '../../api/fileUploadApi';
 
 const DoctorsManagement = () => {
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -16,10 +17,7 @@ const DoctorsManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showUserSelector, setShowUserSelector] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [createMode, setCreateMode] = useState('new'); // 'new' hoặc 'existing'
 
   // Form states
   const [formData, setFormData] = useState({
@@ -32,6 +30,7 @@ const DoctorsManagement = () => {
     gender: '',
     dateOfBirth: '',
     address: '',
+    avatarUrl: '',
     // Thông tin Doctor
     bio: '',
     specialty: '',
@@ -103,18 +102,35 @@ const DoctorsManagement = () => {
   const handleCreateDoctor = async (e) => {
     e.preventDefault();
     
-    if (createMode === 'new') {
-      // Tạo bác sĩ mới hoàn toàn
-      await createNewDoctor(e);
-    } else {
-      // Tạo bác sĩ từ user có sẵn
-      await createDoctorFromExistingUser(e);
+    // 🔍 DEBUG: Validate form data before submit
+    console.log('=== FORM VALIDATION ===');
+    console.log('Email:', formData.email);
+    console.log('Password:', formData.password ? '***' : 'EMPTY');
+    console.log('First Name:', formData.firstName);
+    console.log('Last Name:', formData.lastName);
+    console.log('Avatar URL:', formData.avatarUrl);
+    console.log('Department ID:', formData.departmentId);
+    console.log('Specialty:', formData.specialty);
+    console.log('========================');
+    
+    // Validate required fields
+    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName || !formData.departmentId || !formData.specialty) {
+      setError('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
     }
+    
+    await createNewDoctor(e);
   };
 
   const createNewDoctor = async (e) => {
     try {
       setLoading(true);
+      
+      // 🔍 DEBUG: Log form data trước khi gửi
+      console.log('=== FORM DATA DEBUG ===');
+      console.log('Form Data:', formData);
+      console.log('Avatar URL:', formData.avatarUrl);
+      console.log('========================');
       
       const response = await doctorApi.registerDoctor(formData);
       
@@ -123,44 +139,24 @@ const DoctorsManagement = () => {
       resetForm();
       fetchDoctors();
     } catch (err) {
-      setError('Lỗi khi tạo bác sĩ: ' + err.message);
+      console.error('Error creating doctor:', err);
+      setError('Lỗi khi tạo bác sĩ: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
   };
 
-  const createDoctorFromExistingUser = async (e) => {
-    // Validation
-    if (!selectedUser) {
-      setError('Vui lòng chọn user để tạo bác sĩ');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const doctorData = {
-        userId: selectedUser.id,
-        bio: formData.bio,
-        specialty: formData.specialty,
-        departmentId: formData.departmentId
-      };
-      
-      const response = await doctorApi.createDoctor(doctorData);
-      
-      setSuccess('Tạo bác sĩ từ user có sẵn thành công!');
-      setShowCreateModal(false);
-      resetForm();
-      fetchDoctors();
-    } catch (err) {
-      setError('Lỗi khi tạo bác sĩ: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEditDoctor = async (e) => {
     e.preventDefault();
+    
+    // 🔍 DEBUG: Log form data before update
+    console.log('=== EDIT DOCTOR DEBUG ===');
+    console.log('Doctor ID:', selectedDoctor.doctorId);
+    console.log('Form Data:', formData);
+    console.log('Avatar URL:', formData.avatarUrl);
+    console.log('=========================');
+    
     try {
       setLoading(true);
       
@@ -171,7 +167,8 @@ const DoctorsManagement = () => {
       resetForm();
       fetchDoctors();
     } catch (err) {
-      setError('Lỗi khi cập nhật bác sĩ: ' + err.message);
+      console.error('Error updating doctor:', err);
+      setError('Lỗi khi cập nhật bác sĩ: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -193,6 +190,59 @@ const DoctorsManagement = () => {
     }
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Kích thước file không được vượt quá 5MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // For new doctor creation, we don't have doctorId yet, so pass null
+      const doctorId = selectedDoctor?.doctorId || null;
+      const response = await fileUploadApi.uploadImage(file, doctorId, 'doctor');
+      
+      // 🔍 DEBUG: Log upload response
+      console.log('=== UPLOAD DEBUG ===');
+      console.log('Upload response:', response.data);
+      console.log('Response URL:', response.data.url);
+      console.log('====================');
+      
+      if (response.data.success) {
+        const newAvatarUrl = response.data.url;
+        console.log('Setting avatar URL:', newAvatarUrl);
+        
+        setFormData(prev => {
+          const newFormData = {
+            ...prev,
+            avatarUrl: newAvatarUrl
+          };
+          console.log('New form data:', newFormData);
+          return newFormData;
+        });
+        
+        alert('Upload ảnh thành công!');
+      } else {
+        alert('Lỗi: ' + response.data.message);
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Lỗi khi upload ảnh: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -204,26 +254,25 @@ const DoctorsManagement = () => {
       gender: '',
       dateOfBirth: '',
       address: '',
+      avatarUrl: '',
       bio: '',
       specialty: '',
       departmentId: ''
     });
     setSelectedDoctor(null);
-    setSelectedUser(null);
-    setCreateMode('new');
   };
 
-  const handleUserSelect = (user) => {
-    setSelectedUser(user);
-    setShowUserSelector(false);
-  };
-
-  const openUserSelector = () => {
-    setShowUserSelector(true);
-  };
 
   const openEditModal = (doctor) => {
     setSelectedDoctor(doctor);
+    
+    // 🔍 DEBUG: Log doctor data when opening edit modal
+    console.log('=== EDIT MODAL DEBUG ===');
+    console.log('Doctor data:', doctor);
+    console.log('User data:', doctor.user);
+    console.log('Avatar URL from doctor:', doctor.user?.avatarUrl);
+    console.log('========================');
+    
     setFormData({
       email: doctor.user?.email || '',
       password: '',
@@ -233,6 +282,7 @@ const DoctorsManagement = () => {
       gender: doctor.user?.gender || '',
       dateOfBirth: doctor.user?.dateOfBirth || '',
       address: doctor.user?.address || '',
+      avatarUrl: doctor.user?.avatarUrl || '',
       bio: doctor.bio || '',
       specialty: doctor.specialty || '',
       departmentId: doctor.department?.id || ''
@@ -314,49 +364,48 @@ const DoctorsManagement = () => {
         </Alert>
       )}
 
-      {/* Thống kê nhanh - Compact */}
-      <div className="row mb-4">
+      {/* Thống kê nhanh - Dashboard Style */}
+      <div className="row g-3 mb-4">
         <div className="col-md-4">
-          <div className="d-flex align-items-center bg-light rounded p-3 border-start border-success border-4 shadow-sm">
-            <div className="text-success me-3">
-              <BiCheckCircle size={24} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="small text-muted fw-semibold">✅ Hoạt động</div>
-              <div className="h4 mb-0 text-success fw-bold">
-                {doctors.filter(d => d.status === 'ACTIVE').length}
+          <div className="card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Hoạt động</div>
+                  <div className="h4 mb-0">{doctors.filter(d => d.status === 'ACTIVE').length}</div>
+                </div>
+                <i className="bi bi-check-circle fs-2 text-success"></i>
               </div>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="d-flex align-items-center bg-light rounded p-3 border-start border-warning border-4 shadow-sm">
-            <div className="text-warning me-3">
-              <BiXCircle size={24} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="small text-muted fw-semibold">⏸️ Không hoạt động</div>
-              <div className="h4 mb-0 text-warning fw-bold">
-                {doctors.filter(d => d.status === 'INACTIVE').length}
+          <div className="card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Không hoạt động</div>
+                  <div className="h4 mb-0">{doctors.filter(d => d.status === 'INACTIVE').length}</div>
+                </div>
+                <i className="bi bi-x-circle fs-2 text-warning"></i>
               </div>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="d-flex align-items-center bg-light rounded p-3 border-start border-primary border-4 shadow-sm">
-            <div className="text-primary me-3">
-              <BiUserCheck size={24} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="small text-muted fw-semibold">👥 Tổng số bác sĩ</div>
-              <div className="h4 mb-0 text-primary fw-bold">
-                {doctors.length}
+          <div className="card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Tổng số bác sĩ</div>
+                  <div className="h4 mb-0">{doctors.length}</div>
+                </div>
+                <i className="bi bi-person-badge fs-2 text-primary"></i>
               </div>
             </div>
           </div>
         </div>
       </div>
-
 
       {/* Search and Filter */}
       <div className="row mb-3">
@@ -421,6 +470,7 @@ const DoctorsManagement = () => {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Avatar</th>
               <th>Họ tên</th>
               <th>Email</th>
               <th>Điện thoại</th>
@@ -433,16 +483,44 @@ const DoctorsManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="8" className="text-center">Đang tải...</td>
+                <td colSpan="9" className="text-center">Đang tải...</td>
               </tr>
             ) : filteredDoctors.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center">Không có bác sĩ nào</td>
+                <td colSpan="9" className="text-center">Không có bác sĩ nào</td>
               </tr>
             ) : (
               filteredDoctors.map(doctor => (
                 <tr key={doctor.doctorId}>
                   <td>{doctor.doctorId}</td>
+                  <td>
+                    {doctor.user?.avatarUrl ? (
+                      <img
+                        src={doctor.user.avatarUrl.startsWith('http') ? doctor.user.avatarUrl : `http://localhost:8080${doctor.user.avatarUrl}`}
+                        alt="Avatar"
+                        className="rounded"
+                        style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                        onError={(e) => {
+                          // Thay thế ảnh lỗi bằng placeholder
+                          e.target.style.display = 'none';
+                          const placeholder = e.target.nextElementSibling;
+                          if (placeholder) {
+                            placeholder.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className="bg-light rounded d-flex align-items-center justify-content-center" 
+                      style={{ 
+                        width: '40px', 
+                        height: '40px',
+                        display: doctor.user?.avatarUrl ? 'none' : 'flex'
+                      }}
+                    >
+                      <i className="bi bi-person text-muted"></i>
+                    </div>
+                  </td>
                   <td>{doctor.user?.firstName} {doctor.user?.lastName}</td>
                   <td>{doctor.user?.email}</td>
                   <td>{doctor.user?.phone}</td>
@@ -505,33 +583,7 @@ const DoctorsManagement = () => {
         </Modal.Header>
         <Form onSubmit={handleCreateDoctor}>
           <Modal.Body>
-            {/* Chọn chế độ tạo */}
-            <Form.Group className="mb-4">
-              <Form.Label>Chọn cách tạo bác sĩ:</Form.Label>
-              <div className="d-flex gap-3">
-                <Form.Check
-                  type="radio"
-                  name="createMode"
-                  id="newDoctor"
-                  label="Tạo bác sĩ mới hoàn toàn"
-                  checked={createMode === 'new'}
-                  onChange={() => setCreateMode('new')}
-                />
-                <Form.Check
-                  type="radio"
-                  name="createMode"
-                  id="existingUser"
-                  label="Tạo từ user có sẵn"
-                  checked={createMode === 'existing'}
-                  onChange={() => setCreateMode('existing')}
-                />
-              </div>
-            </Form.Group>
-
-            {createMode === 'new' ? (
-              // Form tạo bác sĩ mới hoàn toàn
-              <>
-                <div className="row">
+            <div className="row">
                   <div className="col-md-6">
                     <Form.Group className="mb-3">
                       <Form.Label>Email *</Form.Label>
@@ -605,7 +657,6 @@ const DoctorsManagement = () => {
                         <option value="">Chọn giới tính</option>
                         <option value="MALE">Nam</option>
                         <option value="FEMALE">Nữ</option>
-                        <option value="OTHER">Khác</option>
                       </Form.Select>
                     </Form.Group>
                   </div>
@@ -668,79 +719,80 @@ const DoctorsManagement = () => {
                     placeholder="Nhập tiểu sử bác sĩ"
                   />
                 </Form.Group>
-              </>
-            ) : (
-              // Form tạo từ user có sẵn
-              <>
-                <div className="row">
-                  <div className="col-md-6">
-                    <Form.Group className="mb-3">
-                      <Form.Label>Chọn User *</Form.Label>
-                      <div className="d-flex gap-2">
-                        <Form.Control
-                          type="text"
-                          value={selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName} (${selectedUser.email})` : ''}
-                          placeholder="Chọn user để tạo bác sĩ"
-                          readOnly
-                          required
-                        />
-                        <Button 
-                          variant="outline-primary" 
-                          onClick={openUserSelector}
-                          className="d-flex align-items-center gap-1"
-                        >
-                          <BiUser /> Chọn
-                        </Button>
-                      </div>
-                    </Form.Group>
-                  </div>
-                  <div className="col-md-6">
-                    <Form.Group className="mb-3">
-                      <Form.Label>Khoa *</Form.Label>
-                      <Form.Select
-                        value={formData.departmentId}
-                        onChange={(e) => setFormData({...formData, departmentId: e.target.value})}
-                        required
-                      >
-                        <option value="">Chọn khoa</option>
-                        {departments.map(dept => (
-                          <option key={dept.id} value={dept.id}>
-                            {dept.departmentName}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </div>
-                </div>
+                
+                {/* Avatar Upload Section */}
                 <Form.Group className="mb-3">
-                  <Form.Label>Chuyên khoa *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.specialty}
-                    onChange={(e) => setFormData({...formData, specialty: e.target.value})}
-                    required
-                    placeholder="Nhập chuyên khoa"
-                  />
+                  <Form.Label>
+                    Ảnh đại diện 
+                    {formData.avatarUrl && (
+                      <span className="text-success ms-2">
+                        <i className="bi bi-check-circle"></i> Đã có ảnh
+                      </span>
+                    )}
+                    {!formData.avatarUrl && (
+                      <span className="text-muted ms-2">
+                        <i className="bi bi-exclamation-circle"></i> Chưa có ảnh
+                      </span>
+                    )}
+                  </Form.Label>
+                  <div className="row">
+                    <div className="col-md-8">
+                      <Form.Control
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        disabled={uploading}
+                        className="mb-2"
+                      />
+                      {uploading && (
+                        <div className="mb-2">
+                          <div className="spinner-border spinner-border-sm me-2" role="status">
+                            <span className="visually-hidden">Uploading...</span>
+                          </div>
+                          <small className="text-muted">Đang upload...</small>
+                        </div>
+                      )}
+                      <Form.Control
+                        type="text"
+                        value={formData.avatarUrl}
+                        onChange={(e) => setFormData({...formData, avatarUrl: e.target.value})}
+                        placeholder="URL ảnh hoặc upload file ở trên"
+                        className="mb-2"
+                      />
+                      {/* 🔍 DEBUG: Show current avatar URL */}
+                      {formData.avatarUrl && (
+                        <div className="alert alert-info py-2 mb-2">
+                          <small>
+                            <strong>Avatar URL:</strong> {formData.avatarUrl}
+                          </small>
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-md-4">
+                      {formData.avatarUrl && (
+                        <div>
+                          <small className="text-muted d-block mb-1">Preview:</small>
+                          <img
+                            src={formData.avatarUrl.startsWith('http') ? formData.avatarUrl : `http://localhost:8080${formData.avatarUrl}`}
+                            alt="Avatar Preview"
+                            className="img-fluid rounded"
+                            style={{ maxHeight: '100px', maxWidth: '100px' }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Tiểu sử</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={formData.bio}
-                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                    placeholder="Nhập tiểu sử bác sĩ"
-                  />
-                </Form.Group>
-              </>
-            )}
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
               Hủy
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
-              {loading ? 'Đang tạo...' : createMode === 'new' ? 'Tạo Bác sĩ Mới' : 'Tạo từ User có sẵn'}
+              {loading ? 'Đang tạo...' : 'Tạo Bác sĩ Mới'}
             </Button>
           </Modal.Footer>
         </Form>
@@ -861,6 +913,73 @@ const DoctorsManagement = () => {
                 placeholder="Nhập tiểu sử bác sĩ"
               />
             </Form.Group>
+
+            {/* Avatar Upload Section */}
+            <Form.Group className="mb-3">
+              <Form.Label>
+                Ảnh đại diện 
+                {formData.avatarUrl && (
+                  <span className="text-success ms-2">
+                    <i className="bi bi-check-circle"></i> Đã có ảnh
+                  </span>
+                )}
+                {!formData.avatarUrl && (
+                  <span className="text-muted ms-2">
+                    <i className="bi bi-exclamation-circle"></i> Chưa có ảnh
+                  </span>
+                )}
+              </Form.Label>
+              <div className="row">
+                <div className="col-md-8">
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                    className="mb-2"
+                  />
+                  {uploading && (
+                    <div className="mb-2">
+                      <div className="spinner-border spinner-border-sm me-2" role="status">
+                        <span className="visually-hidden">Uploading...</span>
+                      </div>
+                      <small className="text-muted">Đang upload...</small>
+                    </div>
+                  )}
+                  <Form.Control
+                    type="text"
+                    value={formData.avatarUrl}
+                    onChange={(e) => setFormData({...formData, avatarUrl: e.target.value})}
+                    placeholder="URL ảnh hoặc upload file ở trên"
+                    className="mb-2"
+                  />
+                  {/* 🔍 DEBUG: Show current avatar URL */}
+                  {formData.avatarUrl && (
+                    <div className="alert alert-info py-2 mb-2">
+                      <small>
+                        <strong>Avatar URL:</strong> {formData.avatarUrl}
+                      </small>
+                    </div>
+                  )}
+                </div>
+                <div className="col-md-4">
+                  {formData.avatarUrl && (
+                    <div>
+                      <small className="text-muted d-block mb-1">Preview:</small>
+                      <img
+                        src={formData.avatarUrl.startsWith('http') ? formData.avatarUrl : `http://localhost:8080${formData.avatarUrl}`}
+                        alt="Avatar Preview"
+                        className="img-fluid rounded"
+                        style={{ maxHeight: '100px', maxWidth: '100px' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Form.Group>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowEditModal(false)}>
@@ -894,13 +1013,6 @@ const DoctorsManagement = () => {
       </Modal>
 
 
-      {/* User Selector Modal */}
-      <UserSelector
-        show={showUserSelector}
-        onHide={() => setShowUserSelector(false)}
-        onSelect={handleUserSelect}
-        departments={departments}
-      />
     </div>
   );
 };

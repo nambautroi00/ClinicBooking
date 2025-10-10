@@ -1,8 +1,34 @@
 import React, { useState } from 'react';
+import axios from "axios";
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
 
 export default function Register() {
+  // Địa chỉ VN
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedWard, setSelectedWard] = useState("");
+
+  React.useEffect(() => {
+    axios.get("https://provinces.open-api.vn/api/p/").then(res => setProvinces(res.data));
+  }, []);
+  React.useEffect(() => {
+    if (selectedProvince) {
+      axios.get(`https://provinces.open-api.vn/api/p/${selectedProvince}?depth=2`).then(res => setDistricts(res.data.districts));
+      setSelectedDistrict("");
+      setWards([]);
+      setSelectedWard("");
+    }
+  }, [selectedProvince]);
+  React.useEffect(() => {
+    if (selectedDistrict) {
+      axios.get(`https://provinces.open-api.vn/api/d/${selectedDistrict}?depth=2`).then(res => setWards(res.data.wards));
+      setSelectedWard("");
+    }
+  }, [selectedDistrict]);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -27,52 +53,69 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-
-    if (form.password !== form.confirmPassword) {
-      setError('Mật khẩu và xác nhận mật khẩu không khớp');
-      return;
+    // Validate
+    if (!form.lastName.trim()) return setError('Vui lòng nhập họ');
+    if (!form.firstName.trim()) return setError('Vui lòng nhập tên');
+    if (!form.email.trim() || !/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@(([^<>()[\]\\.,;:\s@"]+\.)+[^<>()[\]\\.,;:\s@"]{2,})$/i.test(form.email)) return setError('Email không hợp lệ');
+    if (!form.password || form.password.length < 6) return setError('Mật khẩu phải từ 6 ký tự');
+    if (form.password !== form.confirmPassword) return setError('Mật khẩu và xác nhận mật khẩu không khớp');
+    if (!form.phone || !/^0\d{9}$/.test(form.phone)) return setError('Số điện thoại phải gồm 10 số và bắt đầu bằng số 0');
+    if (!form.gender) return setError('Vui lòng chọn giới tính');
+    if (!form.dateOfBirth) return setError('Vui lòng chọn ngày sinh');
+    // Ngày sinh trên 10 tuổi
+    const dob = new Date(form.dateOfBirth);
+    const today = new Date();
+    const minDate = new Date(today.getFullYear() - 10, today.getMonth(), today.getDate());
+    if (dob > minDate) return setError('Bạn phải trên 10 tuổi');
+    // Địa chỉ: cho phép null, chỉ validate nếu chọn 1 trong 3 dropdown
+    if (selectedProvince || selectedDistrict || selectedWard) {
+      if (!selectedProvince) return setError('Vui lòng chọn Tỉnh/Thành phố');
+      if (!selectedDistrict) return setError('Vui lòng chọn Quận/Huyện');
+      if (!selectedWard) return setError('Vui lòng chọn Phường/Xã');
     }
 
     setLoading(true);
     try {
-      // Backend PatientController.registerPatient expects PatientRegisterRequest fields
       const payload = {
         email: form.email,
         password: form.password,
         firstName: form.firstName,
         lastName: form.lastName,
-        phone: form.phone,
+        phone: form.phone.replace(/\D/g, ''), // chỉ lấy ký tự số
         gender: form.gender || null,
-        dob: form.dateOfBirth || null, // field name expected by backend
-        address: form.address || null,
+        dob: form.dateOfBirth || null,
+        address: (selectedProvince && selectedDistrict && selectedWard)
+          ? [
+              wards.find(w => w.code === selectedWard)?.name,
+              districts.find(d => d.code === selectedDistrict)?.name,
+              provinces.find(p => p.code === selectedProvince)?.name
+            ].filter(Boolean).join(", ")
+          : null,
         healthInsuranceNumber: null,
         medicalHistory: null,
       };
-
       const res = await axiosClient.post('/patients/register', payload);
-
-      // Treat 201 (created) and 202 (accepted - pending OTP) as success
       if (res.status === 201 || res.status === 202) {
-        // store pending email so VerifyOtp page can use it
         localStorage.setItem('pendingOtpEmail', form.email);
         navigate('/verify-otp');
       } else {
         const data = res.data;
-        // res.data may be a string or object
         const message = typeof data === 'string' ? data : data?.message;
         setError(message || 'Đăng ký thất bại');
       }
     } catch (err) {
-      // GlobalExceptionHandler returns { message, ... }
-      const serverMessage = err.response?.data?.message;
-      // Validation errors include errors map under 'errors'
-      if (err.response?.status === 400 && err.response?.data?.errors) {
-        const firstField = Object.keys(err.response.data.errors)[0];
-        setError(err.response.data.errors[firstField]);
-      } else if (serverMessage) {
-        setError(serverMessage);
+      if (err.response?.status === 409) {
+        setError('Email đã tồn tại, vui lòng dùng email khác');
       } else {
-        setError(err.message || 'Lỗi mạng');
+        const serverMessage = err.response?.data?.message;
+        if (err.response?.status === 400 && err.response?.data?.errors) {
+          const firstField = Object.keys(err.response.data.errors)[0];
+          setError(err.response.data.errors[firstField]);
+        } else if (serverMessage) {
+          setError(serverMessage);
+        } else {
+          setError(err.message || 'Lỗi mạng');
+        }
       }
     } finally {
       setLoading(false);
@@ -121,7 +164,6 @@ export default function Register() {
               <option value="">Chọn</option>
               <option value="MALE">Nam</option>
               <option value="FEMALE">Nữ</option>
-              <option value="OTHER">Khác</option>
             </select>
           </div>
 
@@ -138,7 +180,20 @@ export default function Register() {
 
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-gray-700">Địa chỉ</label>
-            <textarea name="address" value={form.address} onChange={handleChange} rows={3} className="w-full rounded-md border border-gray-200 px-3 py-2" />
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <select className="w-full rounded border px-2 py-2" value={selectedProvince} onChange={e => setSelectedProvince(e.target.value)}>
+                <option value="">Chọn Tỉnh/Thành phố</option>
+                {provinces.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
+              </select>
+              <select className="w-full rounded border px-2 py-2" value={selectedDistrict} onChange={e => setSelectedDistrict(e.target.value)} disabled={!selectedProvince}>
+                <option value="">Chọn Quận/Huyện</option>
+                {districts.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
+              </select>
+              <select className="w-full rounded border px-2 py-2" value={selectedWard} onChange={e => setSelectedWard(e.target.value)} disabled={!selectedDistrict}>
+                <option value="">Chọn Phường/Xã</option>
+                {wards.map(w => <option key={w.code} value={w.code}>{w.name}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="md:col-span-2 flex items-center justify-between">
