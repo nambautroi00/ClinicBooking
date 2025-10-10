@@ -8,6 +8,26 @@ export default function HeroSection() {
     "Được hoàn tiền khi hủy khám - Có cơ hội nhận đầy đủ tiền",
   ];
 
+  const navigate = window.reactRouterNavigate || null;
+  // Nếu dùng react-router v6, nên dùng useNavigate. Nếu không, fallback window.location
+  const handleBookingClick = () => {
+    // Kiểm tra đăng nhập: ví dụ dùng localStorage hoặc cookie
+    const user = localStorage.getItem('user');
+    if (user) {
+      if (navigate) {
+        navigate('/patient/booking');
+      } else {
+        window.location.href = '/patient/booking';
+      }
+    } else {
+      if (navigate) {
+        navigate('/login');
+      } else {
+        window.location.href = '/login';
+      }
+    }
+  };
+
   return (
     <section id="home" className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-accent-teal/10">
       <div className="container mx-auto px-6 py-20">
@@ -45,7 +65,7 @@ export default function HeroSection() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <button className="inline-flex items-center rounded-lg bg-primary px-5 py-3 text-white text-base font-semibold shadow-md hover:bg-primary/90 transition">
+              <button className="inline-flex items-center rounded-lg bg-primary px-5 py-3 text-white text-base font-semibold shadow-md hover:bg-primary/90 transition" onClick={handleBookingClick}>
                 Đặt khám ngay
                 <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>

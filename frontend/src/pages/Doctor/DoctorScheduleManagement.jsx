@@ -1,8 +1,83 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import doctorScheduleApi from "../../api/doctorScheduleApi";
 import DoctorScheduleForm from "./DoctorScheduleForm";
+import Cookies from "js-cookie";
+import doctorApi from "../../api/doctorApi";
 
 const DoctorScheduleManagement = () => {
+  // State cho filter ngày tháng
+  const [dateFilter, setDateFilter] = useState("All");
+  const [customRange, setCustomRange] = useState({ from: "", to: "" });
+
+  // Hàm lọc lịch trình theo khoảng thời gian
+  // Helper: chuyển date về yyyy-MM-dd
+  const toDateString = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    return d.toISOString().slice(0, 10);
+  };
+
+  const filterSchedulesByDate = (schedules) => {
+    const todayStr = toDateString(new Date());
+    switch (dateFilter) {
+      case "Today":
+        return schedules.filter((s) => toDateString(s.workDate) === todayStr);
+      case "Yesterday": {
+        const yest = new Date();
+        yest.setDate(yest.getDate() - 1);
+        const yestStr = toDateString(yest);
+        return schedules.filter((s) => toDateString(s.workDate) === yestStr);
+      }
+      case "Last7Days": {
+        const from = new Date();
+        from.setDate(from.getDate() - 6);
+        const fromStr = toDateString(from);
+        return schedules.filter((s) => {
+          const dStr = toDateString(s.workDate);
+          return dStr >= fromStr && dStr <= todayStr;
+        });
+      }
+      case "Last30Days": {
+        const from = new Date();
+        from.setDate(from.getDate() - 29);
+        const fromStr = toDateString(from);
+        return schedules.filter((s) => {
+          const dStr = toDateString(s.workDate);
+          return dStr >= fromStr && dStr <= todayStr;
+        });
+      }
+      case "ThisMonth": {
+        const now = new Date();
+        const month = now.getMonth();
+        const year = now.getFullYear();
+        return schedules.filter((s) => {
+          const d = new Date(s.workDate);
+          return d.getMonth() === month && d.getFullYear() === year;
+        });
+      }
+      case "LastMonth": {
+        const now = new Date();
+        const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        const year =
+          lastMonth === 11 ? now.getFullYear() - 1 : now.getFullYear();
+        return schedules.filter((s) => {
+          const d = new Date(s.workDate);
+          return d.getMonth() === lastMonth && d.getFullYear() === year;
+        });
+      }
+      case "CustomRange": {
+        if (!customRange.from || !customRange.to) return schedules;
+        const fromStr = toDateString(customRange.from);
+        const toStr = toDateString(customRange.to);
+        return schedules.filter((s) => {
+          const dStr = toDateString(s.workDate);
+          return dStr >= fromStr && dStr <= toStr;
+        });
+      }
+      default:
+        return schedules;
+    }
+  };
   // Định dạng ngày
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("vi-VN");
@@ -43,11 +118,12 @@ const DoctorScheduleManagement = () => {
 
   // Xử lý tạo lịch trình
   const handleCreateSchedule = async (scheduleData) => {
+    if (!doctorId) return;
+
     try {
-      const mockUser = { doctorId: 3, fullName: "Hồng Nguyễn" };
       await doctorScheduleApi.createSchedule({
         ...scheduleData,
-        doctorId: mockUser.doctorId,
+        doctorId: doctorId,
       });
       setShowForm(false);
       loadSchedules();
@@ -72,26 +148,24 @@ const DoctorScheduleManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [viewMode, setViewMode] = useState("table"); // 'table' hoặc 'calendar'
+  const [doctorId, setDoctorId] = useState(null);
 
-  useEffect(() => {
-    // Mock user for testing - using real doctorId from database
-    const mockUser = { doctorId: 3, fullName: "Hồng Nguyễn" };
-
-    if (mockUser?.doctorId) {
-      loadSchedules();
+  // Định nghĩa loadSchedules trước
+  const loadSchedules = useCallback(async () => {
+    if (!doctorId) {
+      console.log("No doctorId available");
+      return;
     }
-  }, []);
 
-  const loadSchedules = async () => {
+    console.log("Loading schedules for doctorId:", doctorId);
     try {
       setLoading(true);
       setError(null);
-      const mockUser = { doctorId: 3, fullName: "Hồng Nguyễn" };
-      const response = await doctorScheduleApi.getSchedulesByDoctor(
-        mockUser.doctorId
-      );
+      const response = await doctorScheduleApi.getSchedulesByDoctor(doctorId);
+      console.log("Schedules response:", response);
       setSchedules(response.data);
     } catch (err) {
+      console.error("Error loading schedules:", err);
       setError(
         "Không thể tải lịch trình: " +
           (err.response?.data?.message || err.message)
@@ -99,7 +173,33 @@ const DoctorScheduleManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [doctorId]);
+
+  // Lấy doctorId từ cookie và API
+  useEffect(() => {
+    const userId = Cookies.get("userId");
+    console.log("UserId from cookie:", userId);
+    if (userId) {
+      doctorApi
+        .getDoctorByUserId(userId)
+        .then((res) => {
+          console.log("Doctor API response:", res);
+          // Lấy data từ response
+          const data = res.data || res;
+          console.log("Doctor data:", data);
+          setDoctorId(data.doctorId);
+        })
+        .catch((error) => {
+          console.error("Error fetching doctor info:", error);
+        });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (doctorId) {
+      loadSchedules();
+    }
+  }, [doctorId, loadSchedules]);
 
   // ...existing code...
 
@@ -139,37 +239,135 @@ const DoctorScheduleManagement = () => {
               </div>
               <div className="d-flex gap-2 flex-wrap">
                 <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={loadSchedules}
-                  title="Làm mới"
-                >
-                  <i className="bi bi-arrow-clockwise"></i>
-                </button>
-                <button
-                  className="btn btn-outline-primary btn-sm"
-                  onClick={() =>
-                    setViewMode(viewMode === "table" ? "calendar" : "table")
-                  }
-                  title={viewMode === "table" ? "Xem lịch" : "Xem bảng"}
-                >
-                  <i
-                    className={`bi ${
-                      viewMode === "table" ? "bi-calendar3" : "bi-table"
-                    }`}
-                  ></i>
-                </button>
-                <button
                   className="btn btn-primary btn-sm"
                   onClick={() => setShowForm(true)}
                 >
                   <i className="bi bi-plus-circle"></i> Thêm lịch trình
                 </button>
-                <input
-                  type="date"
-                  className="form-control form-control-sm border-primary"
-                  style={{ maxWidth: 150 }}
-                  placeholder="Lọc theo ngày"
-                />
+                <div className="dropdown">
+                  <button
+                    className="btn btn-outline-primary btn-sm dropdown-toggle"
+                    type="button"
+                    id="dateRangeDropdown"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                  >
+                    <i className="bi bi-calendar-range"></i>{" "}
+                    {(() => {
+                      switch (dateFilter) {
+                        case "All":
+                          return "Chọn khoảng thời gian";
+                        case "Today":
+                          return "Hôm nay";
+                        case "Yesterday":
+                          return "Hôm qua";
+                        case "Last7Days":
+                          return "7 ngày gần nhất";
+                        case "Last30Days":
+                          return "30 ngày gần nhất";
+                        case "ThisMonth":
+                          return "Tháng này";
+                        case "LastMonth":
+                          return "Tháng trước";
+                        case "CustomRange":
+                          return "Tùy chọn";
+                        default:
+                          return dateFilter;
+                      }
+                    })()}
+                  </button>
+                  <ul
+                    className="dropdown-menu"
+                    aria-labelledby="dateRangeDropdown"
+                  >
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => setDateFilter("Today")}
+                      >
+                        Today
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => setDateFilter("Yesterday")}
+                      >
+                        Yesterday
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => setDateFilter("Last7Days")}
+                      >
+                        Last 7 Days
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => setDateFilter("Last30Days")}
+                      >
+                        Last 30 Days
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => setDateFilter("ThisMonth")}
+                      >
+                        This Month
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => setDateFilter("LastMonth")}
+                      >
+                        Last Month
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        type="button"
+                        onClick={() => setDateFilter("CustomRange")}
+                      >
+                        Custom Range
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+                {dateFilter === "CustomRange" && (
+                  <div className="d-flex align-items-center gap-2">
+                    <input
+                      type="date"
+                      className="form-control form-control-sm border-primary"
+                      style={{ maxWidth: 130 }}
+                      value={customRange.from}
+                      onChange={(e) =>
+                        setCustomRange((r) => ({ ...r, from: e.target.value }))
+                      }
+                    />
+                    <span>-</span>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm border-primary"
+                      style={{ maxWidth: 130 }}
+                      value={customRange.to}
+                      onChange={(e) =>
+                        setCustomRange((r) => ({ ...r, to: e.target.value }))
+                      }
+                    />
+                  </div>
+                )}
                 <select
                   className="form-select form-select-sm border-primary"
                   style={{ maxWidth: 120 }}
@@ -211,7 +409,7 @@ const DoctorScheduleManagement = () => {
                 </div>
               )}
               {viewMode === "table" ? (
-                schedules.length === 0 ? (
+                filterSchedulesByDate(schedules).length === 0 ? (
                   <div className="text-center py-5">
                     <i
                       className="bi bi-calendar-x text-muted"
@@ -242,7 +440,7 @@ const DoctorScheduleManagement = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {schedules.map((schedule) => (
+                        {filterSchedulesByDate(schedules).map((schedule) => (
                           <tr
                             key={schedule.scheduleId}
                             className="table-row-hover"

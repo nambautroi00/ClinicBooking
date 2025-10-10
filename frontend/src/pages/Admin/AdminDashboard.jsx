@@ -115,6 +115,7 @@ const AdminDashboard = () => {
             <div className="alert alert-danger" role="alert">{error}</div>
           )}
 
+
           {/* Stat cards */}
           <div className="row g-3 mb-4">
             <div className="col-md-3">
@@ -271,6 +272,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+
     </div>
   );
 };

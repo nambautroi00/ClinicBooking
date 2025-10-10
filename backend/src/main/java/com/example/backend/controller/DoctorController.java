@@ -1,6 +1,8 @@
 package com.example.backend.controller;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -89,9 +91,34 @@ public class DoctorController {
      * POST /api/doctors/register
      */
     @PostMapping("/register")
-    public ResponseEntity<String> registerDoctor(@RequestBody DoctorService.DoctorRegisterRequest request) {
-        doctorService.registerDoctor(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Đăng ký bác sĩ thành công");
+    public ResponseEntity<Map<String, Object>> registerDoctor(@RequestBody DoctorService.DoctorRegisterRequest request) {
+        try {
+            doctorService.registerDoctor(request);
+            
+            // Lấy doctor vừa tạo để trả về
+            List<Doctor> doctors = doctorService.getAllDoctorsWithUserAndRole();
+            Doctor newDoctor = doctors.stream()
+                .filter(d -> d.getUser() != null && d.getUser().getEmail().equals(request.getEmail()))
+                .findFirst()
+                .orElse(null);
+            
+            Map<String, Object> response = new HashMap<>();
+            if (newDoctor != null) {
+                response.put("success", true);
+                response.put("message", "Đăng ký bác sĩ thành công");
+                response.put("doctor", newDoctor);
+            } else {
+                response.put("success", true);
+                response.put("message", "Đăng ký bác sĩ thành công nhưng không thể lấy thông tin doctor");
+            }
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Lỗi khi đăng ký bác sĩ: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     /**
@@ -140,7 +167,8 @@ public class DoctorController {
             request.getEmail(),
             request.getFirstName(),
             request.getLastName(),
-            request.getPhone()
+            request.getPhone(),
+            request.getAvatarUrl()
         );
         return ResponseEntity.ok(doctor);
     }
@@ -224,6 +252,7 @@ public class DoctorController {
         private String firstName;
         private String lastName;
         private String phone;
+        private String avatarUrl;
 
         // Getters and Setters
         public String getBio() { return bio; }
@@ -249,5 +278,8 @@ public class DoctorController {
 
         public String getPhone() { return phone; }
         public void setPhone(String phone) { this.phone = phone; }
+
+        public String getAvatarUrl() { return avatarUrl; }
+        public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     }
 }

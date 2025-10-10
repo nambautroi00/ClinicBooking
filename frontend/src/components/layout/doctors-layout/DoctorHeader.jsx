@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-const DoctorHeader = () => {
+const DoctorHeader = ({ doctorInfo }) => {
   return (
     <nav
       className="navbar navbar-expand-lg navbar-dark bg-primary doctor-header shadow-sm"
@@ -32,7 +32,7 @@ const DoctorHeader = () => {
               style={{ textDecoration: "none" }}
             >
               <i className="bi bi-person-circle me-2 fs-4"></i>
-              <span className="fw-semibold">Tài khoản</span>
+              <span className="fw-semibold">{doctorInfo?.name || 'Tài khoản'}</span>
             </button>
             <ul
               className="dropdown-menu dropdown-menu-end"

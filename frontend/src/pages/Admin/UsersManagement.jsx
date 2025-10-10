@@ -3,11 +3,14 @@ import { useLocation } from 'react-router-dom';
 import { Modal, Button, Form, Table, Alert, Badge, Dropdown, Row, Col } from 'react-bootstrap';
 import { BiEdit, BiPlus, BiSearch, BiDotsVertical, BiCheckCircle, BiXCircle, BiUserCheck, BiUserPlus } from 'react-icons/bi';
 import userApi from '../../api/userApi';
+import fileUploadApi from '../../api/fileUploadApi';
+import { getFullAvatarUrl } from '../../utils/avatarUtils';
 
 const UsersManagement = () => {
   const location = useLocation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [stats, setStats] = useState({
@@ -35,8 +38,9 @@ const UsersManagement = () => {
     gender: '',
     dateOfBirth: '',
     address: '',
+    avatarUrl: '',
     status: 'ACTIVE',
-    roleId: 3 // Default to PATIENT role
+    roleId: 1 // Default to ADMIN role
   });
 
   // Search and filter states
@@ -73,6 +77,13 @@ const UsersManagement = () => {
     try {
       setLoading(true);
       const response = await userApi.getAllUsersWithRoleInfo();
+      
+      // 🔍 DEBUG: Log users data
+      console.log('=== FETCH USERS DEBUG ===');
+      console.log('Response:', response.data);
+      console.log('Users with avatars:', response.data?.filter(user => user.avatarUrl));
+      console.log('========================');
+      
       setUsers(response.data || []);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -93,6 +104,13 @@ const UsersManagement = () => {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    
+    // 🔍 DEBUG: Log form data before create
+    console.log('=== CREATE USER DEBUG ===');
+    console.log('Form Data:', formData);
+    console.log('Avatar URL:', formData.avatarUrl);
+    console.log('========================');
+    
     try {
       setLoading(true);
       
@@ -106,8 +124,11 @@ const UsersManagement = () => {
         gender: formData.gender,
         dateOfBirth: formData.dateOfBirth,
         address: formData.address,
+        avatarUrl: formData.avatarUrl, // Add avatarUrl
         roleId: formData.roleId
       };
+      
+      console.log('User Data to send:', userData);
       
       await userApi.createUser(userData);
       
@@ -125,6 +146,14 @@ const UsersManagement = () => {
 
   const handleEditUser = async (e) => {
     e.preventDefault();
+    
+    // 🔍 DEBUG: Log form data before update
+    console.log('=== EDIT USER DEBUG ===');
+    console.log('User ID:', selectedUser.id);
+    console.log('Form Data:', formData);
+    console.log('Avatar URL:', formData.avatarUrl);
+    console.log('======================');
+    
     try {
       setLoading(true);
       
@@ -137,6 +166,7 @@ const UsersManagement = () => {
         gender: formData.gender,
         dateOfBirth: formData.dateOfBirth,
         address: formData.address,
+        avatarUrl: formData.avatarUrl, // Add avatarUrl
         status: formData.status,
         roleId: formData.roleId
       };
@@ -145,6 +175,8 @@ const UsersManagement = () => {
       if (formData.password && formData.password.trim() !== '') {
         userData.passwordHash = formData.password;
       }
+      
+      console.log('User Data to send:', userData);
       
       await userApi.updateUser(selectedUser.id, userData);
       
@@ -187,14 +219,22 @@ const UsersManagement = () => {
       gender: '',
       dateOfBirth: '',
       address: '',
+      avatarUrl: '',
       status: 'ACTIVE',
-      roleId: 3
+      roleId: 1
     });
     setSelectedUser(null);
   };
 
   const openEditModal = (user) => {
     setSelectedUser(user);
+    
+    // 🔍 DEBUG: Log user data when opening edit modal
+    console.log('=== EDIT MODAL DEBUG ===');
+    console.log('User data:', user);
+    console.log('Avatar URL from user:', user.avatarUrl);
+    console.log('========================');
+    
     setFormData({
       email: user.email || '',
       password: '',
@@ -204,8 +244,9 @@ const UsersManagement = () => {
       gender: user.gender || '',
       dateOfBirth: user.dateOfBirth || '',
       address: user.address || '',
+      avatarUrl: user.avatarUrl || '',
       status: user.status || 'ACTIVE',
-      roleId: user.role?.id || 3
+      roleId: user.role?.id || 1
     });
     setShowEditModal(true);
   };
@@ -213,6 +254,59 @@ const UsersManagement = () => {
   const openDeleteModal = (user) => {
     setSelectedUser(user);
     setShowDeleteModal(true);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Kích thước file không được vượt quá 5MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // For new user creation, we don't have userId yet, so pass null
+      const userId = selectedUser?.id || null;
+      const response = await fileUploadApi.uploadImage(file, userId, 'user');
+      
+      // 🔍 DEBUG: Log upload response
+      console.log('=== UPLOAD DEBUG ===');
+      console.log('Upload response:', response.data);
+      console.log('Response URL:', response.data.url);
+      console.log('====================');
+      
+      if (response.data.success) {
+        const newAvatarUrl = response.data.url;
+        console.log('Setting avatar URL:', newAvatarUrl);
+        
+        setFormData(prev => {
+          const newFormData = {
+            ...prev,
+            avatarUrl: newAvatarUrl
+          };
+          console.log('New form data:', newFormData);
+          return newFormData;
+        });
+        
+        alert('Upload ảnh thành công!');
+      } else {
+        alert('Lỗi: ' + response.data.message);
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Lỗi khi upload ảnh: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleStatusChange = async (user, newStatus) => {
@@ -284,7 +378,7 @@ const UsersManagement = () => {
           onClick={() => setShowCreateModal(true)}
           className="d-flex align-items-center gap-2"
         >
-          <BiPlus /> Thêm Người dùng
+          <BiPlus /> Thêm Quản trị viên
         </Button>
       </div>
 
@@ -417,6 +511,7 @@ const UsersManagement = () => {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Avatar</th>
               <th>Họ tên</th>
               <th>Email</th>
               <th>Điện thoại</th>
@@ -429,16 +524,80 @@ const UsersManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="8" className="text-center">Đang tải...</td>
+                <td colSpan="9" className="text-center">Đang tải...</td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center">Không có người dùng nào</td>
+                <td colSpan="9" className="text-center">Không có người dùng nào</td>
               </tr>
             ) : (
               filteredUsers.map(user => (
                 <tr key={user.id}>
                   <td>{user.id}</td>
+                  <td>
+                    {(() => {
+                      // 🔍 DEBUG: Log avatar URL for each user
+                      console.log(`User ${user.id} (${user.firstName} ${user.lastName}) - Avatar URL:`, user.avatarUrl);
+                      
+                      return user.avatarUrl ? (
+                        <>
+                          <img 
+                            src={getFullAvatarUrl(user.avatarUrl)} 
+                            alt="Avatar" 
+                            style={{
+                              width: '40px', 
+                              height: '40px', 
+                              objectFit: 'cover', 
+                              borderRadius: '50%',
+                              border: '2px solid #dee2e6'
+                            }}
+                            onError={(e) => {
+                              console.error(`Failed to load avatar for user ${user.id}:`, user.avatarUrl);
+                              e.target.style.display = 'none';
+                              const placeholder = e.target.nextElementSibling;
+                              if (placeholder) {
+                                placeholder.style.display = 'flex';
+                              }
+                            }}
+                            onLoad={() => {
+                              console.log(`Successfully loaded avatar for user ${user.id}:`, user.avatarUrl);
+                            }}
+                          />
+                          <div 
+                            style={{
+                              width: '40px', 
+                              height: '40px', 
+                              borderRadius: '50%',
+                              backgroundColor: '#6c757d',
+                              display: 'none',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '16px'
+                            }}
+                          >
+                            <i className="bi bi-person"></i>
+                          </div>
+                        </>
+                      ) : (
+                        <div 
+                          style={{
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '50%',
+                            backgroundColor: '#6c757d',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '16px'
+                          }}
+                        >
+                          <i className="bi bi-person"></i>
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td>{user.firstName} {user.lastName}</td>
                   <td>{user.email}</td>
                   <td>{user.phone || '-'}</td>
@@ -497,7 +656,7 @@ const UsersManagement = () => {
       {/* Create User Modal */}
       <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Thêm Người dùng Mới</Modal.Title>
+          <Modal.Title>Thêm Quản trị viên Mới</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreateUser}>
           <Modal.Body>
@@ -575,7 +734,6 @@ const UsersManagement = () => {
                     <option value="">Chọn giới tính</option>
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
-                    <option value="OTHER">Khác</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
@@ -591,20 +749,6 @@ const UsersManagement = () => {
                   />
                 </Form.Group>
               </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Vai trò *</Form.Label>
-                  <Form.Select
-                    value={formData.roleId}
-                    onChange={(e) => setFormData({...formData, roleId: parseInt(e.target.value)})}
-                    required
-                  >
-                    <option value="1">Quản trị viên</option>
-                    <option value="2">Bác sĩ</option>
-                    <option value="3">Bệnh nhân</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
             </Row>
             <Form.Group className="mb-3">
               <Form.Label>Địa chỉ</Form.Label>
@@ -615,13 +759,60 @@ const UsersManagement = () => {
                 placeholder="Nhập địa chỉ"
               />
             </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Ảnh đại diện</Form.Label>
+              <Form.Control
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="mb-2"
+              />
+              
+              {/* Visual indicators */}
+              <div className="mb-2">
+                {formData.avatarUrl ? (
+                  <span className="badge bg-success">
+                    <i className="bi bi-check-circle me-1"></i>Đã có ảnh
+                  </span>
+                ) : (
+                  <span className="badge bg-warning">
+                    <i className="bi bi-exclamation-triangle me-1"></i>Chưa có ảnh
+                  </span>
+                )}
+              </div>
+              
+              {/* Debug info */}
+              {formData.avatarUrl && (
+                <div className="alert alert-info p-2 mb-2">
+                  <small>
+                    <strong>Avatar URL:</strong> {formData.avatarUrl}
+                  </small>
+                </div>
+              )}
+              
+              {formData.avatarUrl && (
+                <div className="mt-2">
+                  <img 
+                    src={getFullAvatarUrl(formData.avatarUrl)} 
+                    alt="Avatar preview" 
+                    style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px'}}
+                  />
+                </div>
+              )}
+              {uploading && (
+                <div className="text-muted">
+                  <small>Đang upload ảnh...</small>
+                </div>
+              )}
+            </Form.Group>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
               Hủy
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
-              {loading ? 'Đang tạo...' : 'Tạo Người dùng'}
+              {loading ? 'Đang tạo...' : 'Tạo Quản trị viên'}
             </Button>
           </Modal.Footer>
         </Form>
@@ -721,19 +912,6 @@ const UsersManagement = () => {
                   />
                 </Form.Group>
               </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Vai trò</Form.Label>
-                  <Form.Select
-                    value={formData.roleId}
-                    onChange={(e) => setFormData({...formData, roleId: parseInt(e.target.value)})}
-                  >
-                    <option value="1">Quản trị viên</option>
-                    <option value="2">Bác sĩ</option>
-                    <option value="3">Bệnh nhân</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
             </Row>
             <Form.Group className="mb-3">
               <Form.Label>Địa chỉ</Form.Label>
@@ -743,6 +921,53 @@ const UsersManagement = () => {
                 onChange={(e) => setFormData({...formData, address: e.target.value})}
                 placeholder="Nhập địa chỉ"
               />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Ảnh đại diện</Form.Label>
+              <Form.Control
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="mb-2"
+              />
+              
+              {/* Visual indicators */}
+              <div className="mb-2">
+                {formData.avatarUrl ? (
+                  <span className="badge bg-success">
+                    <i className="bi bi-check-circle me-1"></i>Đã có ảnh
+                  </span>
+                ) : (
+                  <span className="badge bg-warning">
+                    <i className="bi bi-exclamation-triangle me-1"></i>Chưa có ảnh
+                  </span>
+                )}
+              </div>
+              
+              {/* Debug info */}
+              {formData.avatarUrl && (
+                <div className="alert alert-info p-2 mb-2">
+                  <small>
+                    <strong>Avatar URL:</strong> {formData.avatarUrl}
+                  </small>
+                </div>
+              )}
+              
+              {formData.avatarUrl && (
+                <div className="mt-2">
+                  <img 
+                    src={getFullAvatarUrl(formData.avatarUrl)} 
+                    alt="Avatar preview" 
+                    style={{width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px'}}
+                  />
+                </div>
+              )}
+              {uploading && (
+                <div className="text-muted">
+                  <small>Đang upload ảnh...</small>
+                </div>
+              )}
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
