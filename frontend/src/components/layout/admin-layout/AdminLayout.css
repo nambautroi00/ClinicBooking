@@ -26,16 +26,17 @@
 }
 
 .sidebar .nav-link.active {
-  background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%) !important;
-  color: #f39c12 !important;
-  box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+  background: #ffffff !important;
+  color: #0d6efd !important; /* Bootstrap primary */
+  box-shadow: 0 8px 24px rgba(13, 110, 253, 0.35);
   transform: translateY(-2px);
-  font-weight: 600;
+  font-weight: 700;
+  border: 2px solid rgba(255,255,255,0.85);
 }
 
 .sidebar .nav-link.active:hover {
-  background: linear-gradient(135deg, #2c3e50 0%, #1b2631 100%) !important;
-  color: #f39c12 !important;
+  background: #ffffff !important;
+  color: #0d6efd !important;
 }
 
 .sidebar h5 {
@@ -94,7 +95,7 @@ main {
 }
 
 .sidebar .nav-link.active i {
-  color: #007bff;
+  color: #0d6efd; /* match text color */
 }
 
 /* Fix for smooth scrolling */

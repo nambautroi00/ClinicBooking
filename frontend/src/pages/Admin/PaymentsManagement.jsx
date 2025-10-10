@@ -65,12 +65,7 @@ const PaymentsManagement = () => {
     <div className="container-fluid">
       <div className="row">
         <div className="col-12">
-          <nav aria-label="breadcrumb" className="mb-4">
-            <ol className="breadcrumb">
-              <li className="breadcrumb-item"><a href="/admin">Trang quản trị</a></li>
-              <li className="breadcrumb-item active" aria-current="page">Quản lý thanh toán</li>
-            </ol>
-          </nav>
+          {/* Breadcrumb removed as requested */}
 
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div>
