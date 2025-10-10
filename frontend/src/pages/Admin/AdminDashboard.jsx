@@ -5,6 +5,7 @@ import patientApi from "../../api/patientApi";
 import departmentApi from "../../api/departmentApi";
 import paymentApi from "../../api/paymentApi";
 import reviewApi from "../../api/reviewApi";
+import userApi from "../../api/userApi";
 
 const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
@@ -24,25 +25,25 @@ const AdminDashboard = () => {
     setLoading(true);
     setError("");
     try {
-      const [doctorsRes, patientsRes, departmentsRes, articlesRes, revenueRes] = await Promise.all([
-        doctorApi.getAllDoctors(),
-        patientApi.getAllPatients(),
-        departmentApi.getAllDepartments(0, 1), // only need total count
-        articleApi.getAllArticles(0, 5), // also get recent list
-        paymentApi.getTotalRevenue(),
-      ]);
+      const doctorsRes = await doctorApi.getAllDoctors();
+      const patientsRes = await patientApi.getAllPatients();
+      const departmentsRes = await departmentApi.getAllDepartments(0, 1);
+      const articlesRes = await articleApi.getAllArticles(0, 5);
+      const revenueRes = await paymentApi.getTotalRevenue();
+      const usersRes = await userApi.getAllUsersWithRoleInfo();
 
       const totalDoctors = Array.isArray(doctorsRes.data) ? doctorsRes.data.length : (doctorsRes.data?.content?.length ? doctorsRes.data.totalElements : 0);
       const totalPatients = Array.isArray(patientsRes.data) ? patientsRes.data.length : (patientsRes.data?.content?.length ? patientsRes.data.totalElements : 0);
       const totalDepartments = typeof departmentsRes.data?.totalElements === 'number' ? departmentsRes.data.totalElements : (Array.isArray(departmentsRes.data) ? departmentsRes.data.length : 0);
       const totalArticles = typeof articlesRes.data?.totalElements === 'number' ? articlesRes.data.totalElements : (Array.isArray(articlesRes.data) ? articlesRes.data.length : 0);
+      const totalUsers = usersRes.data?.length || 0;
 
       const recent = articlesRes.data?.content ?? (Array.isArray(articlesRes.data) ? articlesRes.data.slice(0, 5) : []);
 
       const totalRevenue = Number(revenueRes?.totalRevenue ?? 0);
 
       setStats({
-        totalUsers: 0, // not available directly; could be added later
+        totalUsers,
         totalDoctors,
         totalPatients,
         totalDepartments,
@@ -70,7 +71,19 @@ const AdminDashboard = () => {
       const lowRated = ratings.filter(r => r.reviewCount >= 3 && r.avgRating > 0 && r.avgRating < 3).sort((a,b) => a.avgRating - b.avgRating).slice(0, 5);
       setLowRatedDoctors(lowRated);
     } catch (e) {
-      setError(e?.response?.data?.message || e?.message || "Đã xảy ra lỗi khi tải thống kê");
+      console.error('❌ Admin Dashboard API Error:', e);
+      console.error('Error details:', {
+        message: e.message,
+        response: e.response?.data,
+        status: e.response?.status,
+        statusText: e.response?.statusText,
+        config: {
+          url: e.config?.url,
+          method: e.config?.method,
+          baseURL: e.config?.baseURL
+        }
+      });
+      setError(`Lỗi API: ${e?.response?.data?.message || e?.message || "Đã xảy ra lỗi khi tải thống kê"} (Status: ${e.response?.status})`);
     } finally {
       setLoading(false);
     }
@@ -96,9 +109,11 @@ const AdminDashboard = () => {
               <h2 className="mb-1">Bảng điều khiển</h2>
               <p className="text-muted mb-0">Tổng quan hệ thống</p>
             </div>
-            <button className="btn btn-outline-secondary" onClick={fetchStats} disabled={loading}>
-              <i className="bi bi-arrow-clockwise me-2"></i>Làm mới
-            </button>
+            <div className="d-flex gap-2">
+              <button className="btn btn-outline-secondary" onClick={fetchStats} disabled={loading}>
+                <i className="bi bi-arrow-clockwise me-2"></i>Làm mới
+              </button>
+            </div>
           </div>
 
           {error && (

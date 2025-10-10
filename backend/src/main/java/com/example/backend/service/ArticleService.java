@@ -38,6 +38,7 @@ public class ArticleService {
 
     @Transactional(readOnly = true)
     public Page<ArticleDTO.ResponseDTO> searchArticles(String title, String status, Long authorId, Pageable pageable) {
+        System.out.println("Search parameters - title: '" + title + "', status: '" + status + "', authorId: " + authorId);
         return articleRepository.findArticlesWithFilters(title, status, authorId, pageable)
                 .map(articleMapper::entityToResponseDTO);
     }
@@ -75,6 +76,13 @@ public class ArticleService {
         Article article = findArticleById(id);
         article.setStatus("INACTIVE");
         articleRepository.save(article);
+    }
+
+    public ArticleDTO.ResponseDTO restoreArticle(Long id) {
+        Article article = findArticleById(id);
+        article.setStatus("ACTIVE");
+        Article restored = articleRepository.save(article);
+        return articleMapper.entityToResponseDTO(restored);
     }
 
     public void hardDeleteArticle(Long id) {

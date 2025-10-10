@@ -73,6 +73,12 @@ public class ArticleController {
         articleService.deleteArticle(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/restore")
+    public ResponseEntity<ArticleDTO.ResponseDTO> restoreArticle(@PathVariable Long id) {
+        ArticleDTO.ResponseDTO restored = articleService.restoreArticle(id);
+        return ResponseEntity.ok(restored);
+    }
 }
 
 

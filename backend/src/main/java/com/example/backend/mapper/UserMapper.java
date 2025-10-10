@@ -35,7 +35,7 @@ public class UserMapper {
         dto.setGender(user.getGender());
         dto.setDateOfBirth(user.getDateOfBirth());
         dto.setAddress(user.getAddress());
-        // dto.setCreatedAt(user.getCreatedAt()); // Commented out - field not in new User entity
+        dto.setCreatedAt(user.getCreatedAt());
         dto.setStatus(user.getStatus());
 
         if (user.getRole() != null) {

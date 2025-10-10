@@ -174,26 +174,15 @@ public class PatientService {
         // Soft delete by updating both User status and Patient status
         if (patient.getUser() != null) {
             User user = patient.getUser();
-            user.setStatus(User.UserStatus.DELETED);
+            user.setStatus(User.UserStatus.INACTIVE);
             userRepository.save(user);
         }
         
         // Also update Patient status to maintain consistency
-        patient.setStatus("DELETED");
+        patient.setStatus("INACTIVE");
         patientRepository.save(patient);
     }
 
-    /**
-     * Xóa patient vĩnh viễn (hard delete)
-     * @param patientId ID của patient
-     * @throws NotFoundException nếu không tìm thấy patient
-     */
-    public void hardDeletePatient(Long patientId) {
-        if (!patientRepository.existsById(patientId)) {
-            throw new NotFoundException("Không tìm thấy bệnh nhân với ID: " + patientId);
-        }
-        patientRepository.deleteById(patientId);
-    }
 
     /**
      * Lấy patient theo userId

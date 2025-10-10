@@ -3,39 +3,62 @@ import axiosClient from './axiosClient';
 const articleApi = {
   // Get all articles with pagination
   getAllArticles: (page = 0, size = 10, sort = 'createdAt,desc') => {
-    return axiosClient.get('/api/articles', {
+    return axiosClient.get('/articles', {
       params: { page, size, sort }
     });
   },
 
   // Get article by ID
   getArticleById: (id) => {
-    return axiosClient.get(`/api/articles/${id}`);
+    return axiosClient.get(`/articles/${id}`);
   },
 
   // Search articles
-  searchArticles: (title, status, authorId, page = 0, size = 10, sort = 'createdAt,desc') => {
+  searchArticles: (searchParams, page = 0, size = 10, sort = 'createdAt,desc') => {
     const params = { page, size, sort };
-    if (title) params.title = title;
-    if (status) params.status = status;
-    if (authorId) params.authorId = authorId;
+    if (searchParams.title) params.title = searchParams.title;
+    if (searchParams.status) params.status = searchParams.status;
+    if (searchParams.authorId) params.authorId = searchParams.authorId;
     
-    return axiosClient.get('/api/articles/search', { params });
+    console.log('API call params:', params);
+    return axiosClient.get('/articles/search', { params });
   },
 
   // Create new article
   createArticle: (articleData) => {
-    return axiosClient.post('/api/articles', articleData);
+    return axiosClient.post('/articles', articleData);
   },
 
   // Update article
   updateArticle: (id, articleData) => {
-    return axiosClient.put(`/api/articles/${id}`, articleData);
+    return axiosClient.put(`/articles/${id}`, articleData);
   },
 
   // Delete article
   deleteArticle: (id) => {
-    return axiosClient.delete(`/api/articles/${id}`);
+    return axiosClient.delete(`/articles/${id}`);
+  },
+
+  // Change article status
+  changeArticleStatus: (id, status) => {
+    return axiosClient.put(`/articles/${id}/status`, null, {
+      params: { status }
+    });
+  },
+
+  // Restore article
+  restoreArticle: (id) => {
+    return axiosClient.put(`/articles/${id}/restore`);
+  },
+
+  // Approve article
+  approveArticle: (id) => {
+    return axiosClient.put(`/articles/${id}/approve`);
+  },
+
+  // Reject article
+  rejectArticle: (id) => {
+    return axiosClient.put(`/articles/${id}/reject`);
   }
 };
 
