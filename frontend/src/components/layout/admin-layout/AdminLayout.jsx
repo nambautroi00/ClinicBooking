@@ -17,7 +17,7 @@ const AdminLayout = () => {
                 <NavLink 
                   to="/admin" 
                   end 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-speedometer2 me-3 fs-5" /> 
@@ -28,7 +28,7 @@ const AdminLayout = () => {
               <li className="nav-item mb-2">
                 <NavLink 
                   to="/admin/users" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-people me-3 fs-5" /> 
@@ -39,7 +39,7 @@ const AdminLayout = () => {
               <li className="nav-item mb-2">
                 <NavLink 
                   to="/admin/doctors" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-person-badge me-3 fs-5" /> 
@@ -50,7 +50,7 @@ const AdminLayout = () => {
               <li className="nav-item mb-2">
                 <NavLink 
                   to="/admin/departments" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-diagram-3 me-3 fs-5" /> 
@@ -60,8 +60,30 @@ const AdminLayout = () => {
               
               <li className="nav-item mb-2">
                 <NavLink 
+                  to="/admin/medicines" 
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
+                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
+                >
+                  <i className="bi bi-capsule me-3 fs-5" /> 
+                  <span className="fw-semibold">Quản lý thuốc</span>
+                </NavLink>
+              </li>
+              
+              <li className="nav-item mb-2">
+                <NavLink 
+                  to="/admin/prescriptions" 
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
+                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
+                >
+                  <i className="bi bi-journal-medical me-3 fs-5" /> 
+                  <span className="fw-semibold">Quản lý đơn thuốc</span>
+                </NavLink>
+              </li>
+              
+              <li className="nav-item mb-2">
+                <NavLink 
                   to="/admin/appointments" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-calendar-check me-3 fs-5" /> 
@@ -72,7 +94,7 @@ const AdminLayout = () => {
               <li className="nav-item mb-2">
                 <NavLink 
                   to="/admin/articles" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-file-earmark-text me-3 fs-5" /> 
@@ -83,7 +105,7 @@ const AdminLayout = () => {
               <li className="nav-item mb-2">
                 <NavLink 
                   to="/admin/reviews" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-chat-dots me-3 fs-5" /> 
@@ -94,7 +116,7 @@ const AdminLayout = () => {
               <li className="nav-item mb-2">
                 <NavLink 
                   to="/admin/payments" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "bg-white text-primary shadow" : "hover-bg-light"}`}
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
                 >
                   <i className="bi bi-credit-card me-3 fs-5" /> 

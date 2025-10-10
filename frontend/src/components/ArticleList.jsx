@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import articleApi from '../api/articleApi';
 
 const ArticleList = ({ onEdit, onDelete, searchParams }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   const fetchArticles = async () => {
     setLoading(true);
@@ -108,7 +110,7 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
         <thead className="table-light">
           <tr>
             <th>ID</th>
-            <th>Tiêu đề</th>
+            <th>Bài viết</th>
             <th>Tác giả</th>
             <th>Trạng thái</th>
             <th>Ngày tạo</th>
@@ -120,15 +122,22 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
             <tr key={item.articleId}>
               <td>{item.articleId}</td>
               <td>
-                <div className="d-flex align-items-center">
+                <div className="d-flex align-items-start">
+                  <div className="me-3">
+                    <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                         style={{ width: '36px', height: '36px', fontSize: '12px', fontWeight: 'bold' }}>
+                      {(item.author?.firstName?.[0] || '') + (item.author?.lastName?.[0] || '')}
+                    </div>
+                  </div>
                   <div>
-                    <h6 className="mb-1">{item.title}</h6>
+                    <button className="btn btn-link p-0 text-start fw-semibold"
+                            onClick={() => navigate(`/admin/articles/${item.articleId}`)}>
+                      <span style={{ fontSize: '1.1rem' }}>{item.title}</span>
+                    </button>
                     {item.content && (
-                      <small className="text-muted">
-                        {item.content.length > 100 
-                          ? item.content.substring(0, 100) + '...' 
-                          : item.content}
-                      </small>
+                      <div className="text-muted small mt-1">
+                        {item.content.length > 100 ? item.content.substring(0, 100) + '...' : item.content}
+                      </div>
                     )}
                   </div>
                 </div>
