@@ -228,13 +228,13 @@ CREATE TABLE SystemNotifications (
 
 
 -- Insert Roles
-INSERT INTO roles (Name, Description) VALUES 
+INSERT INTO Roles (Name, Description) VALUES 
 ('Admin', 'Qu?n tr? h? th?ng'),
 ('Doctor', 'Bác s? có th? khám, t?o l?ch tr?nh, qu?n l? b?nh án'),
 ('Patient', 'B?nh nhân có th? đ?t l?ch và tr? chuy?n v?i bác s?')
 
 -- Insert Departments
-INSERT INTO departments (department_name, Description, Status) VALUES 
+INSERT INTO Departments (DepartmentName, Description, Status) VALUES 
 ('Tim m?ch', 'Khoa Tim m?ch - Chuyên đi?u tr? các b?nh v? tim và m?ch máu', 'ACTIVE'),
 ('Th?n kinh', 'Khoa Th?n kinh - Chuyên đi?u tr? các b?nh v? th?n kinh', 'ACTIVE'),
 ('Ch?n thương ch?nh h?nh', 'Khoa Ch?n thương ch?nh h?nh - Chuyên đi?u tr? các b?nh v? xương kh?p', 'ACTIVE'),
@@ -243,41 +243,41 @@ INSERT INTO departments (department_name, Description, Status) VALUES
 
 -- Insert Users
 -- Admin
-INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
-VALUES ('admin@clinic.com', 'admin123', 'System', 'Admin', '0123456789', 'MALE', '1980-01-01', 'Hà N?i', 1, 'ACTIVE', GETDATE());
+INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Phone, Gender, DOB, Address, RoleID, Status, CreatedAt) 
+VALUES ('admin@clinic.com', 'admin123', 'System', 'Admin', '0123456789', 'M', '1980-01-01', 'Hà N?i', 1, 'ACTIVE', GETDATE());
 
 -- Doctors
-INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
-VALUES ('doctor1@clinic.com', 'doctor123', 'Hùng', 'Nguy?n', '0987654321', 'MALE', '1975-05-10', 'HCM', 2, 'ACTIVE', GETDATE());
+INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Phone, Gender, DOB, Address, RoleID, Status, CreatedAt) 
+VALUES ('doctor1@clinic.com', 'doctor123', 'Hùng', 'Nguy?n', '0987654321', 'M', '1975-05-10', 'HCM', 2, 'ACTIVE', GETDATE());
 
-INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
-VALUES ('doctor2@clinic.com', 'doctor123', 'Lan', 'Tr?n', '0977777777', 'FEMALE', '1982-08-15', 'Đà N?ng', 2, 'ACTIVE', GETDATE());
+INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Phone, Gender, DOB, Address, RoleID, Status, CreatedAt) 
+VALUES ('doctor2@clinic.com', 'doctor123', 'Lan', 'Tr?n', '0977777777', 'F', '1982-08-15', 'Đà N?ng', 2, 'ACTIVE', GETDATE());
 
 -- Patients
-INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
-VALUES ('patient1@clinic.com', 'patient123', 'An', 'Ph?m', '0911111111', 'MALE', '2000-03-20', 'Hà N?i', 3, 'ACTIVE', GETDATE());
+INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Phone, Gender, DOB, Address, RoleID, Status, CreatedAt) 
+VALUES ('patient1@clinic.com', 'patient123', 'An', 'Ph?m', '0911111111', 'M', '2000-03-20', 'Hà N?i', 3, 'ACTIVE', GETDATE());
 
-INSERT INTO users (email, password_hash, first_name, last_name, phone, gender, dob, address, roleid, status, created_at) 
-VALUES ('patient2@clinic.com', 'patient123', 'Hoa', 'Ngô', '0922222222', 'FEMALE', '1995-07-12', 'HCM', 3, 'ACTIVE', GETDATE());
+INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Phone, Gender, DOB, Address, RoleID, Status, CreatedAt) 
+VALUES ('patient2@clinic.com', 'patient123', 'Hoa', 'Ngô', '0922222222', 'F', '1995-07-12', 'HCM', 3, 'ACTIVE', GETDATE());
 
 -- patient1
-INSERT INTO patients(patientid, health_insurance_number, medical_history)
+INSERT INTO Patients(PatientID, HealthInsuranceNumber, MedicalHistory)
 SELECT u.UserID, NULL, NULL
 FROM Users u
 WHERE u.Email = 'patient1@clinic.com';
 
 -- patient2
-INSERT INTO patients(patientid, health_insurance_number, medical_history)
+INSERT INTO Patients(PatientID, HealthInsuranceNumber, MedicalHistory)
 SELECT u.UserID, NULL, NULL
 FROM Users u
 WHERE u.Email = 'patient2@clinic.com';
 
 -- Link doctor users to Doctors table with Departments
-INSERT INTO doctors(doctorid, departmentid, specialty, bio)
+INSERT INTO Doctors(DoctorID, DepartmentID, Specialty, Bio)
 SELECT u.UserID, 1, N'Tim mạch', N'Bác sĩ chuyên khoa tim mạch'
 FROM Users u WHERE u.Email = 'doctor1@clinic.com';
 
-INSERT INTO doctors(doctorid, departmentid, specialty, bio)
+INSERT INTO Doctors(DoctorID, DepartmentID, Specialty, Bio)
 SELECT u.UserID, 2, N'Thần kinh', N'Bác sĩ chuyên khoa thần kinh'
 FROM Users u WHERE u.Email = 'doctor2@clinic.com';
 

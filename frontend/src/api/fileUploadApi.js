@@ -1,9 +1,12 @@
 import axiosClient from './axiosClient';
 
 const fileUploadApi = {
-  uploadImage: (file) => {
+  uploadImage: (file, articleId = null) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (articleId) {
+      formData.append('articleId', articleId);
+    }
 
     return axiosClient.post('/files/upload', formData, {
       headers: {
