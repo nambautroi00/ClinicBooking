@@ -24,6 +24,7 @@ import DoctorProfile from "../pages/Doctor/DoctorProfile";
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
 import PatientProfile from "../pages/Patient/PatientProfile";
+import Booking from "../pages/Booking";
 
 // Admin pages
 import AdminLayout from "../components/layout/admin-layout/AdminLayout";
@@ -38,6 +39,7 @@ import ReviewsManagement from "../pages/Admin/ReviewsManagement";
 import PaymentsManagement from "../pages/Admin/PaymentsManagement";
 import ArticleManagement from "../pages/Admin/ArticleManagement";
 import ArticleDetail from "../pages/ArticleDetail";
+import ArticleDetail from "../components/article/ArticleDetail";
 
 const AppRoutes = () => {
   return (
