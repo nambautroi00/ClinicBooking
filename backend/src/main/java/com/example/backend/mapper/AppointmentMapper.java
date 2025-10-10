@@ -43,22 +43,40 @@ public class AppointmentMapper {
 
     public AppointmentDTO.Response entityToResponseDTO(Appointment entity) {
         AppointmentDTO.Response dto = new AppointmentDTO.Response();
-    dto.setAppointmentId(entity.getAppointmentId().longValue());
-    dto.setPatientId(entity.getPatient() != null ? entity.getPatient().getPatientId().longValue() : null);
-    dto.setPatientName(entity.getPatient() != null && entity.getPatient().getUser() != null
-        ? entity.getPatient().getUser().getFirstName() + " " + entity.getPatient().getUser().getLastName()
-        : null);
-    dto.setDoctorId(entity.getDoctor() != null ? entity.getDoctor().getDoctorId() : null);
-    dto.setDoctorName(entity.getDoctor() != null && entity.getDoctor().getUser() != null
-        ? entity.getDoctor().getUser().getFirstName() + " " + entity.getDoctor().getUser().getLastName()
-        : null);
-    dto.setScheduleId(entity.getSchedule() != null ? entity.getSchedule().getScheduleId() : null);
-    dto.setStartTime(entity.getStartTime());
-    dto.setEndTime(entity.getEndTime());
-    dto.setStatus(entity.getStatus());
-    dto.setNotes(entity.getNotes());
-    dto.setFee(entity.getFee());
-    return dto;
+        dto.setAppointmentId(entity.getAppointmentId() != null ? entity.getAppointmentId().longValue() : null);
+        if (entity.getPatient() != null) {
+            dto.setPatientId(entity.getPatient().getPatientId() != null ? entity.getPatient().getPatientId().longValue() : null);
+            if (entity.getPatient().getUser() != null) {
+                String firstName = entity.getPatient().getUser().getFirstName() != null ? entity.getPatient().getUser().getFirstName() : "";
+                String lastName = entity.getPatient().getUser().getLastName() != null ? entity.getPatient().getUser().getLastName() : "";
+                dto.setPatientName((firstName + " " + lastName).trim());
+            } else {
+                dto.setPatientName("");
+            }
+        } else {
+            dto.setPatientId(null);
+            dto.setPatientName("");
+        }
+        if (entity.getDoctor() != null) {
+            dto.setDoctorId(entity.getDoctor().getDoctorId() != null ? entity.getDoctor().getDoctorId() : null);
+            if (entity.getDoctor().getUser() != null) {
+                String firstName = entity.getDoctor().getUser().getFirstName() != null ? entity.getDoctor().getUser().getFirstName() : "";
+                String lastName = entity.getDoctor().getUser().getLastName() != null ? entity.getDoctor().getUser().getLastName() : "";
+                dto.setDoctorName((firstName + " " + lastName).trim());
+            } else {
+                dto.setDoctorName("");
+            }
+        } else {
+            dto.setDoctorId(null);
+            dto.setDoctorName("");
+        }
+        dto.setScheduleId(entity.getSchedule() != null ? entity.getSchedule().getScheduleId() : null);
+        dto.setStartTime(entity.getStartTime());
+        dto.setEndTime(entity.getEndTime());
+        dto.setStatus(entity.getStatus());
+        dto.setNotes(entity.getNotes());
+        dto.setFee(entity.getFee());
+        return dto;
     }
 }
 
