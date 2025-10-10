@@ -193,7 +193,7 @@ public class DoctorService {
      * @return Doctor đã được cập nhật
      */
     public Doctor updateDoctorWithUser(Long doctorId, String bio, String specialty, Long departmentId, String status,
-                                     String email, String firstName, String lastName, String phone) {
+                                     String email, String firstName, String lastName, String phone, String avatarUrl) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bác sĩ với ID: " + doctorId));
 
@@ -231,6 +231,9 @@ public class DoctorService {
             }
             if (phone != null && !phone.trim().isEmpty()) {
                 user.setPhone(phone);
+            }
+            if (avatarUrl != null && !avatarUrl.trim().isEmpty()) {
+                user.setAvatarUrl(avatarUrl);
             }
             userRepository.save(user);
         }
@@ -309,6 +312,13 @@ public class DoctorService {
      */
     @Transactional
     public void registerDoctor(DoctorRegisterRequest request) {
+        // 🔍 DEBUG: Log request data
+        System.out.println("=== REGISTER DOCTOR DEBUG ===");
+        System.out.println("Email: " + request.getEmail());
+        System.out.println("Avatar URL: " + request.getAvatarUrl());
+        System.out.println("Department ID: " + request.getDepartmentId());
+        System.out.println("=============================");
+        
         // 1️⃣ Kiểm tra email đã tồn tại chưa
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ConflictException("Email đã tồn tại: " + request.getEmail());
@@ -317,10 +327,12 @@ public class DoctorService {
         // 2️⃣ Lấy Role Doctor (roleId = 2)
         Role doctorRole = roleRepository.findById(2L)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy role Doctor (roleId = 2)"));
+        System.out.println("Doctor Role: " + doctorRole.getName());
 
         // 3️⃣ Lấy Department
         Department department = departmentRepository.findById(request.getDepartmentId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy department với ID: " + request.getDepartmentId()));
+        System.out.println("Department: " + department.getDepartmentName());
 
         // 4️⃣ Tạo User
         User user = new User();
@@ -332,18 +344,26 @@ public class DoctorService {
         user.setGender(request.getGender());
         user.setDateOfBirth(request.getDob());
         user.setAddress(request.getAddress());
+        user.setAvatarUrl(request.getAvatarUrl());
         user.setRole(doctorRole);
         user.setStatus(User.UserStatus.ACTIVE);
+
+        System.out.println("User Avatar URL before save: " + user.getAvatarUrl());
 
         // Save User first
         User savedUser = userRepository.save(user);
         entityManager.flush(); // Force flush to ensure User is persisted
+        
+        System.out.println("User Avatar URL after save: " + savedUser.getAvatarUrl());
+        System.out.println("Saved User ID: " + savedUser.getId());
         
         // Get the persisted User ID
         Long userId = savedUser.getId();
 
         // 5️⃣ Tạo Doctor với User ID đã tồn tại
         createDoctorWithExistingUser(userId, request, department);
+        
+        System.out.println("=== REGISTER DOCTOR COMPLETED ===");
     }
 
     @Transactional
@@ -387,6 +407,7 @@ public class DoctorService {
         private User.Gender gender;
         private java.time.LocalDate dob;
         private String address;
+        private String avatarUrl;
         private Long departmentId;
         private String specialty;
         private String bio;
@@ -424,6 +445,9 @@ public class DoctorService {
         
         public String getBio() { return bio; }
         public void setBio(String bio) { this.bio = bio; }
+        
+        public String getAvatarUrl() { return avatarUrl; }
+        public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     }
 
 }

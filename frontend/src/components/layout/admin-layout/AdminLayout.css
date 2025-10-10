@@ -1,0 +1,155 @@
+/* Admin Layout Styles */
+.sidebar {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+  will-change: auto;
+  backface-visibility: hidden;
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar .nav-link {
+  border-radius: 10px !important;
+  margin: 4px 0;
+  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  cursor: pointer;
+  will-change: auto;
+  color: #ecf0f1 !important;
+  font-weight: 500;
+}
+
+.sidebar .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 15px rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+
+.sidebar .nav-link.active {
+  background: #ffffff !important;
+  color: #0d6efd !important; /* Bootstrap primary */
+  box-shadow: 0 8px 24px rgba(13, 110, 253, 0.35);
+  transform: translateY(-2px);
+  font-weight: 700;
+  border: 2px solid rgba(255,255,255,0.85);
+}
+
+.sidebar .nav-link.active:hover {
+  background: #ffffff !important;
+  color: #0d6efd !important;
+}
+
+.sidebar h5 {
+  color: #fff !important;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Main content area */
+main {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: calc(100vh - 76px);
+  padding: 2rem !important;
+}
+
+/* Content cards */
+.content-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 280px;
+    height: 100vh;
+    transition: left 0.3s ease;
+    z-index: 1000;
+    margin-top: 0 !important;
+    padding-top: 60px !important;
+  }
+  
+  .sidebar.show {
+    left: 0;
+  }
+  
+  main {
+    margin-left: 0 !important;
+  }
+}
+
+/* Animation for icons */
+.sidebar .nav-link i {
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.sidebar .nav-link:hover i {
+  transform: scale(1.1);
+}
+
+.sidebar .nav-link.active i {
+  color: #0d6efd; /* match text color */
+}
+
+/* Fix for smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout shift */
+.container-fluid {
+  overflow-x: hidden;
+}
+
+/* Optimize rendering */
+.sidebar .position-sticky {
+  will-change: auto;
+}
+
+/* Performance optimizations */
+.row {
+  contain: layout style;
+}
+
+.col-md-3, .col-lg-2 {
+  contain: layout style;
+}
+
+/* Fix for sticky positioning */
+.sidebar {
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar > div {
+  position: sticky;
+  top: 60px;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Smooth scrolling for sidebar */
+.sidebar > div::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar > div::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.1);
+}
+
+.sidebar > div::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+}
+
+.sidebar > div::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.5);
+}

@@ -70,6 +70,14 @@ public class AuthDTO {
         private String address;
 
         private String role; // Role for registration (optional, defaults to PATIENT)
+        
+        // Doctor specific fields
+        private String specialty;
+        private String bio;
+        private Long departmentId;
+        
+        // Patient specific fields (if needed)
+        private String medicalHistory;
     }
 
     @Data

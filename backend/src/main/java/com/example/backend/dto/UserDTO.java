@@ -45,6 +45,9 @@ public class UserDTO {
         @Size(max = 255, message = "Địa chỉ không được quá 255 ký tự")
         private String address;
 
+        @Size(max = 500, message = "URL ảnh đại diện không được quá 500 ký tự")
+        private String avatarUrl;
+
         private Long roleId;
     }
 
@@ -75,6 +78,9 @@ public class UserDTO {
         @Size(max = 255, message = "Địa chỉ không được quá 255 ký tự")
         private String address;
 
+        @Size(max = 500, message = "URL ảnh đại diện không được quá 500 ký tự")
+        private String avatarUrl;
+
         private User.UserStatus status;
 
         private Long roleId;
@@ -92,6 +98,7 @@ public class UserDTO {
         private User.Gender gender;
         private LocalDate dateOfBirth;
         private String address;
+        private String avatarUrl;
         private LocalDateTime createdAt;
         private User.UserStatus status;
         private RoleDTO.Response role;

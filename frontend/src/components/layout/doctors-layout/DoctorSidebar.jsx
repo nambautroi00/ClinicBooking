@@ -24,6 +24,18 @@ const DoctorSidebar = ({ doctorInfo }) => {
       description: "Danh sách lịch hẹn",
     },
     {
+      path: "/doctor/medical-records",
+      icon: "bi-file-text",
+      label: "Hồ sơ bệnh án",
+      description: "Quản lý bệnh án",
+    },
+    {
+      path: "/doctor/prescriptions",
+      icon: "bi-capsule",
+      label: "Kê đơn thuốc",
+      description: "Tạo đơn thuốc mới",
+    },
+    {
       path: "/doctor/profile",
       icon: "bi-person",
       label: "Hồ sơ cá nhân",

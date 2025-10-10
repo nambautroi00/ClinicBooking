@@ -7,6 +7,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Map;
+import java.util.HashMap;
 
 import com.example.backend.model.User;
 import com.example.backend.service.UserService;
@@ -117,6 +120,7 @@ public class UserController {
             request.getGender(),
             request.getDateOfBirth(),
             request.getAddress(),
+            request.getAvatarUrl(),
             request.getRoleId()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
@@ -137,6 +141,7 @@ public class UserController {
             request.getGender(),
             request.getDateOfBirth(),
             request.getAddress(),
+            request.getAvatarUrl(),
             request.getStatus(),
             request.getRoleId()
         );
@@ -164,6 +169,34 @@ public class UserController {
     }
 
     /**
+     * Cập nhật avatar cho user
+     * PUT /api/users/{userId}/avatar
+     */
+    @PutMapping("/{userId}/avatar")
+    public ResponseEntity<Map<String, Object>> updateUserAvatar(
+            @PathVariable Long userId, 
+            @RequestParam String avatarUrl) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            User user = userService.getUserByIdWithRole(userId);
+            user.setAvatarUrl(avatarUrl);
+            User updatedUser = userService.updateUser(userId, 
+                user.getEmail(), user.getFirstName(), user.getLastName(),
+                user.getPhone(), user.getGender(), user.getDateOfBirth(),
+                user.getAddress(), avatarUrl, user.getStatus(), user.getRole().getId());
+            
+            response.put("success", true);
+            response.put("message", "Cập nhật avatar thành công");
+            response.put("user", updatedUser);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Lỗi khi cập nhật avatar: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
      * Đếm số user theo roleId
      * GET /api/users/count-by-role/{roleId}
      */
@@ -184,6 +217,21 @@ public class UserController {
     }
 
     /**
+     * Upload ảnh đại diện cho user
+     * POST /api/users/{userId}/upload-avatar
+     */
+    @PostMapping("/{userId}/upload-avatar")
+    public ResponseEntity<String> uploadAvatar(@PathVariable Long userId, @RequestParam("file") MultipartFile file) {
+        try {
+            String avatarUrl = userService.uploadAvatar(userId, file);
+            return ResponseEntity.ok(avatarUrl);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Lỗi khi upload ảnh: " + e.getMessage());
+        }
+    }
+
+    /**
      * Request DTO cho tạo user mới
      */
     public static class CreateUserRequest {
@@ -195,6 +243,7 @@ public class UserController {
         private User.Gender gender;
         private java.time.LocalDate dateOfBirth;
         private String address;
+        private String avatarUrl;
         private Long roleId;
 
         // Getters and Setters
@@ -222,6 +271,9 @@ public class UserController {
         public String getAddress() { return address; }
         public void setAddress(String address) { this.address = address; }
         
+        public String getAvatarUrl() { return avatarUrl; }
+        public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+        
         public Long getRoleId() { return roleId; }
         public void setRoleId(Long roleId) { this.roleId = roleId; }
     }
@@ -237,6 +289,7 @@ public class UserController {
         private User.Gender gender;
         private java.time.LocalDate dateOfBirth;
         private String address;
+        private String avatarUrl;
         private User.UserStatus status;
         private Long roleId;
 
@@ -261,6 +314,9 @@ public class UserController {
         
         public String getAddress() { return address; }
         public void setAddress(String address) { this.address = address; }
+        
+        public String getAvatarUrl() { return avatarUrl; }
+        public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
         
         public User.UserStatus getStatus() { return status; }
         public void setStatus(User.UserStatus status) { this.status = status; }
