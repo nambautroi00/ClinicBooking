@@ -69,7 +69,18 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
         alert('Cập nhật bài viết thành công!');
       } else {
         // Create new article
-        await articleApi.createArticle(formData);
+        let authorId;
+        try {
+          const rawUser = localStorage.getItem('user');
+          if (rawUser) {
+            const user = JSON.parse(rawUser);
+            authorId = user?.id ?? user?.userId;
+          }
+        } catch (_) {
+          // ignore parse errors, backend will reject if authorId missing
+        }
+        const payload = authorId ? { ...formData, authorId } : { ...formData };
+        await articleApi.createArticle(payload);
         alert('Tạo bài viết thành công!');
       }
       onSave?.(formData);

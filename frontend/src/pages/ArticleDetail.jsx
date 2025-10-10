@@ -111,10 +111,10 @@ const ArticleDetail = () => {
               {/* Article Header */}
               <div className="mb-4">
                 <h1 className="card-title mb-3" style={{ 
-                  fontSize: '2rem', 
+                  fontSize: '2.5rem', 
                   fontWeight: 'bold',
                   color: '#2c3e50',
-                  lineHeight: '1.3'
+                  lineHeight: '1.25'
                 }}>
                   {article.title}
                 </h1>
