@@ -11,8 +11,11 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
     setError(null);
     try {
       console.log('Search params:', searchParams);
-      const response = await articleApi.searchArticles(searchParams);
-      setArticles(response.data.content || []);
+      const res = await articleApi.searchArticles(searchParams);
+      const pageData = res.data;
+      const content = pageData?.content || [];
+      // Sort articles by ID
+      setArticles(content.sort((a, b) => a.articleId - b.articleId));
     } catch (err) {
       console.error('Error fetching articles:', err);
       setError('Không tải được danh sách bài viết');

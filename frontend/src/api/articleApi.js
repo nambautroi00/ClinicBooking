@@ -49,6 +49,16 @@ const articleApi = {
   // Restore article
   restoreArticle: (id) => {
     return axiosClient.put(`/articles/${id}/restore`);
+  },
+
+  // Approve article
+  approveArticle: (id) => {
+    return axiosClient.put(`/articles/${id}/approve`);
+  },
+
+  // Reject article
+  rejectArticle: (id) => {
+    return axiosClient.put(`/articles/${id}/reject`);
   }
 };
 
