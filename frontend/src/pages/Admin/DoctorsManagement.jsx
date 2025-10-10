@@ -314,49 +314,48 @@ const DoctorsManagement = () => {
         </Alert>
       )}
 
-      {/* Thống kê nhanh - Compact */}
-      <div className="row mb-4">
+      {/* Thống kê nhanh - Dashboard Style */}
+      <div className="row g-3 mb-4">
         <div className="col-md-4">
-          <div className="d-flex align-items-center bg-light rounded p-3 border-start border-success border-4 shadow-sm">
-            <div className="text-success me-3">
-              <BiCheckCircle size={24} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="small text-muted fw-semibold">✅ Hoạt động</div>
-              <div className="h4 mb-0 text-success fw-bold">
-                {doctors.filter(d => d.status === 'ACTIVE').length}
+          <div className="card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Hoạt động</div>
+                  <div className="h4 mb-0">{doctors.filter(d => d.status === 'ACTIVE').length}</div>
+                </div>
+                <i className="bi bi-check-circle fs-2 text-success"></i>
               </div>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="d-flex align-items-center bg-light rounded p-3 border-start border-warning border-4 shadow-sm">
-            <div className="text-warning me-3">
-              <BiXCircle size={24} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="small text-muted fw-semibold">⏸️ Không hoạt động</div>
-              <div className="h4 mb-0 text-warning fw-bold">
-                {doctors.filter(d => d.status === 'INACTIVE').length}
+          <div className="card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Không hoạt động</div>
+                  <div className="h4 mb-0">{doctors.filter(d => d.status === 'INACTIVE').length}</div>
+                </div>
+                <i className="bi bi-x-circle fs-2 text-warning"></i>
               </div>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="d-flex align-items-center bg-light rounded p-3 border-start border-primary border-4 shadow-sm">
-            <div className="text-primary me-3">
-              <BiUserCheck size={24} />
-            </div>
-            <div className="flex-grow-1">
-              <div className="small text-muted fw-semibold">👥 Tổng số bác sĩ</div>
-              <div className="h4 mb-0 text-primary fw-bold">
-                {doctors.length}
+          <div className="card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Tổng số bác sĩ</div>
+                  <div className="h4 mb-0">{doctors.length}</div>
+                </div>
+                <i className="bi bi-person-badge fs-2 text-primary"></i>
               </div>
             </div>
           </div>
         </div>
       </div>
-
 
       {/* Search and Filter */}
       <div className="row mb-3">
