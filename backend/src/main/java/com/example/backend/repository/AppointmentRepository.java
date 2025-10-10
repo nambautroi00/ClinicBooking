@@ -10,8 +10,22 @@ import org.springframework.data.repository.query.Param;
 import com.example.backend.model.Appointment;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
-    List<Appointment> findByPatient_PatientId(Long patientId);
-    List<Appointment> findByDoctor_DoctorId(Long doctorId);
+    @Query("SELECT a FROM Appointment a " +
+           "LEFT JOIN FETCH a.patient p " +
+           "LEFT JOIN FETCH p.user " +
+           "LEFT JOIN FETCH a.doctor d " +
+           "LEFT JOIN FETCH d.user " +
+           "LEFT JOIN FETCH a.schedule " +
+           "WHERE d.doctorId = :doctorId")
+    List<Appointment> findByDoctor_DoctorId(@Param("doctorId") Long doctorId);
+
+    @Query("SELECT a FROM Appointment a " +
+        "LEFT JOIN FETCH a.patient p " +
+        "LEFT JOIN FETCH p.user " +
+        "LEFT JOIN FETCH a.doctor d " +
+        "LEFT JOIN FETCH d.user " +
+        "WHERE p.patientId = :patientId")
+    List<Appointment> findByPatient_PatientId(@Param("patientId") Long patientId);
 
     @Query("SELECT a FROM Appointment a WHERE a.doctor.doctorId = :doctorId AND a.startTime BETWEEN :start AND :end")
     List<Appointment> findDoctorAppointmentsInRange(@Param("doctorId") Long doctorId,

@@ -1,9 +1,9 @@
-import axiosClient from './axiosClient';
+import axiosClient from "./axiosClient";
 
 const appointmentApi = {
   // Tạo lịch hẹn mới
   createAppointment: (appointmentData) => {
-    return axiosClient.post('/appointments', appointmentData);
+    return axiosClient.post("/appointments", appointmentData);
   },
 
   // Lấy lịch hẹn theo ID
@@ -18,7 +18,7 @@ const appointmentApi = {
 
   // Lấy lịch hẹn theo bác sĩ
   getAppointmentsByDoctor: (doctorId) => {
-    return axiosClient.get(`/appointments/by-doctor`, { params: { doctorId } });
+    return axiosClient.get(`/appointments/by-doctor?doctorId=${doctorId}`);
   },
 
   // Cập nhật lịch hẹn
@@ -39,7 +39,7 @@ const appointmentApi = {
   // Lấy lịch hẹn theo ngày
   getAppointmentsByDate: (date) => {
     return axiosClient.get(`/appointments?date=${date}`);
-  }
+  },
 };
 
 export default appointmentApi;

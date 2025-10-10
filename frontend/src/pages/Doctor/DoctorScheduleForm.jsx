@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
   const [formData, setFormData] = useState({
-    workDate: '',
-    startTime: '',
-    endTime: '',
-    status: 'Available',
-    notes: ''
+    workDate: "",
+    startTime: "",
+    endTime: "",
+    status: "Available",
+    notes: "",
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -16,34 +16,34 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
   useEffect(() => {
     if (schedule) {
       setFormData({
-        workDate: schedule.workDate || '',
-        startTime: schedule.startTime || '',
-        endTime: schedule.endTime || '',
-        status: schedule.status || 'Available',
-        notes: schedule.notes || ''
+        workDate: schedule.workDate || "",
+        startTime: schedule.startTime || "",
+        endTime: schedule.endTime || "",
+        status: schedule.status || "Available",
+        notes: schedule.notes || "",
       });
     } else {
       // Set default date to today
-      const today = new Date().toISOString().split('T')[0];
-      setFormData(prev => ({
+      const today = new Date().toISOString().split("T")[0];
+      setFormData((prev) => ({
         ...prev,
-        workDate: today
+        workDate: today,
       }));
     }
   }, [schedule]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
       }));
     }
   };
@@ -52,33 +52,33 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
     const newErrors = {};
 
     if (!formData.workDate) {
-      newErrors.workDate = 'Ngày làm việc không được để trống';
+      newErrors.workDate = "Ngày làm việc không được để trống";
     } else {
       const selectedDate = new Date(formData.workDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (selectedDate < today) {
-        newErrors.workDate = 'Ngày làm việc phải từ hôm nay trở đi';
+        newErrors.workDate = "Ngày làm việc phải từ hôm nay trở đi";
       }
     }
 
     if (!formData.startTime) {
-      newErrors.startTime = 'Thời gian bắt đầu không được để trống';
+      newErrors.startTime = "Thời gian bắt đầu không được để trống";
     }
 
     if (!formData.endTime) {
-      newErrors.endTime = 'Thời gian kết thúc không được để trống';
+      newErrors.endTime = "Thời gian kết thúc không được để trống";
     }
 
     if (formData.startTime && formData.endTime) {
       if (formData.startTime >= formData.endTime) {
-        newErrors.endTime = 'Thời gian kết thúc phải sau thời gian bắt đầu';
+        newErrors.endTime = "Thời gian kết thúc phải sau thời gian bắt đầu";
       }
     }
 
     if (formData.notes && formData.notes.length > 255) {
-      newErrors.notes = 'Ghi chú không được quá 255 ký tự';
+      newErrors.notes = "Ghi chú không được quá 255 ký tự";
     }
 
     setErrors(newErrors);
@@ -87,7 +87,7 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -100,7 +100,7 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
       if (err.response?.data?.message) {
         setErrors({ submit: err.response.data.message });
       } else {
-        setErrors({ submit: 'Có lỗi xảy ra, vui lòng thử lại' });
+        setErrors({ submit: "Có lỗi xảy ra, vui lòng thử lại" });
       }
     } finally {
       setLoading(false);
@@ -108,12 +108,15 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
   };
 
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div
+      className="modal show d-block"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+    >
       <div className="modal-dialog modal-lg">
         <div className="modal-content">
           <div className="modal-header">
             <h5 className="modal-title">
-              {isEditing ? 'Chỉnh sửa lịch trình' : 'Thêm lịch trình mới'}
+              {isEditing ? "Chỉnh sửa lịch trình" : "Thêm lịch trình mới"}
             </h5>
             <button
               type="button"
@@ -138,7 +141,9 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
                   </label>
                   <input
                     type="date"
-                    className={`form-control ${errors.workDate ? 'is-invalid' : ''}`}
+                    className={`form-control ${
+                      errors.workDate ? "is-invalid" : ""
+                    }`}
                     id="workDate"
                     name="workDate"
                     value={formData.workDate}
@@ -146,14 +151,14 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
                     disabled={loading}
                   />
                   {errors.workDate && (
-                    <div className="invalid-feedback">
-                      {errors.workDate}
-                    </div>
+                    <div className="invalid-feedback">{errors.workDate}</div>
                   )}
                 </div>
 
                 <div className="col-md-6 mb-3">
-                  <label htmlFor="status" className="form-label">Trạng thái</label>
+                  <label htmlFor="status" className="form-label">
+                    Trạng thái
+                  </label>
                   <select
                     className="form-select"
                     id="status"
@@ -176,7 +181,9 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
                   </label>
                   <input
                     type="time"
-                    className={`form-control ${errors.startTime ? 'is-invalid' : ''}`}
+                    className={`form-control ${
+                      errors.startTime ? "is-invalid" : ""
+                    }`}
                     id="startTime"
                     name="startTime"
                     value={formData.startTime}
@@ -184,9 +191,7 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
                     disabled={loading}
                   />
                   {errors.startTime && (
-                    <div className="invalid-feedback">
-                      {errors.startTime}
-                    </div>
+                    <div className="invalid-feedback">{errors.startTime}</div>
                   )}
                 </div>
 
@@ -196,7 +201,9 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
                   </label>
                   <input
                     type="time"
-                    className={`form-control ${errors.endTime ? 'is-invalid' : ''}`}
+                    className={`form-control ${
+                      errors.endTime ? "is-invalid" : ""
+                    }`}
                     id="endTime"
                     name="endTime"
                     value={formData.endTime}
@@ -204,17 +211,17 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
                     disabled={loading}
                   />
                   {errors.endTime && (
-                    <div className="invalid-feedback">
-                      {errors.endTime}
-                    </div>
+                    <div className="invalid-feedback">{errors.endTime}</div>
                   )}
                 </div>
               </div>
 
               <div className="mb-3">
-                <label htmlFor="notes" className="form-label">Ghi chú</label>
+                <label htmlFor="notes" className="form-label">
+                  Ghi chú
+                </label>
                 <textarea
-                  className={`form-control ${errors.notes ? 'is-invalid' : ''}`}
+                  className={`form-control ${errors.notes ? "is-invalid" : ""}`}
                   id="notes"
                   name="notes"
                   rows="3"
@@ -224,9 +231,7 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
                   placeholder="Nhập ghi chú (tùy chọn)"
                 />
                 {errors.notes && (
-                  <div className="invalid-feedback">
-                    {errors.notes}
-                  </div>
+                  <div className="invalid-feedback">{errors.notes}</div>
                 )}
                 <div className="form-text">
                   {formData.notes.length}/255 ký tự
@@ -250,11 +255,17 @@ const DoctorScheduleForm = ({ schedule, onSubmit, onClose }) => {
               >
                 {loading ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <span
+                      className="spinner-border spinner-border-sm me-2"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
                     Đang xử lý...
                   </>
+                ) : isEditing ? (
+                  "Cập nhật"
                 ) : (
-                  isEditing ? 'Cập nhật' : 'Tạo mới'
+                  "Tạo mới"
                 )}
               </button>
             </div>
