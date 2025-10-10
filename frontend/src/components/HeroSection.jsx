@@ -1,7 +1,7 @@
 import React from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
-export function HeroSection() {
+export default function HeroSection() {
   const benefits = [
     "Đặt khám nhanh - Lấy số thứ tự trực tuyến",
     "Đặt khám theo giờ - Đặt càng sớm đề có số thứ tự hẹn khám",
@@ -78,5 +78,3 @@ export function HeroSection() {
     </section>
   );
 }
-
-export default HeroSection;

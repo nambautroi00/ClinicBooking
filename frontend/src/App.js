@@ -12,9 +12,15 @@ import AppRoutes from "./routes/AppRoutes";
 const AppContent = () => {
   const location = useLocation();
   const isDoctorRoute = location.pathname.startsWith("/doctor");
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
   // Nếu đang ở trong doctor layout, không hiển thị header/sidebar chính
   if (isDoctorRoute) {
+    return <AppRoutes />;
+  }
+
+  // Nếu đang ở trong admin layout, không hiển thị header/footer chính
+  if (isAdminRoute) {
     return <AppRoutes />;
   }
 

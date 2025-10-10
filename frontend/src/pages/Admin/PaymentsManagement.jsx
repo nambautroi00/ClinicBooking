@@ -7,7 +7,7 @@ const PaymentsManagement = () => {
   const [error, setError] = useState("");
   const [payments, setPayments] = useState([]);
   const [appointmentFilter, setAppointmentFilter] = useState("");
-  const [sortField, setSortField] = useState("createdAt");
+  const [sortField, setSortField] = useState("id");
   const [sortOrder, setSortOrder] = useState("desc"); // asc | desc
 
   const fetchPayments = async () => {
@@ -48,8 +48,9 @@ const PaymentsManagement = () => {
         if (sortField === "amount") return Number(r.amount || 0);
         if (sortField === "status") return (r.status || "");
         if (sortField === "appointmentId") return Number(r.appointmentId || r.appointment?.appointmentId || 0);
-        // createdAt default
-        return r.createdAt ? new Date(r.createdAt).getTime() : 0;
+        if (sortField === "id") return Number(r.id || 0);
+        // Default to ID sorting
+        return Number(r.id || 0);
       };
       const va = getVal(a);
       const vb = getVal(b);
@@ -110,6 +111,7 @@ const PaymentsManagement = () => {
                   <label className="form-label">Sắp xếp</label>
                   <div className="d-flex gap-2">
                     <select className="form-select" value={sortField} onChange={(e) => setSortField(e.target.value)}>
+                      <option value="id">ID</option>
                       <option value="createdAt">Thời gian tạo</option>
                       <option value="amount">Số tiền</option>
                       <option value="status">Trạng thái</option>

@@ -136,15 +136,6 @@ public class PatientController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Xóa bệnh nhân vĩnh viễn (hard delete)
-     * DELETE /api/patients/{patientId}/hard
-     */
-    @DeleteMapping("/{patientId}/hard")
-    public ResponseEntity<Void> hardDeletePatient(@PathVariable Long patientId) {
-        patientService.hardDeletePatient(patientId);
-        return ResponseEntity.noContent().build();
-    }
 
     /**
      * Kiểm tra user đã có thông tin bệnh nhân chưa

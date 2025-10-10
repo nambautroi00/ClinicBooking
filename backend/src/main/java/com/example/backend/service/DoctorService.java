@@ -180,6 +180,65 @@ public class DoctorService {
     }
 
     /**
+     * Cập nhật thông tin bác sĩ và user
+     * @param doctorId ID của doctor
+     * @param bio Tiểu sử
+     * @param specialty Chuyên khoa
+     * @param departmentId ID khoa
+     * @param status Trạng thái
+     * @param email Email
+     * @param firstName Tên
+     * @param lastName Họ
+     * @param phone Số điện thoại
+     * @return Doctor đã được cập nhật
+     */
+    public Doctor updateDoctorWithUser(Long doctorId, String bio, String specialty, Long departmentId, String status,
+                                     String email, String firstName, String lastName, String phone) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bác sĩ với ID: " + doctorId));
+
+        // Update doctor info
+        if (bio != null) {
+            doctor.setBio(bio);
+        }
+        if (specialty != null) {
+            doctor.setSpecialty(specialty);
+        }
+        
+        // Update department if provided
+        if (departmentId != null) {
+            Department department = departmentRepository.findById(departmentId)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy department với ID: " + departmentId));
+            doctor.setDepartment(department);
+        }
+        
+        // Update status if provided
+        if (status != null) {
+            doctor.setStatus(status);
+        }
+
+        // Update user info
+        User user = doctor.getUser();
+        if (user != null) {
+            if (email != null && !email.trim().isEmpty()) {
+                user.setEmail(email);
+            }
+            if (firstName != null && !firstName.trim().isEmpty()) {
+                user.setFirstName(firstName);
+            }
+            if (lastName != null && !lastName.trim().isEmpty()) {
+                user.setLastName(lastName);
+            }
+            if (phone != null && !phone.trim().isEmpty()) {
+                user.setPhone(phone);
+            }
+            userRepository.save(user);
+        }
+
+        return doctorRepository.save(doctor);
+    }
+
+    /**
      * Xóa doctor (soft delete)
      * @param doctorId ID của doctor
      * @throws NotFoundException nếu không tìm thấy doctor
@@ -191,26 +250,15 @@ public class DoctorService {
         // Soft delete by updating both User status and Doctor status
         if (doctor.getUser() != null) {
             User user = doctor.getUser();
-            user.setStatus(User.UserStatus.DELETED);
+            user.setStatus(User.UserStatus.INACTIVE);
             userRepository.save(user);
         }
         
         // Also update Doctor status to maintain consistency
-        doctor.setStatus("DELETED");
+        doctor.setStatus("INACTIVE");
         doctorRepository.save(doctor);
     }
 
-    /**
-     * Xóa doctor vĩnh viễn (hard delete)
-     * @param doctorId ID của doctor
-     * @throws NotFoundException nếu không tìm thấy doctor
-     */
-    public void hardDeleteDoctor(Long doctorId) {
-        if (!doctorRepository.existsById(doctorId)) {
-            throw new NotFoundException("Không tìm thấy bác sĩ với ID: " + doctorId);
-        }
-        doctorRepository.deleteById(doctorId);
-    }
 
     /**
      * Lấy doctor theo userId
