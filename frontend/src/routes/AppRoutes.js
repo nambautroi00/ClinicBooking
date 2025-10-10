@@ -38,7 +38,6 @@ import AppointmentsManagement from "../pages/Admin/AppointmentsManagement";
 import ReviewsManagement from "../pages/Admin/ReviewsManagement";
 import PaymentsManagement from "../pages/Admin/PaymentsManagement";
 import ArticleManagement from "../pages/Admin/ArticleManagement";
-import ArticleDetail from "../pages/ArticleDetail";
 import ArticleDetail from "../components/article/ArticleDetail";
 
 const AppRoutes = () => {
@@ -85,7 +84,9 @@ const AppRoutes = () => {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<UsersManagement />} />
+        <Route path="users/:id" element={<UsersManagement />} />
         <Route path="doctors" element={<DoctorsManagement />} />
+        <Route path="doctors/:id" element={<DoctorsManagement />} />
         <Route path="departments" element={<DepartmentsManagement />} />
         <Route path="medicines" element={<MedicinesManagement />} />
         <Route path="prescriptions" element={<PrescriptionsManagement />} />
