@@ -12,7 +12,6 @@ const axiosClient = axios.create({
 // Request interceptor để thêm token vào header
 axiosClient.interceptors.request.use(
   (config) => {
-    console.log('Making request to:', config.baseURL + config.url);
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

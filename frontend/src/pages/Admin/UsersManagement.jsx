@@ -33,6 +33,7 @@ const UsersManagement = () => {
     gender: '',
     dateOfBirth: '',
     address: '',
+    imageUrl: '',
     status: 'ACTIVE',
     roleId: 3 // Default to PATIENT role
   });
@@ -172,6 +173,7 @@ const UsersManagement = () => {
       gender: '',
       dateOfBirth: '',
       address: '',
+      imageUrl: '',
       status: 'ACTIVE',
       roleId: 3
     });
@@ -189,6 +191,7 @@ const UsersManagement = () => {
       gender: user.gender || '',
       dateOfBirth: user.dateOfBirth || '',
       address: user.address || '',
+      imageUrl: user.imageUrl || '',
       status: user.status || 'ACTIVE',
       roleId: user.role?.id || 3
     });
@@ -402,6 +405,7 @@ const UsersManagement = () => {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Ảnh</th>
               <th>Họ tên</th>
               <th>Email</th>
               <th>Điện thoại</th>
@@ -414,16 +418,31 @@ const UsersManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="8" className="text-center">Đang tải...</td>
+                <td colSpan="9" className="text-center">Đang tải...</td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center">Không có người dùng nào</td>
+                <td colSpan="9" className="text-center">Không có người dùng nào</td>
               </tr>
             ) : (
               filteredUsers.map(user => (
                 <tr key={user.id}>
                   <td>{user.id}</td>
+                  <td>
+                    <img 
+                      src={user.imageUrl || '/logo192.png'} 
+                      alt={`${user.firstName} ${user.lastName}`}
+                      style={{ 
+                        width: '40px', 
+                        height: '40px', 
+                        borderRadius: '50%', 
+                        objectFit: 'cover' 
+                      }}
+                      onError={(e) => {
+                        e.target.src = '/logo192.png';
+                      }}
+                    />
+                  </td>
                   <td>{user.firstName} {user.lastName}</td>
                   <td>{user.email}</td>
                   <td>{user.phone || '-'}</td>
@@ -600,6 +619,15 @@ const UsersManagement = () => {
                 placeholder="Nhập địa chỉ"
               />
             </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>URL ảnh đại diện</Form.Label>
+              <Form.Control
+                type="url"
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
+                placeholder="Nhập URL ảnh đại diện"
+              />
+            </Form.Group>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
@@ -727,6 +755,15 @@ const UsersManagement = () => {
                 value={formData.address}
                 onChange={(e) => setFormData({...formData, address: e.target.value})}
                 placeholder="Nhập địa chỉ"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>URL ảnh đại diện</Form.Label>
+              <Form.Control
+                type="url"
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
+                placeholder="Nhập URL ảnh đại diện"
               />
             </Form.Group>
           </Modal.Body>
