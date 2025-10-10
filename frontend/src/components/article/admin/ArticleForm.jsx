@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import articleApi from '../api/articleApi';
-import fileUploadApi from '../api/fileUploadApi';
+import articleApi from '../../../api/articleApi';
+import fileUploadApi from '../../../api/fileUploadApi';
 
 const ArticleForm = ({ article, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -30,7 +30,6 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -41,34 +40,21 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Tiêu đề là bắt buộc';
-    }
-    
-    if (!formData.content.trim()) {
-      newErrors.content = 'Nội dung là bắt buộc';
-    }
-
+    if (!formData.title.trim()) newErrors.title = 'Tiêu đề là bắt buộc';
+    if (!formData.content.trim()) newErrors.content = 'Nội dung là bắt buộc';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validateForm()) return;
     setLoading(true);
     try {
       if (article) {
-        // Update existing article
         await articleApi.updateArticle(article.articleId, formData);
         alert('Cập nhật bài viết thành công!');
       } else {
-        // Create new article
         let authorId;
         try {
           const rawUser = localStorage.getItem('user');
@@ -76,9 +62,7 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
             const user = JSON.parse(rawUser);
             authorId = user?.id ?? user?.userId;
           }
-        } catch (_) {
-          // ignore parse errors, backend will reject if authorId missing
-        }
+        } catch (_) {}
         const payload = authorId ? { ...formData, authorId } : { ...formData };
         await articleApi.createArticle(payload);
         alert('Tạo bài viết thành công!');
@@ -95,25 +79,18 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
       alert('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
       return;
     }
-
-    // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       alert('Kích thước file không được vượt quá 5MB');
       return;
     }
-
     setUploading(true);
     try {
       const response = await fileUploadApi.uploadImage(file, article?.articleId);
-      console.log('Upload response:', response.data);
-      
       if (response.data.success) {
         setFormData(prev => ({
           ...prev,
@@ -295,3 +272,5 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
 };
 
 export default ArticleForm;
+
+

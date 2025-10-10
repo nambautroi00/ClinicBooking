@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Modal, Button, Form, Table, Alert, Badge, Dropdown, Row, Col } from 'react-bootstrap';
 import { BiEdit, BiPlus, BiSearch, BiDotsVertical, BiCheckCircle, BiXCircle, BiUserCheck, BiUserPlus } from 'react-icons/bi';
 import userApi from '../../api/userApi';
 
 const UsersManagement = () => {
+  const location = useLocation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,6 +55,19 @@ const UsersManagement = () => {
     fetchUsers();
     fetchStats();
   }, []);
+
+  // Deep-link: open profile modal by ?userId=
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const userIdParam = params.get('userId');
+    if (!userIdParam) return;
+    const idNum = Number(userIdParam);
+    if (!idNum) return;
+    const found = users.find(u => u.id === idNum);
+    if (found) {
+      openEditModal(found);
+    }
+  }, [location.search, users]);
 
   const fetchUsers = async () => {
     try {

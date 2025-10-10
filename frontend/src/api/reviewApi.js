@@ -1,6 +1,8 @@
 import axiosClient from './axiosClient';
 
 const reviewApi = {
+  // Get all reviews
+  getAll: () => axiosClient.get(`/reviews/all`).then(r => r.data),
   // Get reviews by doctor
   getByDoctor: (doctorId) => axiosClient.get(`/reviews/by-doctor`, { params: { doctorId } }).then(r => r.data),
 

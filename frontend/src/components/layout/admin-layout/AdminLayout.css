@@ -49,7 +49,7 @@
 /* Main content area */
 main {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: calc(100vh - 76px);
+  min-height: calc(100vh - 70px);
   padding: 2rem !important;
 }
 
@@ -73,7 +73,7 @@ main {
     transition: left 0.3s ease;
     z-index: 1000;
     margin-top: 0 !important;
-    padding-top: 60px !important;
+    padding-top: 70px !important;
   }
   
   .sidebar.show {
@@ -108,6 +108,17 @@ main {
   overflow-x: hidden;
 }
 
+/* Ensure main content clears the fixed sidebar on desktop */
+.admin-main {
+  margin-left: 260px;
+}
+
+@media (max-width: 991.98px) {
+  .admin-main {
+    margin-left: 0;
+  }
+}
+
 /* Optimize rendering */
 .sidebar .position-sticky {
   will-change: auto;
@@ -130,8 +141,8 @@ main {
 
 .sidebar > div {
   position: sticky;
-  top: 60px;
-  height: calc(100vh - 60px);
+  top: 70px;
+  height: calc(100vh - 70px);
   overflow-y: auto;
   overflow-x: hidden;
 }

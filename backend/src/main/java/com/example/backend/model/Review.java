@@ -25,6 +25,7 @@ public class Review {
     private Doctor doctor;
 
     private Integer rating;
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String comment;
     private LocalDateTime createdAt;
 

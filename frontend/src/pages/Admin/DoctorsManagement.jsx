@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Modal, Button, Form, Table, Alert, Badge, Dropdown } from 'react-bootstrap';
 import { BiEdit, BiPlus, BiSearch, BiUser, BiDotsVertical, BiCheckCircle, BiXCircle, BiTrash, BiUserCheck } from 'react-icons/bi';
 import UserSelector from '../../components/UserSelector';
@@ -6,6 +7,7 @@ import doctorApi from '../../api/doctorApi';
 import departmentApi from '../../api/departmentApi';
 
 const DoctorsManagement = () => {
+  const location = useLocation();
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -47,6 +49,19 @@ const DoctorsManagement = () => {
     fetchDoctors();
     fetchDepartments();
   }, []);
+
+  // Deep-link: open edit modal by ?doctorId=
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const doctorIdParam = params.get('doctorId');
+    if (!doctorIdParam) return;
+    const idNum = Number(doctorIdParam);
+    if (!idNum) return;
+    const found = doctors.find(d => d.doctorId === idNum);
+    if (found) {
+      openEditModal(found);
+    }
+  }, [location.search, doctors]);
 
   const fetchDoctors = async () => {
     try {

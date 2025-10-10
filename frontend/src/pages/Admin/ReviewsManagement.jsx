@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from "react";
+import { Modal, Button } from "react-bootstrap";
 import reviewApi from "../../api/reviewApi";
+import userApi from "../../api/userApi";
+import doctorApi from "../../api/doctorApi";
 
 const ReviewsManagement = () => {
   const [filters, setFilters] = useState({ doctorId: "", patientId: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [reviews, setReviews] = useState([]);
+  const [showPatientModal, setShowPatientModal] = useState(false);
+  const [showDoctorModal, setShowDoctorModal] = useState(false);
+  const [patientDetail, setPatientDetail] = useState(null);
+  const [doctorDetail, setDoctorDetail] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const fetchReviews = async () => {
     setLoading(true);
@@ -18,11 +26,12 @@ const ReviewsManagement = () => {
       } else if (filters.patientId) {
         data = await reviewApi.getByPatient(Number(filters.patientId));
       } else {
-        data = [];
+        // No filters -> fetch all
+        data = await reviewApi.getAll();
       }
       const reviewsList = Array.isArray(data) ? data : [];
-      // Sort reviews by ID
-      setReviews(reviewsList.sort((a, b) => a.id - b.id));
+      // Sort reviews by ReviewID
+      setReviews(reviewsList.sort((a, b) => (a?.reviewId || 0) - (b?.reviewId || 0)));
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || "Đã xảy ra lỗi");
       setReviews([]);
@@ -33,30 +42,38 @@ const ReviewsManagement = () => {
 
   useEffect(() => {
     // Auto fetch when filters change if either doctorId or patientId present
-    if (filters.doctorId || filters.patientId) {
-      fetchReviews();
-    } else {
-      setReviews([]);
-    }
+    // Always fetch when filters change; if none provided, fetch all
+    fetchReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.doctorId, filters.patientId]);
 
-  const handleDeactivate = async (id) => {
+  // Removed deactivate/delete actions per request
+
+  const openPatientProfile = async (patientId) => {
+    if (!patientId) return;
     try {
-      await reviewApi.deactivate(id);
-      await fetchReviews();
+      setProfileLoading(true);
+      const res = await userApi.getUserById(Number(patientId));
+      setPatientDetail(res.data || res);
+      setShowPatientModal(true);
     } catch (e) {
-      setError(e?.response?.data?.message || e?.message || "Không thể vô hiệu hóa đánh giá");
+      setError(e?.response?.data?.message || e?.message || "Không thể tải hồ sơ bệnh nhân");
+    } finally {
+      setProfileLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa đánh giá này?")) return;
+  const openDoctorProfile = async (doctorId) => {
+    if (!doctorId) return;
     try {
-      await reviewApi.delete(id);
-      await fetchReviews();
+      setProfileLoading(true);
+      const res = await doctorApi.getDoctorById(Number(doctorId));
+      setDoctorDetail(res.data || res);
+      setShowDoctorModal(true);
     } catch (e) {
-      setError(e?.response?.data?.message || e?.message || "Không thể xóa đánh giá");
+      setError(e?.response?.data?.message || e?.message || "Không thể tải hồ sơ bác sĩ");
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -150,7 +167,7 @@ const ReviewsManagement = () => {
                         <th>Bình luận</th>
                         <th>Tạo lúc</th>
                         <th>Trạng thái</th>
-                        <th className="text-end">Hành động</th>
+                        <th className="text-end">Hồ sơ</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -162,8 +179,18 @@ const ReviewsManagement = () => {
                         reviews.map((r) => (
                           <tr key={r.reviewId}>
                             <td>{r.reviewId}</td>
-                            <td>{r.patientName} <small className="text-muted">(ID {r.patientId})</small></td>
-                            <td>{r.doctorName} <small className="text-muted">(ID {r.doctorId})</small></td>
+                            <td>
+                              <button type="button" className="btn btn-link p-0 text-decoration-none" onClick={() => openPatientProfile(r.patientId)}>
+                                {r.patientName}
+                              </button>
+                              <small className="text-muted"> (ID {r.patientId})</small>
+                            </td>
+                            <td>
+                              <button type="button" className="btn btn-link p-0 text-decoration-none" onClick={() => openDoctorProfile(r.doctorId)}>
+                                {r.doctorName}
+                              </button>
+                              <small className="text-muted"> (ID {r.doctorId})</small>
+                            </td>
                             <td>
                               {Array.from({ length: 5 }).map((_, i) => (
                                 <i key={i} className={`bi ${i < (r.rating || 0) ? "bi-star-fill text-warning" : "bi-star"}`}></i>
@@ -178,13 +205,11 @@ const ReviewsManagement = () => {
                             </td>
                             <td className="text-end">
                               <div className="btn-group">
-                                {r.status === "ACTIVE" && (
-                                  <button className="btn btn-sm btn-outline-warning" onClick={() => handleDeactivate(r.reviewId)}>
-                                    <i className="bi bi-slash-circle"></i>
-                                  </button>
-                                )}
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(r.reviewId)}>
-                                  <i className="bi bi-trash"></i>
+                                <button className="btn btn-sm btn-outline-primary" onClick={() => openPatientProfile(r.patientId)}>
+                                  <i className="bi bi-person"></i>
+                                </button>
+                                <button className="btn btn-sm btn-outline-primary" onClick={() => openDoctorProfile(r.doctorId)}>
+                                  <i className="bi bi-person-badge"></i>
                                 </button>
                               </div>
                             </td>
@@ -199,10 +224,77 @@ const ReviewsManagement = () => {
           </div>
         </div>
       </div>
+      {/* Read-only profile modals */}
+      <PatientProfileModal
+        show={showPatientModal}
+        onHide={() => setShowPatientModal(false)}
+        user={patientDetail}
+        loading={profileLoading}
+      />
+      <DoctorProfileModal
+        show={showDoctorModal}
+        onHide={() => setShowDoctorModal(false)}
+        doctor={doctorDetail}
+        loading={profileLoading}
+      />
     </div>
   );
 };
 
 export default ReviewsManagement;
+
+// Read-only profile modals
+export const PatientProfileModal = ({ show, onHide, user, loading }) => (
+  <Modal show={show} onHide={onHide} size="md" centered>
+    <Modal.Header closeButton>
+      <Modal.Title>Hồ sơ Bệnh nhân</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      {loading ? (
+        <div className="text-center py-3"><div className="spinner-border" role="status"></div></div>
+      ) : !user ? (
+        <div className="text-muted">Không có dữ liệu</div>
+      ) : (
+        <div className="vstack gap-2">
+          <div><strong>Họ tên:</strong> {user.firstName} {user.lastName}</div>
+          <div><strong>Email:</strong> {user.email}</div>
+          <div><strong>Điện thoại:</strong> {user.phone || "-"}</div>
+          <div><strong>Địa chỉ:</strong> {user.address || "-"}</div>
+          <div><strong>Trạng thái:</strong> <span className={`badge ${user.status === "ACTIVE" ? "bg-success" : "bg-secondary"}`}>{user.status}</span></div>
+        </div>
+      )}
+    </Modal.Body>
+    <Modal.Footer>
+      <Button variant="secondary" onClick={onHide}>Đóng</Button>
+    </Modal.Footer>
+  </Modal>
+);
+
+export const DoctorProfileModal = ({ show, onHide, doctor, loading }) => (
+  <Modal show={show} onHide={onHide} size="md" centered>
+    <Modal.Header closeButton>
+      <Modal.Title>Hồ sơ Bác sĩ</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      {loading ? (
+        <div className="text-center py-3"><div className="spinner-border" role="status"></div></div>
+      ) : !doctor ? (
+        <div className="text-muted">Không có dữ liệu</div>
+      ) : (
+        <div className="vstack gap-2">
+          <div><strong>Họ tên:</strong> {doctor.user?.firstName} {doctor.user?.lastName}</div>
+          <div><strong>Email:</strong> {doctor.user?.email}</div>
+          <div><strong>Điện thoại:</strong> {doctor.user?.phone || "-"}</div>
+          <div><strong>Khoa:</strong> {doctor.department?.departmentName || "-"}</div>
+          <div><strong>Chuyên khoa:</strong> {doctor.specialty || "-"}</div>
+          <div><strong>Trạng thái:</strong> <span className={`badge ${doctor.status === "ACTIVE" ? "bg-success" : "bg-secondary"}`}>{doctor.status}</span></div>
+        </div>
+      )}
+    </Modal.Body>
+    <Modal.Footer>
+      <Button variant="secondary" onClick={onHide}>Đóng</Button>
+    </Modal.Footer>
+  </Modal>
+);
 
 

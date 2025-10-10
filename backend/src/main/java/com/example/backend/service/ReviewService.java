@@ -28,6 +28,12 @@ public class ReviewService {
     private final DoctorRepository doctorRepository;
     private final ReviewMapper reviewMapper;
 
+    @Transactional(readOnly = true)
+    public List<ReviewDTO.Response> getAll() {
+        List<Review> list = reviewRepository.findAll();
+        return list.stream().map(reviewMapper::entityToResponseDTO).toList();
+    }
+
     public ReviewDTO.Response create(ReviewDTO.Create dto) {
         Patient patient = patientRepository.findById(dto.getPatientId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh nhân với ID: " + dto.getPatientId()));

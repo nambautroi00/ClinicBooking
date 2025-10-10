@@ -33,8 +33,8 @@ const AdminHeader = () => {
 
   return (
     <>
-    <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm border-0" style={{minHeight: '70px'}}>
-      <div className="container-fluid px-4">
+    <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm border-0 fixed-top py-0" style={{height: '70px', zIndex: 1030}}>
+      <div className="container-fluid px-4 h-100 d-flex align-items-center">
         <Link to="/admin" className="navbar-brand d-flex align-items-center">
           <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style={{width: '50px', height: '50px'}}>
             <i className="bi bi-hospital text-white fs-4" />

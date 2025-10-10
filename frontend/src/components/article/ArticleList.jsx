@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import articleApi from '../api/articleApi';
+import articleApi from '../../api/articleApi';
 
 const ArticleList = ({ onEdit, onDelete, searchParams }) => {
   const [articles, setArticles] = useState([]);
@@ -193,3 +193,5 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
 };
 
 export default ArticleList;
+
+

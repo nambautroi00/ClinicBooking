@@ -7,10 +7,11 @@ const AdminLayout = () => {
   return (
     <div className="container-fluid">
       <AdminHeader />
+      <div style={{height: '70px'}}></div>
       <div className="row">
         {/* Sidebar Navigation */}
-        <nav className="col-md-3 col-lg-2 d-md-block bg-primary sidebar" style={{minHeight: 'calc(100vh - 76px)', position: 'relative', marginTop: '-60px', paddingTop: '60px'}}>
-          <div className="pt-4" style={{position: 'sticky', top: '60px'}}>
+        <nav className="bg-primary sidebar" style={{position: 'fixed', top: '0px', left: 0, height: 'calc(100vh - 70px)', width: '260px', zIndex: 1029}}>
+          <div className="pt-4" style={{height: '100%', overflowY: 'auto'}}>
             
             <ul className="nav flex-column px-3">
               <li className="nav-item mb-2">
@@ -55,28 +56,6 @@ const AdminLayout = () => {
                 >
                   <i className="bi bi-diagram-3 me-3 fs-5" /> 
                   <span className="fw-semibold">Quản lý khoa</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/medicines" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-capsule me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý thuốc</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/prescriptions" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-journal-medical me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý đơn thuốc</span>
                 </NavLink>
               </li>
               
@@ -127,7 +106,7 @@ const AdminLayout = () => {
           </div>
         </nav>
 
-        <main className="col-md-9 ms-sm-auto col-lg-10">
+        <main className="admin-main col-md-9 ms-sm-auto col-lg-10">
           <div className="content-card p-4">
             <Outlet />
           </div>

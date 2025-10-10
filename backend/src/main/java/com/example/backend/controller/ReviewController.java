@@ -29,13 +29,22 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
+    @GetMapping
+    public ResponseEntity<List<ReviewDTO.Response>> getAll() {
+        return ResponseEntity.ok(reviewService.getAll());
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<ReviewDTO.Response>> getAllExplicit() {
+        return ResponseEntity.ok(reviewService.getAll());
+    }
     @PostMapping
     public ResponseEntity<ReviewDTO.Response> create(@Valid @RequestBody ReviewDTO.Create dto) {
         ReviewDTO.Response created = reviewService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<ReviewDTO.Response> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(reviewService.getById(id));
     }
@@ -66,19 +75,19 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getReviewCountByDoctor(doctorId));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     public ResponseEntity<ReviewDTO.Response> update(@PathVariable("id") Long id,
                                                     @Valid @RequestBody ReviewDTO.Update dto) {
         return ResponseEntity.ok(reviewService.update(id, dto));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
         reviewService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/{id}/deactivate")
+    @PutMapping("/{id:\\d+}/deactivate")
     public ResponseEntity<ReviewDTO.Response> deactivateReview(@PathVariable("id") Long id) {
         ReviewDTO.Response updated = reviewService.deactivateReview(id);
         return ResponseEntity.ok(updated);

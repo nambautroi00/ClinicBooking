@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import ArticleList from '../../components/ArticleList';
-import ArticleForm from '../../components/ArticleForm';
+import ArticleList from '../../components/article/admin/ArticleList';
+import ArticleForm from '../../components/article/admin/ArticleForm';
 
 const ArticleManagement = () => {
   const [currentView, setCurrentView] = useState('list'); // 'list', 'create', 'edit'
