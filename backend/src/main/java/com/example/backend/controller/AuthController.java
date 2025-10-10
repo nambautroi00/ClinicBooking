@@ -3,6 +3,8 @@ package com.example.backend.controller;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +23,8 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/auth") 
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+// Allow requests from the React dev server and allow credentials so cookies can be set
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class AuthController {
 
     private final AuthService authService;
@@ -32,6 +35,18 @@ public class AuthController {
         AuthDTO.LoginResponse response = authService.login(loginRequest);
         
         if (response.isSuccess()) {
+            Long userId = response.getUser() != null ? response.getUser().getId() : null;
+            if (userId != null) {
+                ResponseCookie cookie = ResponseCookie.from("userId", String.valueOf(userId))
+                        .path("/")
+                        .maxAge(7 * 24 * 60 * 60) // 7 days
+                        .sameSite("Lax")
+                        .httpOnly(false)
+                        .secure(false)
+                        .build();
+
+                return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+            }
             return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.badRequest().body(response);
@@ -41,7 +56,16 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<AuthDTO.LogoutResponse> logout(@RequestBody(required = false) AuthDTO.LogoutRequest logoutRequest) {
         AuthDTO.LogoutResponse response = authService.logout(logoutRequest);
-        return ResponseEntity.ok(response);
+        // Clear the userId cookie on logout
+        ResponseCookie cookie = ResponseCookie.from("userId", "")
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .httpOnly(false)
+                .secure(false)
+                .build();
+
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
     }
 
     @PostMapping("/register")
@@ -55,21 +79,30 @@ public class AuthController {
         }
     }
 
-    // OAuth / Google Sign-in
     @PostMapping("/google")
     public ResponseEntity<AuthDTO.LoginResponse> googleSignIn(@RequestBody Map<String, String> body) {
-        String idToken = body.get("idToken");
-        // Verify idToken using Google API - for brevity we'll trust client token here in dev
-        // In production verify with Google's tokeninfo endpoint or google-id-token-verifier
         try {
-            // Extract basic info from idToken (in production validate signature)
-            // For now, expect client sends email, firstName, lastName too (fallback)
             String email = body.get("email");
             String firstName = body.getOrDefault("firstName", "");
             String lastName = body.getOrDefault("lastName", "");
 
             AuthDTO.LoginResponse response = authService.oauthLogin(email, firstName, lastName);
-            return response.isSuccess() ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
+            if (response.isSuccess()) {
+                Long userId = response.getUser() != null ? response.getUser().getId() : null;
+                if (userId != null) {
+                    ResponseCookie cookie = ResponseCookie.from("userId", String.valueOf(userId))
+                            .path("/")
+                            .maxAge(7 * 24 * 60 * 60)
+                            .sameSite("Lax")
+                            .httpOnly(false)
+                            .secure(false)
+                            .build();
+
+                    return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(response);
+                }
+                return ResponseEntity.ok(response);
+            }
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new AuthDTO.LoginResponse("OAuth error", false, null, null));
         }
