@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import appointmentApi from "../../api/appointmentApi";
+import patientApi from "../../api/patientApi";
 import {
   Search,
   LayoutGrid,
   Calendar,
   Filter,
-  Eye,
   MessageCircle,
-  MoreVertical,
   Clock,
   Mail,
   Phone,
@@ -31,15 +31,16 @@ const Badge = ({ children, className }) => (
     {children}
   </span>
 );
-const Avatar = ({ src, alt, children }) => (
-  <span
-    className="avatar rounded-circle me-2"
+const Avatar = ({ src, alt, children, size = 50 }) => (
+  <div
+    className="avatar rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
     style={{
-      width: 56,
-      height: 56,
-      display: "inline-block",
+      width: size,
+      height: size,
       overflow: "hidden",
-      background: "#f3f3f3",
+      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      border: "3px solid #fff",
+      boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
     }}
   >
     {src ? (
@@ -49,147 +50,142 @@ const Avatar = ({ src, alt, children }) => (
         style={{ width: "100%", height: "100%", objectFit: "cover" }}
       />
     ) : (
-      <span className="fw-bold fs-4 text-primary">{children}</span>
+      <span
+        className="fw-bold text-white"
+        style={{ fontSize: `${size * 0.4}px` }}
+      >
+        {children}
+      </span>
     )}
-  </span>
+  </div>
 );
 
-const appointments = [
-  {
-    id: "#Apt0001",
-    patientName: "Adrian",
-    patientAvatar: "https://randomuser.me/api/portraits/men/32.jpg",
-    date: "09 Oct 2025",
-    time: "10.45 AM",
-    visitType: "General Visit",
-    appointmentType: "Video Call",
-    email: "adrian@example.com",
-    phone: "+1 504 368 6874",
-  },
-  {
-    id: "#Apt0002",
-    patientName: "Kelly",
-    patientAvatar: "https://randomuser.me/api/portraits/women/44.jpg",
-    date: "09 Oct 2025",
-    time: "11.50 AM",
-    visitType: "General Visit",
-    appointmentType: "Audio Call",
-    email: "kelly@example.com",
-    phone: "+1 832 891 8403",
-    isNew: true,
-  },
-  {
-    id: "#Apt0003",
-    patientName: "Samuel",
-    patientAvatar: "https://randomuser.me/api/portraits/men/65.jpg",
-    date: "09 Oct 2025",
-    time: "09.30 AM",
-    visitType: "General Visit",
-    appointmentType: "Video Call",
-    email: "samuel@example.com",
-    phone: "+1 749 104 6291",
-  },
-];
-
-export default function DoctorAppointmentList() {
+function DoctorAppointmentList() {
+  // State
   const [activeTab, setActiveTab] = useState("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
-  // Add date filter state for dropdown
-  const [startDate, setStartDate] = useState("");
-  // Date range filter states
   const [rangeType, setRangeType] = useState("today");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Helper to parse appointment date string to yyyy-mm-dd
-  function toISODate(dateStr) {
-    const [day, month, year] = dateStr.split(" ");
-    const monthMap = {
-      Jan: "01",
-      Feb: "02",
-      Mar: "03",
-      Apr: "04",
-      May: "05",
-      Jun: "06",
-      Jul: "07",
-      Aug: "08",
-      Sep: "09",
-      Oct: "10",
-      Nov: "11",
-      Dec: "12",
+  // Fetch appointments from DB
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      setLoading(true);
+      try {
+        // Lấy thông tin bác sĩ hiện tại (giả sử doctorId = 8)
+        const doctorId = 8;
+        // Lấy lịch hẹn của bác sĩ
+        const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(
+          doctorId
+        );
+        const appointmentsWithPatients = await Promise.all(
+          appointmentsRes.data.map(async (appointment) => {
+            try {
+              const patientRes = await patientApi.getPatientById(
+                appointment.patientId
+              );
+              const patient = patientRes.data;
+              return {
+                ...appointment,
+                patientName:
+                  patient.user?.lastName + " " + patient.user?.firstName ||
+                  patient.lastName + " " + patient.firstName ||
+                  "Không rõ",
+                patientEmail: patient.user?.email || "",
+                patientPhone: patient.user?.phone || "",
+                patientAddress: patient.user?.address || "",
+                patientAvatar: patient.user?.avatarUrl || "",
+                healthInsuranceNumber: patient.healthInsuranceNumber || "",
+                medicalHistory: patient.medicalHistory || "",
+              };
+            } catch {
+              return {
+                ...appointment,
+                patientName: "Không tìm thấy thông tin",
+                patientEmail: "",
+                patientPhone: "",
+                patientAddress: "",
+                patientAvatar: "",
+                healthInsuranceNumber: "",
+                medicalHistory: "",
+              };
+            }
+          })
+        );
+        console.log("Appointments loaded:", appointmentsWithPatients);
+        console.log(
+          "Rejected count:",
+          appointmentsWithPatients.filter((a) => a.status === "Rejected").length
+        );
+        console.log(
+          "Canceled count:",
+          appointmentsWithPatients.filter((a) => a.status === "Canceled").length
+        );
+        setAppointments(appointmentsWithPatients);
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+        setAppointments([]);
+      } finally {
+        setLoading(false);
+      }
     };
-    return `${year}-${monthMap[month]}-${day.padStart(2, "0")}`;
-  }
+    fetchAppointments();
+  }, []);
 
-  // Helper: get date range based on rangeType
-  function getRangeDates() {
-    const today = new Date();
-    let start, end;
-    switch (rangeType) {
-      case "today":
-        start = end = today;
-        break;
-      case "yesterday":
-        start = end = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate() - 1
-        );
-        break;
-      case "last7":
-        start = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate() - 6
-        );
-        end = today;
-        break;
-      case "last30":
-        start = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate() - 29
-        );
-        end = today;
-        break;
-      case "thisMonth":
-        start = new Date(today.getFullYear(), today.getMonth(), 1);
-        end = today;
-        break;
-      case "lastMonth":
-        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        end = new Date(today.getFullYear(), today.getMonth(), 0);
-        break;
-      case "custom":
-        if (customStart && customEnd) {
-          start = new Date(customStart);
-          end = new Date(customEnd);
-        }
-        break;
-      default:
-        start = end = today;
-    }
-    return { start, end };
-  }
-
-  const { start, end } = getRangeDates();
+  // Calculate counts
+  const counts = useMemo(() => {
+    return {
+      upcoming: appointments.filter(
+        (a) =>
+          a.status !== "Completed" &&
+          a.status !== "Rejected" &&
+          a.status !== "Canceled"
+      ).length,
+      rejected: appointments.filter((a) => a.status === "Rejected").length,
+      completed: appointments.filter((a) => a.status === "Completed").length,
+    };
+  }, [appointments]);
 
   const filtered = appointments.filter((a) => {
-    // Filter by range
-    const apptISO = toISODate(a.date);
-    const apptDate = new Date(apptISO);
-    if (start && end && (apptDate < start || apptDate > end)) return false;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        a.patientName?.toLowerCase().includes(query) ||
+        a.patientEmail?.toLowerCase().includes(query) ||
+        a.patientPhone?.includes(query) ||
+        a.healthInsuranceNumber?.toLowerCase().includes(query)
+      );
+    }
     if (
-      searchQuery &&
-      !a.patientName.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !a.email.toLowerCase().includes(searchQuery.toLowerCase())
+      activeTab === "upcoming" &&
+      (a.status === "Rejected" ||
+        a.status === "Completed" ||
+        a.status === "Canceled")
+    )
+      return false;
+    if (activeTab === "completed" && a.status !== "Completed") return false;
+    if (
+      activeTab === "cancelled" &&
+      !(a.status === "Rejected" || a.status === "Canceled")
     )
       return false;
     return true;
   });
 
+  // Render
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border" role="status"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background p-2">
+    <div className="bg-white rounded-4 shadow-sm p-4 border ">
       <div className="mx-auto" style={{ maxWidth: 1500 }}>
         {/* Header */}
         <div className="mb-4 d-flex align-items-center justify-content-between">
@@ -232,21 +228,21 @@ export default function DoctorAppointmentList() {
               onClick={() => setActiveTab("upcoming")}
               className="gap-2"
             >
-              Upcoming <Badge className="ml-1">21</Badge>
+              Sắp tới <Badge className="ml-1">{counts.upcoming}</Badge>
             </Button>
             <Button
               variant={activeTab === "cancelled" ? "default" : "outline"}
               onClick={() => setActiveTab("cancelled")}
               className="gap-2"
             >
-              Cancelled <Badge className="ml-1">16</Badge>
+              Từ chối <Badge className="ml-1">{counts.rejected}</Badge>
             </Button>
             <Button
               variant={activeTab === "completed" ? "default" : "outline"}
               onClick={() => setActiveTab("completed")}
               className="gap-2"
             >
-              Completed <Badge className="ml-1">214</Badge>
+              Hoàn thành <Badge className="ml-1">{counts.completed}</Badge>
             </Button>
           </div>
           <div className="d-flex align-items-center gap-2">
@@ -291,96 +287,280 @@ export default function DoctorAppointmentList() {
           </div>
         </div>
 
-        {/* Appointments List */}
-        <div className="d-flex flex-column gap-3">
+        {/* Appointments List - Modern Layout */}
+        <div className="space-y-4">
           {filtered.length === 0 ? (
-            <div className="card p-4 text-center">
-              <i
-                className="bi bi-calendar-x text-muted"
-                style={{ fontSize: "2rem" }}
-              ></i>
-              <div className="mt-2 text-muted">No appointments found</div>
+            <div className="text-center py-5">
+              <h5 className="text-muted">Không có lịch hẹn</h5>
             </div>
           ) : (
-            filtered.map((appointment) => (
-              <div
-                key={appointment.id}
-                className="d-flex align-items-center gap-4 rounded border bg-white p-3 shadow-sm"
-              >
-                {/* Patient Info */}
-                <Avatar
-                  src={appointment.patientAvatar}
-                  alt={appointment.patientName}
+            filtered.map((appointment) => {
+              const startDateObj = appointment.startTime
+                ? new Date(appointment.startTime)
+                : null;
+              const endDateObj = appointment.endTime
+                ? new Date(appointment.endTime)
+                : null;
+              const dateStr = startDateObj
+                ? startDateObj.toLocaleDateString("vi-VN")
+                : "";
+              const startTimeStr = startDateObj
+                ? startDateObj.toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "";
+              const endTimeStr = endDateObj
+                ? endDateObj.toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "";
+
+              return (
+                <div
+                  key={appointment.id}
+                  className="flex items-center gap-6 rounded-lg border border-border bg-card p-1 shadow-sm transition-shadow hover:shadow-md"
                 >
-                  {appointment.patientName[0]}
-                </Avatar>
-                <div>
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="text-sm fw-medium text-primary">
-                      {appointment.id}
-                    </span>
-                    {appointment.isNew && (
-                      <Badge className="bg-purple-100 text-purple-700">
-                        New
-                      </Badge>
+                  {/* Patient Info */}
+                  <div
+                    className="d-flex align-items-center gap-3 p-3"
+                    style={{ minWidth: "280px", maxWidth: "280px" }}
+                  >
+                    <Avatar
+                      size={50}
+                      src={appointment.patientAvatar || "/placeholder.svg"}
+                      alt={appointment.patientName}
+                    >
+                      {appointment.patientName
+                        ? appointment.patientName.charAt(0).toUpperCase()
+                        : "?"}
+                    </Avatar>
+                    <div className="flex-grow-1">
+                      <div
+                        className="fw-bold mb-1"
+                        style={{ fontSize: "14px" }}
+                      >
+                        {appointment.patientName}
+                      </div>
+                      {appointment.healthInsuranceNumber && (
+                        <div className="text-muted small">
+                          BHYT: {appointment.healthInsuranceNumber}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div
+                    className="p-2"
+                    style={{ minWidth: "220px", maxWidth: "220px" }}
+                  >
+                    <div className="d-flex align-items-center gap-2 mb-2">
+                      <Mail
+                        className="text-muted"
+                        style={{ width: "14px", height: "14px" }}
+                      />
+                      <span className="small text-truncate">
+                        {appointment.patientEmail}
+                      </span>
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <Phone
+                        className="text-muted"
+                        style={{ width: "14px", height: "14px" }}
+                      />
+                      <span className="small">{appointment.patientPhone}</span>
+                    </div>
+                  </div>
+
+                  {/* Appointment Details */}
+                  <div
+                    className="p-2"
+                    style={{ minWidth: "170px", maxWidth: "170px" }}
+                  >
+                    <div className="d-flex align-items-center gap-2 mb-2">
+                      <Clock
+                        className="text-muted"
+                        style={{ width: "14px", height: "14px" }}
+                      />
+                      <span className="small">{dateStr}</span>
+                    </div>
+                    <div className="small text-muted">
+                      {startTimeStr} - {endTimeStr}
+                    </div>
+                  </div>
+
+                  {/* Notes & Medical History */}
+                  <div
+                    className="p-2"
+                    style={{ minWidth: "240px", maxWidth: "240px" }}
+                  >
+                    {appointment.notes && (
+                      <div className="mb-2">
+                        <div className="fw-semibold small text-info">
+                          Ghi chú:
+                        </div>
+                        <div className="small">
+                          {appointment.notes.length > 30
+                            ? appointment.notes.substring(0, 30) + "..."
+                            : appointment.notes}
+                        </div>
+                      </div>
+                    )}
+                    {appointment.medicalHistory && (
+                      <div>
+                        <div className="fw-semibold small text-info">
+                          Tiền sử bệnh:
+                        </div>
+                        <div className="small">
+                          {appointment.medicalHistory.length > 40
+                            ? appointment.medicalHistory.substring(0, 40) +
+                              "..."
+                            : appointment.medicalHistory}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="fw-semibold text-dark">
-                    {appointment.patientName}
-                  </div>
-                </div>
 
-                {/* Appointment Details */}
-                <div className="d-flex flex-column flex-grow-1 gap-2 ms-4">
-                  <div className="d-flex align-items-center gap-2">
-                    <Clock style={{ width: 16, height: 16, color: "#888" }} />
-                    <span className="fw-medium">
-                      {appointment.date} {appointment.time}
-                    </span>
+                  {/* Status & Update - Professional UI */}
+                  <div
+                    className="d-flex align-items-center gap-2 p-2"
+                    style={{ minWidth: "250px", maxWidth: "250px" }}
+                  >
+                    {/* Custom dropdown - styled */}
+                    <div
+                      style={{
+                        background: "#f8f9fa",
+                        borderRadius: 8,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
+                        padding: "2px",
+                      }}
+                    >
+                      <select
+                        className="form-select form-select-sm"
+                        value={appointment.newStatus || appointment.status}
+                        onChange={(e) => {
+                          appointment.newStatus = e.target.value;
+                          setAppointments([...appointments]);
+                        }}
+                        style={{
+                          width: "130px",
+                          fontSize: "12px",
+                          borderRadius: 6,
+                          borderColor:
+                            (appointment.newStatus || appointment.status) ===
+                              "Rejected" ||
+                            (appointment.newStatus || appointment.status) ===
+                              "Canceled"
+                              ? "#dc3545"
+                              : (appointment.newStatus ||
+                                  appointment.status) === "Confirmed"
+                              ? "#198754"
+                              : "#6c757d",
+                          fontWeight: "600",
+                          color:
+                            (appointment.newStatus || appointment.status) ===
+                              "Rejected" ||
+                            (appointment.newStatus || appointment.status) ===
+                              "Canceled"
+                              ? "#dc3545"
+                              : (appointment.newStatus ||
+                                  appointment.status) === "Confirmed"
+                              ? "#198754"
+                              : "#6c757d",
+                        }}
+                      >
+                        <option value="Pending">Chờ xác nhận</option>
+                        <option value="Confirmed">Xác nhận lịch</option>
+                        <option value="Rejected">Từ chối</option>
+                      </select>
+                    </div>
+                    {/* Update button with loading */}
+                    <Button
+                      size="sm"
+                      className="btn-sm"
+                      style={{ fontSize: "11px", padding: "4px 8px" }}
+                      disabled={
+                        appointment.status ===
+                          (appointment.newStatus || appointment.status) ||
+                        appointment._updating
+                      }
+                      onClick={async () => {
+                        const newStatus =
+                          appointment.newStatus || appointment.status;
+                        appointment._updating = true;
+                        setAppointments([...appointments]);
+                        try {
+                          await appointmentApi.updateAppointment(
+                            appointment.appointmentId,
+                            { status: newStatus }
+                          );
+                          appointment.status = newStatus;
+                          delete appointment.newStatus;
+                          window.toast &&
+                            window.toast.success(
+                              "Cập nhật trạng thái thành công!"
+                            );
+                        } catch {
+                          window.toast &&
+                            window.toast.error("Cập nhật trạng thái thất bại!");
+                        } finally {
+                          delete appointment._updating;
+                          setAppointments([...appointments]);
+                        }
+                      }}
+                    >
+                      {appointment._updating ? (
+                        <span className="spinner-border spinner-border-sm"></span>
+                      ) : (
+                        "Cập nhật"
+                      )}
+                    </Button>
                   </div>
-                  <div className="d-flex align-items-center gap-2 text-muted">
-                    <span>{appointment.visitType}</span>
-                    <span>•</span>
-                    <span>{appointment.appointmentType}</span>
-                  </div>
-                  <div className="d-flex align-items-center gap-2 text-muted">
-                    <Mail style={{ width: 16, height: 16 }} />
-                    <span>{appointment.email}</span>
-                    <Phone style={{ width: 16, height: 16 }} />
-                    <span>{appointment.phone}</span>
-                  </div>
-                </div>
 
-                {/* Actions */}
-                <div className="d-flex align-items-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="rounded-circle border"
+                  {/* Actions */}
+                  <div
+                    className="d-flex align-items-center gap-2 p-2"
+                    style={{ minWidth: "140px" }}
                   >
-                    <Eye style={{ width: 16, height: 16 }} />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="rounded-circle border"
-                  >
-                    <MessageCircle style={{ width: 16, height: 16 }} />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="rounded-circle border"
-                  >
-                    <MoreVertical style={{ width: 16, height: 16 }} />
-                  </Button>
-                  <Button className="ms-3">Start Now</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="btn-sm d-flex align-items-center justify-content-center"
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                      }}
+                    >
+                      <MessageCircle
+                        style={{ width: "16px", height: "16px" }}
+                      />
+                    </Button>
+                    <Button
+                      className="btn-sm"
+                      style={{
+                        fontSize: "11px",
+                        padding: "6px 12px",
+                        opacity: appointment.status === "Confirmed" ? 1 : 0.5,
+                        cursor:
+                          appointment.status === "Confirmed"
+                            ? "pointer"
+                            : "not-allowed",
+                      }}
+                      disabled={appointment.status !== "Confirmed"}
+                    >
+                      Start Now
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
     </div>
   );
 }
+export default DoctorAppointmentList;

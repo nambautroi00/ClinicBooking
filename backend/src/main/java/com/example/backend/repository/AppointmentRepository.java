@@ -31,6 +31,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findDoctorAppointmentsInRange(@Param("doctorId") Long doctorId,
                                                     @Param("start") LocalDateTime start,
                                                     @Param("end") LocalDateTime end);
+
+    List<Appointment> findBySchedule_ScheduleId(Long scheduleId);
 }
 
 

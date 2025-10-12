@@ -16,26 +16,26 @@ const DoctorLayout = () => {
 
   useEffect(() => {
     fetchDoctorInfo();
-    
+
     // Listen for profile updates
     const handleProfileUpdate = () => {
       fetchDoctorInfo();
     };
-    
-    window.addEventListener('doctorProfileUpdated', handleProfileUpdate);
-    
+
+    window.addEventListener("doctorProfileUpdated", handleProfileUpdate);
+
     return () => {
-      window.removeEventListener('doctorProfileUpdated', handleProfileUpdate);
+      window.removeEventListener("doctorProfileUpdated", handleProfileUpdate);
     };
   }, []);
 
   const fetchDoctorInfo = async () => {
     try {
       setLoading(true);
-      const currentUser = JSON.parse(localStorage.getItem('user'));
-      
+      const currentUser = JSON.parse(localStorage.getItem("user"));
+
       if (!currentUser) {
-        console.error('No user found in localStorage');
+        console.error("No user found in localStorage");
         return;
       }
 
@@ -50,18 +50,20 @@ const DoctorLayout = () => {
       // Set doctor info
       setDoctorInfo({
         name: `${userData.firstName} ${userData.lastName}`,
-        department: doctorData.department?.departmentName || 'Chưa phân công',
-        avatar: userData.avatarUrl ? getFullAvatarUrl(userData.avatarUrl) : null,
+        department: doctorData.department?.departmentName || "Chưa phân công",
+        avatar: userData.avatarUrl
+          ? getFullAvatarUrl(userData.avatarUrl)
+          : null,
       });
-
     } catch (error) {
-      console.error('Error fetching doctor info:', error);
+      console.error("Error fetching doctor info:", error);
       // Fallback to default info
-      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const currentUser = JSON.parse(localStorage.getItem("user"));
       setDoctorInfo({
-        name: currentUser?.firstName && currentUser?.lastName 
-          ? `${currentUser.firstName} ${currentUser.lastName}` 
-          : "Test User",
+        name:
+          currentUser?.firstName && currentUser?.lastName
+            ? `${currentUser.firstName} ${currentUser.lastName}`
+            : "Test User",
         department: "Khoa Nội",
         avatar: null,
       });
@@ -92,21 +94,22 @@ const DoctorLayout = () => {
       {/* Doctor Header */}
       <DoctorHeader doctorInfo={doctorInfo} />
 
-      <div className="container-fluid">
-        <div className="row">
-          {/* Doctor Sidebar */}
-          <DoctorSidebar doctorInfo={doctorInfo} />
-
-          {/* Main Content */}
-          <main
-            className="col-md-9 ms-sm-auto col-lg-10 px-md-6"
-            style={{ marginTop: -50 }}
-          >
-            <div className="doctor-content">
-              <Outlet />
-            </div>
-          </main>
-        </div>
+      {/* Sidebar cố định trái, main content dịch sang phải */}
+      <DoctorSidebar />
+      <div style={{ marginLeft: "260px" }}>
+        {/* Main Content: chỉ hiện thanh cuộn khi nội dung vượt quá khung hình */}
+        <main
+          className="px-md-6"
+          style={{
+            marginTop: -90,
+            minHeight: "calc(100vh - 50px)",
+            overflowY: "auto",
+          }}
+        >
+          <div className="doctor-content">
+            <Outlet />
+          </div>
+        </main>
       </div>
     </div>
   );

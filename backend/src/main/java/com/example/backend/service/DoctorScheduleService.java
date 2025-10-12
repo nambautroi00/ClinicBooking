@@ -11,8 +11,10 @@ import com.example.backend.exception.NotFoundException;
 import com.example.backend.mapper.DoctorScheduleMapper;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.DoctorSchedule;
+import com.example.backend.model.Appointment;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.DoctorScheduleRepository;
+import com.example.backend.repository.AppointmentRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +26,7 @@ public class DoctorScheduleService {
     private final DoctorScheduleRepository doctorScheduleRepository;
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleMapper doctorScheduleMapper;
+    private final AppointmentRepository appointmentRepository;
 
     public DoctorScheduleDTO.Response create(DoctorScheduleDTO.Create dto) {
         Doctor doctor = findDoctor(dto.getDoctorId());
@@ -67,6 +70,13 @@ public class DoctorScheduleService {
 
     public void delete(Long scheduleId) {
         DoctorSchedule entity = findSchedule(scheduleId);
+        // Tìm tất cả các appointments liên quan đến schedule này
+        List<Appointment> appointments = appointmentRepository.findBySchedule_ScheduleId(scheduleId);
+        for (Appointment appointment : appointments) {
+            appointment.setStatus("Canceled");
+            appointment.setSchedule(null); // Bỏ liên kết với DoctorSchedule
+            appointmentRepository.save(appointment);
+        }
         doctorScheduleRepository.delete(entity);
     }
 

@@ -19,6 +19,7 @@ import DoctorDashboard from "../pages/Doctor/DoctorDashboard";
 import DoctorScheduleManagement from "../pages/Doctor/DoctorScheduleManagement";
 import DoctorAppointmentList from "../pages/Doctor/DoctorAppointmentList";
 import DoctorProfile from "../pages/Doctor/DoctorProfile";
+import DoctorAvailableSlotManagement from "../pages/Doctor/DoctorAvailableSlotManagement";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
@@ -52,23 +53,36 @@ const AppRoutes = () => {
       <Route path="/verify-otp" element={<VerifyOtp />} />
 
       {/* Patient */}
-      <Route path="/patient" element={<Navigate to="/patient/book-appointment" replace />} />
-      <Route path="/patient/book-appointment" element={<PatientAppointmentBooking />} />
-      <Route path="/patient/appointments" element={<PatientAppointmentHistory />} />
+      <Route
+        path="/patient"
+        element={<Navigate to="/patient/book-appointment" replace />}
+      />
+      <Route
+        path="/patient/book-appointment"
+        element={<PatientAppointmentBooking />}
+      />
+      <Route
+        path="/patient/appointments"
+        element={<PatientAppointmentHistory />}
+      />
       <Route path="/patient/profile" element={<PatientProfile />} />
 
       {/* Doctor (protected) */}
       <Route
         path="/doctor"
-         element={
-        //   <RoleProtectedRoute allowed={["doctor", "admin"]}>
-             <DoctorLayout />
-        //   </RoleProtectedRoute>
-         }
+        element={
+          //   <RoleProtectedRoute allowed={["doctor", "admin"]}>
+          <DoctorLayout />
+          //   </RoleProtectedRoute>
+        }
       >
         <Route index element={<Navigate to="/doctor/dashboard" replace />} />
         <Route path="dashboard" element={<DoctorDashboard />} />
         <Route path="schedule" element={<DoctorScheduleManagement />} />
+        <Route
+          path="available-slots"
+          element={<DoctorAvailableSlotManagement />}
+        />
         <Route path="appointments" element={<DoctorAppointmentList />} />
         <Route path="profile" element={<DoctorProfile />} />
       </Route>
@@ -76,9 +90,9 @@ const AppRoutes = () => {
       {/* Admin (protected) */}
       <Route
         path="/admin"
-         element={
+        element={
           //   <RoleProtectedRoute allowed={["admin"]}>
-               <AdminLayout />
+          <AdminLayout />
           //   </RoleProtectedRoute>
         }
       >
