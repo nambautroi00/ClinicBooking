@@ -106,11 +106,14 @@ main {
 /* Prevent layout shift */
 .container-fluid {
   overflow-x: hidden;
+  overflow: hidden;
 }
 
 /* Ensure main content clears the fixed sidebar on desktop */
 .admin-main {
   margin-left: 260px;
+  height: 200px;
+  overflow: scroll
 }
 
 @media (max-width: 991.98px) {

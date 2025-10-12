@@ -10,7 +10,7 @@ const AdminLayout = () => {
       <div style={{height: '70px'}}></div>
       <div className="row">
         {/* Sidebar Navigation */}
-        <nav className="bg-primary sidebar" style={{position: 'fixed', top: '0px', left: 0, height: 'calc(100vh - 70px)', width: '260px', zIndex: 1029}}>
+        <nav className="bg-primary sidebar" style={{position: 'fixed', top: '0px', left: 0,  width: '260px', zIndex: 1029}}>
           <div className="pt-4" style={{height: '100%', overflowY: 'auto'}}>
             
             <ul className="nav flex-column px-3">
@@ -92,6 +92,28 @@ const AdminLayout = () => {
                 </NavLink>
               </li>
               
+              <li className="nav-item mb-2">
+                <NavLink 
+                  to="/admin/medicines" 
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
+                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
+                >
+                  <i className="bi bi-capsule me-3 fs-5" /> 
+                  <span className="fw-semibold">Quản lý thuốc</span>
+                </NavLink>
+              </li>
+              
+              <li className="nav-item mb-2">
+                <NavLink 
+                  to="/admin/prescriptions" 
+                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
+                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
+                >
+                  <i className="bi bi-file-medical me-3 fs-5" /> 
+                  <span className="fw-semibold">Quản lý đơn thuốc</span>
+                </NavLink>
+              </li>
+
               <li className="nav-item mb-2">
                 <NavLink 
                   to="/admin/payments" 

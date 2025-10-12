@@ -126,9 +126,9 @@ const MedicinesManagement = () => {
   };
 
   const filteredMedicines = medicines.filter(medicine =>
-    (medicine.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (medicine.medicineId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (medicine.category || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (medicine.name || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (medicine.medicineId || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (medicine.category || '').toString().toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleAddNew = () => {
