@@ -20,6 +20,15 @@ public class AppointmentMapper {
     entity.setEndTime(dto.getEndTime());
     entity.setNotes(dto.getNotes());
     entity.setFee(dto.getFee());
+    
+    // Set status: Nếu không có patient thì là "Available" (slot trống)
+    // Nếu có patient thì là "Scheduled" (đã đặt)
+    if (patient == null) {
+        entity.setStatus("Available");
+    } else {
+        entity.setStatus("Scheduled");
+    }
+    
     return entity;
     }
 
