@@ -135,6 +135,7 @@ public class UserController {
         User user = userService.updateUser(
             userId,
             request.getEmail(),
+            request.getPasswordHash(),
             request.getFirstName(),
             request.getLastName(),
             request.getPhone(),
@@ -181,7 +182,7 @@ public class UserController {
             User user = userService.getUserByIdWithRole(userId);
             user.setAvatarUrl(avatarUrl);
             User updatedUser = userService.updateUser(userId, 
-                user.getEmail(), user.getFirstName(), user.getLastName(),
+                user.getEmail(), null, user.getFirstName(), user.getLastName(),
                 user.getPhone(), user.getGender(), user.getDateOfBirth(),
                 user.getAddress(), avatarUrl, user.getStatus(), user.getRole().getId());
             
@@ -283,6 +284,7 @@ public class UserController {
      */
     public static class UpdateUserRequest {
         private String email;
+        private String passwordHash;
         private String firstName;
         private String lastName;
         private String phone;
@@ -296,6 +298,9 @@ public class UserController {
         // Getters and Setters
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
+        
+        public String getPasswordHash() { return passwordHash; }
+        public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
         
         public String getFirstName() { return firstName; }
         public void setFirstName(String firstName) { this.firstName = firstName; }
