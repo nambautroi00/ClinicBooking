@@ -26,6 +26,8 @@ import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBookin
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
 import PatientProfile from "../pages/Patient/PatientProfile";
 import Booking from "../pages/Booking";
+import DoctorDetail from "../pages/DoctorDetail";
+import TestAuth from "../pages/TestAuth";
 
 // Admin pages
 import AdminLayout from "../components/layout/admin-layout/AdminLayout";
@@ -46,6 +48,8 @@ const AppRoutes = () => {
     <Routes>
       {/* Public */}
       <Route path="/" element={<Home />} />
+      <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
+      <Route path="/test-auth" element={<TestAuth />} />
 
       {/* Auth */}
       <Route path="/login" element={<Login />} />

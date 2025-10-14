@@ -1,12 +1,11 @@
 package com.example.backend.config;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -44,40 +43,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new SimplePasswordEncoder();
+        return new BCryptPasswordEncoder();
     }
 
-    public static class SimplePasswordEncoder implements PasswordEncoder {  
-        
-        public String encode(CharSequence rawPassword) {
-            try {
-                if (rawPassword == null) {
-                    throw new IllegalArgumentException("Password cannot be null");
-                }
-                
-                String passwordString = rawPassword.toString();
-                if (passwordString.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Password cannot be empty");
-                }
-                
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(passwordString.getBytes(StandardCharsets.UTF_8));
-                StringBuilder hexString = new StringBuilder();
-                for (byte b : hash) {
-                    String hex = Integer.toHexString(0xff & b);
-                    if (hex.length() == 1) {
-                        hexString.append('0');
-                    }
-                    hexString.append(hex);
-                }
-                return hexString.toString();
-            } catch (Exception e) {
-                throw new RuntimeException("Error encoding password: " + e.getMessage(), e);
-            }
-        }
-
-        public boolean matches(CharSequence rawPassword, String encodedPassword) {
-            return encode(rawPassword.toString()).equals(encodedPassword);
-        }
-    }
 }
