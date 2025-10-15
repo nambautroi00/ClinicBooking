@@ -615,6 +615,9 @@ function DoctorAppointmentList() {
                         height: "36px",
                         borderRadius: "50%",
                       }}
+                      onClick={() => {
+                        window.location.href = `/doctor/messages?patientId=${appointment.patientId}`;
+                      }}
                     >
                       <MessageCircle
                         style={{ width: "16px", height: "16px" }}

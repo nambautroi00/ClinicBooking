@@ -30,6 +30,12 @@ const DoctorSidebar = ({ doctorInfo, loading = false }) => {
       description: "Danh sách lịch hẹn",
     },
     {
+      path: "/doctor/patients",
+      icon: "bi-people",
+      label: "Quản lý bệnh nhân",
+      description: "Danh sách bệnh nhân",
+    },
+    {
       path: "/doctor/messages",
       icon: "bi-chat-dots",
       label: "Tin nhắn",
