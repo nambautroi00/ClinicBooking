@@ -113,6 +113,7 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
             <th>Bài viết</th>
             <th>Tác giả</th>
             <th>Trạng thái</th>
+            <th>Likes</th>
             <th>Ngày tạo</th>
             <th>Thao tác</th>
           </tr>
@@ -149,6 +150,12 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
                 <span className={`badge ${getStatusBadgeClass(item.status)}`}>
                   {getStatusText(item.status)}
                 </span>
+              </td>
+              <td>
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-heart-fill text-danger me-1"></i>
+                  <span className="fw-semibold">{item.likeCount || 0}</span>
+                </div>
               </td>
               <td>
                 {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
