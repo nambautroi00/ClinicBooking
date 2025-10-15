@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     /**
      * Lấy tất cả user với thông tin role
@@ -151,7 +153,10 @@ public class UserService {
         // Tạo user mới
         User user = new User();
         user.setEmail(email);
-        user.setPasswordHash(passwordHash);
+        
+        // Hash password trước khi lưu
+        String hashedPassword = passwordEncoder.encode(passwordHash);
+        user.setPasswordHash(hashedPassword);
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setPhone(phone);
@@ -184,7 +189,7 @@ public class UserService {
      * @throws NotFoundException nếu không tìm thấy user hoặc role
      * @throws ConflictException nếu email mới đã tồn tại
      */
-    public User updateUser(Long userId, String email, String firstName, String lastName, 
+    public User updateUser(Long userId, String email, String passwordHash, String firstName, String lastName, 
                           String phone, User.Gender gender, java.time.LocalDate dateOfBirth, 
                           String address, String avatarUrl, User.UserStatus status, Long roleId) {
         
@@ -197,6 +202,12 @@ public class UserService {
                 throw new ConflictException("Email đã tồn tại: " + email);
             }
             user.setEmail(email);
+        }
+
+        // Cập nhật password nếu có
+        if (passwordHash != null && !passwordHash.trim().isEmpty()) {
+            String hashedPassword = passwordEncoder.encode(passwordHash);
+            user.setPasswordHash(hashedPassword);
         }
 
         // Kiểm tra role mới tồn tại (nếu có)

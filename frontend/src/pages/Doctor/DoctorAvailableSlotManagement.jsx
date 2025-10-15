@@ -1,19 +1,39 @@
-import React, { useState, useEffect, useMemo } from "react";
-import doctorScheduleApi from "../../api/doctorScheduleApi";
+import React, { useState, useEffect, useCallback } from "react";
+import appointmentApi from "../../api/appointmentApi";
 import doctorApi from "../../api/doctorApi";
+import doctorScheduleApi from "../../api/doctorScheduleApi";
 import Cookies from "js-cookie";
-import { Plus, Calendar, Clock, Search } from "lucide-react";
 
 const DoctorAvailableSlotManagement = () => {
+  // State quản lý
   const [doctorId, setDoctorId] = useState(null);
-  const [schedules, setSchedules] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  // Đã loại bỏ editingSlot, setEditingSlot
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("upcoming");
+  const [slots, setSlots] = useState([]); // Appointments with patient = null
+  const [allAppointments, setAllAppointments] = useState([]); // All appointments
+  const [doctorSchedules, setDoctorSchedules] = useState([]); // Lịch trình làm việc
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState("calendar"); // calendar, list
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
-  // Load doctor ID from cookie
+  // State cho form tạo slots
+  const [showQuickCreateForm, setShowQuickCreateForm] = useState(false);
+  const [showBulkCreateForm, setShowBulkCreateForm] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState(null); // Lịch trình được chọn
+  const [quickCreateData, setQuickCreateData] = useState({
+    scheduleId: null, // ID lịch trình
+    slotDuration: 30, // phút
+    fee: 200000, // giá mặc định 200k
+  });
+
+  const [bulkCreateData, setBulkCreateData] = useState({
+    selectedScheduleIds: [], // Danh sách ID lịch trình được chọn
+    slotDuration: 30,
+    fee: 200000,
+  });
+
+  // Lấy doctorId từ cookie
   useEffect(() => {
     const userId = Cookies.get("userId");
     if (userId) {
@@ -23,271 +43,990 @@ const DoctorAvailableSlotManagement = () => {
           const data = res.data || res;
           setDoctorId(data.doctorId);
         })
-        .catch((error) => {
-          console.error("Error getting doctor:", error);
+        .catch((err) => {
+          setError("Không thể lấy thông tin bác sĩ");
         });
     }
   }, []);
-  // Load schedules when doctor ID is available
-  useEffect(() => {
-    if (doctorId) {
-      loadSchedules();
-    }
-  }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadSchedules = async () => {
-    setLoading(true);
+  // Load slots và schedules
+  const loadSlots = useCallback(async () => {
+    if (!doctorId) return;
     try {
-      const response = await doctorScheduleApi.getSchedulesByDoctor(doctorId);
-      setSchedules(response.data || []);
-    } catch (error) {
-      console.error("Error loading schedules:", error);
-      setSchedules([]);
+      setLoading(true);
+      setError(null);
+      
+      const [availableResponse, allResponse, schedulesResponse] = await Promise.all([
+        appointmentApi.getAvailableSlots(doctorId),
+        appointmentApi.getAppointmentsByDoctor(doctorId),
+        doctorScheduleApi.getSchedulesByDoctor(doctorId),
+      ]);
+      
+      console.log("🔍 DEBUG - Available slots:", availableResponse.data);
+      console.log("🔍 DEBUG - All appointments:", allResponse.data);
+      console.log("🔍 DEBUG - Doctor ID:", doctorId);
+      console.log("🔍 DEBUG - Selected Date:", selectedDate);
+      
+      setSlots(availableResponse.data || []);
+      setAllAppointments(allResponse.data || []);
+      
+      // Lọc chỉ lấy schedules Available
+      const availableSchedules = (schedulesResponse.data || []).filter(
+        (s) => s.status === "Available"
+      );
+      setDoctorSchedules(availableSchedules);
+    } catch (err) {
+      console.error("❌ ERROR loading slots:", err);
+      setError(
+        "Không thể tải khung giờ: " +
+          (err.response?.data?.message || err.message)
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [doctorId]);
+
+  useEffect(() => {
+    if (doctorId) loadSlots();
+  }, [doctorId, loadSlots]);
+
+  // Tạo các time slots từ DoctorSchedule
+  const generateTimeSlotsFromSchedule = (schedule, duration) => {
+    if (!schedule) return [];
+    
+    const slots = [];
+    const startTime = schedule.startTime;
+    const endTime = schedule.endTime;
+    const workDate = schedule.workDate;
+    
+    const [startHour, startMin] = startTime.split(":").map(Number);
+    const [endHour, endMin] = endTime.split(":").map(Number);
+
+    let currentTime = startHour * 60 + startMin;
+    const endTimeMinutes = endHour * 60 + endMin;
+
+    while (currentTime + duration <= endTimeMinutes) {
+      const slotStart = `${String(Math.floor(currentTime / 60)).padStart(
+        2,
+        "0"
+      )}:${String(currentTime % 60).padStart(2, "0")}`;
+      currentTime += duration;
+      const slotEnd = `${String(Math.floor(currentTime / 60)).padStart(
+        2,
+        "0"
+      )}:${String(currentTime % 60).padStart(2, "0")}`;
+
+      const startDateTime = `${workDate}T${slotStart}:00`;
+      const endDateTime = `${workDate}T${slotEnd}:00`;
+      
+      // Kiểm tra xem slot này đã tồn tại chưa
+      const exists = allAppointments.some(apt => {
+        return apt.startTime === startDateTime && apt.endTime === endDateTime;
+      });
+
+      slots.push({ 
+        startTime: slotStart, 
+        endTime: slotEnd,
+        date: workDate,
+        scheduleId: schedule.scheduleId,
+        exists: exists // Đánh dấu slot đã tồn tại
+      });
+    }
+
+    return slots;
+  };
+
+  // Xử lý tạo nhanh slots dựa vào schedule
+  const handleQuickCreate = async () => {
+    if (!doctorId || !selectedSchedule) {
+      alert("Vui lòng chọn lịch trình làm việc");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const timeSlots = generateTimeSlotsFromSchedule(
+        selectedSchedule,
+        quickCreateData.slotDuration
+      );
+      
+      // Lọc ra chỉ những slots chưa tồn tại
+      const newSlots = timeSlots.filter(slot => !slot.exists);
+      const existingCount = timeSlots.length - newSlots.length;
+      
+      if (newSlots.length === 0) {
+        alert("Tất cả các khung giờ đã được tạo trước đó rồi!");
+        setShowQuickCreateForm(false);
+        setSelectedSchedule(null);
+        return;
+      }
+      
+      if (existingCount > 0) {
+        const confirmMsg = `Có ${existingCount} khung giờ đã tồn tại.\nChỉ tạo ${newSlots.length} khung giờ mới?`;
+        if (!window.confirm(confirmMsg)) {
+          return;
+        }
+      }
+      
+      // Tạo chỉ các appointment slots mới
+      const createPromises = newSlots.map((slot) => {
+        const startDateTime = `${slot.date}T${slot.startTime}:00`;
+        const endDateTime = `${slot.date}T${slot.endTime}:00`;
+        
+        return appointmentApi.createAppointment({
+          doctorId,
+          scheduleId: slot.scheduleId, // BẮT BUỘC
+          patientId: null,
+          startTime: startDateTime,
+          endTime: endDateTime,
+          status: "Available",
+          fee: quickCreateData.fee,
+          notes: null,
+        });
+      });
+
+      await Promise.all(createPromises);
+      setShowQuickCreateForm(false);
+      setSelectedSchedule(null);
+      loadSlots();
+      
+      let message = `Đã tạo thành công ${newSlots.length} khung giờ mới`;
+      if (existingCount > 0) {
+        message += `\n(Bỏ qua ${existingCount} khung giờ đã tồn tại)`;
+      }
+      alert(message);
+    } catch (err) {
+      setError(
+        "Không thể tạo khung giờ: " +
+          (err.response?.data?.message || err.message)
+      );
     } finally {
       setLoading(false);
     }
   };
-  // Filter and search schedules
-  const filteredSchedules = useMemo(() => {
-    let filtered = [...schedules];
-    // Date filter
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    switch (dateFilter) {
-      case "upcoming":
-        filtered = filtered.filter(
-          (schedule) => new Date(schedule.workDate) >= today
-        );
-        break;
-      case "past":
-        filtered = filtered.filter(
-          (schedule) => new Date(schedule.workDate) < today
-        );
-        break;
-      case "today":
-        const todayStr = today.toISOString().split("T")[0];
-        filtered = filtered.filter(
-          (schedule) => schedule.workDate === todayStr
-        );
-        break;
-      default:
-        break;
+
+  // Xử lý tạo hàng loạt slots cho nhiều schedules
+  const handleBulkCreate = async () => {
+    if (!doctorId || bulkCreateData.selectedScheduleIds.length === 0) {
+      alert("Vui lòng chọn ít nhất một lịch trình");
+      return;
     }
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (schedule) =>
-          schedule.workDate.includes(query) ||
-          schedule.startTime.includes(query) ||
-          schedule.endTime.includes(query) ||
-          schedule.notes?.toLowerCase().includes(query)
+
+    try {
+      setLoading(true);
+      const createPromises = [];
+      let totalSlots = 0;
+      let existingSlots = 0;
+      
+      // Với mỗi schedule được chọn
+      bulkCreateData.selectedScheduleIds.forEach((scheduleId) => {
+        const schedule = doctorSchedules.find(s => s.scheduleId === scheduleId);
+        if (!schedule) return;
+        
+        const timeSlots = generateTimeSlotsFromSchedule(
+          schedule,
+          bulkCreateData.slotDuration
+        );
+        
+        // Lọc ra chỉ những slots chưa tồn tại
+        const newSlots = timeSlots.filter(slot => !slot.exists);
+        totalSlots += timeSlots.length;
+        existingSlots += (timeSlots.length - newSlots.length);
+        
+        newSlots.forEach((slot) => {
+          const startDateTime = `${slot.date}T${slot.startTime}:00`;
+          const endDateTime = `${slot.date}T${slot.endTime}:00`;
+          
+          createPromises.push(
+            appointmentApi.createAppointment({
+              doctorId,
+              scheduleId: slot.scheduleId,
+              patientId: null,
+              startTime: startDateTime,
+              endTime: endDateTime,
+              status: "Available",
+              fee: bulkCreateData.fee,
+              notes: null,
+            })
+          );
+        });
+      });
+
+      if (createPromises.length === 0) {
+        alert("Tất cả các khung giờ đã được tạo trước đó rồi!");
+        setShowBulkCreateForm(false);
+        setBulkCreateData({
+          selectedScheduleIds: [],
+          slotDuration: 30,
+          fee: 200000,
+        });
+        return;
+      }
+      
+      if (existingSlots > 0) {
+        const confirmMsg = `Có ${existingSlots} khung giờ đã tồn tại.\nChỉ tạo ${createPromises.length} khung giờ mới?`;
+        if (!window.confirm(confirmMsg)) {
+          return;
+        }
+      }
+
+      await Promise.all(createPromises);
+      setShowBulkCreateForm(false);
+      setBulkCreateData({
+        selectedScheduleIds: [],
+        slotDuration: 30,
+        fee: 200000,
+      });
+      loadSlots();
+      
+      let message = `Đã tạo thành công ${createPromises.length} khung giờ mới`;
+      if (existingSlots > 0) {
+        message += `\n(Bỏ qua ${existingSlots} khung giờ đã tồn tại)`;
+      }
+      alert(message);
+    } catch (err) {
+      setError(
+        "Không thể tạo khung giờ: " +
+          (err.response?.data?.message || err.message)
       );
+    } finally {
+      setLoading(false);
     }
-    // Sort by date and time
-    return filtered.sort((a, b) => {
-      const dateA = new Date(`${a.workDate}T${a.startTime}`);
-      const dateB = new Date(`${b.workDate}T${b.startTime}`);
-      return dateA - dateB;
-    });
-  }, [schedules, dateFilter, searchQuery]);
+  };
 
-  // Đã loại bỏ các hàm handleEdit, handleDelete, resetForm
+  // Xóa slot
+  const handleDeleteSlot = async (appointmentId) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa khung giờ này?")) {
+      try {
+        await appointmentApi.deleteAppointment(appointmentId);
+        loadSlots();
+      } catch (err) {
+        setError(
+          "Không thể xóa khung giờ: " +
+            (err.response?.data?.message || err.message)
+        );
+      }
+    }
+  };
 
+  // Lọc slots theo ngày được chọn
+  const filteredSlots = slots.filter((slot) => {
+    if (!selectedDate) return true;
+    const slotDate = slot.startTime.split("T")[0];
+    const match = slotDate === selectedDate;
+    if (!match) {
+      console.log(`⚠️ Date mismatch: slot=${slotDate}, selected=${selectedDate}`);
+    }
+    return match;
+  });
+  
+  console.log("🔍 Filtered slots count:", filteredSlots.length, "Total slots:", slots.length);
+
+  // Kiểm tra slot đã được đặt chưa
+  const isSlotBooked = (slot) => {
+    return slot.patientId != null;
+  };
+
+  // Format helpers
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("vi-VN", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    const weekdays = [
+      "Chủ nhật",
+      "Thứ 2",
+      "Thứ 3",
+      "Thứ 4",
+      "Thứ 5",
+      "Thứ 6",
+      "Thứ 7",
+    ];
+    return `${weekdays[date.getDay()]}, ${date.toLocaleDateString("vi-VN")}`;
   };
 
   const formatTime = (timeString) => {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString("vi-VN", {
+    if (!timeString) return "";
+    const time = new Date(timeString);
+    return time.toLocaleTimeString("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Available":
-        return "success";
-      case "Busy":
-        return "warning";
-      case "Unavailable":
-        return "danger";
-      default:
-        return "secondary";
-    }
+  const formatCurrency = (amount) => {
+    if (!amount) return "0 ₫";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case "Available":
-        return "Có thể đặt";
-      case "Busy":
-        return "Bận";
-      case "Unavailable":
-        return "Không khả dụng";
-      default:
-        return status;
-    }
+  // Nhóm slots theo ngày
+  const groupSlotsByDate = (slotsToGroup) => {
+    const grouped = {};
+    slotsToGroup.forEach((slot) => {
+      const date = slot.startTime.split("T")[0];
+      if (!grouped[date]) {
+        grouped[date] = [];
+      }
+      grouped[date].push(slot);
+    });
+    
+    // Sắp xếp slots theo thời gian trong mỗi ngày
+    Object.keys(grouped).forEach((date) => {
+      grouped[date].sort((a, b) => 
+        new Date(a.startTime) - new Date(b.startTime)
+      );
+    });
+    
+    return grouped;
   };
 
-  if (loading) {
+  // Thống kê
+  const bookedCount = allAppointments.filter(
+    (apt) => apt.patientId != null && apt.status !== "Từ chối lịch hẹn"
+  ).length;
+  const availableCount = slots.length;
+
+  if (loading && !slots.length) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ minHeight: "400px" }}
-      >
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
+      <div className="d-flex justify-content-center py-5">
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Đang tải...</span>
         </div>
       </div>
     );
   }
 
+  const groupedSlots = groupSlotsByDate(viewMode === "calendar" ? filteredSlots : slots);
+  const sortedDates = Object.keys(groupedSlots).sort();
+
   return (
-    <div className="container-fluid px-0">
-      <div className="bg-white rounded-4 shadow-sm border">
-        {/* Header */}
-        <div className="p-4 border-bottom">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <h2 className="mb-1 fw-bold text-primary">
-                <Calendar className="me-2" size={28} />
-                Quản lý Lịch Hẹn Khả Dụng
-              </h2>
-              <p className="text-muted mb-0">
-                Tạo và quản lý các khung giờ có thể đặt lịch cho bệnh nhân
-              </p>
-            </div>
-            <button
-              className="btn btn-primary d-flex align-items-center gap-2"
-              onClick={() => setShowForm(true)}
-            >
-              <Plus size={20} />
-              Thêm Lịch Mới
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div className="row g-3">
-            <div className="col-md-4">
-              <div className="position-relative">
-                <Search
-                  className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"
-                  size={16}
-                />
-                <input
-                  type="text"
-                  className="form-control ps-5"
-                  placeholder="Tìm kiếm theo ngày, giờ, ghi chú..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="col-md-3">
-              <select
-                className="form-select"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-              >
-                <option value="all">Tất cả</option>
-                <option value="upcoming">Sắp tới</option>
-                <option value="today">Hôm nay</option>
-                <option value="past">Đã qua</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Schedule Form */}
-        {showForm && (
-          <div className="p-4 border-bottom bg-light">
-            {/* Chỉ hiển thị form tạo/sửa khung giờ, không có phần đặt lịch cho bệnh nhân */}
-            {/* ...existing code cho form quản lý khung giờ... */}
-          </div>
-        )}
-
-        {/* Schedule List */}
-        <div className="p-4">
-          {filteredSchedules.length === 0 ? (
-            <div className="text-center py-5">
-              <Calendar size={64} className="text-muted mb-3" />
-              <h5 className="text-muted">Chưa có lịch trình nào</h5>
-              <p className="text-muted">
-                {searchQuery || dateFilter !== "all"
-                  ? "Không tìm thấy lịch trình phù hợp với bộ lọc"
-                  : "Hãy thêm lịch trình đầu tiên của bạn"}
-              </p>
-            </div>
-          ) : (
-            <div className="row g-3">
-              {filteredSchedules.map((schedule) => (
-                <div key={schedule.scheduleId} className="col-lg-6 col-xl-4">
-                  <div className="card h-100 border-0 shadow-sm">
-                    <div className="card-body">
-                      <div className="d-flex justify-content-between align-items-start mb-3">
-                        <span
-                          className={`badge bg-${getStatusColor(
-                            schedule.status
-                          )}`}
-                        >
-                          {getStatusText(schedule.status)}
-                        </span>
-                        <div className="dropdown">
-                          <button
-                            className="btn btn-sm btn-outline-secondary dropdown-toggle"
-                            type="button"
-                            data-bs-toggle="dropdown"
-                          >
-                            Thao tác
-                          </button>
-                          <ul className="dropdown-menu">
-                            <li>{/* Chức năng chỉnh sửa đã bị loại bỏ */}</li>
-                            <li>{/* Chức năng xóa đã bị loại bỏ */}</li>
-                          </ul>
-                        </div>
-                      </div>
-
-                      <div className="mb-2">
-                        <Calendar size={16} className="text-primary me-2" />
-                        <strong>{formatDate(schedule.workDate)}</strong>
-                      </div>
-
-                      <div className="mb-2">
-                        <Clock size={16} className="text-primary me-2" />
-                        {formatTime(schedule.startTime)} -{" "}
-                        {formatTime(schedule.endTime)}
-                      </div>
-
-                      <div className="mb-2">
-                        <span className="text-muted">
-                          Số bệnh nhân tối đa:{" "}
-                        </span>
-                        <strong>{schedule.maxPatients || 1}</strong>
-                      </div>
-
-                      {schedule.notes && (
-                        <div className="mt-2">
-                          <small className="text-muted">
-                            <em>"{schedule.notes}"</em>
-                          </small>
-                        </div>
-                      )}
-                    </div>
+    <div className="w-full mx-0 px-0">
+      <div className="row justify-content-center" style={{ margin: 0 }}>
+        <div className="col-lg-12">
+          <div className="card shadow rounded-4 border w-100">
+            {/* Header */}
+            <div className="card-header bg-white rounded-top-4 border-bottom py-4 px-4">
+              <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div className="d-flex align-items-center gap-3">
+                  <span
+                    className="bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
+                    style={{ width: 48, height: 48 }}
+                  >
+                    <i className="bi bi-clock" style={{ fontSize: "1.5rem" }}></i>
+                  </span>
+                  <div>
+                    <h3 className="mb-1 fw-bold">Quản lý khung giờ khám</h3>
+                    <p className="mb-0 text-muted" style={{ fontSize: "1rem" }}>
+                      Tạo và quản lý các khung giờ cho bệnh nhân đặt lịch
+                    </p>
                   </div>
                 </div>
-              ))}
+
+                <div className="d-flex gap-2 flex-wrap">
+                  <button
+                    className="btn btn-success btn-sm"
+                    onClick={() => setShowQuickCreateForm(true)}
+                  >
+                    <i className="bi bi-lightning-charge"></i> Tạo nhanh
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setShowBulkCreateForm(true)}
+                  >
+                    <i className="bi bi-calendar-plus"></i> Tạo hàng loạt
+                  </button>
+                  <div className="btn-group" role="group">
+                    <button
+                      className={`btn btn-sm ${
+                        viewMode === "calendar"
+                          ? "btn-primary"
+                          : "btn-outline-primary"
+                      }`}
+                      onClick={() => setViewMode("calendar")}
+                    >
+                      <i className="bi bi-calendar3"></i> Lịch
+                    </button>
+                    <button
+                      className={`btn btn-sm ${
+                        viewMode === "list" ? "btn-primary" : "btn-outline-primary"
+                      }`}
+                      onClick={() => setViewMode("list")}
+                    >
+                      <i className="bi bi-list-ul"></i> Danh sách
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* Body */}
+            <div className="card-body px-4 py-4">
+              {/* Stats */}
+              <div className="mb-4 d-flex gap-3 flex-wrap">
+                <span className="badge bg-success fs-6 px-3 py-2 shadow-sm">
+                  <i className="bi bi-calendar-check me-2"></i> Tổng khung giờ trống:{" "}
+                  {availableCount}
+                </span>
+                <span className="badge bg-info text-dark fs-6 px-3 py-2 shadow-sm">
+                  <i className="bi bi-calendar-event me-2"></i> Đã đặt:{" "}
+                  {bookedCount}
+                </span>
+                <span className="badge bg-warning text-dark fs-6 px-3 py-2 shadow-sm">
+                  <i className="bi bi-calendar-x me-2"></i> Tổng tất cả:{" "}
+                  {allAppointments.length}
+                </span>
+              </div>
+
+              {error && (
+                <div className="alert alert-danger alert-dismissible fade show">
+                  {error}
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setError(null)}
+                  ></button>
+                </div>
+              )}
+
+              {/* Calendar View */}
+              {viewMode === "calendar" && (
+                <div>
+                  <div className="mb-3 d-flex gap-2 align-items-end">
+                    <div>
+                      <label className="form-label fw-bold">Chọn ngày:</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        style={{ maxWidth: 200 }}
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      className="btn btn-outline-primary"
+                      onClick={() => setSelectedDate("")}
+                    >
+                      <i className="bi bi-calendar-x me-1"></i>
+                      Xem tất cả
+                    </button>
+                  </div>
+
+                  {filteredSlots.length === 0 ? (
+                    <div className="text-center py-5">
+                      <i
+                        className="bi bi-calendar-x text-muted"
+                        style={{ fontSize: "4rem" }}
+                      ></i>
+                      <p className="text-muted mt-3 fs-5">
+                        {selectedDate 
+                          ? `Chưa có khung giờ nào cho ngày ${formatDate(selectedDate + "T00:00:00")}`
+                          : "Chưa có khung giờ nào"
+                        }
+                      </p>
+                      <p className="text-info">
+                        Tổng tất cả: {allAppointments.length} appointments | 
+                        Available slots: {slots.length}
+                      </p>
+                      <button
+                        className="btn btn-success btn-lg mt-2 px-4"
+                        onClick={() => setShowQuickCreateForm(true)}
+                      >
+                        <i className="bi bi-lightning-charge"></i> Tạo khung giờ
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="row g-3">
+                      {filteredSlots.map((slot) => {
+                        const booked = isSlotBooked(slot);
+  return (
+                          <div key={slot.appointmentId} className="col-md-6 col-lg-2">
+                            <div
+                              className={`card ${
+                                booked
+                                  ? "border-info bg-light"
+                                  : "border-success"
+                              }`}
+                            >
+                              <div className="card-body p-2">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                  <h6 className="mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>
+                                    <i className="bi bi-clock text-primary me-1" style={{ fontSize: '0.85rem' }}></i>
+                                    {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                                  </h6>
+                                  <span
+                                    className={`badge ${
+                                      booked ? "bg-info" : "bg-success"
+                                    }`}
+                                    style={{ fontSize: '0.7rem' }}
+                                  >
+                                    {booked ? "Đã đặt" : "Còn trống"}
+                                  </span>
+                                </div>
+                                <p className="mb-0 fw-bold text-success" style={{ fontSize: '0.85rem' }}>
+                                  <i className="bi bi-cash me-1" style={{ fontSize: '0.75rem' }}></i>
+                                  {formatCurrency(slot.fee)}
+                                </p>
+                                {slot.notes && (
+                                  <p className="card-text text-muted mb-0 mt-1" style={{ fontSize: '0.75rem' }}>
+                                    <i className="bi bi-sticky me-1"></i>
+                                    {slot.notes}
+                                  </p>
+                                )}
+                                {booked && slot.patientName && (
+                                  <p className="card-text text-info mb-0 mt-1" style={{ fontSize: '0.75rem' }}>
+                                    <i className="bi bi-person me-1"></i>
+                                    BN: {slot.patientName}
+                                  </p>
+                                )}
+                                {!booked && (
+                                  <button
+                                    className="btn btn-sm btn-outline-danger mt-1 py-0 px-2"
+                                    onClick={() =>
+                                      handleDeleteSlot(slot.appointmentId)
+                                    }
+                                    style={{ fontSize: '0.75rem' }}
+                                  >
+                                    <i className="bi bi-trash" style={{ fontSize: '0.7rem' }}></i> Xóa
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* List View */}
+              {viewMode === "list" && (
+    <div>
+                  {sortedDates.length === 0 ? (
+                    <div className="text-center py-5">
+                      <i
+                        className="bi bi-calendar-x text-muted"
+                        style={{ fontSize: "4rem" }}
+                      ></i>
+                      <p className="text-muted mt-3 fs-5">
+                        Chưa có khung giờ nào
+                      </p>
+                      <button
+                        className="btn btn-success btn-lg mt-2 px-4"
+                        onClick={() => setShowQuickCreateForm(true)}
+                      >
+                        <i className="bi bi-lightning-charge"></i> Tạo khung giờ
+                        đầu tiên
+                      </button>
+                    </div>
+                  ) : (
+                    sortedDates.map((date) => (
+                      <div key={date} className="mb-4">
+                        <h5 className="mb-3 fw-bold text-primary">
+                          <i className="bi bi-calendar-day me-2"></i>
+                          {formatDate(date + "T00:00:00")}
+                        </h5>
+                        <div className="table-responsive">
+                          <table className="table table-hover align-middle">
+                            <thead className="table-light">
+                              <tr>
+                                <th>Giờ bắt đầu</th>
+                                <th>Giờ kết thúc</th>
+                                <th>Giá khám</th>
+                                <th>Trạng thái</th>
+                                <th>Bệnh nhân</th>
+                                <th className="text-center">Thao tác</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {groupedSlots[date].map((slot) => {
+                                const booked = isSlotBooked(slot);
+                                return (
+                                  <tr key={slot.appointmentId}>
+                                    <td className="fw-semibold">
+                                      {formatTime(slot.startTime)}
+                                    </td>
+                                    <td className="fw-semibold">
+                                      {formatTime(slot.endTime)}
+                                    </td>
+                                    <td className="text-success fw-bold">
+                                      {formatCurrency(slot.fee)}
+                                    </td>
+                                    <td>
+                                      <span
+                                        className={`badge ${
+                                          booked ? "bg-info" : "bg-success"
+                                        }`}
+                                      >
+                                        {booked ? "Đã đặt" : "Còn trống"}
+                                      </span>
+                                    </td>
+                                    <td>{slot.patientName || "-"}</td>
+                                    <td className="text-center">
+                                      {!booked && (
+                                        <button
+                                          className="btn btn-sm btn-outline-danger"
+                                          onClick={() =>
+                                            handleDeleteSlot(slot.appointmentId)
+                                          }
+                                          title="Xóa"
+                                        >
+                                          <i className="bi bi-trash"></i>
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Modal Tạo nhanh */}
+      {showQuickCreateForm && (
+        <div
+          className="modal show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-lightning-charge me-2"></i>
+                  Tạo nhanh khung giờ khám
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowQuickCreateForm(false);
+                    setSelectedSchedule(null);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="alert alert-info">
+                  <i className="bi bi-info-circle me-2"></i>
+                  <strong>Bước 1:</strong> Chọn lịch trình làm việc<br/>
+                  <strong>Bước 2:</strong> Chia thành các khung giờ nhỏ
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">
+                    Chọn lịch trình làm việc <span className="text-danger">*</span>
+                  </label>
+                  {doctorSchedules.length === 0 ? (
+                    <div className="alert alert-warning">
+                      Chưa có lịch trình nào. Vui lòng tạo lịch trình ở <a href="/doctor/schedule">Quản lý lịch trình</a>
+                    </div>
+                  ) : (
+                    <select
+                      className="form-select"
+                      value={selectedSchedule?.scheduleId || ""}
+                      onChange={(e) => {
+                        const schedule = doctorSchedules.find(
+                          s => s.scheduleId === parseInt(e.target.value)
+                        );
+                        setSelectedSchedule(schedule);
+                      }}
+                    >
+                      <option value="">-- Chọn lịch trình --</option>
+                      {doctorSchedules.map((schedule) => (
+                        <option key={schedule.scheduleId} value={schedule.scheduleId}>
+                          {formatDate(schedule.workDate + "T00:00:00")} ({schedule.startTime} - {schedule.endTime})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {selectedSchedule && (
+                  <>
+                    <div className="card bg-light mb-3">
+                      <div className="card-body">
+                        <h6 className="card-title">Thông tin lịch trình</h6>
+                        <p className="mb-1"><strong>Ngày:</strong> {formatDate(selectedSchedule.workDate + "T00:00:00")}</p>
+                        <p className="mb-1"><strong>Giờ làm việc:</strong> {selectedSchedule.startTime} - {selectedSchedule.endTime}</p>
+                        {selectedSchedule.notes && <p className="mb-0"><strong>Ghi chú:</strong> {selectedSchedule.notes}</p>}
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Thời lượng mỗi khung (phút)</label>
+                        <select
+                          className="form-select"
+                          value={quickCreateData.slotDuration}
+                          onChange={(e) =>
+                            setQuickCreateData({
+                              ...quickCreateData,
+                              slotDuration: parseInt(e.target.value),
+                            })
+                          }
+                        >
+                          <option value="15">15 phút</option>
+                          <option value="30">30 phút</option>
+                          <option value="45">45 phút</option>
+                          <option value="60">60 phút</option>
+                        </select>
+                      </div>
+
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">
+                          Giá khám (VNĐ) <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={quickCreateData.fee}
+                          onChange={(e) =>
+                            setQuickCreateData({
+                              ...quickCreateData,
+                              fee: parseInt(e.target.value),
+                            })
+                          }
+                          min="0"
+                          step="10000"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="alert alert-success">
+                      {(() => {
+                        const allSlots = generateTimeSlotsFromSchedule(selectedSchedule, quickCreateData.slotDuration);
+                        const newSlots = allSlots.filter(s => !s.exists);
+                        const existingCount = allSlots.length - newSlots.length;
+                        
+                        return (
+                          <>
+                            <strong>Sẽ tạo:</strong>{" "}
+                            {newSlots.length} khung giờ mới với giá {formatCurrency(quickCreateData.fee)}/khung
+                            {existingCount > 0 && (
+                              <div className="mt-2 text-warning">
+                                <i className="bi bi-exclamation-triangle me-1"></i>
+                                <strong>Chú ý:</strong> Có {existingCount} khung giờ đã tồn tại (sẽ bỏ qua)
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowQuickCreateForm(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={handleQuickCreate}
+                  disabled={loading || !selectedSchedule}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      Đang tạo...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-check-circle me-2"></i>
+                      Tạo ngay
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tạo hàng loạt */}
+      {showBulkCreateForm && (
+        <div
+          className="modal show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-calendar-plus me-2"></i>
+                  Tạo hàng loạt khung giờ khám
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowBulkCreateForm(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="alert alert-info">
+                  <i className="bi bi-info-circle me-2"></i>
+                  Chọn nhiều lịch trình và tạo khung giờ khám cho tất cả
+                </div>
+
+                {doctorSchedules.length === 0 ? (
+                  <div className="alert alert-warning">
+                    Chưa có lịch trình nào. Vui lòng tạo lịch trình ở <a href="/doctor/schedule">Quản lý lịch trình</a>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Chọn lịch trình <span className="text-danger">*</span>
+                      </label>
+                      <div className="border rounded p-3" style={{ maxHeight: 300, overflowY: "auto" }}>
+                        {doctorSchedules.map((schedule) => (
+                          <div key={schedule.scheduleId} className="form-check mb-2">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id={`schedule-${schedule.scheduleId}`}
+                              checked={bulkCreateData.selectedScheduleIds.includes(schedule.scheduleId)}
+                              onChange={(e) => {
+                                const newIds = e.target.checked
+                                  ? [...bulkCreateData.selectedScheduleIds, schedule.scheduleId]
+                                  : bulkCreateData.selectedScheduleIds.filter(id => id !== schedule.scheduleId);
+                                setBulkCreateData({
+                                  ...bulkCreateData,
+                                  selectedScheduleIds: newIds,
+                                });
+                              }}
+                            />
+                            <label className="form-check-label" htmlFor={`schedule-${schedule.scheduleId}`}>
+                              <strong>{formatDate(schedule.workDate + "T00:00:00")}</strong> - {schedule.startTime} đến {schedule.endTime}
+                              {schedule.notes && <small className="text-muted d-block">{schedule.notes}</small>}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      <small className="text-muted">
+                        Đã chọn: {bulkCreateData.selectedScheduleIds.length} lịch trình
+                      </small>
+                    </div>
+
+                    {bulkCreateData.selectedScheduleIds.length > 0 && (
+                      <>
+                        <div className="row">
+                          <div className="col-md-6 mb-3">
+                            <label className="form-label">Thời lượng mỗi khung (phút)</label>
+                            <select
+                              className="form-select"
+                              value={bulkCreateData.slotDuration}
+                              onChange={(e) =>
+                                setBulkCreateData({
+                                  ...bulkCreateData,
+                                  slotDuration: parseInt(e.target.value),
+                                })
+                              }
+                            >
+                              <option value="15">15 phút</option>
+                              <option value="30">30 phút</option>
+                              <option value="45">45 phút</option>
+                              <option value="60">60 phút</option>
+                            </select>
+                          </div>
+
+                          <div className="col-md-6 mb-3">
+                            <label className="form-label">
+                              Giá khám (VNĐ) <span className="text-danger">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              className="form-control"
+                              value={bulkCreateData.fee}
+                              onChange={(e) =>
+                                setBulkCreateData({
+                                  ...bulkCreateData,
+                                  fee: parseInt(e.target.value),
+                                })
+                              }
+                              min="0"
+                              step="10000"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="alert alert-success">
+                          {(() => {
+                            let totalNew = 0;
+                            let totalExisting = 0;
+                            
+                            bulkCreateData.selectedScheduleIds.forEach((scheduleId) => {
+                              const schedule = doctorSchedules.find(s => s.scheduleId === scheduleId);
+                              if (schedule) {
+                                const allSlots = generateTimeSlotsFromSchedule(schedule, bulkCreateData.slotDuration);
+                                const newSlots = allSlots.filter(s => !s.exists);
+                                totalNew += newSlots.length;
+                                totalExisting += (allSlots.length - newSlots.length);
+                              }
+                            });
+                            
+                            return (
+                              <>
+                                <strong>Sẽ tạo {totalNew} khung giờ mới</strong> cho {bulkCreateData.selectedScheduleIds.length} lịch trình<br/>
+                                Giá: {formatCurrency(bulkCreateData.fee)}/khung
+                                {totalExisting > 0 && (
+                                  <div className="mt-2 text-warning">
+                                    <i className="bi bi-exclamation-triangle me-1"></i>
+                                    <strong>Chú ý:</strong> Có {totalExisting} khung giờ đã tồn tại (sẽ bỏ qua)
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowBulkCreateForm(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleBulkCreate}
+                  disabled={loading || bulkCreateData.selectedScheduleIds.length === 0}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      Đang tạo...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-check-circle me-2"></i>
+                      Tạo hàng loạt
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

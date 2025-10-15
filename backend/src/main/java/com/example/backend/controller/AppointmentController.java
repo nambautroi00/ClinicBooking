@@ -55,11 +55,12 @@ public class AppointmentController {
         ));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<AppointmentDTO.Response> getById(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(appointmentService.getById(id));
-    }
-
+    // =====================================================================
+    // QUAN TRỌNG: Các endpoint CỤ THỂ phải đặt TRƯỚC {id}
+    // Nếu không, Spring sẽ match "/available-slots" với "/{id}"
+    // và cố parse "available-slots" thành Long → LỖI
+    // =====================================================================
+    
     @GetMapping("/by-patient")
     public ResponseEntity<List<AppointmentDTO.Response>> getByPatient(@RequestParam("patientId") Long patientId) {
         return ResponseEntity.ok(appointmentService.getByPatient(patientId));
@@ -68,6 +69,37 @@ public class AppointmentController {
     @GetMapping("/by-doctor")
     public ResponseEntity<List<AppointmentDTO.Response>> getByDoctor(@RequestParam("doctorId") Long doctorId) {
         return ResponseEntity.ok(appointmentService.getByDoctor(doctorId));
+    }
+
+    @GetMapping("/available-slots")
+    public ResponseEntity<List<AppointmentDTO.Response>> getAvailableSlots(@RequestParam("doctorId") Long doctorId) {
+        return ResponseEntity.ok(appointmentService.getAvailableSlotsByDoctor(doctorId));
+    }
+
+    // =====================================================================
+    // Endpoints với PATH VARIABLE - Phải đặt SAU
+    // =====================================================================
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<AppointmentDTO.Response> getById(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(appointmentService.getById(id));
+    }
+
+    @PutMapping("/{id}/book")
+    public ResponseEntity<AppointmentDTO.Response> bookAppointment(@PathVariable("id") Long id,
+                                                                   @RequestBody BookAppointmentRequest request) {
+        return ResponseEntity.ok(appointmentService.bookAppointment(id, request.getPatientId(), request.getNotes()));
+    }
+
+    // Inner class để nhận request book appointment
+    public static class BookAppointmentRequest {
+        private Long patientId;
+        private String notes;
+
+        public Long getPatientId() { return patientId; }
+        public void setPatientId(Long patientId) { this.patientId = patientId; }
+        public String getNotes() { return notes; }
+        public void setNotes(String notes) { this.notes = notes; }
     }
 
     @PutMapping("/{id}")

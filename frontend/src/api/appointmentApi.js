@@ -40,6 +40,19 @@ const appointmentApi = {
   getAppointmentsByDate: (date) => {
     return axiosClient.get(`/appointments?date=${date}`);
   },
+
+  // Lấy các khung giờ trống (available slots) của bác sĩ
+  getAvailableSlots: (doctorId) => {
+    return axiosClient.get(`/appointments/available-slots?doctorId=${doctorId}`);
+  },
+
+  // Bệnh nhân đặt lịch (book appointment)
+  bookAppointment: (appointmentId, patientId, notes) => {
+    return axiosClient.put(`/appointments/${appointmentId}/book`, {
+      patientId,
+      notes,
+    });
+  },
 };
 
 export default appointmentApi;

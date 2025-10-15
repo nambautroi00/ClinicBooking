@@ -77,9 +77,9 @@ const DoctorSidebar = () => {
     },
     {
       path: "/doctor/available-slots",
-      icon: "bi-clock",
-      label: "Quản lý lịch hẹn khả dụng",
-      description: "Khung giờ cho bệnh nhân đặt",
+      icon: "bi-clock-history",
+      label: "Quản lý khung giờ khám",
+      description: "Tạo & quản lý slot khám bệnh",
     },
     {
       path: "/doctor/appointments",

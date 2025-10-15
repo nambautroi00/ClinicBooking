@@ -60,6 +60,25 @@ const UsersManagement = () => {
     fetchStats();
   }, []);
 
+  // Auto hide alerts after 10 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('');
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
   // Deep-link: open profile modal by ?userId=
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -110,6 +129,43 @@ const UsersManagement = () => {
     console.log('Form Data:', formData);
     console.log('Avatar URL:', formData.avatarUrl);
     console.log('========================');
+    
+    // Validation bắt buộc
+    if (!formData.email || !formData.email.trim()) {
+      setError('Email là bắt buộc');
+      return;
+    }
+    if (!formData.password || !formData.password.trim()) {
+      setError('Mật khẩu là bắt buộc');
+      return;
+    }
+    if (!formData.firstName || !formData.firstName.trim()) {
+      setError('Tên là bắt buộc');
+      return;
+    }
+    if (!formData.lastName || !formData.lastName.trim()) {
+      setError('Họ là bắt buộc');
+      return;
+    }
+    if (!formData.phone || !formData.phone.trim()) {
+      setError('Số điện thoại là bắt buộc');
+      return;
+    }
+    if (!formData.gender) {
+      setError('Giới tính là bắt buộc');
+      return;
+    }
+    if (!formData.dateOfBirth) {
+      setError('Ngày sinh là bắt buộc');
+      return;
+    }
+    if (!formData.address || !formData.address.trim()) {
+      setError('Địa chỉ là bắt buộc');
+      return;
+    }
+    
+    // Clear error before proceeding
+    setError('');
     
     try {
       setLoading(true);
@@ -371,6 +427,82 @@ const UsersManagement = () => {
 
   return (
     <div className="container-fluid">
+      {/* Toast Notifications - Hiển thị ở góc trên bên phải */}
+      {error && (
+        <div
+          className="toast-notification"
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: '9999',
+            minWidth: '350px',
+            maxWidth: '500px',
+            backgroundColor: '#f8d7da',
+            border: '1px solid #dc3545',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            boxShadow: '0 8px 25px rgba(220, 53, 69, 0.3)',
+            animation: 'slideInRight 0.5s ease-out',
+            fontSize: '16px',
+            fontWeight: '500',
+            color: '#721c24'
+          }}
+        >
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <i className="bi bi-exclamation-triangle-fill me-3 fs-4" style={{ color: '#dc3545' }}></i>
+              <div>
+                <strong>Lỗi:</strong> {error}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setError('')}
+              style={{ fontSize: '12px' }}
+            ></button>
+          </div>
+        </div>
+      )}
+      {success && (
+        <div
+          className="toast-notification"
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: '9999',
+            minWidth: '350px',
+            maxWidth: '500px',
+            backgroundColor: '#d1edff',
+            border: '1px solid #28a745',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            boxShadow: '0 8px 25px rgba(40, 167, 69, 0.3)',
+            animation: 'slideInRight 0.5s ease-out',
+            fontSize: '16px',
+            fontWeight: '500',
+            color: '#155724'
+          }}
+        >
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <i className="bi bi-check-circle-fill me-3 fs-4" style={{ color: '#28a745' }}></i>
+              <div>
+                <strong>Thành công:</strong> {success}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setSuccess('')}
+              style={{ fontSize: '12px' }}
+            ></button>
+          </div>
+        </div>
+      )}
+
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Quản lý Người dùng</h2>
         <Button 
@@ -381,18 +513,6 @@ const UsersManagement = () => {
           <BiPlus /> Thêm Quản trị viên
         </Button>
       </div>
-
-      {/* Alert Messages */}
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert variant="success" dismissible onClose={() => setSuccess('')}>
-          {success}
-        </Alert>
-      )}
 
       {/* Thống kê nhanh - Dashboard Style */}
       <div className="row g-3 mb-4">
@@ -715,21 +835,23 @@ const UsersManagement = () => {
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Điện thoại</Form.Label>
+                  <Form.Label>Điện thoại *</Form.Label>
                   <Form.Control
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    required
                     placeholder="Nhập số điện thoại"
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Giới tính</Form.Label>
+                  <Form.Label>Giới tính *</Form.Label>
                   <Form.Select
                     value={formData.gender}
                     onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                    required
                   >
                     <option value="">Chọn giới tính</option>
                     <option value="MALE">Nam</option>
@@ -741,21 +863,23 @@ const UsersManagement = () => {
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Ngày sinh</Form.Label>
+                  <Form.Label>Ngày sinh *</Form.Label>
                   <Form.Control
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                    required
                   />
                 </Form.Group>
               </Col>
             </Row>
             <Form.Group className="mb-3">
-              <Form.Label>Địa chỉ</Form.Label>
+              <Form.Label>Địa chỉ *</Form.Label>
               <Form.Control
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({...formData, address: e.target.value})}
+                required
                 placeholder="Nhập địa chỉ"
               />
             </Form.Group>
