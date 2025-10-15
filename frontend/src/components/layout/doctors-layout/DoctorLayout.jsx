@@ -1,19 +1,102 @@
-import React, { useState, useEffect } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Outlet } from "react-router-dom";
 import DoctorSidebar from "./DoctorSidebar";
 import DoctorHeader from "./DoctorHeader";
 import doctorApi from "../../../api/doctorApi";
 import userApi from "../../../api/userApi";
 import { getFullAvatarUrl } from "../../../utils/avatarUtils";
 
+// Constants
+const CONTENT_STYLES = {
+  marginLeft: "260px",
+};
+
+const MAIN_STYLES = {
+  marginTop: -90,
+  minHeight: "calc(100vh - 50px)",
+  overflowY: "auto",
+};
+
 const DoctorLayout = () => {
-  const [doctorInfo, setDoctorInfo] = useState({
-    name: "Test User",
-    department: "Khoa Nội",
-    avatar: null,
+  // Get current user from localStorage (memoized)
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Initialize with real user data from localStorage
+  const [doctorInfo, setDoctorInfo] = useState(() => {
+    if (currentUser) {
+      return {
+        name: currentUser.firstName && currentUser.lastName
+          ? `${currentUser.firstName} ${currentUser.lastName}`
+          : currentUser.username || "Bác sĩ",
+        department: "Đang tải...",
+        avatar: currentUser.avatarUrl 
+          ? getFullAvatarUrl(currentUser.avatarUrl) 
+          : null,
+      };
+    }
+    return {
+      name: "Bác sĩ",
+      department: "Đang tải...",
+      avatar: null,
+    };
   });
+  
   const [loading, setLoading] = useState(true);
 
+  // Fetch doctor info with useCallback to avoid re-creating function
+  const fetchDoctorInfo = useCallback(async () => {
+    if (!currentUser) {
+      console.error("No user found in localStorage");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Fetch doctor and user info in parallel (faster!)
+      const [doctorResponse, userResponse] = await Promise.all([
+        doctorApi.getDoctorByUserId(currentUser.id),
+        userApi.getUserById(currentUser.id),
+      ]);
+
+      const doctorData = doctorResponse.data;
+      const userData = userResponse.data;
+
+      // Set doctor info
+      setDoctorInfo({
+        name: `${userData.firstName} ${userData.lastName}`,
+        department: doctorData.department?.departmentName || "Chưa phân công",
+        avatar: userData.avatarUrl
+          ? getFullAvatarUrl(userData.avatarUrl)
+          : null,
+      });
+    } catch (error) {
+      console.error("Error fetching doctor info:", error);
+      
+      // Fallback to user info from localStorage
+      setDoctorInfo({
+        name:
+          currentUser?.firstName && currentUser?.lastName
+            ? `${currentUser.firstName} ${currentUser.lastName}`
+            : currentUser?.username || "Bác sĩ",
+        department: "Không xác định",
+        avatar: currentUser?.avatarUrl 
+          ? getFullAvatarUrl(currentUser.avatarUrl) 
+          : null,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser]);
+
+  // Load doctor info on mount and listen for updates
   useEffect(() => {
     fetchDoctorInfo();
 
@@ -27,50 +110,7 @@ const DoctorLayout = () => {
     return () => {
       window.removeEventListener("doctorProfileUpdated", handleProfileUpdate);
     };
-  }, []);
-
-  const fetchDoctorInfo = async () => {
-    try {
-      setLoading(true);
-      const currentUser = JSON.parse(localStorage.getItem("user"));
-
-      if (!currentUser) {
-        console.error("No user found in localStorage");
-        return;
-      }
-
-      // Fetch doctor info
-      const doctorResponse = await doctorApi.getDoctorByUserId(currentUser.id);
-      const doctorData = doctorResponse.data;
-
-      // Fetch user info
-      const userResponse = await userApi.getUserById(currentUser.id);
-      const userData = userResponse.data;
-
-      // Set doctor info
-      setDoctorInfo({
-        name: `${userData.firstName} ${userData.lastName}`,
-        department: doctorData.department?.departmentName || "Chưa phân công",
-        avatar: userData.avatarUrl
-          ? getFullAvatarUrl(userData.avatarUrl)
-          : null,
-      });
-    } catch (error) {
-      console.error("Error fetching doctor info:", error);
-      // Fallback to default info
-      const currentUser = JSON.parse(localStorage.getItem("user"));
-      setDoctorInfo({
-        name:
-          currentUser?.firstName && currentUser?.lastName
-            ? `${currentUser.firstName} ${currentUser.lastName}`
-            : "Test User",
-        department: "Khoa Nội",
-        avatar: null,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchDoctorInfo]);
 
   if (loading) {
     return (
@@ -95,17 +135,10 @@ const DoctorLayout = () => {
       <DoctorHeader doctorInfo={doctorInfo} />
 
       {/* Sidebar cố định trái, main content dịch sang phải */}
-      <DoctorSidebar />
-      <div style={{ marginLeft: "260px" }}>
+      <DoctorSidebar doctorInfo={doctorInfo} loading={loading} />
+      <div style={CONTENT_STYLES}>
         {/* Main Content: chỉ hiện thanh cuộn khi nội dung vượt quá khung hình */}
-        <main
-          className="px-md-6"
-          style={{
-            marginTop: -90,
-            minHeight: "calc(100vh - 50px)",
-            overflowY: "auto",
-          }}
-        >
+        <main className="px-md-6" style={MAIN_STYLES}>
           <div className="doctor-content">
             <Outlet />
           </div>

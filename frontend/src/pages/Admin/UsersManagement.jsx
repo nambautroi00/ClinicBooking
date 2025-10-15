@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Modal, Button, Form, Table, Alert, Badge, Dropdown, Row, Col } from 'react-bootstrap';
 import { BiEdit, BiPlus, BiSearch, BiDotsVertical, BiCheckCircle, BiXCircle, BiUserCheck, BiUserPlus } from 'react-icons/bi';
 import userApi from '../../api/userApi';
+import doctorApi from '../../api/doctorApi';
 import fileUploadApi from '../../api/fileUploadApi';
 import { getFullAvatarUrl } from '../../utils/avatarUtils';
 
@@ -22,11 +23,23 @@ const UsersManagement = () => {
     inactive: 0
   });
 
+  // State để theo dõi thống kê được lọc
+  const [filteredStats, setFilteredStats] = useState({
+    total: 0,
+    admins: 0,
+    doctors: 0,
+    patients: 0,
+    active: 0,
+    inactive: 0
+  });
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [createUserType, setCreateUserType] = useState('admin'); // 'admin' hoặc 'doctor'
 
   // Form states
   const [formData, setFormData] = useState({
@@ -40,7 +53,11 @@ const UsersManagement = () => {
     address: '',
     avatarUrl: '',
     status: 'ACTIVE',
-    roleId: 1 // Default to ADMIN role
+    roleId: 1, // Default to ADMIN role
+    // Các trường đặc biệt cho bác sĩ
+    specialty: '',
+    departmentId: '',
+    bio: ''
   });
 
   // Search and filter states
@@ -59,6 +76,17 @@ const UsersManagement = () => {
     fetchUsers();
     fetchStats();
   }, []);
+
+  // Gọi lại fetchUsers và fetchStats khi filterRole thay đổi
+  useEffect(() => {
+    fetchUsers();
+    fetchStats();
+  }, [filterRole]);
+
+  // Cập nhật thống kê khi có thay đổi filter hoặc users
+  useEffect(() => {
+    updateFilteredStats();
+  }, [users, filterRole, filterStatus, searchTerm]);
 
   // Auto hide alerts after 10 seconds
   useEffect(() => {
@@ -95,15 +123,52 @@ const UsersManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await userApi.getAllUsersWithRoleInfo();
       
-      // 🔍 DEBUG: Log users data
-      console.log('=== FETCH USERS DEBUG ===');
-      console.log('Response:', response.data);
-      console.log('Users with avatars:', response.data?.filter(user => user.avatarUrl));
-      console.log('========================');
-      
-      setUsers(response.data || []);
+      // Nếu đang lọc theo bác sĩ, sử dụng API bác sĩ trực tiếp
+      if (filterRole === '2') {
+        const response = await doctorApi.getAllDoctors();
+        let doctorsData = [];
+        
+        if (response.data) {
+          if (Array.isArray(response.data)) {
+            doctorsData = response.data;
+          } else if (response.data.content && Array.isArray(response.data.content)) {
+            doctorsData = response.data.content;
+          }
+        }
+        
+        // Convert doctor data to user format
+        const convertedUsers = doctorsData.map(doctor => ({
+          id: doctor.user?.id || doctor.doctorId, // Sử dụng userId thay vì doctorId
+          doctorId: doctor.doctorId, // Giữ lại doctorId để tham chiếu
+          email: doctor.user?.email,
+          firstName: doctor.user?.firstName,
+          lastName: doctor.user?.lastName,
+          phone: doctor.user?.phone,
+          gender: doctor.user?.gender,
+          dateOfBirth: doctor.user?.dateOfBirth,
+          address: doctor.user?.address,
+          avatarUrl: doctor.user?.avatarUrl,
+          createdAt: doctor.user?.createdAt,
+          status: doctor.user?.status || 'ACTIVE', // Đảm bảo có status mặc định
+          role: doctor.user?.role || { id: 2, name: 'DOCTOR' }, // Đảm bảo có role cho bác sĩ
+          // Doctor specific info
+          specialty: doctor.specialty,
+          departmentName: doctor.department?.departmentName,
+          departmentId: doctor.department?.id,
+          bio: doctor.bio,
+          doctorStatus: doctor.status
+        }));
+        
+        
+        setUsers(convertedUsers);
+      } else {
+        // Sử dụng API user cho các trường hợp khác
+        const response = await userApi.getAllUsersWithPatientInfo();
+        
+        
+        setUsers(response.data || []);
+      }
     } catch (err) {
       console.error('Error fetching users:', err);
       setError('Lỗi khi tải danh sách người dùng: ' + (err.response?.data?.message || err.message));
@@ -115,20 +180,87 @@ const UsersManagement = () => {
   const fetchStats = async () => {
     try {
       const userStats = await userApi.getUserStats();
+      
+      // Nếu đang lọc theo bác sĩ, cập nhật số lượng bác sĩ từ API bác sĩ
+      if (filterRole === '2') {
+        try {
+          const doctorResponse = await doctorApi.getAllDoctors();
+          let doctorsCount = 0;
+          
+          if (doctorResponse.data) {
+            if (Array.isArray(doctorResponse.data)) {
+              doctorsCount = doctorResponse.data.length;
+            } else if (doctorResponse.data.content && Array.isArray(doctorResponse.data.content)) {
+              doctorsCount = doctorResponse.data.content.length;
+            }
+          }
+          
+          userStats.doctors = doctorsCount;
+          console.log('Updated doctors count from doctor API:', doctorsCount);
+        } catch (err) {
+          console.error('Error fetching doctor count:', err);
+        }
+      }
+      
       setStats(userStats);
     } catch (err) {
       console.error('Error fetching user stats:', err);
     }
   };
 
+  // Cập nhật thống kê dựa trên bộ lọc hiện tại
+  const updateFilteredStats = () => {
+    const filtered = users.filter(user => {
+      const matchesSearch = user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Khi sử dụng API bác sĩ, không cần filter theo role nữa vì đã lọc sẵn
+      const matchesRole = !filterRole || (filterRole === '2' ? true : user.role?.id.toString() === filterRole);
+      
+      const matchesStatus = !filterStatus || user.status === filterStatus;
+      
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+
+    const newFilteredStats = {
+      total: filtered.length,
+      admins: filtered.filter(user => user.role?.id === 1).length,
+      doctors: filtered.filter(user => user.role?.id === 2 || filterRole === '2').length,
+      patients: filtered.filter(user => user.role?.id === 3).length,
+      active: filtered.filter(user => user.status === 'ACTIVE').length,
+      inactive: filtered.filter(user => user.status === 'INACTIVE').length
+    };
+
+    setFilteredStats(newFilteredStats);
+  };
+
+  // Hàm xử lý click vào thẻ thống kê để lọc
+  const handleStatsClick = (filterType, value) => {
+    switch (filterType) {
+      case 'role':
+        setFilterRole(value);
+        setFilterStatus('');
+        setSearchTerm('');
+        break;
+      case 'status':
+        setFilterStatus(value);
+        setFilterRole('');
+        setSearchTerm('');
+        break;
+      case 'all':
+        setFilterRole('');
+        setFilterStatus('');
+        setSearchTerm('');
+        break;
+      default:
+        break;
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     
-    // 🔍 DEBUG: Log form data before create
-    console.log('=== CREATE USER DEBUG ===');
-    console.log('Form Data:', formData);
-    console.log('Avatar URL:', formData.avatarUrl);
-    console.log('========================');
     
     // Validation bắt buộc
     if (!formData.email || !formData.email.trim()) {
@@ -164,6 +296,18 @@ const UsersManagement = () => {
       return;
     }
     
+    // Validation đặc biệt cho bác sĩ
+    if (createUserType === 'doctor') {
+      if (!formData.specialty || !formData.specialty.trim()) {
+        setError('Chuyên khoa là bắt buộc cho bác sĩ');
+        return;
+      }
+      if (!formData.departmentId) {
+        setError('Khoa là bắt buộc cho bác sĩ');
+        return;
+      }
+    }
+    
     // Clear error before proceeding
     setError('');
     
@@ -184,11 +328,23 @@ const UsersManagement = () => {
         roleId: formData.roleId
       };
       
-      console.log('User Data to send:', userData);
+      // Tạo user trước
+      const createdUser = await userApi.createUser(userData);
       
-      await userApi.createUser(userData);
+      // Nếu là bác sĩ, tạo thông tin bác sĩ
+      if (createUserType === 'doctor') {
+        const doctorData = {
+          userId: createdUser.data.id,
+          specialty: formData.specialty,
+          departmentId: parseInt(formData.departmentId),
+          bio: formData.bio || '',
+          status: 'ACTIVE'
+        };
+        
+        await doctorApi.createDoctor(doctorData);
+      }
       
-      setSuccess('Tạo người dùng mới thành công!');
+      setSuccess(`Tạo ${createUserType === 'admin' ? 'quản trị viên' : 'bác sĩ'} mới thành công!`);
       setShowCreateModal(false);
       resetForm();
       fetchUsers();
@@ -203,12 +359,6 @@ const UsersManagement = () => {
   const handleEditUser = async (e) => {
     e.preventDefault();
     
-    // 🔍 DEBUG: Log form data before update
-    console.log('=== EDIT USER DEBUG ===');
-    console.log('User ID:', selectedUser.id);
-    console.log('Form Data:', formData);
-    console.log('Avatar URL:', formData.avatarUrl);
-    console.log('======================');
     
     try {
       setLoading(true);
@@ -277,19 +427,40 @@ const UsersManagement = () => {
       address: '',
       avatarUrl: '',
       status: 'ACTIVE',
-      roleId: 1
+      roleId: 1,
+      // Reset các trường đặc biệt cho bác sĩ
+      specialty: '',
+      departmentId: '',
+      bio: ''
     });
     setSelectedUser(null);
+  };
+
+  const openCreateModal = (userType) => {
+    setCreateUserType(userType);
+    setFormData({
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
+      gender: '',
+      dateOfBirth: '',
+      address: '',
+      avatarUrl: '',
+      status: 'ACTIVE',
+      roleId: userType === 'admin' ? 1 : 2, // 1 = ADMIN, 2 = DOCTOR
+      // Reset các trường đặc biệt cho bác sĩ
+      specialty: '',
+      departmentId: '',
+      bio: ''
+    });
+    setShowCreateModal(true);
   };
 
   const openEditModal = (user) => {
     setSelectedUser(user);
     
-    // 🔍 DEBUG: Log user data when opening edit modal
-    console.log('=== EDIT MODAL DEBUG ===');
-    console.log('User data:', user);
-    console.log('Avatar URL from user:', user.avatarUrl);
-    console.log('========================');
     
     setFormData({
       email: user.email || '',
@@ -310,6 +481,11 @@ const UsersManagement = () => {
   const openDeleteModal = (user) => {
     setSelectedUser(user);
     setShowDeleteModal(true);
+  };
+
+  const openDetailModal = (user) => {
+    setSelectedUser(user);
+    setShowDetailModal(true);
   };
 
   const handleFileUpload = async (e) => {
@@ -369,24 +545,35 @@ const UsersManagement = () => {
     try {
       setLoading(true);
       
+      
+      // Lấy thông tin user hiện tại để tránh lỗi validation
+      const currentUserResponse = await userApi.getUserById(user.id);
+      const currentUser = currentUserResponse.data;
+      
+      // Tạo userData với thông tin hiện tại và chỉ thay đổi status
       const userData = {
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        gender: user.gender,
-        dateOfBirth: user.dateOfBirth,
-        address: user.address,
+        email: currentUser.email,
+        firstName: currentUser.firstName,
+        lastName: currentUser.lastName,
+        phone: currentUser.phone,
+        gender: currentUser.gender,
+        dateOfBirth: currentUser.dateOfBirth,
+        address: currentUser.address,
+        avatarUrl: currentUser.avatarUrl,
         status: newStatus,
-        roleId: user.role?.id
+        roleId: currentUser.role?.id || user.role?.id || (filterRole === '2' ? 2 : user.role?.id)
       };
       
+      // Cập nhật user
       await userApi.updateUser(user.id, userData);
       
       setSuccess(`Cập nhật trạng thái người dùng thành ${newStatus === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}!`);
-      fetchUsers();
-      fetchStats();
+      
+      // Refresh dữ liệu
+      await fetchUsers();
+      await fetchStats();
     } catch (err) {
+      console.error('Status change error:', err);
       setError('Lỗi khi cập nhật trạng thái: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
@@ -418,7 +605,8 @@ const UsersManagement = () => {
                          user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRole = !filterRole || user.role?.id.toString() === filterRole;
+    // Khi sử dụng API bác sĩ, không cần filter theo role nữa vì đã lọc sẵn
+    const matchesRole = !filterRole || (filterRole === '2' ? true : user.role?.id.toString() === filterRole);
     
     const matchesStatus = !filterStatus || user.status === filterStatus;
     
@@ -427,6 +615,57 @@ const UsersManagement = () => {
 
   return (
     <div className="container-fluid">
+      <style jsx>{`
+        .stats-card {
+          border: 1px solid #e3e6f0;
+          border-radius: 0.35rem;
+          box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+          transition: all 0.3s ease;
+        }
+        
+        .stats-card:hover {
+          box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.25);
+          border-color: #5a5c69;
+        }
+        
+        .stats-card:active {
+          transform: translateY(1px);
+        }
+        
+        .stats-card .card-body {
+          padding: 1rem;
+        }
+        
+        .stats-card .h4 {
+          font-weight: 700;
+          color: #5a5c69;
+        }
+        
+        .stats-card:hover .h4 {
+          color: #3a3b45;
+        }
+        
+        .stats-card .text-muted {
+          font-size: 0.875rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .stats-card small {
+          font-size: 0.75rem;
+          opacity: 0.7;
+        }
+        
+        .stats-card i {
+          opacity: 0.8;
+          transition: opacity 0.3s ease;
+        }
+        
+        .stats-card:hover i {
+          opacity: 1;
+        }
+      `}</style>
       {/* Toast Notifications - Hiển thị ở góc trên bên phải */}
       {error && (
         <div
@@ -505,70 +744,194 @@ const UsersManagement = () => {
 
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Quản lý Người dùng</h2>
-        <Button 
-          variant="primary" 
-          onClick={() => setShowCreateModal(true)}
-          className="d-flex align-items-center gap-2"
-        >
-          <BiPlus /> Thêm Quản trị viên
-        </Button>
+        <Dropdown>
+          <Dropdown.Toggle variant="primary" className="d-flex align-items-center gap-2">
+            <BiPlus /> Thêm
+          </Dropdown.Toggle>
+          <Dropdown.Menu>
+            <Dropdown.Item onClick={() => openCreateModal('admin')}>
+              <i className="bi bi-person-gear me-2"></i>
+              Thêm Quản trị viên
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => openCreateModal('doctor')}>
+              <i className="bi bi-person-badge me-2"></i>
+              Thêm Bác sĩ
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
       </div>
 
-      {/* Thống kê nhanh - Dashboard Style */}
+      {/* Thống kê nhanh - Dashboard Style với khả năng click để lọc */}
       <div className="row g-3 mb-4">
-        <div className="col-md-3">
-          <div className="card">
+        <div className="col-md-2">
+          <div 
+            className="card stats-card" 
+            style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            onClick={() => handleStatsClick('all', '')}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+          >
             <div className="card-body">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <div className="text-muted">Hoạt động</div>
-                  <div className="h4 mb-0">{stats.active}</div>
-                </div>
-                <i className="bi bi-check-circle fs-2 text-success"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card">
-            <div className="card-body">
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <div className="text-muted">Không hoạt động</div>
-                  <div className="h4 mb-0">{stats.inactive}</div>
-                </div>
-                <i className="bi bi-x-circle fs-2 text-warning"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card">
-            <div className="card-body">
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <div className="text-muted">Bác sĩ</div>
-                  <div className="h4 mb-0">{stats.doctors}</div>
-                </div>
-                <i className="bi bi-person-badge fs-2 text-primary"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card">
-            <div className="card-body">
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <div className="text-muted">Tổng số người dùng</div>
-                  <div className="h4 mb-0">{stats.total}</div>
+                  <div className="text-muted">Tổng số</div>
+                  <div className="h4 mb-0">{filteredStats.total}</div>
+                  <small className="text-muted">/ {stats.total}</small>
                 </div>
                 <i className="bi bi-people fs-2 text-info"></i>
               </div>
             </div>
           </div>
         </div>
+        <div className="col-md-2">
+          <div 
+            className="card stats-card" 
+            style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            onClick={() => handleStatsClick('role', '1')}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+          >
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Quản trị viên</div>
+                  <div className="h4 mb-0">{filteredStats.admins}</div>
+                  <small className="text-muted">/ {stats.admins}</small>
+                </div>
+                <i className="bi bi-shield-check fs-2 text-danger"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-2">
+          <div 
+            className="card stats-card" 
+            style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            onClick={() => handleStatsClick('role', '2')}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+          >
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Bác sĩ</div>
+                  <div className="h4 mb-0">{filteredStats.doctors}</div>
+                  <small className="text-muted">/ {stats.doctors}</small>
+                </div>
+                <i className="bi bi-person-badge fs-2 text-primary"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-2">
+          <div 
+            className="card stats-card" 
+            style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            onClick={() => handleStatsClick('role', '3')}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+          >
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Bệnh nhân</div>
+                  <div className="h4 mb-0">{filteredStats.patients}</div>
+                  <small className="text-muted">/ {stats.patients}</small>
+                </div>
+                <i className="bi bi-person-heart fs-2 text-success"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-2">
+          <div 
+            className="card stats-card" 
+            style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            onClick={() => handleStatsClick('status', 'ACTIVE')}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+          >
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Hoạt động</div>
+                  <div className="h4 mb-0">{filteredStats.active}</div>
+                  <small className="text-muted">/ {stats.active}</small>
+                </div>
+                <i className="bi bi-check-circle fs-2 text-success"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-2">
+          <div 
+            className="card stats-card" 
+            style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+            onClick={() => handleStatsClick('status', 'INACTIVE')}
+            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+          >
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Không hoạt động</div>
+                  <div className="h4 mb-0">{filteredStats.inactive}</div>
+                  <small className="text-muted">/ {stats.inactive}</small>
+                </div>
+                <i className="bi bi-x-circle fs-2 text-warning"></i>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Hiển thị thông tin bộ lọc hiện tại */}
+      {(filterRole || filterStatus || searchTerm) && (
+        <div className="alert alert-info mb-3">
+          <div className="d-flex align-items-center justify-content-between">
+            <div>
+              <i className="bi bi-funnel me-2"></i>
+              <strong>Bộ lọc hiện tại:</strong>
+              {filterRole && (
+                <span className="badge bg-primary ms-2">
+                  Vai trò: {roleMap[filterRole]?.label}
+                </span>
+              )}
+              {filterStatus && (
+                <span className="badge bg-secondary ms-2">
+                  Trạng thái: {filterStatus === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}
+                </span>
+              )}
+              {searchTerm && (
+                <span className="badge bg-info ms-2">
+                  Tìm kiếm: "{searchTerm}"
+                </span>
+              )}
+              {filterRole === '2' && (
+                <span className="badge bg-warning ms-2">
+                  Hiển thị: {filteredUsers.length} / {stats.doctors} bác sĩ
+                </span>
+              )}
+              {filterRole === '3' && (
+                <span className="badge bg-warning ms-2">
+                  Hiển thị: {filteredUsers.length} / {stats.patients} bệnh nhân
+                </span>
+              )}
+            </div>
+            <button 
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => {
+                setFilterRole('');
+                setFilterStatus('');
+                setSearchTerm('');
+              }}
+            >
+              <i className="bi bi-x-lg me-1"></i>
+              Xóa bộ lọc
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <div className="row mb-3">
@@ -635,8 +998,13 @@ const UsersManagement = () => {
               <th>Họ tên</th>
               <th>Email</th>
               <th>Điện thoại</th>
-              <th>Vai trò</th>
+           {!filterRole && <th>Vai trò</th>}
+           {filterRole === '2' && <th>Chuyên khoa</th>}
+           {filterRole === '2' && <th>Khoa</th>}
               <th>Trạng thái</th>
+              {filterRole === '3' && (
+                <th>Bảo hiểm y tế</th>
+              )}
               <th>Ngày tạo</th>
               <th>Thao tác</th>
             </tr>
@@ -644,22 +1012,28 @@ const UsersManagement = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="9" className="text-center">Đang tải...</td>
+                <td colSpan={
+                  filterRole === '3' ? "9" : 
+                  filterRole === '2' ? "10" : 
+                  filterRole === '1' ? "8" : // Bỏ 2 cột admin (cấp độ, quyền hạn)
+                  filterRole ? "8" : "9"
+                } className="text-center">Đang tải...</td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="9" className="text-center">Không có người dùng nào</td>
+                <td colSpan={
+                  filterRole === '3' ? "9" : 
+                  filterRole === '2' ? "10" : 
+                  filterRole === '1' ? "8" : // Bỏ 2 cột admin (cấp độ, quyền hạn)
+                  filterRole ? "8" : "9"
+                } className="text-center">Không có người dùng nào</td>
               </tr>
             ) : (
               filteredUsers.map(user => (
                 <tr key={user.id}>
                   <td>{user.id}</td>
                   <td>
-                    {(() => {
-                      // 🔍 DEBUG: Log avatar URL for each user
-                      console.log(`User ${user.id} (${user.firstName} ${user.lastName}) - Avatar URL:`, user.avatarUrl);
-                      
-                      return user.avatarUrl ? (
+                    {user.avatarUrl ? (
                         <>
                           <img 
                             src={getFullAvatarUrl(user.avatarUrl)} 
@@ -672,15 +1046,11 @@ const UsersManagement = () => {
                               border: '2px solid #dee2e6'
                             }}
                             onError={(e) => {
-                              console.error(`Failed to load avatar for user ${user.id}:`, user.avatarUrl);
                               e.target.style.display = 'none';
                               const placeholder = e.target.nextElementSibling;
                               if (placeholder) {
                                 placeholder.style.display = 'flex';
                               }
-                            }}
-                            onLoad={() => {
-                              console.log(`Successfully loaded avatar for user ${user.id}:`, user.avatarUrl);
                             }}
                           />
                           <div 
@@ -715,14 +1085,42 @@ const UsersManagement = () => {
                         >
                           <i className="bi bi-person"></i>
                         </div>
-                      );
-                    })()}
+                      )}
                   </td>
                   <td>{user.firstName} {user.lastName}</td>
                   <td>{user.email}</td>
                   <td>{user.phone || '-'}</td>
-                  <td>{getRoleBadge(user.role?.id)}</td>
+                  {!filterRole && <td>{getRoleBadge(user.role?.id)}</td>}
+                  {filterRole === '2' && (
+                    <td>
+                      <span className="badge bg-info">
+                        {user.specialty || 'Chưa cập nhật'}
+                      </span>
+                    </td>
+                  )}
+                  {filterRole === '2' && (
+                    <td>
+                      <span className="badge bg-secondary">
+                        {user.departmentName || 'Chưa phân khoa'}
+                      </span>
+                    </td>
+                  )}
                   <td>{getStatusBadge(user.status)}</td>
+                  {filterRole === '3' && (
+                    <td>
+                      {user.healthInsuranceNumber ? (
+                        <span className="badge bg-success">
+                          <i className="bi bi-shield-check me-1"></i>
+                          {user.healthInsuranceNumber}
+                        </span>
+                      ) : (
+                        <span className="badge bg-warning">
+                          <i className="bi bi-exclamation-triangle me-1"></i>
+                          Chưa có
+                        </span>
+                      )}
+                    </td>
+                  )}
                   <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '-'}</td>
                   <td>
                     <div className="d-flex gap-2 align-items-center">
@@ -744,6 +1142,16 @@ const UsersManagement = () => {
                           <BiDotsVertical />
                         </Dropdown.Toggle>
                         <Dropdown.Menu>
+                          {/* Nút xem chi tiết cho bác sĩ và bệnh nhân */}
+                          {(filterRole === '2' || filterRole === '3') && (
+                            <Dropdown.Item 
+                              onClick={() => openDetailModal(user)}
+                              className="text-info fw-semibold"
+                            >
+                              <i className="bi bi-eye me-2"></i>
+                              Xem chi tiết
+                            </Dropdown.Item>
+                          )}
                           {user.status !== 'ACTIVE' && (
                             <Dropdown.Item 
                               onClick={() => handleStatusChange(user, 'ACTIVE')}
@@ -776,7 +1184,19 @@ const UsersManagement = () => {
       {/* Create User Modal */}
       <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Thêm Quản trị viên Mới</Modal.Title>
+          <Modal.Title>
+            {createUserType === 'admin' ? (
+              <>
+                <i className="bi bi-person-gear me-2"></i>
+                Thêm Quản trị viên Mới
+              </>
+            ) : (
+              <>
+                <i className="bi bi-person-badge me-2"></i>
+                Thêm Bác sĩ Mới
+              </>
+            )}
+          </Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreateUser}>
           <Modal.Body>
@@ -883,6 +1303,58 @@ const UsersManagement = () => {
                 placeholder="Nhập địa chỉ"
               />
             </Form.Group>
+            
+            {/* Các trường đặc biệt cho bác sĩ */}
+            {createUserType === 'doctor' && (
+              <>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Chuyên khoa *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.specialty || ''}
+                        onChange={(e) => setFormData({...formData, specialty: e.target.value})}
+                        required
+                        placeholder="Nhập chuyên khoa"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Khoa *</Form.Label>
+                      <Form.Select
+                        value={formData.departmentId || ''}
+                        onChange={(e) => setFormData({...formData, departmentId: e.target.value})}
+                        required
+                      >
+                        <option value="">Chọn khoa</option>
+                        <option value="1">Khoa Nội</option>
+                        <option value="2">Khoa Ngoại</option>
+                        <option value="3">Khoa Sản</option>
+                        <option value="4">Khoa Nhi</option>
+                        <option value="5">Khoa Tim mạch</option>
+                        <option value="6">Khoa Thần kinh</option>
+                        <option value="7">Khoa Da liễu</option>
+                        <option value="8">Khoa Mắt</option>
+                        <option value="9">Khoa Tai mũi họng</option>
+                        <option value="10">Khoa Xương khớp</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group className="mb-3">
+                  <Form.Label>Giới thiệu bản thân</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={formData.bio || ''}
+                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                    placeholder="Nhập giới thiệu về bản thân và chuyên môn..."
+                  />
+                </Form.Group>
+              </>
+            )}
             <Form.Group className="mb-3">
               <Form.Label>Ảnh đại diện</Form.Label>
               <Form.Control
@@ -906,14 +1378,6 @@ const UsersManagement = () => {
                 )}
               </div>
               
-              {/* Debug info */}
-              {formData.avatarUrl && (
-                <div className="alert alert-info p-2 mb-2">
-                  <small>
-                    <strong>Avatar URL:</strong> {formData.avatarUrl}
-                  </small>
-                </div>
-              )}
               
               {formData.avatarUrl && (
                 <div className="mt-2">
@@ -1069,14 +1533,6 @@ const UsersManagement = () => {
                 )}
               </div>
               
-              {/* Debug info */}
-              {formData.avatarUrl && (
-                <div className="alert alert-info p-2 mb-2">
-                  <small>
-                    <strong>Avatar URL:</strong> {formData.avatarUrl}
-                  </small>
-                </div>
-              )}
               
               {formData.avatarUrl && (
                 <div className="mt-2">
@@ -1121,6 +1577,198 @@ const UsersManagement = () => {
           </Button>
           <Button variant="warning" onClick={handleDeleteUser} disabled={loading}>
             {loading ? 'Đang xử lý...' : 'Vô hiệu hóa'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* User Detail Modal */}
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {filterRole === '2' ? (
+              <>
+                <i className="bi bi-person-badge me-2"></i>
+                Thông tin chi tiết bác sĩ
+              </>
+            ) : filterRole === '3' ? (
+              <>
+                <i className="bi bi-person-heart me-2"></i>
+                Thông tin chi tiết bệnh nhân
+              </>
+            ) : (
+              <>
+                <i className="bi bi-person me-2"></i>
+                Thông tin chi tiết người dùng
+              </>
+            )}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedUser && (
+            <div className="row">
+              {/* Thông tin cơ bản */}
+              <div className="col-md-6">
+                <h6 className="text-primary mb-3">
+                  <i className="bi bi-person me-2"></i>Thông tin cá nhân
+                </h6>
+                <div className="mb-3">
+                  <strong>Họ tên:</strong>
+                  <p className="mb-1">{selectedUser.firstName} {selectedUser.lastName}</p>
+                </div>
+                <div className="mb-3">
+                  <strong>Email:</strong>
+                  <p className="mb-1">{selectedUser.email}</p>
+                </div>
+                <div className="mb-3">
+                  <strong>Điện thoại:</strong>
+                  <p className="mb-1">{selectedUser.phone || 'Chưa cập nhật'}</p>
+                </div>
+                <div className="mb-3">
+                  <strong>Giới tính:</strong>
+                  <p className="mb-1">
+                    {selectedUser.gender === 'MALE' ? 'Nam' : 
+                     selectedUser.gender === 'FEMALE' ? 'Nữ' : 
+                     selectedUser.gender || 'Chưa cập nhật'}
+                  </p>
+                </div>
+                <div className="mb-3">
+                  <strong>Ngày sinh:</strong>
+                  <p className="mb-1">
+                    {selectedUser.dateOfBirth ? new Date(selectedUser.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+                  </p>
+                </div>
+                <div className="mb-3">
+                  <strong>Địa chỉ:</strong>
+                  <p className="mb-1">{selectedUser.address || 'Chưa cập nhật'}</p>
+                </div>
+              </div>
+
+              {/* Thông tin chuyên môn cho bác sĩ hoặc thông tin y tế cho bệnh nhân */}
+              <div className="col-md-6">
+                {filterRole === '2' ? (
+                  <>
+                    <h6 className="text-success mb-3">
+                      <i className="bi bi-stethoscope me-2"></i>Thông tin chuyên môn
+                    </h6>
+                    <div className="mb-3">
+                      <strong>Chuyên khoa:</strong>
+                      <p className="mb-1">
+                        <span className="badge bg-info">
+                          {selectedUser.specialty || 'Chưa cập nhật'}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <strong>Khoa:</strong>
+                      <p className="mb-1">
+                        <span className="badge bg-secondary">
+                          {selectedUser.departmentName || 'Chưa phân khoa'}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <strong>Giới thiệu:</strong>
+                      <div className="border rounded p-2 bg-light">
+                        {selectedUser.bio || 'Chưa có thông tin giới thiệu'}
+                      </div>
+                    </div>
+                  </>
+                ) : filterRole === '3' ? (
+                  <>
+                    <h6 className="text-success mb-3">
+                      <i className="bi bi-heart-pulse me-2"></i>Thông tin y tế
+                    </h6>
+                    <div className="mb-3">
+                      <strong>Bảo hiểm y tế:</strong>
+                      <p className="mb-1">
+                        {selectedUser.healthInsuranceNumber ? (
+                          <span className="badge bg-success">
+                            <i className="bi bi-shield-check me-1"></i>
+                            {selectedUser.healthInsuranceNumber}
+                          </span>
+                        ) : (
+                          <span className="badge bg-warning">
+                            <i className="bi bi-exclamation-triangle me-1"></i>
+                            Chưa có
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <strong>Tiền sử bệnh án:</strong>
+                      <div className="border rounded p-2 bg-light" style={{maxHeight: '150px', overflowY: 'auto'}}>
+                        {selectedUser.medicalHistory ? (
+                          <div style={{whiteSpace: 'pre-wrap'}}>
+                            {selectedUser.medicalHistory}
+                          </div>
+                        ) : (
+                          <span className="text-muted">Chưa có thông tin tiền sử bệnh án</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <strong>Ngày tạo hồ sơ bệnh nhân:</strong>
+                      <p className="mb-1">
+                        {selectedUser.patientCreatedAt ? new Date(selectedUser.patientCreatedAt).toLocaleDateString('vi-VN') : 'Không xác định'}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <strong>Trạng thái hồ sơ:</strong>
+                      <p className="mb-1">
+                        {selectedUser.patientStatus ? (
+                          <span className={`badge ${selectedUser.patientStatus === 'ACTIVE' ? 'bg-success' : 'bg-warning'}`}>
+                            {selectedUser.patientStatus === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}
+                          </span>
+                        ) : (
+                          <span className="badge bg-secondary">Chưa xác định</span>
+                        )}
+                      </p>
+                    </div>
+                  </>
+                ) : null}
+                
+                <div className="mb-3">
+                  <strong>Trạng thái tài khoản:</strong>
+                  <p className="mb-1">{getStatusBadge(selectedUser.status)}</p>
+                </div>
+                <div className="mb-3">
+                  <strong>Ngày tạo tài khoản:</strong>
+                  <p className="mb-1">
+                    {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('vi-VN') : 'Không xác định'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Avatar */}
+              {selectedUser.avatarUrl && (
+                <div className="col-12 text-center mt-3">
+                  <h6 className="text-info mb-3">
+                    <i className="bi bi-image me-2"></i>Ảnh đại diện
+                  </h6>
+                  <img 
+                    src={getFullAvatarUrl(selectedUser.avatarUrl)} 
+                    alt="Avatar" 
+                    className="rounded-circle border"
+                    style={{width: '150px', height: '150px', objectFit: 'cover'}}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDetailModal(false)}>
+            Đóng
+          </Button>
+          <Button variant="primary" onClick={() => {
+            setShowDetailModal(false);
+            openEditModal(selectedUser);
+          }}>
+            <i className="bi bi-pencil me-2"></i>
+            Chỉnh sửa
           </Button>
         </Modal.Footer>
       </Modal>

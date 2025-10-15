@@ -42,4 +42,7 @@ public class Article {
 
     @Column(columnDefinition = "NVARCHAR(20) DEFAULT 'ACTIVE'")
     private String status = "ACTIVE";
+
+    @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
+    private Integer likeCount = 0;
 }

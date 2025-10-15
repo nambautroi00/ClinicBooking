@@ -1,66 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import Cookies from "js-cookie";
-import doctorApi from "../../../api/doctorApi";
 
-const DoctorSidebar = () => {
+const DoctorSidebar = ({ doctorInfo, loading = false }) => {
   const location = useLocation();
-  const [doctorInfo, setDoctorInfo] = useState({
-    name: "Đang tải...",
-    department: "",
-    avatar: null,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const fetchDoctorInfo = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        // Lấy userId từ cookie
-        const userId = Cookies.get("userId");
-        console.log("userId from cookie:", userId);
-        if (!userId) {
-          setError("Không tìm thấy userId trong cookie");
-          setLoading(false);
-          return;
-        }
-
-        // Lấy doctorId từ userId (theo logic DoctorScheduleManagement.jsx)
-        const doctorRes = await doctorApi.getDoctorByUserId(userId);
-        let doctorData = doctorRes.data || doctorRes;
-        if (Array.isArray(doctorData)) doctorData = doctorData[0];
-        const doctorId = doctorData?.doctorId || doctorData?.id;
-        console.log("doctorId:", doctorId);
-        if (!doctorId) {
-          setError("Không tìm thấy doctorId từ userId");
-          setLoading(false);
-          return;
-        }
-
-        // doctorData đã chứa đầy đủ thông tin bác sĩ
-        setDoctorInfo({
-          name:
-            `${doctorData.user?.firstName || ""} ${
-              doctorData.user?.lastName || ""
-            }`.trim() || "Không xác định",
-          department: doctorData.department?.departmentName || "Chưa phân công",
-          avatar: doctorData.user?.avatarUrl || null,
-        });
-        setLoading(false);
-      } catch (err) {
-        setError("Lỗi khi lấy thông tin bác sĩ");
-        setDoctorInfo({
-          name: "Không xác định",
-          department: "Chưa phân công",
-          avatar: null,
-        });
-        setLoading(false);
-      }
-    };
-    fetchDoctorInfo();
-  }, []);
 
   const menuItems = [
     {
@@ -86,6 +28,12 @@ const DoctorSidebar = () => {
       icon: "bi-calendar-check",
       label: "Lịch hẹn bệnh nhân",
       description: "Danh sách lịch hẹn",
+    },
+    {
+      path: "/doctor/messages",
+      icon: "bi-chat-dots",
+      label: "Tin nhắn",
+      description: "Chat với bệnh nhân",
     },
     {
       path: "/doctor/medical-records",
@@ -145,15 +93,9 @@ const DoctorSidebar = () => {
                 <h6 className="mb-1">Đang tải...</h6>
                 <small className="text-muted">Bác sĩ</small>
               </>
-            ) : error ? (
-              <>
-                <h6 className="mb-1 text-danger">{error}</h6>
-                <small className="text-muted">Bác sĩ</small>
-              </>
             ) : (
               <>
                 <h6 className="mb-1">{doctorInfo.name}</h6>
-
                 <small className="text-muted">{doctorInfo.department}</small>
               </>
             )}

@@ -59,6 +59,16 @@ const articleApi = {
   // Reject article
   rejectArticle: (id) => {
     return axiosClient.put(`/articles/${id}/reject`);
+  },
+
+  // Like article
+  likeArticle: (id) => {
+    return axiosClient.post(`/articles/${id}/like`);
+  },
+
+  // Unlike article
+  unlikeArticle: (id) => {
+    return axiosClient.post(`/articles/${id}/unlike`);
   }
 };
 

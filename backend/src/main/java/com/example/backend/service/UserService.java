@@ -1,6 +1,7 @@
 package com.example.backend.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.PatientRepository;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.Patient;
+import com.example.backend.dto.UserWithPatientInfoDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -95,6 +97,18 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<User> getAllUsersWithRoleInfo() {
         return userRepository.findAllWithRoleInfo();
+    }
+
+    /**
+     * Lấy tất cả user với thông tin role và thông tin bệnh nhân (nếu có)
+     * @return danh sách user với thông tin đầy đủ
+     */
+    @Transactional(readOnly = true)
+    public List<UserWithPatientInfoDTO> getAllUsersWithPatientInfo() {
+        List<User> users = userRepository.findAllWithRoleInfo();
+        return users.stream()
+                .map(this::convertToUserWithPatientInfoDTO)
+                .toList();
     }
 
     /**
@@ -344,6 +358,82 @@ public class UserService {
         } catch (Exception e) {
             System.err.println("Lỗi khi tạo patient record: " + e.getMessage());
         }
+    }
+
+    /**
+     * Convert User entity thành UserWithPatientInfoDTO
+     * @param user User entity
+     * @return UserWithPatientInfoDTO
+     */
+    private UserWithPatientInfoDTO convertToUserWithPatientInfoDTO(User user) {
+        UserWithPatientInfoDTO dto = new UserWithPatientInfoDTO();
+        
+        // Copy thông tin cơ bản từ User
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setFirstName(user.getFirstName());
+        dto.setLastName(user.getLastName());
+        dto.setPhone(user.getPhone());
+        dto.setGender(user.getGender() != null ? user.getGender().name() : null);
+        dto.setDateOfBirth(user.getDateOfBirth());
+        dto.setAddress(user.getAddress());
+        dto.setAvatarUrl(user.getAvatarUrl());
+        dto.setCreatedAt(user.getCreatedAt());
+        dto.setStatus(user.getStatus() != null ? user.getStatus().name() : null);
+        
+        // Copy thông tin Role
+        if (user.getRole() != null) {
+            UserWithPatientInfoDTO.RoleDTO roleDTO = new UserWithPatientInfoDTO.RoleDTO();
+            roleDTO.setId(user.getRole().getId());
+            roleDTO.setName(user.getRole().getName());
+            roleDTO.setDescription(user.getRole().getDescription());
+            dto.setRole(roleDTO);
+        }
+        
+        // Nếu user là Patient, lấy thông tin bệnh nhân
+        if (user.getRole() != null && "PATIENT".equals(user.getRole().getName())) {
+            try {
+                Optional<Patient> patientOpt = patientRepository.findByPatientId(user.getId());
+                if (patientOpt.isPresent()) {
+                    Patient patient = patientOpt.get();
+                    dto.setHealthInsuranceNumber(patient.getHealthInsuranceNumber());
+                    dto.setMedicalHistory(patient.getMedicalHistory());
+                    dto.setPatientCreatedAt(patient.getCreatedAt());
+                    dto.setPatientStatus(patient.getStatus());
+                }
+            } catch (Exception e) {
+                // Nếu không tìm thấy thông tin patient, để null
+                System.err.println("Không tìm thấy thông tin patient cho user ID: " + user.getId());
+            }
+        }
+        
+        // Nếu user là Doctor, lấy thông tin bác sĩ
+        if (user.getRole() != null && "DOCTOR".equals(user.getRole().getName())) {
+            try {
+                Optional<Doctor> doctorOpt = doctorRepository.findByDoctorId(user.getId());
+                if (doctorOpt.isPresent()) {
+                    Doctor doctor = doctorOpt.get();
+                    dto.setBio(doctor.getBio());
+                    dto.setSpecialty(doctor.getSpecialty());
+                    dto.setDepartmentId(doctor.getDepartment() != null ? doctor.getDepartment().getId() : null);
+                    dto.setDepartmentName(doctor.getDepartment() != null ? doctor.getDepartment().getDepartmentName() : null);
+                    dto.setDoctorStatus(doctor.getStatus());
+                }
+            } catch (Exception e) {
+                // Nếu không tìm thấy thông tin doctor, để null
+                System.err.println("Không tìm thấy thông tin doctor cho user ID: " + user.getId());
+            }
+        }
+        
+        // Nếu user là Admin, lấy thông tin quản trị viên
+        if (user.getRole() != null && "ADMIN".equals(user.getRole().getName())) {
+            // Tạm thời set thông tin mặc định cho admin
+            dto.setAdminLevel("Super Admin");
+            dto.setAdminPermissions("Full Access");
+            dto.setAdminNotes("Quản trị viên hệ thống");
+        }
+        
+        return dto;
     }
 
     /**

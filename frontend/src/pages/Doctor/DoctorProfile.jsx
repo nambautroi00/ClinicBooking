@@ -70,38 +70,21 @@ const DoctorProfile = () => {
         return;
       }
 
-      // Fetch doctor info
-      console.log('Fetching doctor info for user ID:', currentUser.id);
-      let doctorResponse, userResponse;
+      // Fetch doctor and user info in parallel (faster!)
+      console.log('Fetching doctor and user info for user ID:', currentUser.id);
       
-      try {
-        doctorResponse = await doctorApi.getDoctorByUserId(currentUser.id);
-        console.log('Doctor response:', doctorResponse.data);
-      } catch (error) {
-        console.error('Error fetching doctor info:', error);
-        // Fallback: try with a known doctor user ID
-        console.log('Trying fallback with user ID 2...');
-        doctorResponse = await doctorApi.getDoctorByUserId(2);
-        console.log('Fallback doctor response:', doctorResponse.data);
-      }
+      const [doctorResponse, userResponse] = await Promise.all([
+        doctorApi.getDoctorByUserId(currentUser.id),
+        userApi.getUserById(currentUser.id),
+      ]);
+      
+      console.log('Doctor response:', doctorResponse.data);
+      console.log('User response:', userResponse.data);
       
       const doctorData = doctorResponse.data;
-      setDoctor(doctorData);
-
-      // Fetch user info
-      console.log('Fetching user info for user ID:', currentUser.id);
-      try {
-        userResponse = await userApi.getUserById(currentUser.id);
-        console.log('User response:', userResponse.data);
-      } catch (error) {
-        console.error('Error fetching user info:', error);
-        // Fallback: try with a known doctor user ID
-        console.log('Trying fallback with user ID 2...');
-        userResponse = await userApi.getUserById(2);
-        console.log('Fallback user response:', userResponse.data);
-      }
-      
       const userData = userResponse.data;
+      
+      setDoctor(doctorData);
       setUser(userData);
 
       // Set form data

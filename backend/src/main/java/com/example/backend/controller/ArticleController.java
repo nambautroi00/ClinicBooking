@@ -79,6 +79,18 @@ public class ArticleController {
         ArticleDTO.ResponseDTO restored = articleService.restoreArticle(id);
         return ResponseEntity.ok(restored);
     }
+
+    @PostMapping("/{id}/like")
+    public ResponseEntity<ArticleDTO.ResponseDTO> likeArticle(@PathVariable Long id) {
+        ArticleDTO.ResponseDTO updated = articleService.likeArticle(id);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/unlike")
+    public ResponseEntity<ArticleDTO.ResponseDTO> unlikeArticle(@PathVariable Long id) {
+        ArticleDTO.ResponseDTO updated = articleService.unlikeArticle(id);
+        return ResponseEntity.ok(updated);
+    }
 }
 
 
