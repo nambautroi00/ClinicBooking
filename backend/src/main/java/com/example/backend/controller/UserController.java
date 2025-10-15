@@ -13,6 +13,7 @@ import java.util.HashMap;
 
 import com.example.backend.model.User;
 import com.example.backend.service.UserService;
+import com.example.backend.dto.UserWithPatientInfoDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -82,6 +83,16 @@ public class UserController {
     @GetMapping("/with-roles-info")
     public ResponseEntity<List<User>> getAllUsersWithRoleInfo() {
         List<User> users = userService.getAllUsersWithRoleInfo();
+        return ResponseEntity.ok(users);
+    }
+
+    /**
+     * Lấy tất cả user với thông tin role và thông tin bệnh nhân (nếu có)
+     * GET /api/users/with-patient-info
+     */
+    @GetMapping("/with-patient-info")
+    public ResponseEntity<List<UserWithPatientInfoDTO>> getAllUsersWithPatientInfo() {
+        List<UserWithPatientInfoDTO> users = userService.getAllUsersWithPatientInfo();
         return ResponseEntity.ok(users);
     }
 

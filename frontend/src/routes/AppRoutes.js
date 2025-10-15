@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 // Common pages
 import Home from "../pages/Home/Home";
+import Articles from "../pages/Articles";
 import NotFound from "../pages/NotFound";
 
 // Auth
@@ -22,6 +23,8 @@ import DoctorScheduleManagement from "../pages/Doctor/DoctorScheduleManagement";
 import DoctorAppointmentList from "../pages/Doctor/DoctorAppointmentList";
 import DoctorProfile from "../pages/Doctor/DoctorProfile";
 import DoctorAvailableSlotManagement from "../pages/Doctor/DoctorAvailableSlotManagement";
+import DoctorPrescriptions from "../pages/Doctor/DoctorPrescriptions";
+import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
@@ -35,7 +38,6 @@ import TestAuth from "../pages/TestAuth";
 import AdminLayout from "../components/layout/admin-layout/AdminLayout";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 import UsersManagement from "../pages/Admin/UsersManagement";
-import DoctorsManagement from "../pages/Admin/DoctorsManagement";
 import DepartmentsManagement from "../pages/Admin/DepartmentsManagement";
 import MedicinesManagement from "../pages/Admin/MedicinesManagement";
 import PrescriptionsManagement from "../pages/Admin/PrescriptionsManagement";
@@ -50,6 +52,8 @@ const AppRoutes = () => {
     <Routes>
       {/* Public */}
       <Route path="/" element={<Home />} />
+      <Route path="/articles" element={<Articles />} />
+      <Route path="/articles/:id" element={<ArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/test-auth" element={<TestAuth />} />
 
@@ -92,6 +96,8 @@ const AppRoutes = () => {
           element={<DoctorAvailableSlotManagement />}
         />
         <Route path="appointments" element={<DoctorAppointmentList />} />
+        <Route path="prescriptions" element={<DoctorPrescriptions />} />
+        <Route path="prescriptions/new" element={<PrescriptionForm />} />
         <Route path="profile" element={<DoctorProfile />} />
       </Route>
 
@@ -107,8 +113,6 @@ const AppRoutes = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<UsersManagement />} />
         <Route path="users/:id" element={<UsersManagement />} />
-        <Route path="doctors" element={<DoctorsManagement />} />
-        <Route path="doctors/:id" element={<DoctorsManagement />} />
         <Route path="departments" element={<DepartmentsManagement />} />
         <Route path="medicines" element={<MedicinesManagement />} />
         <Route path="prescriptions" element={<PrescriptionsManagement />} />

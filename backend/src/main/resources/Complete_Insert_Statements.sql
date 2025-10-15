@@ -16,15 +16,58 @@ INSERT INTO Roles (Name, Description) VALUES
 -- ===========================================================
 -- 2. DEPARTMENTS (Khoa)
 -- ===========================================================
-INSERT INTO Departments (department_name, Description, Status) VALUES 
+-- Xóa các bản ghi liên quan trước
+DELETE FROM Appointments WHERE DoctorID IN (SELECT DoctorID FROM Doctors);
+DELETE FROM DoctorSchedules WHERE DoctorID IN (SELECT DoctorID FROM Doctors);
+DELETE FROM Doctors;
+DELETE FROM Departments;
+DBCC CHECKIDENT ('Departments', RESEED, 0);
+
+INSERT INTO Departments (DepartmentName, Description, Status) VALUES
+-- Nhóm Nội khoa
+(N'Nội tổng hợp', N'Khoa Nội tổng hợp - Khám và điều trị các bệnh lý nội khoa thường gặp', 'ACTIVE'),
 (N'Tim mạch', N'Khoa Tim mạch - Chuyên điều trị các bệnh về tim và mạch máu', 'ACTIVE'),
-(N'Thần kinh', N'Khoa Thần kinh - Chuyên điều trị các bệnh về thần kinh', 'ACTIVE'),
-(N'Chấn thương chỉnh hình', N'Khoa Chấn thương chỉnh hình - Chuyên điều trị các bệnh về xương khớp', 'ACTIVE'),
-(N'Nhi khoa', N'Khoa Nhi - Chuyên khám và điều trị cho trẻ em', 'ACTIVE'),
-(N'Nội tổng hợp', N'Khoa Nội tổng hợp - Khám và điều trị các bệnh nội khoa', 'ACTIVE'),
-(N'Da liễu', N'Khoa Da liễu - Chuyên điều trị các bệnh về da', 'ACTIVE'),
-(N'Mắt', N'Khoa Mắt - Chuyên điều trị các bệnh về mắt', 'ACTIVE'),
-(N'Tai mũi họng', N'Khoa Tai mũi họng - Chuyên điều trị các bệnh về tai mũi họng', 'ACTIVE');
+(N'Hô hấp', N'Khoa Hô hấp - Chuyên điều trị các bệnh lý phổi và đường hô hấp', 'ACTIVE'),
+(N'Tiêu hóa', N'Khoa Tiêu hóa - Chuyên điều trị các bệnh về dạ dày, gan, mật và ruột', 'ACTIVE'),
+(N'Thận - Tiết niệu', N'Khoa Thận - Tiết niệu - Điều trị bệnh thận và hệ tiết niệu', 'ACTIVE'),
+(N'Nội tiết', N'Khoa Nội tiết - Điều trị bệnh đái tháo đường, tuyến giáp và rối loạn chuyển hóa', 'ACTIVE'),
+(N'Thần kinh', N'Khoa Thần kinh - Điều trị các bệnh về thần kinh trung ương và ngoại biên', 'ACTIVE'),
+
+-- Nhóm Ngoại khoa
+(N'Ngoại tổng hợp', N'Khoa Ngoại tổng hợp - Thực hiện phẫu thuật các bệnh lý ngoại khoa', 'ACTIVE'),
+(N'Chấn thương chỉnh hình', N'Khoa Chấn thương chỉnh hình - Điều trị gãy xương, trật khớp và phẫu thuật chỉnh hình', 'ACTIVE'),
+(N'Ngoại thần kinh', N'Khoa Ngoại thần kinh - Phẫu thuật điều trị các bệnh lý hệ thần kinh', 'ACTIVE'),
+(N'Ngoại tiêu hóa', N'Khoa Ngoại tiêu hóa - Phẫu thuật các bệnh dạ dày, ruột, gan, mật', 'ACTIVE'),
+(N'Ngoại lồng ngực', N'Khoa Ngoại lồng ngực - Phẫu thuật tim, phổi và mạch máu lớn', 'ACTIVE'),
+
+-- Nhóm Sản - Nhi - Phụ
+(N'Sản phụ khoa', N'Khoa Sản phụ khoa - Chăm sóc sức khỏe sinh sản và thai sản', 'ACTIVE'),
+(N'Nhi khoa', N'Khoa Nhi - Khám và điều trị cho trẻ em', 'ACTIVE'),
+
+-- Nhóm Cận lâm sàng
+(N'Chẩn đoán hình ảnh', N'Khoa Chẩn đoán hình ảnh - Siêu âm, X-quang, CT, MRI', 'ACTIVE'),
+(N'Xét nghiệm', N'Khoa Xét nghiệm - Thực hiện các xét nghiệm máu, nước tiểu, sinh hóa', 'ACTIVE'),
+(N'Giải phẫu bệnh', N'Khoa Giải phẫu bệnh - Phân tích mô bệnh học và tế bào học', 'ACTIVE'),
+
+-- Nhóm Khám chuyên khoa sâu
+(N'Da liễu', N'Khoa Da liễu - Điều trị các bệnh về da, tóc và móng', 'ACTIVE'),
+(N'Tai - Mũi - Họng', N'Khoa Tai - Mũi - Họng - Khám và điều trị các bệnh đường hô hấp trên', 'ACTIVE'),
+(N'Răng - Hàm - Mặt', N'Khoa Răng - Hàm - Mặt - Khám và điều trị răng miệng', 'ACTIVE'),
+(N'Mắt', N'Khoa Mắt - Khám và điều trị bệnh lý về mắt', 'ACTIVE'),
+(N'Cơ - Xương - Khớp', N'Khoa Cơ - Xương - Khớp - Điều trị thoái hóa khớp, viêm khớp, loãng xương', 'ACTIVE'),
+(N'Ung bướu', N'Khoa Ung bướu - Điều trị ung thư và các khối u ác tính', 'ACTIVE'),
+
+-- Nhóm Hỗ trợ điều trị
+(N'Phục hồi chức năng', N'Khoa Phục hồi chức năng - Tập vật lý trị liệu, phục hồi sau phẫu thuật', 'ACTIVE'),
+(N'Dinh dưỡng', N'Khoa Dinh dưỡng - Tư vấn và xây dựng chế độ ăn cho bệnh nhân', 'ACTIVE'),
+(N'Tâm lý - Tâm thần', N'Khoa Tâm lý - Tâm thần - Hỗ trợ điều trị rối loạn tâm lý và tâm thần', 'ACTIVE'),
+
+-- Nhóm Quản lý & Hành chính
+(N'Cấp cứu', N'Khoa Cấp cứu - Tiếp nhận và xử lý bệnh nhân cấp cứu 24/7', 'ACTIVE'),
+(N'Kiểm soát nhiễm khuẩn', N'Khoa Kiểm soát nhiễm khuẩn - Đảm bảo vệ sinh và an toàn trong bệnh viện', 'ACTIVE'),
+(N'Dược', N'Khoa Dược - Quản lý thuốc và vật tư y tế', 'ACTIVE'),
+(N'Hành chính', N'Phòng Hành chính - Quản lý hồ sơ, nhân sự và hành chính bệnh viện', 'ACTIVE');
+
 
 -- ===========================================================
 -- 3. USERS (Người dùng)

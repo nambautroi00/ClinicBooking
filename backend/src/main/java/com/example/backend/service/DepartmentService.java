@@ -73,9 +73,16 @@ public class DepartmentService {
 
     public void deleteDepartment(Long id) {
         Department department = findDepartmentById(id);
-        // Soft delete - chỉ thay đổi status
-        department.setStatus(Department.DepartmentStatus.INACTIVE);
+        // Soft delete - chuyển sang trạng thái CLOSED
+        department.setStatus(Department.DepartmentStatus.CLOSED);
         departmentRepository.save(department);
+    }
+
+    public DepartmentDTO.Response changeStatus(Long id, Department.DepartmentStatus newStatus) {
+        Department department = findDepartmentById(id);
+        department.setStatus(newStatus);
+        Department updatedDepartment = departmentRepository.save(department);
+        return departmentMapper.entityToResponseDTO(updatedDepartment);
     }
 
     public void hardDeleteDepartment(Long id) {
@@ -86,8 +93,23 @@ public class DepartmentService {
     }
 
     @Transactional(readOnly = true)
+    public DepartmentDTO.Statistics getDepartmentStatistics() {
+        long total = departmentRepository.count();
+        long active = departmentRepository.countByStatus(Department.DepartmentStatus.ACTIVE);
+        long inactive = departmentRepository.countByStatus(Department.DepartmentStatus.INACTIVE);
+        long maintenance = departmentRepository.countByStatus(Department.DepartmentStatus.MAINTENANCE);
+        long closed = departmentRepository.countByStatus(Department.DepartmentStatus.CLOSED);
+        long withDoctors = departmentRepository.countDepartmentsWithDoctors();
+        long withoutDoctors = total - withDoctors;
+
+        return new DepartmentDTO.Statistics(
+            total, active, inactive, maintenance, closed, withDoctors, withoutDoctors
+        );
+    }
+
+    @Transactional(readOnly = true)
     public long getActiveDepartmentCount() {
-        return departmentRepository.countActiveDepartments();
+        return departmentRepository.countByStatus(Department.DepartmentStatus.ACTIVE);
     }
 
     // Helper Methods

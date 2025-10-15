@@ -30,5 +30,9 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     );
 
     @Query("SELECT COUNT(d) FROM Department d WHERE d.status = 'ACTIVE'")
-    long countActiveDepartments();
+    long countByStatus(Department.DepartmentStatus status);
+
+    @Query("SELECT COUNT(d) FROM Department d WHERE d.id IN " +
+           "(SELECT DISTINCT doc.department.id FROM Doctor doc)")
+    long countDepartmentsWithDoctors();
 }

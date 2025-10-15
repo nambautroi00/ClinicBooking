@@ -161,6 +161,7 @@ export default function Header() {
     { label: "Cơ sở y tế", href: "#facilities" },
     { label: "Chuyên khoa", href: "#specialties" },
     { label: "Bác sĩ", href: "#doctors" },
+    { label: "Bài viết", href: "/articles" },
     { label: "Đặt lịch", href: "#booking" },
   ];
 
@@ -227,9 +228,15 @@ export default function Header() {
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-6">
               {menuItems.map((item) => (
-                <a key={item.label} href={item.href} className="text-sm font-medium text-gray-700 hover:text-[#0d6efd]">
-                  {item.label}
-                </a>
+                item.href.startsWith('/') ? (
+                  <Link key={item.label} to={item.href} className="text-sm font-medium text-gray-700 hover:text-[#0d6efd]">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <a key={item.label} href={item.href} className="text-sm font-medium text-gray-700 hover:text-[#0d6efd]">
+                    {item.label}
+                  </a>
+                )
               ))}
             </nav>
             {/* If user is logged in show name + logout, otherwise show login button */}
@@ -281,9 +288,15 @@ export default function Header() {
         {mobileMenuOpen && (
           <nav className="md:hidden border-t py-4 space-y-3">
             {menuItems.map((item) => (
-              <a key={item.label} href={item.href} className="block text-sm font-medium text-gray-700 hover:text-[#0d6efd]" onClick={() => setMobileMenuOpen(false)}>
-                {item.label}
-              </a>
+              item.href.startsWith('/') ? (
+                <Link key={item.label} to={item.href} className="block text-sm font-medium text-gray-700 hover:text-[#0d6efd]" onClick={() => setMobileMenuOpen(false)}>
+                  {item.label}
+                </Link>
+              ) : (
+                <a key={item.label} href={item.href} className="block text-sm font-medium text-gray-700 hover:text-[#0d6efd]" onClick={() => setMobileMenuOpen(false)}>
+                  {item.label}
+                </a>
+              )
             ))}
             <Link to="/login" className="w-full inline-block rounded-md bg-[#0d6efd] px-3 py-1 text-white text-center">Đăng nhập</Link>
           </nav>

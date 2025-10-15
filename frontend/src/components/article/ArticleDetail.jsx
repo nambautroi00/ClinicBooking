@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Calendar, User, Heart, Eye, Clock } from 'lucide-react';
 import articleApi from '../../api/articleApi';
 
 const ArticleDetail = () => {
@@ -31,13 +32,30 @@ const ArticleDetail = () => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+      if (diffInMinutes < 1) {
+        return 'Vừa xong';
+      }
+      return `${diffInMinutes} phút trước`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} giờ trước`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays < 7) {
+        return `${diffInDays} ngày trước`;
+      } else {
+        return date.toLocaleDateString('vi-VN', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+    }
   };
 
   const getImageUrl = (imageUrl) => {
@@ -78,15 +96,10 @@ const ArticleDetail = () => {
 
   if (loading) {
     return (
-      <div className="container mt-4">
-        <div className="row justify-content-center">
-          <div className="col-md-8">
-            <div className="text-center">
-              <div className="spinner-border" role="status">
-                <span className="visually-hidden">Đang tải...</span>
-              </div>
-              <p className="mt-2">Đang tải bài viết...</p>
-            </div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
         </div>
       </div>
@@ -95,18 +108,19 @@ const ArticleDetail = () => {
 
   if (error || !article) {
     return (
-      <div className="container mt-4">
-        <div className="row justify-content-center">
-          <div className="col-md-8">
-            <div className="alert alert-danger text-center">
-              <h4>Không tìm thấy bài viết</h4>
-              <p>{error || 'Bài viết không tồn tại hoặc đã bị xóa.'}</p>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => navigate('/admin/articles')}
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="bg-white rounded-lg shadow-md p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Không tìm thấy bài viết</h2>
+              <p className="text-gray-600 mb-6">{error || 'Bài viết không tồn tại hoặc đã bị xóa.'}</p>
+              <Link 
+                to="/articles"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                Quay lại danh sách
-              </button>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Quay lại danh sách bài viết
+              </Link>
             </div>
           </div>
         </div>
@@ -115,180 +129,186 @@ const ArticleDetail = () => {
   }
 
   return (
-    <div className="container mt-4">
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          <nav aria-label="breadcrumb" className="mb-4">
-            <ol className="breadcrumb">
-              <li className="breadcrumb-item">
-                <button 
-                  className="btn btn-link p-0 text-decoration-none" 
-                  onClick={() => navigate('/admin/articles')}
-                >
-                  Quản lý bài viết
-                </button>
-              </li>
-              <li className="breadcrumb-item active" aria-current="page">
-                Chi tiết bài viết
-              </li>
-            </ol>
+    <div className="min-h-screen bg-gray-50">
+      {/* Breadcrumb */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-4">
+          <nav className="flex items-center space-x-2 text-sm">
+            <Link to="/articles" className="text-blue-600 hover:text-blue-700">
+              Bài viết
+            </Link>
+            <span className="text-gray-400">/</span>
+            <span className="text-gray-600">Chi tiết bài viết</span>
           </nav>
+        </div>
+      </div>
 
-          <div className="card shadow-sm">
-            <div className="card-body p-4">
-              <div className="mb-4">
-                <div className="d-flex align-items-center mb-2">
-                  <div className="me-3">
-                    <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
-                         style={{ width: '40px', height: '40px', fontSize: '14px', fontWeight: 'bold' }}>
-                      {article.author?.firstName?.charAt(0)}{article.author?.lastName?.charAt(0)}
-                    </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Back Button */}
+          <div className="mb-6">
+            <Link 
+              to="/articles"
+              className="inline-flex items-center text-blue-600 hover:text-blue-700"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Quay lại danh sách bài viết
+            </Link>
+          </div>
+
+          {/* Article Content */}
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            {/* Article Header */}
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="flex items-center space-x-3">
+                  {article.author?.avatarUrl ? (
+                    <img
+                      src={article.author.avatarUrl}
+                      alt={`${article.author.firstName} ${article.author.lastName}`}
+                      className="w-10 h-10 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
+                    {article.author?.firstName?.charAt(0)}{article.author?.lastName?.charAt(0)}
                   </div>
                   <div>
-                    <div className="fw-semibold text-dark">
+                    <div className="font-semibold text-gray-900">
                       {article.author?.firstName} {article.author?.lastName}
                     </div>
-                    <small className="text-muted">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Calendar className="h-4 w-4 mr-1" />
                       {formatDate(article.createdAt)}
-                    </small>
-                  </div>
-                  <div className="ms-auto">
-                    <span className={`badge ${article.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'}`}>
-                      {article.status === 'ACTIVE' ? 'Đã xuất bản' : 'Lưu trữ'}
-                    </span>
+                    </div>
                   </div>
                 </div>
-
-                <h1 className="card-title mt-2" style={{ 
-                  fontSize: '2rem', 
-                  fontWeight: 'bold',
-                  color: '#2c3e50',
-                  lineHeight: '1.3'
-                }}>
-                  {article.title}
-                </h1>
+                <div className="ml-auto">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    article.status === 'PUBLISHED' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {article.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Lưu trữ'}
+                  </span>
+                </div>
               </div>
 
-              <div className="article-content" style={{ 
-                fontSize: '1.1rem', 
-                lineHeight: '1.8',
-                color: '#34495e'
-              }}>
-                <div style={{ whiteSpace: 'pre-wrap' }}>
+              <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-6">
+                {article.title}
+              </h1>
+
+              {/* Article Content ngay dưới title */}
+              <div className="prose prose-lg max-w-none">
+                <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-base">
                   {article.content}
                 </div>
               </div>
+            </div>
 
-              {getImageUrl(article.imageUrl) && (
-                <div className="mt-4">
+            {/* Article Image */}
+            {getImageUrl(article.imageUrl) && (
+              <div className="px-6 pb-6">
+                <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
                   <img 
                     src={getImageUrl(article.imageUrl)} 
                     alt={article.title}
-                    className="img-fluid rounded"
-                    style={{ 
-                      width: '100%', 
-                      maxHeight: '500px',
-                      objectFit: 'cover',
-                      objectPosition: 'center'
-                    }}
+                    className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.style.display = 'none';
                     }}
                   />
                 </div>
-              )}
+              </div>
+            )}
 
-              <div className="mt-4 pt-3 border-top">
-                <div className="d-flex justify-content-between align-items-center">
-                  <button 
-                    className="btn btn-outline-secondary"
-                    onClick={() => navigate('/admin/articles')}
-                  >
-                    <i className="bi bi-arrow-left me-2"></i>
-                    Quay lại danh sách
-                  </button>
-                  
-                  <div className="d-flex align-items-center gap-3">
-                    <div className="d-flex align-items-center">
-                      <i className="bi bi-heart-fill text-danger me-1"></i>
-                      <span className="fw-semibold">{article.likeCount || 0}</span>
-                      <span className="text-muted ms-1">likes</span>
-                    </div>
-                    
-                    <div className="btn-group" role="group">
-                      <button 
-                        className="btn btn-outline-danger"
-                        onClick={handleLike}
-                        disabled={isLiking}
-                        title="Like bài viết"
-                      >
-                        {isLiking ? (
-                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                        ) : (
-                          <i className="bi bi-heart me-1"></i>
-                        )}
-                        Like
-                      </button>
-                      <button 
-                        className="btn btn-outline-secondary"
-                        onClick={handleUnlike}
-                        disabled={isLiking}
-                        title="Unlike bài viết"
-                      >
-                        {isLiking ? (
-                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                        ) : (
-                          <i className="bi bi-heart-break me-1"></i>
-                        )}
-                        Unlike
-                      </button>
-                    </div>
+            {/* Article Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6 text-sm text-gray-500">
+                  <div className="flex items-center">
+                    <Heart className="h-4 w-4 mr-1" />
+                    <span>{article.likeCount || 0} lượt thích</span>
                   </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <button 
+                    className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
+                    onClick={handleLike}
+                    disabled={isLiking}
+                  >
+                    {isLiking ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
+                    ) : (
+                      <Heart className="h-4 w-4 mr-1" />
+                    )}
+                    Like
+                  </button>
+                  <button 
+                    className="flex items-center px-3 py-1 text-sm border border-gray-200 text-gray-600 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                    onClick={handleUnlike}
+                    disabled={isLiking}
+                  >
+                    {isLiking ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
+                    ) : (
+                      <Heart className="h-4 w-4 mr-1" />
+                    )}
+                    Unlike
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="row mt-4">
-            <div className="col-md-6">
-              <div className="card">
-                <div className="card-body">
-                  <h6 className="card-title">
-                    <i className="bi bi-info-circle me-2"></i>
-                    Thông tin bài viết
-                  </h6>
-                  <ul className="list-unstyled mb-0">
-                    <li><strong>ID:</strong> {article.articleId}</li>
-                    <li><strong>Tác giả:</strong> {article.author?.firstName} {article.author?.lastName}</li>
-                    <li><strong>Email:</strong> {article.author?.email}</li>
-                    <li><strong>Ngày tạo:</strong> {formatDate(article.createdAt)}</li>
-                    <li><strong>Trạng thái:</strong> {article.status}</li>
-                    <li><strong>Lượt thích:</strong> {article.likeCount || 0}</li>
-                  </ul>
+          {/* Article Info Sidebar */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông tin bài viết</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">ID:</span>
+                  <span className="font-medium">{article.articleId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tác giả:</span>
+                  <span className="font-medium">{article.author?.firstName} {article.author?.lastName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Email:</span>
+                  <span className="font-medium">{article.author?.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Ngày tạo:</span>
+                  <span className="font-medium">{formatDate(article.createdAt)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Trạng thái:</span>
+                  <span className="font-medium">{article.status}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Lượt thích:</span>
+                  <span className="font-medium">{article.likeCount || 0}</span>
                 </div>
               </div>
             </div>
 
             {getImageUrl(article.imageUrl) && (
-              <div className="col-md-6">
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="card-title">
-                      <i className="bi bi-image me-2"></i>
-                      Hình ảnh bài viết
-                    </h6>
-                    <div className="text-center">
-                      <img 
-                        src={getImageUrl(article.imageUrl)} 
-                        alt={article.title}
-                        className="img-fluid rounded"
-                        style={{ maxHeight: '200px' }}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  </div>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Hình ảnh bài viết</h3>
+                <div className="text-center">
+                  <img 
+                    src={getImageUrl(article.imageUrl)} 
+                    alt={article.title}
+                    className="w-full max-h-48 object-cover rounded-md"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
                 </div>
               </div>
             )}

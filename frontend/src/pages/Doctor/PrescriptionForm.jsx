@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { Card, Container, Row, Col, Button, Form, Badge, Alert, Modal } from "react-bootstrap";
-import { Pill, Plus, User, Calendar, Search } from "lucide-react";
+import { Card, Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
+import { Pill, Plus, User, Search, ArrowLeft, Save } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { prescriptionApi, medicineApi } from "../../api/prescriptionApi";
+import patientApi from "../../api/patientApi";
 
 const PrescriptionForm = () => {
+  const navigate = useNavigate();
   const [medicines, setMedicines] = useState([]);
+  const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  
+
   // Form state for new prescription
   const [formData, setFormData] = useState({
     patientId: '',
+    patientName: '',
     diagnosis: '',
     medicines: []
   });
@@ -27,7 +31,66 @@ const PrescriptionForm = () => {
 
   useEffect(() => {
     loadMedicines();
+    loadPatients();
   }, []);
+
+  const loadPatients = async () => {
+    try {
+      console.log('🔍 Đang tải danh sách bệnh nhân...');
+      
+      const patientsRes = await patientApi.getAllPatients();
+      
+      const patientsData = patientsRes.data.map(patient => ({
+        id: patient.id,
+        patientId: patient.patientId,
+        name: patient.user?.lastName + " " + patient.user?.firstName || 
+              patient.lastName + " " + patient.firstName || 
+              "Không rõ",
+        phone: patient.user?.phone || "",
+        email: patient.user?.email || "",
+        address: patient.user?.address || "",
+        healthInsuranceNumber: patient.healthInsuranceNumber || ""
+      }));
+
+      console.log('✅ Đã tải danh sách bệnh nhân:', patientsData);
+      setPatients(patientsData);
+    } catch (error) {
+      console.error('❌ Lỗi khi tải danh sách bệnh nhân:', error);
+      console.warn('PrescriptionForm: backend unavailable for patients, using mock data.');
+      
+      const mockPatients = [
+        {
+          id: 1,
+          patientId: "BN001",
+          name: "Nguyễn Văn An",
+          phone: "0901234567",
+          email: "nguyenvanan@email.com",
+          address: "123 Đường ABC, Q1, TP.HCM",
+          healthInsuranceNumber: "DN1234567890"
+        },
+        {
+          id: 2,
+          patientId: "BN002", 
+          name: "Trần Thị Bình",
+          phone: "0912345678",
+          email: "tranthibinh@email.com",
+          address: "456 Đường XYZ, Q3, TP.HCM",
+          healthInsuranceNumber: "DN0987654321"
+        },
+        {
+          id: 3,
+          patientId: "BN003",
+          name: "Lê Minh Cường",
+          phone: "0923456789", 
+          email: "leminhcuong@email.com",
+          address: "789 Đường DEF, Q5, TP.HCM",
+          healthInsuranceNumber: "DN1122334455"
+        }
+      ];
+      
+      setPatients(mockPatients);
+    }
+  };
 
   const loadMedicines = async () => {
     try {
@@ -51,8 +114,42 @@ const PrescriptionForm = () => {
       setMedicines(medicinesData);
     } catch (error) {
       console.error('❌ Lỗi khi tải danh sách thuốc:', error);
-      // Fallback to mock data
-      loadMockMedicines();
+      console.warn('PrescriptionForm: backend unavailable for medicines, using mock data.');
+      
+      const mockMedicines = [
+        {
+          id: 1,
+          medicineId: "TH001",
+          name: "Amoxicillin 500mg",
+          strength: "500mg",
+          category: "Kháng sinh",
+          price: 10000,
+          unit: "viên",
+          description: "Kháng sinh phổ rộng điều trị nhiễm khuẩn"
+        },
+        {
+          id: 2,
+          medicineId: "TH002", 
+          name: "Paracetamol 500mg",
+          strength: "500mg",
+          category: "Giảm đau, hạ sốt",
+          price: 5000,
+          unit: "viên",
+          description: "Thuốc giảm đau, hạ sốt"
+        },
+        {
+          id: 3,
+          medicineId: "TH003",
+          name: "Omeprazole 20mg", 
+          strength: "20mg",
+          category: "Tiêu hóa",
+          price: 15000,
+          unit: "viên",
+          description: "Ức chế bơm proton điều trị loét dạ dày"
+        }
+      ];
+      
+      setMedicines(mockMedicines);
     } finally {
       setLoading(false);
     }
@@ -101,6 +198,17 @@ const PrescriptionForm = () => {
     (medicine.medicineId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (medicine.category || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleSelectPatient = (patientId) => {
+    const patient = patients.find(p => p.patientId === patientId);
+    if (patient) {
+      setFormData(prev => ({
+        ...prev,
+        patientId: patient.patientId,
+        patientName: patient.name
+      }));
+    }
+  };
 
   const handleAddMedicine = () => {
     if (!currentMedicine.medicineId || !currentMedicine.quantity || !currentMedicine.dosage) {
@@ -177,13 +285,7 @@ const PrescriptionForm = () => {
       console.log('✅ Đã lưu đơn thuốc:', response);
       
       alert('Đã lưu đơn thuốc thành công!');
-      
-      // Reset form
-      setFormData({
-        patientId: '',
-        diagnosis: '',
-        medicines: []
-      });
+      navigate('/doctor/prescriptions');
       
     } catch (error) {
       console.error('❌ Lỗi khi lưu đơn thuốc:', error);
@@ -196,26 +298,32 @@ const PrescriptionForm = () => {
       {/* Header */}
       <Row className="mb-4">
         <Col>
-          <Card className="shadow-sm">
-            <Card.Body>
+          <Card>
+            <Card.Header>
               <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h2 className="text-primary mb-1">
-                    <Pill className="me-2" size={32} />
-                    Kê Đơn Thuốc
-                  </h2>
-                  <p className="text-muted mb-0">Tạo đơn thuốc cho bệnh nhân</p>
+                  <div className="d-flex align-items-center mb-2">
+                    <Link to="/doctor/prescriptions" className="btn btn-outline-secondary me-3">
+                      <ArrowLeft size={18} className="me-1" />
+                      Quay lại
+                    </Link>
+                    <h4 className="mb-0">
+                      <Pill className="me-2" size={24} />
+                      Kê Đơn Thuốc Mới
+                    </h4>
+                  </div>
+                  <small className="text-muted">Tạo đơn thuốc cho bệnh nhân</small>
                 </div>
                 <Button 
                   variant="success" 
                   onClick={handleSavePrescription}
-                  disabled={formData.medicines.length === 0}
+                  disabled={formData.medicines.length === 0 || !formData.patientId || !formData.diagnosis}
                 >
-                  <Plus className="me-2" size={18} />
+                  <Save className="me-2" size={18} />
                   Lưu Đơn Thuốc
                 </Button>
               </div>
-            </Card.Body>
+            </Card.Header>
           </Card>
         </Col>
       </Row>
@@ -223,24 +331,29 @@ const PrescriptionForm = () => {
       <Row>
         <Col md={7}>
           {/* Prescription Form */}
-          <Card className="shadow-sm mb-4">
+          <Card className="mb-4">
             <Card.Header>
-              <h5 className="mb-0">
+              <h6 className="mb-0">
                 <User className="me-2" size={18} />
                 Thông Tin Đơn Thuốc
-              </h5>
+              </h6>
             </Card.Header>
             <Card.Body>
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Mã bệnh nhân *</Form.Label>
-                    <Form.Control 
-                      type="text" 
-                      placeholder="Nhập mã bệnh nhân"
+                    <Form.Label>Bệnh nhân *</Form.Label>
+                    <Form.Select
                       value={formData.patientId}
-                      onChange={(e) => setFormData(prev => ({...prev, patientId: e.target.value}))}
-                    />
+                      onChange={(e) => handleSelectPatient(e.target.value)}
+                    >
+                      <option value="">Chọn bệnh nhân</option>
+                      {patients.map(patient => (
+                        <option key={patient.id} value={patient.patientId}>
+                          {patient.name} - {patient.patientId}
+                        </option>
+                      ))}
+                    </Form.Select>
                   </Form.Group>
                 </Col>
                 <Col md={6}>
@@ -259,7 +372,7 @@ const PrescriptionForm = () => {
           </Card>
 
           {/* Add Medicine */}
-          <Card className="shadow-sm mb-4">
+          <Card className="mb-4">
             <Card.Header>
               <h6 className="mb-0">Thêm thuốc vào đơn</h6>
             </Card.Header>
@@ -343,7 +456,7 @@ const PrescriptionForm = () => {
 
         <Col md={5}>
           {/* Medicine Search */}
-          <Card className="shadow-sm mb-4">
+          <Card className="mb-4">
             <Card.Header>
               <h6 className="mb-0">Tìm kiếm thuốc</h6>
             </Card.Header>
@@ -394,10 +507,9 @@ const PrescriptionForm = () => {
           </Card>
 
           {/* Current Prescription */}
-          <Card className="shadow-sm">
+          <Card>
             <Card.Header>
               <h6 className="mb-0">
-                <Calendar className="me-2" size={18} />
                 Đơn thuốc hiện tại ({formData.medicines.length} thuốc)
               </h6>
             </Card.Header>
