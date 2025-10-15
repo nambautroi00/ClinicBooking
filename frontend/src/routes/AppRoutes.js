@@ -9,6 +9,8 @@ import NotFound from "../pages/NotFound";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import VerifyOtp from "../pages/Auth/VerifyOtp";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import ResetPassword from "../pages/Auth/ResetPassword";
 
 // Components / Guards
 //import RoleProtectedRoute from "../components/auth/RoleProtectedRoute";
@@ -55,6 +57,8 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Patient */}
       <Route

@@ -8,6 +8,7 @@ const ArticleDetail = () => {
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isLiking, setIsLiking] = useState(false);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -43,6 +44,36 @@ const ArticleDetail = () => {
     if (!imageUrl) return null;
     if (imageUrl.startsWith('http')) return imageUrl;
     return `http://localhost:8080${imageUrl}`;
+  };
+
+  const handleLike = async () => {
+    if (isLiking) return;
+    
+    try {
+      setIsLiking(true);
+      const response = await articleApi.likeArticle(id);
+      setArticle(response.data);
+    } catch (err) {
+      console.error('Error liking article:', err);
+      alert('Lỗi khi like bài viết: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  const handleUnlike = async () => {
+    if (isLiking) return;
+    
+    try {
+      setIsLiking(true);
+      const response = await articleApi.unlikeArticle(id);
+      setArticle(response.data);
+    } catch (err) {
+      console.error('Error unliking article:', err);
+      alert('Lỗi khi unlike bài viết: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsLiking(false);
+    }
   };
 
   if (loading) {
@@ -168,7 +199,7 @@ const ArticleDetail = () => {
               )}
 
               <div className="mt-4 pt-3 border-top">
-                <div className="d-flex justify-content-start">
+                <div className="d-flex justify-content-between align-items-center">
                   <button 
                     className="btn btn-outline-secondary"
                     onClick={() => navigate('/admin/articles')}
@@ -176,6 +207,43 @@ const ArticleDetail = () => {
                     <i className="bi bi-arrow-left me-2"></i>
                     Quay lại danh sách
                   </button>
+                  
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="d-flex align-items-center">
+                      <i className="bi bi-heart-fill text-danger me-1"></i>
+                      <span className="fw-semibold">{article.likeCount || 0}</span>
+                      <span className="text-muted ms-1">likes</span>
+                    </div>
+                    
+                    <div className="btn-group" role="group">
+                      <button 
+                        className="btn btn-outline-danger"
+                        onClick={handleLike}
+                        disabled={isLiking}
+                        title="Like bài viết"
+                      >
+                        {isLiking ? (
+                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                        ) : (
+                          <i className="bi bi-heart me-1"></i>
+                        )}
+                        Like
+                      </button>
+                      <button 
+                        className="btn btn-outline-secondary"
+                        onClick={handleUnlike}
+                        disabled={isLiking}
+                        title="Unlike bài viết"
+                      >
+                        {isLiking ? (
+                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                        ) : (
+                          <i className="bi bi-heart-break me-1"></i>
+                        )}
+                        Unlike
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -195,6 +263,7 @@ const ArticleDetail = () => {
                     <li><strong>Email:</strong> {article.author?.email}</li>
                     <li><strong>Ngày tạo:</strong> {formatDate(article.createdAt)}</li>
                     <li><strong>Trạng thái:</strong> {article.status}</li>
+                    <li><strong>Lượt thích:</strong> {article.likeCount || 0}</li>
                   </ul>
                 </div>
               </div>

@@ -36,6 +36,7 @@ public class ArticleMapper {
         dto.setImageUrl(article.getImageUrl());
         dto.setCreatedAt(article.getCreatedAt());
         dto.setStatus(article.getStatus());
+        dto.setLikeCount(article.getLikeCount());
 
         if (article.getAuthor() != null) {
             UserDTO.Response authorDTO = userMapper.entityToResponseDTO(article.getAuthor());

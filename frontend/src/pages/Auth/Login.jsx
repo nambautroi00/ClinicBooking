@@ -6,33 +6,61 @@ import { useEffect } from 'react';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Load saved credentials if remember me was checked
   useEffect(() => {
-    // Load Google Identity Services script
-    const existing = document.getElementById('google-client-script');
-    if (!existing) {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.id = 'google-client-script';
-      script.async = true;
-      document.body.appendChild(script);
-      script.onload = () => {
-        /* global google */
-        if (window.google) {
-          window.google.accounts.id.initialize({
-            client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || '431674926667-5l2r6pp7vqre0mkv6ujuj1oj2j2q7kfl.apps.googleusercontent.com',
-            callback: handleGoogleCallback
-          });
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedPassword = localStorage.getItem('rememberedPassword');
+    if (savedEmail && savedPassword) {
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Load Google Identity Services script and initialize
+    const initializeGoogle = () => {
+      const existing = document.getElementById('google-client-script');
+      if (!existing) {
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.id = 'google-client-script';
+        script.async = true;
+        document.body.appendChild(script);
+        script.onload = () => {
+          renderGoogleButton();
+        };
+      } else {
+        // Script already exists, just render button
+        renderGoogleButton();
+      }
+    };
+
+    const renderGoogleButton = () => {
+      /* global google */
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || '431674926667-5l2r6pp7vqre0mkv6ujuj1oj2j2q7kfl.apps.googleusercontent.com',
+          callback: handleGoogleCallback
+        });
+        const buttonDiv = document.getElementById('googleSignInDiv');
+        if (buttonDiv) {
+          // Clear any existing content
+          buttonDiv.innerHTML = '';
           window.google.accounts.id.renderButton(
-            document.getElementById('googleSignInDiv'),
+            buttonDiv,
             { theme: 'outline', size: 'large' }
           );
         }
-      };
-    }
+      }
+    };
+
+    initializeGoogle();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -43,6 +71,14 @@ export default function Login() {
       const res = await axiosClient.post('/auth/login', { email, password });
       const data = res.data;
       if (data.success) {
+        // Save or clear remember me credentials
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', email);
+          localStorage.setItem('rememberedPassword', password);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+          localStorage.removeItem('rememberedPassword');
+        }
         // Save token and user to localStorage
         if (data.token) localStorage.setItem('token', data.token);
         if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
@@ -122,6 +158,24 @@ export default function Login() {
               required
               className="w-full rounded-md border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
             />
+          </div>
+
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="mr-2 h-4 w-4 rounded border-gray-300 text-[#0d6efd] focus:ring-2 focus:ring-[#cfe9ff]"
+              />
+              <label htmlFor="rememberMe" className="text-sm text-gray-700 cursor-pointer">
+                Ghi nhớ đăng nhập
+              </label>
+            </div>
+            <a href="/forgot-password" className="text-sm text-[#0d6efd] hover:underline">
+              Quên mật khẩu?
+            </a>
           </div>
 
           <div className="flex items-center justify-between">

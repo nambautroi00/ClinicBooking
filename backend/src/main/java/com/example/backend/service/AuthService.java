@@ -236,4 +236,22 @@ public class AuthService {
             return new AuthDTO.LoginResponse("Đăng nhập OAuth thất bại: " + e.getMessage(), false, null, null);
         }
     }
+
+    public AuthDTO.ResetPasswordResponse resetPassword(String email, String otp, String newPassword) {
+        try {
+            // Find user by email
+            User user = userRepository.findByEmailWithRole(email)
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng với email: " + email));
+
+            // Hash and update password
+            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            userRepository.save(user);
+
+            return new AuthDTO.ResetPasswordResponse("Đặt lại mật khẩu thành công", true);
+        } catch (NotFoundException e) {
+            return new AuthDTO.ResetPasswordResponse("Không tìm thấy người dùng", false);
+        } catch (Exception e) {
+            return new AuthDTO.ResetPasswordResponse("Lỗi khi đặt lại mật khẩu: " + e.getMessage(), false);
+        }
+    }
 }
