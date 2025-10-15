@@ -39,17 +39,6 @@ const AdminLayout = () => {
               
               <li className="nav-item mb-2">
                 <NavLink 
-                  to="/admin/doctors" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-person-badge me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý bác sĩ</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
                   to="/admin/departments" 
                   className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
                   style={{transition: 'all 0.3s ease', textDecoration: 'none'}}

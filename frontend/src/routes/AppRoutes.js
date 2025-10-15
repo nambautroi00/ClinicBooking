@@ -38,7 +38,6 @@ import TestAuth from "../pages/TestAuth";
 import AdminLayout from "../components/layout/admin-layout/AdminLayout";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
 import UsersManagement from "../pages/Admin/UsersManagement";
-import DoctorsManagement from "../pages/Admin/DoctorsManagement";
 import DepartmentsManagement from "../pages/Admin/DepartmentsManagement";
 import MedicinesManagement from "../pages/Admin/MedicinesManagement";
 import PrescriptionsManagement from "../pages/Admin/PrescriptionsManagement";
@@ -114,8 +113,6 @@ const AppRoutes = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<UsersManagement />} />
         <Route path="users/:id" element={<UsersManagement />} />
-        <Route path="doctors" element={<DoctorsManagement />} />
-        <Route path="doctors/:id" element={<DoctorsManagement />} />
         <Route path="departments" element={<DepartmentsManagement />} />
         <Route path="medicines" element={<MedicinesManagement />} />
         <Route path="prescriptions" element={<PrescriptionsManagement />} />
