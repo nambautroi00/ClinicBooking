@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 // Common pages
 import Home from "../pages/Home/Home";
+import Articles from "../pages/Articles";
 import NotFound from "../pages/NotFound";
 
 // Auth
@@ -50,6 +51,8 @@ const AppRoutes = () => {
     <Routes>
       {/* Public */}
       <Route path="/" element={<Home />} />
+      <Route path="/articles" element={<Articles />} />
+      <Route path="/articles/:id" element={<ArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/test-auth" element={<TestAuth />} />
 

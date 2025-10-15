@@ -92,22 +92,6 @@ public class ArticleService {
         articleRepository.deleteById(id);
     }
 
-    public ArticleDTO.ResponseDTO likeArticle(Long id) {
-        Article article = findArticleById(id);
-        article.setLikeCount(article.getLikeCount() + 1);
-        Article updated = articleRepository.save(article);
-        return articleMapper.entityToResponseDTO(updated);
-    }
-
-    public ArticleDTO.ResponseDTO unlikeArticle(Long id) {
-        Article article = findArticleById(id);
-        if (article.getLikeCount() > 0) {
-            article.setLikeCount(article.getLikeCount() - 1);
-        }
-        Article updated = articleRepository.save(article);
-        return articleMapper.entityToResponseDTO(updated);
-    }
-
     private Article findArticleById(Long id) {
         return articleRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bài viết với ID: " + id));
