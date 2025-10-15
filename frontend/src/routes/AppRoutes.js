@@ -23,6 +23,8 @@ import DoctorScheduleManagement from "../pages/Doctor/DoctorScheduleManagement";
 import DoctorAppointmentList from "../pages/Doctor/DoctorAppointmentList";
 import DoctorProfile from "../pages/Doctor/DoctorProfile";
 import DoctorAvailableSlotManagement from "../pages/Doctor/DoctorAvailableSlotManagement";
+import DoctorPrescriptions from "../pages/Doctor/DoctorPrescriptions";
+import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
@@ -95,6 +97,8 @@ const AppRoutes = () => {
           element={<DoctorAvailableSlotManagement />}
         />
         <Route path="appointments" element={<DoctorAppointmentList />} />
+        <Route path="prescriptions" element={<DoctorPrescriptions />} />
+        <Route path="prescriptions/new" element={<PrescriptionForm />} />
         <Route path="profile" element={<DoctorProfile />} />
       </Route>
 
