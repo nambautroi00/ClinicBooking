@@ -13,6 +13,11 @@ const userApi = {
     return axiosClient.get('/users/with-roles-info');
   },
 
+  // Lấy tất cả users với thông tin role và thông tin bệnh nhân (nếu có)
+  getAllUsersWithPatientInfo: () => {
+    return axiosClient.get('/users/with-patient-info');
+  },
+
   // Lấy user theo ID
   getUserById: (userId) => {
     return axiosClient.get(`/users/${userId}`);
