@@ -18,7 +18,7 @@ public class Appointment {
     private Long appointmentId;
 
     @ManyToOne
-    @JoinColumn(name = "PatientID", nullable = false)
+    @JoinColumn(name = "PatientID", nullable = true)
     private Patient patient;
 
     @ManyToOne

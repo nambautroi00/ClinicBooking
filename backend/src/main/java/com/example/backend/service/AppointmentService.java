@@ -32,27 +32,81 @@ public class AppointmentService {
     private final EmailService emailService;
 
     public AppointmentDTO.Response create(AppointmentDTO.Create dto) {
-        Patient patient = patientRepository.findById(dto.getPatientId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh nhân với ID: " + dto.getPatientId()));
+        // Cho phép patient null khi bác sĩ tạo slot trống
+        Patient patient = null;
+        if (dto.getPatientId() != null) {
+            patient = patientRepository.findById(dto.getPatientId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh nhân với ID: " + dto.getPatientId()));
+        }
+        
         Doctor doctor = doctorRepository.findById(dto.getDoctorId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bác sĩ với ID: " + dto.getDoctorId()));
-        DoctorSchedule schedule = null;
-        if (dto.getScheduleId() != null) {
-            schedule = doctorScheduleRepository.findById(dto.getScheduleId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy lịch với ID: " + dto.getScheduleId()));
-            // Prevent double booking for the exact slot
-            if (schedule.getStatus() != null && !schedule.getStatus().equalsIgnoreCase("Available")) {
-                throw new IllegalStateException("Khung giờ đã được đặt hoặc không khả dụng");
+        
+        // ScheduleID là BẮT BUỘC - Appointment phải thuộc về một DoctorSchedule
+        DoctorSchedule schedule = doctorScheduleRepository.findById(dto.getScheduleId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy lịch trình với ID: " + dto.getScheduleId()));
+        
+        // Validate: Schedule phải thuộc về doctor này
+        if (!schedule.getDoctor().getDoctorId().equals(dto.getDoctorId())) {
+            throw new IllegalStateException("Lịch trình không thuộc về bác sĩ này");
+        }
+        
+        // Validate: Schedule phải Available
+        if (!"Available".equals(schedule.getStatus())) {
+            throw new IllegalStateException("Lịch trình không khả dụng");
+        }
+        
+        // Validate: Appointment phải nằm TRONG khoảng thời gian của DoctorSchedule
+        java.time.LocalDate scheduleDate = schedule.getWorkDate();
+        java.time.LocalTime scheduleStartTime = schedule.getStartTime();
+        java.time.LocalTime scheduleEndTime = schedule.getEndTime();
+        
+        java.time.LocalDate appointmentDate = dto.getStartTime().toLocalDate();
+        java.time.LocalTime appointmentStartTime = dto.getStartTime().toLocalTime();
+        java.time.LocalTime appointmentEndTime = dto.getEndTime().toLocalTime();
+        
+        // Kiểm tra ngày phải trùng
+        if (!appointmentDate.equals(scheduleDate)) {
+            throw new IllegalStateException(
+                "Ngày khám (" + appointmentDate + ") phải trùng với ngày làm việc (" + scheduleDate + ")"
+            );
+        }
+        
+        // Kiểm tra giờ phải nằm trong khoảng
+        if (appointmentStartTime.isBefore(scheduleStartTime)) {
+            throw new IllegalStateException(
+                "Giờ bắt đầu (" + appointmentStartTime + ") phải sau giờ bắt đầu làm việc (" + scheduleStartTime + ")"
+            );
+        }
+        
+        if (appointmentEndTime.isAfter(scheduleEndTime)) {
+            throw new IllegalStateException(
+                "Giờ kết thúc (" + appointmentEndTime + ") phải trước giờ kết thúc làm việc (" + scheduleEndTime + ")"
+            );
+        }
+        
+        // =====================================================================
+        // Validate: Không cho phép tạo khung giờ trùng lặp
+        // Kiểm tra xem đã có appointment nào của bác sĩ này trong khoảng thời gian này chưa
+        // =====================================================================
+        List<Appointment> existingAppointments = appointmentRepository.findByDoctor_DoctorId(dto.getDoctorId());
+        for (Appointment existing : existingAppointments) {
+            // Kiểm tra overlap: 
+            // Appointment mới overlap nếu startTime < existing.endTime VÀ endTime > existing.startTime
+            if (dto.getStartTime().isBefore(existing.getEndTime()) && 
+                dto.getEndTime().isAfter(existing.getStartTime())) {
+                throw new IllegalStateException(
+                    String.format("Khung giờ bị trùng với appointment đã tồn tại (ID: %d) từ %s đến %s",
+                        existing.getAppointmentId(),
+                        existing.getStartTime(),
+                        existing.getEndTime()
+                    )
+                );
             }
         }
 
         Appointment entity = appointmentMapper.createDTOToEntity(dto, patient, doctor, schedule);
         Appointment saved = appointmentRepository.save(entity);
-        // Mark schedule as booked when used
-        if (schedule != null) {
-            schedule.setStatus("Unavailable");
-            doctorScheduleRepository.save(schedule);
-        }
 
         return appointmentMapper.entityToResponseDTO(saved);
     }
@@ -81,6 +135,55 @@ public class AppointmentService {
     public List<AppointmentDTO.Response> getByDoctor(Long doctorId) {
         List<Appointment> list = appointmentRepository.findByDoctor_DoctorId(doctorId);
         return list.stream().map(appointmentMapper::entityToResponseDTO).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AppointmentDTO.Response> getAvailableSlotsByDoctor(Long doctorId) {
+        List<Appointment> list = appointmentRepository.findByDoctor_DoctorId(doctorId);
+        // Lọc các appointment có patient = null và status = "Available"
+        return list.stream()
+                .filter(apt -> apt.getPatient() == null && "Available".equals(apt.getStatus()))
+                .map(appointmentMapper::entityToResponseDTO)
+                .toList();
+    }
+
+    public AppointmentDTO.Response bookAppointment(Long appointmentId, Long patientId, String notes) {
+        Appointment entity = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc hẹn với ID: " + appointmentId));
+        
+        // Kiểm tra appointment còn available không
+        if (entity.getPatient() != null) {
+            throw new IllegalStateException("Khung giờ này đã được đặt");
+        }
+        if (!"Available".equals(entity.getStatus())) {
+            throw new IllegalStateException("Khung giờ này không còn khả dụng");
+        }
+        
+        // Tìm patient
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh nhân với ID: " + patientId));
+        
+        // Cập nhật appointment
+        entity.setPatient(patient);
+        entity.setStatus("Scheduled");
+        if (notes != null && !notes.trim().isEmpty()) {
+            entity.setNotes(notes);
+        }
+        
+        Appointment saved = appointmentRepository.save(entity);
+        
+        // Gửi email thông báo
+        try {
+            String subject = "Đặt lịch khám thành công";
+            String body = "Bạn đã đặt lịch khám thành công vào " + saved.getStartTime() + 
+                         " với bác sĩ " + saved.getDoctor().getUser().getFirstName() + " " + 
+                         saved.getDoctor().getUser().getLastName();
+            notifyPatient(saved, subject, body);
+        } catch (Exception ex) {
+            // ignore email failures
+        }
+        
+        return appointmentMapper.entityToResponseDTO(saved);
     }
 
     public AppointmentDTO.Response update(Long appointmentId, AppointmentDTO.Update dto) {

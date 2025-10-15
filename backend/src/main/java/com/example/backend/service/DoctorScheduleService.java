@@ -65,19 +65,21 @@ public class DoctorScheduleService {
 
         doctorScheduleMapper.applyUpdateToEntity(entity, dto);
         DoctorSchedule saved = doctorScheduleRepository.save(entity);
+        
         return doctorScheduleMapper.entityToResponseDTO(saved);
     }
 
+    public List<Appointment> getScheduleAppointments(Long scheduleId) {
+        return appointmentRepository.findBySchedule_ScheduleId(scheduleId);
+    }
+
+
     public void delete(Long scheduleId) {
         DoctorSchedule entity = findSchedule(scheduleId);
-        // Tìm tất cả các appointments liên quan đến schedule này
-        List<Appointment> appointments = appointmentRepository.findBySchedule_ScheduleId(scheduleId);
-        for (Appointment appointment : appointments) {
-            appointment.setStatus("Canceled");
-            appointment.setSchedule(null); // Bỏ liên kết với DoctorSchedule
-            appointmentRepository.save(appointment);
-        }
+        
+        // Xóa schedule
         doctorScheduleRepository.delete(entity);
+        System.out.println("Schedule " + scheduleId + " deleted successfully");
     }
 
     // Helpers

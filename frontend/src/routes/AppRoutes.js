@@ -3,12 +3,15 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 // Common pages
 import Home from "../pages/Home/Home";
+import Articles from "../pages/Articles";
 import NotFound from "../pages/NotFound";
 
 // Auth
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import VerifyOtp from "../pages/Auth/VerifyOtp";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import ResetPassword from "../pages/Auth/ResetPassword";
 
 // Components / Guards
 //import RoleProtectedRoute from "../components/auth/RoleProtectedRoute";
@@ -20,6 +23,8 @@ import DoctorScheduleManagement from "../pages/Doctor/DoctorScheduleManagement";
 import DoctorAppointmentList from "../pages/Doctor/DoctorAppointmentList";
 import DoctorProfile from "../pages/Doctor/DoctorProfile";
 import DoctorAvailableSlotManagement from "../pages/Doctor/DoctorAvailableSlotManagement";
+import DoctorPrescriptions from "../pages/Doctor/DoctorPrescriptions";
+import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
@@ -48,6 +53,8 @@ const AppRoutes = () => {
     <Routes>
       {/* Public */}
       <Route path="/" element={<Home />} />
+      <Route path="/articles" element={<Articles />} />
+      <Route path="/articles/:id" element={<ArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/test-auth" element={<TestAuth />} />
 
@@ -55,6 +62,8 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Patient */}
       <Route
@@ -88,6 +97,8 @@ const AppRoutes = () => {
           element={<DoctorAvailableSlotManagement />}
         />
         <Route path="appointments" element={<DoctorAppointmentList />} />
+        <Route path="prescriptions" element={<DoctorPrescriptions />} />
+        <Route path="prescriptions/new" element={<PrescriptionForm />} />
         <Route path="profile" element={<DoctorProfile />} />
       </Route>
 

@@ -57,6 +57,7 @@ public class ArticleDTO {
         private Response author;
         private LocalDateTime createdAt;
         private String status;
+        private Integer likeCount;
     }
 }
 

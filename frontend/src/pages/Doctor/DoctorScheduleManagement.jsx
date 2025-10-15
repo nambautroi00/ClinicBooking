@@ -7,6 +7,7 @@ import doctorApi from "../../api/doctorApi";
 const DoctorScheduleManagement = () => {
   // State filter, custom range
   const [dateFilter, setDateFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [customRange, setCustomRange] = useState({ from: "", to: "" });
 
   // Helper & filter
@@ -31,74 +32,114 @@ const DoctorScheduleManagement = () => {
       hour: "2-digit",
       minute: "2-digit",
     });
-  const getStatusBadge = (status) =>
-    ({
-      Available: "badge bg-success",
-      Busy: "badge bg-warning",
-      Unavailable: "badge bg-danger",
-    }[status] || "badge bg-secondary");
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      Available: { class: "badge bg-success", text: "Có sẵn", icon: "bi bi-check-circle" },
+      Completed: { class: "badge bg-primary", text: "Hoàn thành", icon: "bi bi-check2-all" }
+    };
+    
+    const config = statusConfig[status] || { 
+      class: "badge bg-secondary", 
+      text: status || "Không xác định", 
+      icon: "bi bi-question-circle" 
+    };
+    
+    return config;
+  };
   const filterSchedulesByDate = (schedules) => {
     const todayStr = toDateString(new Date());
+    let filteredSchedules = schedules;
+    
+    // Filter by date
     switch (dateFilter) {
       case "Today":
-        return schedules.filter((s) => toDateString(s.workDate) === todayStr);
+        filteredSchedules = filteredSchedules.filter((s) => toDateString(s.workDate) === todayStr);
+        break;
       case "Yesterday": {
         const yestStr = toDateString(new Date(Date.now() - 86400000));
-        return schedules.filter((s) => toDateString(s.workDate) === yestStr);
+        filteredSchedules = filteredSchedules.filter((s) => toDateString(s.workDate) === yestStr);
+        break;
       }
       case "Last7Days": {
         const fromStr = toDateString(new Date(Date.now() - 6 * 86400000));
-        return schedules.filter((s) => {
+        filteredSchedules = filteredSchedules.filter((s) => {
           const dStr = toDateString(s.workDate);
           return dStr >= fromStr && dStr <= todayStr;
         });
+        break;
       }
       case "Last30Days": {
         const fromStr = toDateString(new Date(Date.now() - 29 * 86400000));
-        return schedules.filter((s) => {
+        filteredSchedules = filteredSchedules.filter((s) => {
           const dStr = toDateString(s.workDate);
           return dStr >= fromStr && dStr <= todayStr;
         });
+        break;
       }
       case "ThisMonth": {
         const now = new Date();
-        return schedules.filter((s) => {
+        filteredSchedules = filteredSchedules.filter((s) => {
           const d = new Date(s.workDate);
           return (
             d.getMonth() === now.getMonth() &&
             d.getFullYear() === now.getFullYear()
           );
         });
+        break;
       }
       case "LastMonth": {
         const now = new Date();
         const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
         const year =
           lastMonth === 11 ? now.getFullYear() - 1 : now.getFullYear();
-        return schedules.filter((s) => {
+        filteredSchedules = filteredSchedules.filter((s) => {
           const d = new Date(s.workDate);
           return d.getMonth() === lastMonth && d.getFullYear() === year;
         });
+        break;
       }
       case "CustomRange": {
-        if (!customRange.from || !customRange.to) return schedules;
+        if (!customRange.from || !customRange.to) break;
         const fromStr = toDateString(customRange.from);
         const toStr = toDateString(customRange.to);
-        return schedules.filter((s) => {
+        filteredSchedules = filteredSchedules.filter((s) => {
           const dStr = toDateString(s.workDate);
           return dStr >= fromStr && dStr <= toStr;
         });
+        break;
       }
       default:
-        return schedules;
+        break;
     }
+    
+    // Filter by status
+    if (statusFilter !== "All") {
+      filteredSchedules = filteredSchedules.filter((s) => s.status === statusFilter);
+    }
+    
+    return filteredSchedules;
   };
 
   // CRUD schedule
   const handleDeleteSchedule = async (scheduleId) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa lịch trình này?")) {
+    // Tìm schedule để kiểm tra có appointments không
+    const schedule = schedules.find(s => s.scheduleId === scheduleId);
+    const hasAppointments = schedule?.status === "Available" && (schedule?.appointmentCount > 0);
+    
+    const confirmMessage = hasAppointments 
+      ? "Bạn có chắc chắn muốn xóa lịch trình này?\n\n⚠️ CẢNH BÁO: Tất cả appointments liên quan sẽ bị hủy!"
+      : "Bạn có chắc chắn muốn xóa lịch trình này?";
+    
+    if (window.confirm(confirmMessage)) {
       try {
         await doctorScheduleApi.deleteSchedule(scheduleId);
+        
+        if (hasAppointments) {
+          window.toast && window.toast.warning("Đã xóa lịch trình và hủy tất cả appointments liên quan");
+        } else {
+          window.toast && window.toast.success("Đã xóa lịch trình thành công");
+        }
+        
         loadSchedules();
       } catch (err) {
         setError(
@@ -106,6 +147,40 @@ const DoctorScheduleManagement = () => {
             (err.response?.data?.message || err.message)
         );
       }
+    }
+  };
+
+  // Status management actions
+  const handleUpdateScheduleStatus = async (scheduleId, newStatus) => {
+    try {
+      // Tìm schedule hiện tại để kiểm tra status cũ
+      const currentSchedule = schedules.find(s => s.scheduleId === scheduleId);
+      const oldStatus = currentSchedule?.status;
+      const hasAppointments = currentSchedule?.appointmentCount > 0;
+      
+      // Cập nhật schedule status
+      await doctorScheduleApi.updateSchedule(scheduleId, { status: newStatus });
+      
+      // Tích hợp với Appointment System
+      if (newStatus === "Completed" && oldStatus === "Available") {
+        if (hasAppointments) {
+          // Completed schedule - appointments vẫn giữ nguyên status
+          window.toast && window.toast.success(
+            `Đã hoàn thành lịch trình với ${currentSchedule.appointmentCount} appointments`
+          );
+        } else {
+          window.toast && window.toast.success("Đã hoàn thành lịch trình");
+        }
+      } else {
+        window.toast && window.toast.success(`Đã cập nhật trạng thái thành ${getStatusBadge(newStatus).text}`);
+      }
+      
+      loadSchedules();
+    } catch (err) {
+      setError(
+        "Không thể cập nhật trạng thái: " +
+          (err.response?.data?.message || err.message)
+      );
     }
   };
   const handleCreateSchedule = async (scheduleData) => {
@@ -143,7 +218,36 @@ const DoctorScheduleManagement = () => {
       setLoading(true);
       setError(null);
       const response = await doctorScheduleApi.getSchedulesByDoctor(doctorId);
-      setSchedules(response.data);
+      const schedulesData = response.data;
+      
+      // Load appointment counts for each schedule
+      const schedulesWithCounts = await Promise.all(
+        schedulesData.map(async (schedule) => {
+          try {
+            // Import appointmentApi dynamically to avoid circular dependency
+            const { default: appointmentApi } = await import("../../api/appointmentApi");
+            const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(doctorId);
+            
+            // Count appointments for this schedule
+            const appointmentCount = appointmentsRes.data.filter(
+              appointment => appointment.scheduleId === schedule.scheduleId
+            ).length;
+            
+            return {
+              ...schedule,
+              appointmentCount
+            };
+          } catch (err) {
+            console.warn(`Could not load appointment count for schedule ${schedule.scheduleId}:`, err);
+            return {
+              ...schedule,
+              appointmentCount: 0
+            };
+          }
+        })
+      );
+      
+      setSchedules(schedulesWithCounts);
     } catch (err) {
       setError(
         "Không thể tải lịch trình: " +
@@ -367,13 +471,13 @@ const DoctorScheduleManagement = () => {
                 )}
                 <select
                   className="form-select form-select-sm border-primary"
-                  style={{ maxWidth: 120 }}
-                  defaultValue=""
+                  style={{ maxWidth: 140 }}
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="">Tất cả trạng thái</option>
+                  <option value="All">Tất cả trạng thái</option>
                   <option value="Available">Có sẵn</option>
-                  <option value="Busy">Bận</option>
-                  <option value="Unavailable">Nghỉ</option>
+                  <option value="Completed">Hoàn thành</option>
                 </select>
               </div>
             </div>
@@ -384,15 +488,22 @@ const DoctorScheduleManagement = () => {
                   {schedules.length}
                 </span>
                 <span className="badge bg-success fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-calendar-day me-2"></i> Hôm nay:{" "}
-                  {
-                    schedules.filter(
-                      (s) =>
-                        s.workDate === new Date().toISOString().split("T")[0]
-                    ).length
-                  }
+                  <i className="bi bi-check-circle me-2"></i> Có sẵn:{" "}
+                  {schedules.filter(s => s.status === "Available").length}
+                </span>
+                <span className="badge bg-primary fs-6 px-3 py-2 shadow-sm">
+                  <i className="bi bi-check2-all me-2"></i> Hoàn thành:{" "}
+                  {schedules.filter(s => s.status === "Completed").length}
                 </span>
                 <span className="badge bg-info text-dark fs-6 px-3 py-2 shadow-sm">
+                  <i className="bi bi-calendar-check me-2"></i> Appointments:{" "}
+                  {schedules.reduce((total, s) => total + (s.appointmentCount || 0), 0)}
+                </span>
+                <span className="badge bg-warning fs-6 px-3 py-2 shadow-sm">
+                  <i className="bi bi-exclamation-triangle me-2"></i> Có appointments:{" "}
+                  {schedules.filter(s => s.appointmentCount > 0).length}
+                </span>
+                <span className="badge bg-secondary fs-6 px-3 py-2 shadow-sm">
                   <i className="bi bi-calendar-week me-2"></i> Sắp tới:{" "}
                   {
                     schedules.filter((s) => new Date(s.workDate) > new Date())
@@ -431,7 +542,12 @@ const DoctorScheduleManagement = () => {
                           <th>Ngày làm việc</th>
                           <th>Thời gian bắt đầu</th>
                           <th>Thời gian kết thúc</th>
-                          <th>Trạng thái</th>
+                          <th>
+                            Trạng thái
+                            <small className="text-muted d-block" style={{ fontSize: "10px" }}>
+                              Tích hợp với Appointment System
+                            </small>
+                          </th>
                           <th>Ghi chú</th>
                           <th className="text-center">Thao tác</th>
                         </tr>
@@ -448,31 +564,88 @@ const DoctorScheduleManagement = () => {
                             <td>{formatTime(schedule.startTime)}</td>
                             <td>{formatTime(schedule.endTime)}</td>
                             <td>
-                              <span className={getStatusBadge(schedule.status)}>
-                                {schedule.status}
-                              </span>
+                              <div className="d-flex align-items-center gap-2">
+                                {(() => {
+                                  const statusConfig = getStatusBadge(schedule.status);
+                                  return (
+                                    <span className={statusConfig.class}>
+                                      <i className={`${statusConfig.icon} me-1`}></i>
+                                      {statusConfig.text}
+                                    </span>
+                                  );
+                                })()}
+                                
+                                {/* Hiển thị số appointments và trạng thái tích hợp */}
+                                {schedule.appointmentCount > 0 && (
+                                  <span 
+                                    className={`badge ${
+                                      schedule.status === "Available" ? "bg-info text-dark" :
+                                      schedule.status === "Completed" ? "bg-primary text-white" :
+                                      "bg-secondary text-white"
+                                    }`}
+                                    style={{ fontSize: "10px" }}
+                                    title={
+                                      schedule.status === "Available" ? 
+                                        `Có ${schedule.appointmentCount} appointments - Có thể tạo thêm` :
+                                      schedule.status === "Completed" ? 
+                                        `Có ${schedule.appointmentCount} appointments - Đã hoàn thành` :
+                                        "Có appointments liên quan"
+                                    }
+                                  >
+                                    <i className="bi bi-calendar-check me-1"></i>
+                                    {schedule.appointmentCount}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td>{schedule.notes || "-"}</td>
                             <td className="text-center">
-                              <div className="btn-group" role="group">
-                                <button
-                                  className="btn btn-sm btn-outline-primary"
-                                  onClick={() => setEditingSchedule(schedule)}
-                                  title="Chỉnh sửa"
-                                  style={{ minWidth: 36 }}
-                                >
-                                  <i className="bi bi-pencil"></i>
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() =>
-                                    handleDeleteSchedule(schedule.scheduleId)
+                              <div className="d-flex gap-1 justify-content-center">
+                                {/* Status dropdown với logic tích hợp Appointment System */}
+                                <select
+                                  className="form-select form-select-sm"
+                                  style={{ 
+                                    width: "120px", 
+                                    fontSize: "11px",
+                                    borderColor: (schedule.appointmentCount > 0 && schedule.status === "Available") 
+                                                ? "#ffc107" : undefined,
+                                    opacity: schedule.status === "Completed" ? 0.8 : 1
+                                  }}
+                                  value={schedule.status}
+                                  onChange={(e) => handleUpdateScheduleStatus(schedule.scheduleId, e.target.value)}
+                                  title={
+                                    schedule.status === "Available" && schedule.appointmentCount > 0 ? 
+                                      `Có ${schedule.appointmentCount} appointments - Thay đổi status sẽ ảnh hưởng đến appointments` :
+                                    schedule.status === "Completed" ?
+                                      "Lịch trình đã hoàn thành - Không thể tạo appointments mới" :
+                                      "Thay đổi trạng thái lịch trình"
                                   }
-                                  title="Xóa"
-                                  style={{ minWidth: 36 }}
                                 >
-                                  <i className="bi bi-trash"></i>
-                                </button>
+                                  <option value="Available">Có sẵn</option>
+                                  <option value="Completed">Hoàn thành</option>
+                                </select>
+                                
+                                {/* Action buttons */}
+                                <div className="btn-group" role="group">
+                                  <button
+                                    className="btn btn-sm btn-outline-primary"
+                                    onClick={() => setEditingSchedule(schedule)}
+                                    title="Chỉnh sửa"
+                                    style={{ minWidth: 36 }}
+                                  >
+                                    <i className="bi bi-pencil"></i>
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-outline-danger"
+                                    onClick={() =>
+                                      handleDeleteSchedule(schedule.scheduleId)
+                                    }
+                                    title="Xóa"
+                                    style={{ minWidth: 36 }}
+                                  >
+                                    <i className="bi bi-trash"></i>
+                                  </button>
+                                </div>
                               </div>
                             </td>
                           </tr>
