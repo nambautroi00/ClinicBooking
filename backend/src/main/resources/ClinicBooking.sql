@@ -233,14 +233,6 @@ INSERT INTO Roles (Name, Description) VALUES
 ('Doctor', 'Bác s? có th? khám, t?o l?ch tr?nh, qu?n l? b?nh án'),
 ('Patient', 'B?nh nhân có th? đ?t l?ch và tr? chuy?n v?i bác s?')
 
--- Insert Departments
-INSERT INTO Departments (DepartmentName, Description, Status) VALUES 
-('Tim m?ch', 'Khoa Tim m?ch - Chuyên đi?u tr? các b?nh v? tim và m?ch máu', 'ACTIVE'),
-('Th?n kinh', 'Khoa Th?n kinh - Chuyên đi?u tr? các b?nh v? th?n kinh', 'ACTIVE'),
-('Ch?n thương ch?nh h?nh', 'Khoa Ch?n thương ch?nh h?nh - Chuyên đi?u tr? các b?nh v? xương kh?p', 'ACTIVE'),
-('Nhi khoa', 'Khoa Nhi - Chuyên khám và đi?u tr? cho tr? em', 'ACTIVE'),
-('N?i t?ng h?p', 'Khoa N?i t?ng h?p - Khám và đi?u tr? các b?nh n?i khoa', 'ACTIVE');
-
 -- Insert Users
 -- Admin
 INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Phone, Gender, DOB, Address, RoleID, Status, CreatedAt) 

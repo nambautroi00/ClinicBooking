@@ -44,4 +44,17 @@ public class DepartmentDTO {
         private String description;
         private Department.DepartmentStatus status;
     }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Statistics {
+        private long totalDepartments;
+        private long activeDepartments;
+        private long inactiveDepartments;
+        private long maintenanceDepartments;
+        private long closedDepartments;
+        private long departmentsWithDoctors;
+        private long departmentsWithoutDoctors;
+    }
 }

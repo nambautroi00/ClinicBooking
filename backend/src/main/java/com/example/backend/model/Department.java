@@ -1,5 +1,7 @@
 package com.example.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,7 +15,6 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "Departments")
@@ -42,6 +43,9 @@ public class Department {
     private DepartmentStatus status = DepartmentStatus.ACTIVE;
 
     public enum DepartmentStatus {
-        ACTIVE, INACTIVE
+        ACTIVE,      // Khoa đang hoạt động bình thường
+        INACTIVE,    // Khoa chưa sẵn sàng hoặc tạm dừng
+        MAINTENANCE, // Khoa đang bảo trì cơ sở vật chất
+        CLOSED       // Khoa đã ngừng hoạt động hoàn toàn
     }
 }

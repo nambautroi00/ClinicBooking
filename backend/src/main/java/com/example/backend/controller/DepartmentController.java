@@ -80,4 +80,25 @@ public class DepartmentController {
         departmentService.deleteDepartment(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<DepartmentDTO.Response> changeStatus(
+            @PathVariable Long id,
+            @RequestParam Department.DepartmentStatus status) {
+        DepartmentDTO.Response updatedDepartment = departmentService.changeStatus(id, status);
+        return ResponseEntity.ok(updatedDepartment);
+    }
+
+    @GetMapping("/statistics")
+    public ResponseEntity<DepartmentDTO.Statistics> getStatistics() {
+        DepartmentDTO.Statistics stats = departmentService.getDepartmentStatistics();
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/active")
+    public ResponseEntity<Page<DepartmentDTO.Response>> getActiveDepartments(
+            @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = "departmentName") Pageable pageable) {
+        Page<DepartmentDTO.Response> departments = departmentService.getActiveDepartments(pageable);
+        return ResponseEntity.ok(departments);
+    }
 }
