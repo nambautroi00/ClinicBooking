@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import doctorScheduleApi from "../../api/doctorScheduleApi";
+import doctorApi from "../../api/doctorApi";
+import Cookies from "js-cookie";
 
 const DoctorDashboard = () => {
   const [stats, setStats] = useState({
@@ -10,35 +12,40 @@ const DoctorDashboard = () => {
     busySlots: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [doctorId, setDoctorId] = useState(null);
 
-  useEffect(() => {
-    // Mock user for testing - using real doctorId from database
-    const mockUser = {
-      doctorId: 8,
-      fullName: "Hồng Nguyễn",
-      specialization: "Nội khoa",
-      department: { departmentName: "Khoa Nội" },
-    };
-
-    if (mockUser?.doctorId) {
-      loadDashboardData();
+  // Get doctorId from localStorage (memoized)
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
     }
   }, []);
 
-  const loadDashboardData = async () => {
+  // Fetch doctorId
+  useEffect(() => {
+    const fetchDoctorId = async () => {
+      const userId = Cookies.get("userId") || currentUser?.id;
+      if (userId) {
+        try {
+          const res = await doctorApi.getDoctorByUserId(userId);
+          const data = res.data || res;
+          setDoctorId(data.doctorId);
+        } catch (err) {
+          console.error("Error fetching doctorId:", err);
+        }
+      }
+    };
+    fetchDoctorId();
+  }, [currentUser]);
+
+  const loadDashboardData = useCallback(async () => {
+    if (!doctorId) return;
+
     try {
       setLoading(true);
-      // Mock user for testing - using real doctorId from database
-      const mockUser = {
-        doctorId: 8,
-        fullName: "Hồng Nguyễn",
-        specialization: "Nội khoa",
-        department: { departmentName: "Khoa Nội" },
-      };
-
-      const response = await doctorScheduleApi.getSchedulesByDoctor(
-        mockUser.doctorId
-      );
+      const response = await doctorScheduleApi.getSchedulesByDoctor(doctorId);
       const schedules = response.data;
 
       const today = new Date().toISOString().split("T")[0];
@@ -56,7 +63,13 @@ const DoctorDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [doctorId]);
+
+  useEffect(() => {
+    if (doctorId) {
+      loadDashboardData();
+    }
+  }, [doctorId, loadDashboardData]);
 
   if (loading) {
     return (
