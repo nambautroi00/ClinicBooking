@@ -21,6 +21,8 @@ import DoctorLayout from "../components/layout/doctors-layout/DoctorLayout";
 import DoctorDashboard from "../pages/Doctor/DoctorDashboard";
 import DoctorScheduleManagement from "../pages/Doctor/DoctorScheduleManagement";
 import DoctorAppointmentList from "../pages/Doctor/DoctorAppointmentList";
+import DoctorPatientManagement from "../pages/Doctor/DoctorPatientManagement";
+import DoctorMessages from "../pages/Doctor/DoctorMessages";
 import DoctorProfile from "../pages/Doctor/DoctorProfile";
 import DoctorAvailableSlotManagement from "../pages/Doctor/DoctorAvailableSlotManagement";
 import DoctorPrescriptions from "../pages/Doctor/DoctorPrescriptions";
@@ -96,6 +98,8 @@ const AppRoutes = () => {
           element={<DoctorAvailableSlotManagement />}
         />
         <Route path="appointments" element={<DoctorAppointmentList />} />
+        <Route path="patients" element={<DoctorPatientManagement />} />
+        <Route path="messages" element={<DoctorMessages />} />
         <Route path="prescriptions" element={<DoctorPrescriptions />} />
         <Route path="prescriptions/new" element={<PrescriptionForm />} />
         <Route path="profile" element={<DoctorProfile />} />
