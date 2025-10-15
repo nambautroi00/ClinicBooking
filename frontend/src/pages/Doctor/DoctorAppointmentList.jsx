@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
+import doctorApi from "../../api/doctorApi";
+import Cookies from "js-cookie";
 import {
   Search,
   LayoutGrid,
@@ -16,9 +18,8 @@ import {
 const Button = (props) => (
   <button
     {...props}
-    className={`btn ${
-      props.variant === "outline" ? "btn-outline-primary" : "btn-primary"
-    } ${props.className || ""}`}
+    className={`btn ${props.variant === "outline" ? "btn-outline-primary" : "btn-primary"
+      } ${props.className || ""}`}
   >
     {props.children}
   </button>
@@ -69,82 +70,122 @@ function DoctorAppointmentList() {
   const [customEnd, setCustomEnd] = useState("");
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [doctorId, setDoctorId] = useState(null);
 
-  // Fetch appointments from DB
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setLoading(true);
-      try {
-        // Lấy thông tin bác sĩ hiện tại (giả sử doctorId = 8)
-        const doctorId = 8;
-        // Lấy lịch hẹn của bác sĩ
-        const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(
-          doctorId
-        );
-        const appointmentsWithPatients = await Promise.all(
-          appointmentsRes.data.map(async (appointment) => {
-            try {
-              const patientRes = await patientApi.getPatientById(
-                appointment.patientId
-              );
-              const patient = patientRes.data;
-              return {
-                ...appointment,
-                patientName:
-                  patient.user?.lastName + " " + patient.user?.firstName ||
-                  patient.lastName + " " + patient.firstName ||
-                  "Không rõ",
-                patientEmail: patient.user?.email || "",
-                patientPhone: patient.user?.phone || "",
-                patientAddress: patient.user?.address || "",
-                patientAvatar: patient.user?.avatarUrl || "",
-                healthInsuranceNumber: patient.healthInsuranceNumber || "",
-                medicalHistory: patient.medicalHistory || "",
-              };
-            } catch {
-              return {
-                ...appointment,
-                patientName: "Không tìm thấy thông tin",
-                patientEmail: "",
-                patientPhone: "",
-                patientAddress: "",
-                patientAvatar: "",
-                healthInsuranceNumber: "",
-                medicalHistory: "",
-              };
-            }
-          })
-        );
-        console.log("Appointments loaded:", appointmentsWithPatients);
-        console.log(
-          "Rejected count:",
-          appointmentsWithPatients.filter((a) => a.status === "Rejected").length
-        );
-        console.log(
-          "Canceled count:",
-          appointmentsWithPatients.filter((a) => a.status === "Canceled").length
-        );
-        setAppointments(appointmentsWithPatients);
-      } catch (error) {
-        console.error("Error fetching appointments:", error);
-        setAppointments([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAppointments();
+  // Get current user from localStorage (memoized)
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user"));
+    } catch {
+      return null;
+    }
   }, []);
 
-  // Calculate counts
+  // Fetch doctorId
+  useEffect(() => {
+    const fetchDoctorId = async () => {
+      const userId = Cookies.get("userId") || currentUser?.id;
+      if (userId) {
+        try {
+          const res = await doctorApi.getDoctorByUserId(userId);
+          const data = res.data || res;
+          setDoctorId(data.doctorId);
+        } catch (err) {
+          console.error("Error fetching doctorId:", err);
+        }
+      }
+    };
+    fetchDoctorId();
+  }, [currentUser]);
+
+  // Fetch appointments with useCallback
+  const fetchAppointments = useCallback(async () => {
+    if (!doctorId) return;
+
+    setLoading(true);
+    try {
+      // Lấy lịch hẹn của bác sĩ
+      const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(
+        doctorId
+      );
+
+      // Filter out empty slots (only show appointments with patients)
+      const appointmentsWithPatients = appointmentsRes.data
+        .filter(appointment => appointment.patientId !== null) // Chỉ lấy appointments có patient
+        .map(async (appointment) => {
+          try {
+            const patientRes = await patientApi.getPatientById(
+              appointment.patientId
+            );
+            const patient = patientRes.data;
+            return {
+              ...appointment,
+              patientName:
+                patient.user?.lastName + " " + patient.user?.firstName ||
+                patient.lastName + " " + patient.firstName ||
+                "Không rõ",
+              patientEmail: patient.user?.email || "",
+              patientPhone: patient.user?.phone || "",
+              patientAddress: patient.user?.address || "",
+              patientAvatar: patient.user?.avatarUrl || "",
+              healthInsuranceNumber: patient.healthInsuranceNumber || "",
+              medicalHistory: patient.medicalHistory || "",
+            };
+          } catch {
+            return {
+              ...appointment,
+              patientName: "Không tìm thấy thông tin",
+              patientEmail: "",
+              patientPhone: "",
+              patientAddress: "",
+              patientAvatar: "",
+              healthInsuranceNumber: "",
+              medicalHistory: "",
+            };
+          }
+        });
+
+      // Wait for all patient data to be fetched
+      const resolvedAppointments = await Promise.all(appointmentsWithPatients);
+      console.log("Appointments loaded:", resolvedAppointments);
+      console.log(
+        "Rejected count:",
+        resolvedAppointments.filter((a) => a.status === "Rejected").length
+      );
+      console.log(
+        "Canceled count:",
+        resolvedAppointments.filter((a) => a.status === "Canceled").length
+      );
+      setAppointments(resolvedAppointments);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [doctorId]);
+
+  useEffect(() => {
+    if (doctorId) {
+      fetchAppointments();
+    }
+  }, [doctorId, fetchAppointments]);
+
+  // Calculate counts - Updated for proper doctor status management
   const counts = useMemo(() => {
     return {
       upcoming: appointments.filter(
         (a) =>
-          a.status !== "Completed" &&
-          a.status !== "Rejected" &&
-          a.status !== "Canceled"
+          a.status === "Scheduled" ||
+
+          a.status === "Confirmed"
+
       ).length,
-      rejected: appointments.filter((a) => a.status === "Rejected").length,
+      rejected: appointments.filter((a) =>
+        a.status === "Rejected" ||
+        a.status === "Từ chối lịch hẹn" ||
+        a.status === "Canceled"
+      ).length,
       completed: appointments.filter((a) => a.status === "Completed").length,
     };
   }, [appointments]);
@@ -159,19 +200,22 @@ function DoctorAppointmentList() {
         a.healthInsuranceNumber?.toLowerCase().includes(query)
       );
     }
-    if (
-      activeTab === "upcoming" &&
-      (a.status === "Rejected" ||
-        a.status === "Completed" ||
-        a.status === "Canceled")
-    )
-      return false;
-    if (activeTab === "completed" && a.status !== "Completed") return false;
-    if (
-      activeTab === "cancelled" &&
-      !(a.status === "Rejected" || a.status === "Canceled")
-    )
-      return false;
+
+    // Updated filter logic for doctor status management
+    if (activeTab === "upcoming") {
+      return a.status === "Scheduled" ||
+
+        a.status === "Confirmed"
+
+    }
+    if (activeTab === "completed") {
+      return a.status === "Completed";
+    }
+    if (activeTab === "cancelled") {
+      return a.status === "Rejected" ||
+        a.status === "Từ chối lịch hẹn" ||
+        a.status === "Canceled";
+    }
     return true;
   });
 
@@ -235,7 +279,7 @@ function DoctorAppointmentList() {
               onClick={() => setActiveTab("cancelled")}
               className="gap-2"
             >
-              Từ chối <Badge className="ml-1">{counts.rejected}</Badge>
+              Hủy/Từ chối <Badge className="ml-1">{counts.rejected}</Badge>
             </Button>
             <Button
               variant={activeTab === "completed" ? "default" : "outline"}
@@ -306,15 +350,15 @@ function DoctorAppointmentList() {
                 : "";
               const startTimeStr = startDateObj
                 ? startDateObj.toLocaleTimeString("vi-VN", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
                 : "";
               const endTimeStr = endDateObj
                 ? endDateObj.toLocaleTimeString("vi-VN", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
                 : "";
 
               return (
@@ -337,11 +381,37 @@ function DoctorAppointmentList() {
                         : "?"}
                     </Avatar>
                     <div className="flex-grow-1">
-                      <div
-                        className="fw-bold mb-1"
-                        style={{ fontSize: "14px" }}
-                      >
-                        {appointment.patientName}
+                      <div className="d-flex align-items-center gap-2 mb-1">
+                        <div
+                          className="fw-bold"
+                          style={{ fontSize: "14px" }}
+                        >
+                          {appointment.patientName}
+                        </div>
+                        {/* Status Badge */}
+                        <span
+                          className={`badge ${appointment.status === "Scheduled" ? "bg-warning" :
+
+                              appointment.status === "Confirmed" ? "bg-success" :
+
+                                appointment.status === "Rejected" ? "bg-danger" :
+                                  appointment.status === "Completed" ? "bg-primary" :
+                                    appointment.status === "Từ chối lịch hẹn" ? "bg-secondary" :
+                                      appointment.status === "Canceled" ? "bg-dark" :
+                                        "bg-light"
+                            }`}
+                          style={{ fontSize: "10px" }}
+                        >
+                          {appointment.status === "Scheduled" ? "Đã đặt" :
+
+                            appointment.status === "Confirmed" ? "Đã xác nhận" :
+
+                              appointment.status === "Rejected" ? "Từ chối" :
+                                appointment.status === "Completed" ? "Hoàn thành" :
+                                  appointment.status === "Từ chối lịch hẹn" ? "Patient hủy" :
+                                    appointment.status === "Canceled" ? "Bị hủy" :
+                                      appointment.status}
+                        </span>
                       </div>
                       {appointment.healthInsuranceNumber && (
                         <div className="text-muted small">
@@ -416,7 +486,7 @@ function DoctorAppointmentList() {
                         <div className="small">
                           {appointment.medicalHistory.length > 40
                             ? appointment.medicalHistory.substring(0, 40) +
-                              "..."
+                            "..."
                             : appointment.medicalHistory}
                         </div>
                       </div>
@@ -445,45 +515,57 @@ function DoctorAppointmentList() {
                           setAppointments([...appointments]);
                         }}
                         style={{
-                          width: "130px",
+                          width: "140px",
                           fontSize: "12px",
                           borderRadius: 6,
                           borderColor:
                             (appointment.newStatus || appointment.status) ===
                               "Rejected" ||
-                            (appointment.newStatus || appointment.status) ===
-                              "Canceled"
+                              (appointment.newStatus || appointment.status) ===
+                              "Canceled" ||
+                              (appointment.newStatus || appointment.status) ===
+                              "Từ chối lịch hẹn"
                               ? "#dc3545"
                               : (appointment.newStatus ||
-                                  appointment.status) === "Confirmed"
-                              ? "#198754"
-                              : "#6c757d",
+                                appointment.status) === "Confirmed"
+                                ? "#198754"
+                                : (appointment.newStatus ||
+                                  appointment.status) === "Completed"
+                                  ? "#0d6efd"
+                                  : "#6c757d",
                           fontWeight: "600",
                           color:
                             (appointment.newStatus || appointment.status) ===
                               "Rejected" ||
-                            (appointment.newStatus || appointment.status) ===
-                              "Canceled"
+                              (appointment.newStatus || appointment.status) ===
+                              "Canceled" ||
+                              (appointment.newStatus || appointment.status) ===
+                              "Từ chối lịch hẹn"
                               ? "#dc3545"
                               : (appointment.newStatus ||
-                                  appointment.status) === "Confirmed"
-                              ? "#198754"
-                              : "#6c757d",
+                                appointment.status) === "Confirmed"
+                                ? "#198754"
+                                : (appointment.newStatus ||
+                                  appointment.status) === "Completed"
+                                  ? "#0d6efd"
+                                  : "#6c757d",
                         }}
                       >
-                        <option value="Pending">Chờ xác nhận</option>
+                        <option value="Scheduled">Đã đặt</option>
                         <option value="Confirmed">Xác nhận lịch</option>
+
                         <option value="Rejected">Từ chối</option>
+                        <option value="Completed">Hoàn thành</option>
                       </select>
                     </div>
-                    {/* Update button with loading */}
+                    {/* Update button with loading */}  
                     <Button
                       size="sm"
                       className="btn-sm"
                       style={{ fontSize: "11px", padding: "4px 8px" }}
                       disabled={
                         appointment.status ===
-                          (appointment.newStatus || appointment.status) ||
+                        (appointment.newStatus || appointment.status) ||
                         appointment._updating
                       }
                       onClick={async () => {

@@ -57,6 +57,11 @@ public class DoctorScheduleController {
         doctorScheduleService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/{id}/appointments")
+    public ResponseEntity<?> getScheduleAppointments(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(doctorScheduleService.getScheduleAppointments(id));
+    }
 }
 
 
