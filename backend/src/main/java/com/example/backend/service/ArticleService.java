@@ -94,15 +94,15 @@ public class ArticleService {
 
     public ArticleDTO.ResponseDTO likeArticle(Long id) {
         Article article = findArticleById(id);
-        article.setLikes(article.getLikes() + 1);
+        article.setLikeCount(article.getLikeCount() + 1);
         Article updated = articleRepository.save(article);
         return articleMapper.entityToResponseDTO(updated);
     }
 
     public ArticleDTO.ResponseDTO unlikeArticle(Long id) {
         Article article = findArticleById(id);
-        if (article.getLikes() > 0) {
-            article.setLikes(article.getLikes() - 1);
+        if (article.getLikeCount() > 0) {
+            article.setLikeCount(article.getLikeCount() - 1);
         }
         Article updated = articleRepository.save(article);
         return articleMapper.entityToResponseDTO(updated);
