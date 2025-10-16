@@ -107,6 +107,9 @@ function DoctorMessages() {
   const [menuOpenMessageId, setMenuOpenMessageId] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState("");
+  const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [uploadError, setUploadError] = useState("");
+  const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 
   const mergeUniqueMessages = useCallback((existing, incomingList) => {
     const next = [...existing];
@@ -567,6 +570,12 @@ function DoctorMessages() {
   const handleChooseImage = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setUploadError(`Ảnh quá lớn (${(file.size/1024/1024).toFixed(1)}MB). Giới hạn ${Math.round(MAX_IMAGE_BYTES/1024/1024)}MB.`);
+      e.target.value = "";
+      return;
+    }
+    setUploadError("");
     setPendingFile(file);
     const url = URL.createObjectURL(file);
     setPendingImage(url);
@@ -617,6 +626,12 @@ function DoctorMessages() {
       setPendingImage(null);
     } catch (err) {
       console.error("Send image message failed:", err);
+      const status = err?.response?.status;
+      if (status === 413 || /max(imum)? upload size/i.test(String(err?.message))) {
+        setUploadError(`Ảnh vượt quá dung lượng máy chủ cho phép. Vui lòng chọn ảnh ≤ ${Math.round(MAX_IMAGE_BYTES/1024/1024)}MB.`);
+      } else {
+        setUploadError("Không thể gửi ảnh. Vui lòng thử lại.");
+      }
       // rollback optimistic nếu có
       setMessages(prev => prev.filter(m => !String(m.messageId).startsWith('temp-img-')));
     } finally {
@@ -659,6 +674,15 @@ function DoctorMessages() {
     };
   }, []);
 
+  // Close image lightbox with ESC
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setLightboxSrc(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Render
   if (loading) {
     return (
@@ -670,6 +694,7 @@ function DoctorMessages() {
   }
 
   return (
+    <>
     <div className="bg-white rounded-4 shadow-sm border" style={{ height: "calc(100vh - 120px)", overflow: "hidden" }}>
       <div className="d-flex h-100">
         {/* Patients List Sidebar */}
@@ -874,6 +899,7 @@ function DoctorMessages() {
                               <img
                                 src={resolveAttachmentUrl(message.attachmentURL)}
                                 alt="attachment"
+                                onDoubleClick={() => setLightboxSrc(resolveAttachmentUrl(message.attachmentURL))}
                                 style={{
                                   display: 'block',
                                   maxWidth: '100%',
@@ -882,6 +908,7 @@ function DoctorMessages() {
                                   height: 'auto',
                                   objectFit: 'contain',
                                   borderRadius: 8,
+                                  cursor: 'zoom-in',
                                 }}
                               />
                             </div>
@@ -928,6 +955,11 @@ function DoctorMessages() {
                     Gửi
                   </Button>
                 </div>
+                {uploadError && (
+                  <div className="mt-2">
+                    <small className="text-danger">{uploadError}</small>
+                  </div>
+                )}
                 {pendingImage && (
                   <div className="mt-2">
                     <small className="text-muted">Ảnh sẽ được lưu với tên là ID của tin nhắn sau khi gửi.</small>
@@ -949,6 +981,38 @@ function DoctorMessages() {
         </div>
       </div>
     </div>
+
+    {lightboxSrc && (
+      <div
+        onClick={() => setLightboxSrc(null)}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          zIndex: 1050,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+          cursor: 'zoom-out',
+        }}
+      >
+        <img
+          src={lightboxSrc}
+          alt="preview"
+          style={{
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+            width: 'auto',
+            height: 'auto',
+            objectFit: 'contain',
+            borderRadius: 8,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
+          }}
+        />
+      </div>
+    )}
+    </>
   );
 }
 
