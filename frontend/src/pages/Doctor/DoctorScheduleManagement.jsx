@@ -9,6 +9,7 @@ const DoctorScheduleManagement = () => {
   const [dateFilter, setDateFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [customRange, setCustomRange] = useState({ from: "", to: "" });
+  const [dayOfWeekFilter, setDayOfWeekFilter] = useState("All");
 
   // Helper & filter
   const toDateString = (date) =>
@@ -34,14 +35,22 @@ const DoctorScheduleManagement = () => {
     });
   const getStatusBadge = (status) => {
     const statusConfig = {
-      Available: { class: "badge bg-success", text: "Có sẵn", icon: "bi bi-check-circle" },
-      Completed: { class: "badge bg-primary", text: "Hoàn thành", icon: "bi bi-check2-all" }
+      Available: { 
+        class: "badge bg-success text-white rounded-pill px-3 py-2", 
+        text: "Có sẵn", 
+        icon: "bi bi-check-circle-fill" 
+      },
+      Completed: { 
+        class: "badge bg-primary text-white rounded-pill px-3 py-2", 
+        text: "Hoàn thành", 
+        icon: "bi bi-check2-all" 
+      }
     };
     
     const config = statusConfig[status] || { 
-      class: "badge bg-secondary", 
+      class: "badge bg-secondary text-white rounded-pill px-3 py-2", 
       text: status || "Không xác định", 
-      icon: "bi bi-question-circle" 
+      icon: "bi bi-question-circle-fill" 
     };
     
     return config;
@@ -115,6 +124,24 @@ const DoctorScheduleManagement = () => {
     // Filter by status
     if (statusFilter !== "All") {
       filteredSchedules = filteredSchedules.filter((s) => s.status === statusFilter);
+    }
+    
+    // Filter by day of week
+    if (dayOfWeekFilter !== "All") {
+      filteredSchedules = filteredSchedules.filter((s) => {
+        const date = new Date(s.workDate);
+        const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        const dayMapping = {
+          "Monday": 1,
+          "Tuesday": 2, 
+          "Wednesday": 3,
+          "Thursday": 4,
+          "Friday": 5,
+          "Saturday": 6,
+          "Sunday": 0
+        };
+        return dayOfWeek === dayMapping[dayOfWeekFilter];
+      });
     }
     
     return filteredSchedules;
@@ -207,7 +234,6 @@ const DoctorScheduleManagement = () => {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
-  const [viewMode, setViewMode] = useState("table");
   const [doctorId, setDoctorId] = useState(null);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
 
@@ -289,10 +315,10 @@ const DoctorScheduleManagement = () => {
   }
 
   return (
-    <div className=" w-full mx-0 px-0">
+    <div className="w-100" style={{ minHeight: "100vh" }}>
       <div className="row justify-content-center" style={{ margin: 0 }}>
         <div className="col-lg-12">
-          <div className="card shadow rounded-4 border w-100">
+          <div className="card shadow rounded-4 border w-100" style={{ marginBottom: "2rem" }}>
             <div className="card-header bg-white rounded-top-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 py-4 px-4">
               <div className="d-flex align-items-center gap-3">
                 <span
@@ -317,6 +343,13 @@ const DoctorScheduleManagement = () => {
                   onClick={() => setShowForm(true)}
                 >
                   <i className="bi bi-plus-circle"></i> Thêm lịch trình
+                </button>
+                <button
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => window.location.reload()}
+                  title="Làm mới dữ liệu"
+                >
+                  <i className="bi bi-arrow-clockwise"></i> Làm mới
                 </button>
                 <div style={{ position: "relative" }}>
                   <button
@@ -481,43 +514,109 @@ const DoctorScheduleManagement = () => {
                 </select>
               </div>
             </div>
-            <div className="card-body px-4 py-4">
-              <div className="mb-4 d-flex gap-3 flex-wrap">
-                <span className="badge bg-primary fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-list-check me-2"></i> Tổng:{" "}
-                  {schedules.length}
-                </span>
-                <span className="badge bg-success fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-check-circle me-2"></i> Có sẵn:{" "}
-                  {schedules.filter(s => s.status === "Available").length}
-                </span>
-                <span className="badge bg-primary fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-check2-all me-2"></i> Hoàn thành:{" "}
-                  {schedules.filter(s => s.status === "Completed").length}
-                </span>
-                <span className="badge bg-info text-dark fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-calendar-check me-2"></i> Appointments:{" "}
-                  {schedules.reduce((total, s) => total + (s.appointmentCount || 0), 0)}
-                </span>
-                <span className="badge bg-warning fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-exclamation-triangle me-2"></i> Có appointments:{" "}
-                  {schedules.filter(s => s.appointmentCount > 0).length}
-                </span>
-                <span className="badge bg-secondary fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-calendar-week me-2"></i> Sắp tới:{" "}
-                  {
-                    schedules.filter((s) => new Date(s.workDate) > new Date())
-                      .length
-                  }
-                </span>
+            
+            {/* Day of Week Filter Buttons */}
+            <div className="px-4 py-3 border-top bg-white">
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <h6 className="mb-0 fw-semibold text-muted">
+                  <i className="bi bi-calendar-week me-2"></i>
+                  Lọc theo ngày trong tuần
+                </h6>
+                
               </div>
+              <div className="d-flex flex-wrap align-items-center gap-3">
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${
+                      dayOfWeekFilter === "All" 
+                        ? "btn-primary" 
+                        : "btn-outline-primary"
+                    }`}
+                    onClick={() => setDayOfWeekFilter("All")}
+                    style={{ 
+                      fontSize: "13px", 
+                      padding: "8px 16px",
+                      fontWeight: "600",
+                      borderRadius: "20px",
+                      transition: "all 0.2s ease",
+                      border: "1px solid #dee2e6"
+                    }}
+                  >
+                    <i className="bi bi-grid-3x3-gap me-1"></i>
+                    Tất cả
+                  </button>
+                  {[
+                    { key: "Monday", label: "Thứ 2", icon: "bi-calendar-day" },
+                    { key: "Tuesday", label: "Thứ 3", icon: "bi-calendar-day" },
+                    { key: "Wednesday", label: "Thứ 4", icon: "bi-calendar-check" },
+                    { key: "Thursday", label: "Thứ 5", icon: "bi-calendar-day" },
+                    { key: "Friday", label: "Thứ 6", icon: "bi-calendar-day" },
+                    { key: "Saturday", label: "Thứ 7", icon: "bi-calendar-day" },
+                    { key: "Sunday", label: "Chủ nhật", icon: "bi-calendar-day" }
+                  ].map((day) => (
+                    <button
+                      type="button"
+                      key={day.key}
+                      className={`btn btn-sm ${
+                        dayOfWeekFilter === day.key 
+                          ? "btn-primary" 
+                          : "btn-outline-primary"
+                      }`}
+                      onClick={() => setDayOfWeekFilter(day.key)}
+                      style={{ 
+                        fontSize: "13px", 
+                        padding: "8px 16px",
+                        fontWeight: "600",
+                        borderRadius: "20px",
+                        transition: "all 0.2s ease",
+                        border: "1px solid #dee2e6"
+                      }}
+                    >
+                      <i className={`bi ${day.icon} me-1`}></i>
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Quick Stats */}
+                <div className="ms-auto d-flex align-items-center gap-3">
+                  <small className="text-muted">
+                    <i className="bi bi-info-circle me-1"></i>
+                    {dayOfWeekFilter !== "All" ? 
+                      `Đang xem: ${dayOfWeekFilter === "Monday" ? "Thứ 2" :
+                       dayOfWeekFilter === "Tuesday" ? "Thứ 3" :
+                       dayOfWeekFilter === "Wednesday" ? "Thứ 4" :
+                       dayOfWeekFilter === "Thursday" ? "Thứ 5" :
+                       dayOfWeekFilter === "Friday" ? "Thứ 6" :
+                       dayOfWeekFilter === "Saturday" ? "Thứ 7" :
+                       dayOfWeekFilter === "Sunday" ? "Chủ nhật" : dayOfWeekFilter}` : 
+                      "Tất cả ngày trong tuần"}
+                  </small>
+                  <button 
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setDayOfWeekFilter("All")}
+                    title="Xóa bộ lọc ngày"
+                    style={{ 
+                      fontSize: "12px",
+                      padding: "4px 8px",
+                      borderRadius: "12px"
+                    }}
+                  >
+                    <i className="bi bi-x-circle me-1"></i>
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="card-body px-4 py-4">
               {error && (
                 <div className="alert alert-danger" role="alert">
                   {error}
                 </div>
               )}
-              {viewMode === "table" ? (
-                filterSchedulesByDate(schedules).length === 0 ? (
+              {filterSchedulesByDate(schedules).length === 0 ? (
                   <div className="text-center py-5">
                     <i
                       className="bi bi-calendar-x text-muted"
@@ -530,146 +629,199 @@ const DoctorScheduleManagement = () => {
                       className="btn btn-primary btn-lg mt-2 px-4"
                       onClick={() => setShowForm(true)}
                     >
-                      <i className="bi bi-plus-circle"></i> Thêm lịch trình đầu
-                      tiên
+                    <i className="bi bi-plus-circle"></i> Thêm lịch trình đầu tiên
                     </button>
                   </div>
                 ) : (
-                  <div className="table-responsive rounded-3 shadow-sm">
-                    <table className="table table-hover align-middle">
-                      <thead className="table-primary">
-                        <tr>
-                          <th>Ngày làm việc</th>
-                          <th>Thời gian bắt đầu</th>
-                          <th>Thời gian kết thúc</th>
-                          <th>
-                            Trạng thái
-                            <small className="text-muted d-block" style={{ fontSize: "10px" }}>
-                              Tích hợp với Appointment System
-                            </small>
-                          </th>
-                          <th>Ghi chú</th>
-                          <th className="text-center">Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filterSchedulesByDate(schedules).map((schedule) => (
-                          <tr
-                            key={schedule.scheduleId}
-                            className="table-row-hover"
-                          >
-                            <td className="fw-semibold">
+                <div className="row g-4">
+                  {filterSchedulesByDate(schedules).map((schedule) => {
+                    const isToday = toDateString(schedule.workDate) === toDateString(new Date());
+                    const isPast = new Date(schedule.workDate) < new Date();
+                    const isUpcoming = new Date(schedule.workDate) > new Date();
+                    
+                    return (
+                      <div key={schedule.scheduleId} className="col-lg-6 col-xl-4">
+                        <div className={`card h-100 shadow-sm border-0 ${
+                          isToday ? 'border-warning' : 
+                          isPast ? 'border-secondary' : 
+                          'border-primary'
+                        }`} style={{ 
+                          borderRadius: "16px",
+                          transition: "all 0.3s ease",
+                          cursor: "pointer"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                          e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                        }}>
+                          {/* Card Header */}
+                          <div className={`card-header border-0 ${
+                            isToday ? 'bg-warning bg-opacity-10' : 
+                            isPast ? 'bg-secondary bg-opacity-10' : 
+                            'bg-primary bg-opacity-10'
+                          }`} style={{ borderRadius: "16px 16px 0 0" }}>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <div className="d-flex align-items-center gap-3">
+                                <div className={`rounded-circle d-flex align-items-center justify-content-center ${
+                                  isToday ? 'bg-warning text-dark' : 
+                                  isPast ? 'bg-secondary text-white' : 
+                                  'bg-primary text-white'
+                                }`} style={{ width: 40, height: 40 }}>
+                                  <i className="bi bi-calendar3"></i>
+                                </div>
+                                <div>
+                                  <h6 className="mb-0 fw-bold">
                               {formatDate(schedule.workDate)}
-                            </td>
-                            <td>{formatTime(schedule.startTime)}</td>
-                            <td>{formatTime(schedule.endTime)}</td>
-                            <td>
-                              <div className="d-flex align-items-center gap-2">
+                                  </h6>
+                                  <small className={`${
+                                    isToday ? 'text-warning' : 
+                                    isPast ? 'text-muted' : 
+                                    'text-primary'
+                                  }`}>
+                                    {isToday ? 'Hôm nay' : 
+                                     isPast ? 'Đã qua' : 
+                                     'Sắp tới'}
+                                  </small>
+                                </div>
+                              </div>
+                              
+                              {/* Status Badge and Action Buttons */}
+                              <div className="d-flex align-items-center gap-3">
                                 {(() => {
                                   const statusConfig = getStatusBadge(schedule.status);
                                   return (
-                                    <span className={statusConfig.class}>
+                                    <span className={statusConfig.class} style={{ fontSize: "12px", fontWeight: "600" }}>
                                       <i className={`${statusConfig.icon} me-1`}></i>
                                       {statusConfig.text}
                                     </span>
                                   );
                                 })()}
-                                
-                                {/* Hiển thị số appointments và trạng thái tích hợp */}
-                                {schedule.appointmentCount > 0 && (
-                                  <span 
-                                    className={`badge ${
-                                      schedule.status === "Available" ? "bg-info text-dark" :
-                                      schedule.status === "Completed" ? "bg-primary text-white" :
-                                      "bg-secondary text-white"
-                                    }`}
-                                    style={{ fontSize: "10px" }}
-                                    title={
-                                      schedule.status === "Available" ? 
-                                        `Có ${schedule.appointmentCount} appointments - Có thể tạo thêm` :
-                                      schedule.status === "Completed" ? 
-                                        `Có ${schedule.appointmentCount} appointments - Đã hoàn thành` :
-                                        "Có appointments liên quan"
-                                    }
-                                  >
-                                    <i className="bi bi-calendar-check me-1"></i>
-                                    {schedule.appointmentCount}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td>{schedule.notes || "-"}</td>
-                            <td className="text-center">
-                              <div className="d-flex gap-1 justify-content-center">
-                                {/* Status dropdown với logic tích hợp Appointment System */}
-                                <select
-                                  className="form-select form-select-sm"
-                                  style={{ 
-                                    width: "120px", 
-                                    fontSize: "11px",
-                                    borderColor: (schedule.appointmentCount > 0 && schedule.status === "Available") 
-                                                ? "#ffc107" : undefined,
-                                    opacity: schedule.status === "Completed" ? 0.8 : 1
-                                  }}
-                                  value={schedule.status}
-                                  onChange={(e) => handleUpdateScheduleStatus(schedule.scheduleId, e.target.value)}
-                                  title={
-                                    schedule.status === "Available" && schedule.appointmentCount > 0 ? 
-                                      `Có ${schedule.appointmentCount} appointments - Thay đổi status sẽ ảnh hưởng đến appointments` :
-                                    schedule.status === "Completed" ?
-                                      "Lịch trình đã hoàn thành - Không thể tạo appointments mới" :
-                                      "Thay đổi trạng thái lịch trình"
-                                  }
-                                >
-                                  <option value="Available">Có sẵn</option>
-                                  <option value="Completed">Hoàn thành</option>
-                                </select>
-                                
-                                {/* Action buttons */}
-                                <div className="btn-group" role="group">
+                                <div className="d-flex gap-1">
                                   <button
-                                    className="btn btn-sm btn-outline-primary"
+                                    className="btn btn-sm btn-outline-primary rounded-circle"
                                     onClick={() => setEditingSchedule(schedule)}
-                                    title="Chỉnh sửa"
-                                    style={{ minWidth: 36 }}
+                                    title="Chỉnh sửa lịch trình"
+                                    style={{ 
+                                      width: 32, 
+                                      height: 32,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      transition: "all 0.2s ease"
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.target.style.transform = "scale(1.1)";
+                                      e.target.style.backgroundColor = "#0d6efd";
+                                      e.target.style.color = "white";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.target.style.transform = "scale(1)";
+                                      e.target.style.backgroundColor = "transparent";
+                                      e.target.style.color = "#0d6efd";
+                                    }}
                                   >
-                                    <i className="bi bi-pencil"></i>
+                                    <i className="bi bi-pencil" style={{ fontSize: "12px" }}></i>
                                   </button>
                                   <button
-                                    className="btn btn-sm btn-outline-danger"
-                                    onClick={() =>
-                                      handleDeleteSchedule(schedule.scheduleId)
-                                    }
-                                    title="Xóa"
-                                    style={{ minWidth: 36 }}
+                                    className="btn btn-sm btn-outline-danger rounded-circle"
+                                    onClick={() => handleDeleteSchedule(schedule.scheduleId)}
+                                    title="Xóa lịch trình"
+                                    style={{ 
+                                      width: 32, 
+                                      height: 32,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      transition: "all 0.2s ease"
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.target.style.transform = "scale(1.1)";
+                                      e.target.style.backgroundColor = "#dc3545";
+                                      e.target.style.color = "white";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.target.style.transform = "scale(1)";
+                                      e.target.style.backgroundColor = "transparent";
+                                      e.target.style.color = "#dc3545";
+                                    }}
                                   >
-                                    <i className="bi bi-trash"></i>
+                                    <i className="bi bi-trash" style={{ fontSize: "12px" }}></i>
                                   </button>
                                 </div>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                          </div>
+
+                          {/* Card Body */}
+                          <div className="card-body p-4">
+                            {/* Time Info */}
+                            <div className="row mb-3">
+                              <div className="col-6">
+                                <div className="d-flex align-items-center gap-2 mb-2">
+                                  <i className="bi bi-clock text-primary"></i>
+                                  <small className="text-muted">Bắt đầu</small>
+                                </div>
+                                <div className="fw-semibold text-primary fs-5">
+                                  {formatTime(schedule.startTime)}
+                                </div>
+                              </div>
+                              <div className="col-6">
+                                <div className="d-flex align-items-center gap-2 mb-2">
+                                  <i className="bi bi-clock-fill text-success"></i>
+                                  <small className="text-muted">Kết thúc</small>
+                                </div>
+                                <div className="fw-semibold text-success fs-5">
+                                  {formatTime(schedule.endTime)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Duration Info */}
+                            <div className="d-flex align-items-center gap-2 mb-3">
+                              <i className="bi bi-hourglass-split text-info"></i>
+                              <small className="text-muted">Thời gian làm việc:</small>
+                              <span className="fw-semibold text-info">
+                                {(() => {
+                                  const start = new Date(`2000-01-01T${schedule.startTime}`);
+                                  const end = new Date(`2000-01-01T${schedule.endTime}`);
+                                  const diffMs = end - start;
+                                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                                  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                                  return `${diffHours}h ${diffMinutes}m`;
+                                })()}
+                              </span>
+                            </div>
+
+                            {/* Appointments Info */}
+                            <div className="d-flex align-items-center gap-2 mb-3">
+                              <i className="bi bi-calendar-check text-primary"></i>
+                              <small className="text-muted">Appointments:</small>
+                              <span className="fw-bold text-primary fs-5">
+                                {schedule.appointmentCount || 0}
+                              </span>
+                            </div>
+
+                            {/* Notes */}
+                            {schedule.notes && (
+                              <div className="mb-3">
+                                <div className="d-flex align-items-center gap-2 mb-1">
+                                  <i className="bi bi-sticky text-muted"></i>
+                                  <small className="text-muted">Ghi chú</small>
+                                </div>
+                                <p className="small mb-0 text-muted">
+                                  {schedule.notes}
+                                </p>
+                              </div>
+                            )}
+                          </div>                     
+                        </div>
                   </div>
-                )
-              ) : (
-                <div className="text-center py-5">
-                  <i
-                    className="bi bi-calendar3 text-primary"
-                    style={{ fontSize: "4rem" }}
-                  ></i>
-                  <p className="text-muted mt-3 fs-5">
-                    Chế độ xem lịch đang được phát triển
-                  </p>
-                  <button
-                    className="btn btn-outline-primary btn-lg mt-2 px-4"
-                    onClick={() => setViewMode("table")}
-                  >
-                    {" "}
-                    <i className="bi bi-table"></i> Chuyển về chế độ bảng{" "}
-                  </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

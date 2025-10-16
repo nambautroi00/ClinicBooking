@@ -1,8 +1,10 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import axiosClient from "../../../api/axiosClient";
 
 const DoctorSidebar = ({ doctorInfo, loading = false }) => {
   const location = useLocation();
+
 
   const menuItems = [
     {
@@ -75,7 +77,7 @@ const DoctorSidebar = ({ doctorInfo, loading = false }) => {
         zIndex: 1040,
       }}
     >
-      <div>
+      <div className="d-flex flex-column h-100">
         {/* Doctor Info */}
         <div className="doctor-info mb-1">
           <div className="text-center">
@@ -129,6 +131,7 @@ const DoctorSidebar = ({ doctorInfo, loading = false }) => {
             </li>
           ))}
         </ul>
+
       </div>
     </nav>
   );

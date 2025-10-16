@@ -16,6 +16,7 @@ const DoctorAvailableSlotManagement = () => {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [dayOfWeekFilter, setDayOfWeekFilter] = useState("All");
 
   // State cho form tạo slots
   const [showQuickCreateForm, setShowQuickCreateForm] = useState(false);
@@ -309,18 +310,48 @@ const DoctorAvailableSlotManagement = () => {
     }
   };
 
-  // Lọc slots theo ngày được chọn
+  // Lọc slots theo ngày được chọn và ngày trong tuần
   const filteredSlots = slots.filter((slot) => {
-    if (!selectedDate) return true;
-    const slotDate = slot.startTime.split("T")[0];
-    const match = slotDate === selectedDate;
-    if (!match) {
-      console.log(`⚠️ Date mismatch: slot=${slotDate}, selected=${selectedDate}`);
+    const slotDate = new Date(slot.startTime);
+    const dayOfWeek = slotDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const dayMapping = {
+      "Monday": 1,
+      "Tuesday": 2, 
+      "Wednesday": 3,
+      "Thursday": 4,
+      "Friday": 5,
+      "Saturday": 6,
+      "Sunday": 0
+    };
+    
+    // Filter by selected date
+    if (selectedDate) {
+      const slotDateStr = slot.startTime.split("T")[0];
+      const match = slotDateStr === selectedDate;
+      if (!match) {
+        console.log(`⚠️ Date mismatch: slot=${slotDateStr}, selected=${selectedDate}`);
+        return false;
+      }
     }
-    return match;
+    
+    // Filter by day of week
+    if (dayOfWeekFilter !== "All") {
+      const dayMatch = dayOfWeek === dayMapping[dayOfWeekFilter];
+      console.log(`🔍 Day filter: slotDay=${dayOfWeek}, filterDay=${dayMapping[dayOfWeekFilter]}, match=${dayMatch}`);
+      return dayMatch;
+    }
+    
+    return true;
   });
   
   console.log("🔍 Filtered slots count:", filteredSlots.length, "Total slots:", slots.length);
+  console.log("🔍 Day of week filter:", dayOfWeekFilter);
+  console.log("🔍 Selected date:", selectedDate);
+  console.log("🔍 Sample slots:", slots.slice(0, 3).map(s => ({
+    startTime: s.startTime,
+    dayOfWeek: new Date(s.startTime).getDay(),
+    date: s.startTime.split("T")[0]
+  })));
 
   // Kiểm tra slot đã được đặt chưa
   const isSlotBooked = (slot) => {
@@ -357,6 +388,15 @@ const DoctorAvailableSlotManagement = () => {
       style: "currency",
       currency: "VND",
     }).format(amount);
+  };
+
+  // Helper function to format date for display (MM/DD/YYYY)
+  const formatDisplayDate = (dateString) => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split('-');
+    const formattedMonth = month.padStart(2, '0');
+    const formattedDay = day.padStart(2, '0');
+    return `${formattedMonth}/${formattedDay}/${year}`;
   };
 
   // Nhóm slots theo ngày
@@ -422,60 +462,213 @@ const DoctorAvailableSlotManagement = () => {
                   </div>
                 </div>
 
-                <div className="d-flex gap-2 flex-wrap">
-                  <button
-                    className="btn btn-success btn-sm"
-                    onClick={() => setShowQuickCreateForm(true)}
-                  >
-                    <i className="bi bi-lightning-charge"></i> Tạo nhanh
-                  </button>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setShowBulkCreateForm(true)}
-                  >
-                    <i className="bi bi-calendar-plus"></i> Tạo hàng loạt
-                  </button>
-                  <div className="btn-group" role="group">
+                <div className="d-flex gap-3 flex-wrap align-items-center">
+                  <div className="d-flex gap-2 align-items-center">
+                    <div>                      
+                      <div className="position-relative">
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={{ 
+                            maxWidth: 200, 
+                            paddingRight: "40px",
+                            borderRadius: "0.5rem"
+                          }}
+                          value={formatDisplayDate(selectedDate)}
+                          readOnly
+                          placeholder="MM/DD/YYYY"
+                        />
+                        <i 
+                          className="bi bi-calendar position-absolute" 
+                          style={{ 
+                            right: "12px", 
+                            top: "50%", 
+                            transform: "translateY(-50%)",
+                            color: "#6c757d",
+                            pointerEvents: "none"
+                          }}
+                        ></i>
+                        <input
+                          type="date"
+                          className="position-absolute"
+                          style={{ 
+                            opacity: 0, 
+                            width: "100%", 
+                            height: "100%", 
+                            cursor: "pointer",
+                            top: 0,
+                            left: 0
+                          }}
+                        value={selectedDate}
+                        onChange={(e) => {
+                          setSelectedDate(e.target.value);
+                          setDayOfWeekFilter("All"); // Clear day of week filter when selecting specific date
+                        }}
+                        />
+                      </div>
+                    </div>
                     <button
-                      className={`btn btn-sm ${
-                        viewMode === "calendar"
-                          ? "btn-primary"
-                          : "btn-outline-primary"
-                      }`}
-                      onClick={() => setViewMode("calendar")}
+                      className="btn btn-outline-primary"
+                      onClick={() => setSelectedDate("")}
+                      style={{ borderRadius: "0.5rem" }}
                     >
-                      <i className="bi bi-calendar3"></i> Lịch
-                    </button>
-                    <button
-                      className={`btn btn-sm ${
-                        viewMode === "list" ? "btn-primary" : "btn-outline-primary"
-                      }`}
-                      onClick={() => setViewMode("list")}
-                    >
-                      <i className="bi bi-list-ul"></i> Danh sách
+                      <i className="bi bi-calendar-x me-1"></i>
+                      Xem tất cả
                     </button>
                   </div>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-success"
+                      onClick={() => setShowQuickCreateForm(true)}
+                      style={{ borderRadius: "0.5rem" }}
+                    >
+                      <i className="bi bi-lightning-charge"></i> Tạo nhanh
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setShowBulkCreateForm(true)}
+                      style={{ borderRadius: "0.5rem" }}
+                    >
+                      <i className="bi bi-calendar-plus"></i> Tạo hàng loạt
+                    </button>
+                    <div className="btn-group" role="group">
+                      <button
+                        className={`btn ${
+                          viewMode === "calendar"
+                            ? "btn-primary"
+                            : "btn-outline-primary"
+                        }`}
+                        onClick={() => setViewMode("calendar")}
+                        style={{ 
+                          borderRadius: "0.5rem 0 0 0.5rem",
+                          borderRight: "none"
+                        }}
+                      >
+                        <i className="bi bi-calendar3"></i> Lịch
+                      </button>
+                      <button
+                        className={`btn ${
+                          viewMode === "list" ? "btn-primary" : "btn-outline-primary"
+                        }`}
+                        onClick={() => setViewMode("list")}
+                        style={{ 
+                          borderRadius: "0 0.5rem 0.5rem 0",
+                          borderLeft: "none"
+                        }}
+                      >
+                        <i className="bi bi-list-ul"></i> Danh sách
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Day of Week Filter Buttons */}
+            <div className="px-4 py-3 border-top bg-white">
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <h6 className="mb-0 fw-semibold text-muted">
+                  <i className="bi bi-calendar-week me-2"></i>
+                  Lọc theo ngày trong tuần
+                </h6>
+              </div>
+              <div className="d-flex flex-wrap align-items-center gap-3">
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${
+                      dayOfWeekFilter === "All" 
+                        ? "btn-primary" 
+                        : "btn-outline-primary"
+                    }`}
+                    onClick={() => {
+                      setDayOfWeekFilter("All");
+                      setSelectedDate(""); // Clear selected date when choosing "All"
+                    }}
+                    style={{ 
+                      fontSize: "13px", 
+                      padding: "8px 16px",
+                      fontWeight: "600",
+                      borderRadius: "20px",
+                      transition: "all 0.2s ease",
+                      border: "1px solid #dee2e6"
+                    }}
+                  >
+                    <i className="bi bi-grid-3x3-gap me-1"></i>
+                    Tất cả
+                  </button>
+                  {[
+                    { key: "Monday", label: "Thứ 2", icon: "bi-calendar-day" },
+                    { key: "Tuesday", label: "Thứ 3", icon: "bi-calendar-day" },
+                    { key: "Wednesday", label: "Thứ 4", icon: "bi-calendar-check" },
+                    { key: "Thursday", label: "Thứ 5", icon: "bi-calendar-day" },
+                    { key: "Friday", label: "Thứ 6", icon: "bi-calendar-day" },
+                    { key: "Saturday", label: "Thứ 7", icon: "bi-calendar-day" },
+                    { key: "Sunday", label: "Chủ nhật", icon: "bi-calendar-day" }
+                  ].map((day) => (
+                    <button
+                      type="button"
+                      key={day.key}
+                      className={`btn btn-sm ${
+                        dayOfWeekFilter === day.key 
+                          ? "btn-primary" 
+                          : "btn-outline-primary"
+                      }`}
+                      onClick={() => {
+                        setDayOfWeekFilter(day.key);
+                        setSelectedDate(""); // Clear selected date when choosing day of week
+                      }}
+                      style={{ 
+                        fontSize: "13px", 
+                        padding: "8px 16px",
+                        fontWeight: "600",
+                        borderRadius: "20px",
+                        transition: "all 0.2s ease",
+                        border: "1px solid #dee2e6"
+                      }}
+                    >
+                      <i className={`bi ${day.icon} me-1`}></i>
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Quick Stats */}
+                <div className="ms-auto d-flex align-items-center gap-3">
+                  <small className="text-muted">
+                    <i className="bi bi-info-circle me-1"></i>
+                    {dayOfWeekFilter !== "All" ? 
+                      `Đang xem: ${dayOfWeekFilter === "Monday" ? "Thứ 2" :
+                       dayOfWeekFilter === "Tuesday" ? "Thứ 3" :
+                       dayOfWeekFilter === "Wednesday" ? "Thứ 4" :
+                       dayOfWeekFilter === "Thursday" ? "Thứ 5" :
+                       dayOfWeekFilter === "Friday" ? "Thứ 6" :
+                       dayOfWeekFilter === "Saturday" ? "Thứ 7" :
+                       dayOfWeekFilter === "Sunday" ? "Chủ nhật" : dayOfWeekFilter}` : 
+                      "Tất cả ngày trong tuần"}
+                  </small>
+                  <button 
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => {
+                      setDayOfWeekFilter("All");
+                      setSelectedDate(""); // Clear selected date when resetting
+                    }}
+                    title="Xóa bộ lọc ngày"
+                    style={{ 
+                      fontSize: "12px",
+                      padding: "4px 8px",
+                      borderRadius: "12px"
+                    }}
+                  >
+                    <i className="bi bi-x-circle me-1"></i>
+                    Reset
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Body */}
             <div className="card-body px-4 py-4">
-              {/* Stats */}
-              <div className="mb-4 d-flex gap-3 flex-wrap">
-                <span className="badge bg-success fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-calendar-check me-2"></i> Tổng khung giờ trống:{" "}
-                  {availableCount}
-                </span>
-                <span className="badge bg-info text-dark fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-calendar-event me-2"></i> Đã đặt:{" "}
-                  {bookedCount}
-                </span>
-                <span className="badge bg-warning text-dark fs-6 px-3 py-2 shadow-sm">
-                  <i className="bi bi-calendar-x me-2"></i> Tổng tất cả:{" "}
-                  {allAppointments.length}
-                </span>
-              </div>
 
               {error && (
                 <div className="alert alert-danger alert-dismissible fade show">
@@ -491,25 +684,6 @@ const DoctorAvailableSlotManagement = () => {
               {/* Calendar View */}
               {viewMode === "calendar" && (
                 <div>
-                  <div className="mb-3 d-flex gap-2 align-items-end">
-                    <div>
-                      <label className="form-label fw-bold">Chọn ngày:</label>
-                      <input
-                        type="date"
-                        className="form-control"
-                        style={{ maxWidth: 200 }}
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                      />
-                    </div>
-                    <button
-                      className="btn btn-outline-primary"
-                      onClick={() => setSelectedDate("")}
-                    >
-                      <i className="bi bi-calendar-x me-1"></i>
-                      Xem tất cả
-                    </button>
-                  </div>
 
                   {filteredSlots.length === 0 ? (
                     <div className="text-center py-5">
@@ -518,10 +692,31 @@ const DoctorAvailableSlotManagement = () => {
                         style={{ fontSize: "4rem" }}
                       ></i>
                       <p className="text-muted mt-3 fs-5">
-                        {selectedDate 
-                          ? `Chưa có khung giờ nào cho ngày ${formatDate(selectedDate + "T00:00:00")}`
-                          : "Chưa có khung giờ nào"
-                        }
+                        {(() => {
+                          if (selectedDate && dayOfWeekFilter !== "All") {
+                            const selectedDayName = dayOfWeekFilter === "Monday" ? "Thứ 2" :
+                                                   dayOfWeekFilter === "Tuesday" ? "Thứ 3" :
+                                                   dayOfWeekFilter === "Wednesday" ? "Thứ 4" :
+                                                   dayOfWeekFilter === "Thursday" ? "Thứ 5" :
+                                                   dayOfWeekFilter === "Friday" ? "Thứ 6" :
+                                                   dayOfWeekFilter === "Saturday" ? "Thứ 7" :
+                                                   dayOfWeekFilter === "Sunday" ? "Chủ nhật" : dayOfWeekFilter;
+                            return `Chưa có khung giờ nào cho ${selectedDayName}`;
+                          } else if (selectedDate) {
+                            return `Chưa có khung giờ nào cho ngày ${formatDate(selectedDate + "T00:00:00")}`;
+                          } else if (dayOfWeekFilter !== "All") {
+                            const dayName = dayOfWeekFilter === "Monday" ? "Thứ 2" :
+                                           dayOfWeekFilter === "Tuesday" ? "Thứ 3" :
+                                           dayOfWeekFilter === "Wednesday" ? "Thứ 4" :
+                                           dayOfWeekFilter === "Thursday" ? "Thứ 5" :
+                                           dayOfWeekFilter === "Friday" ? "Thứ 6" :
+                                           dayOfWeekFilter === "Saturday" ? "Thứ 7" :
+                                           dayOfWeekFilter === "Sunday" ? "Chủ nhật" : dayOfWeekFilter;
+                            return `Chưa có khung giờ nào cho ${dayName}`;
+                          } else {
+                            return "Chưa có khung giờ nào";
+                          }
+                        })()}
                       </p>
                       <p className="text-info">
                         Tổng tất cả: {allAppointments.length} appointments | 
@@ -562,7 +757,7 @@ const DoctorAvailableSlotManagement = () => {
                                     {booked ? "Đã đặt" : "Còn trống"}
                                   </span>
                                 </div>
-                                <p className="mb-0 fw-bold text-success" style={{ fontSize: '0.85rem' }}>
+                                <p className="mb-0 fw-bold text-primary" style={{ fontSize: '0.85rem' }}>
                                   <i className="bi bi-cash me-1" style={{ fontSize: '0.75rem' }}></i>
                                   {formatCurrency(slot.fee)}
                                 </p>
@@ -649,7 +844,7 @@ const DoctorAvailableSlotManagement = () => {
                                     <td className="fw-semibold">
                                       {formatTime(slot.endTime)}
                                     </td>
-                                    <td className="text-success fw-bold">
+                                    <td className="text-primary fw-bold">
                                       {formatCurrency(slot.fee)}
                                     </td>
                                     <td>

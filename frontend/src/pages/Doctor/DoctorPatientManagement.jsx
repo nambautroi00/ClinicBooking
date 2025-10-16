@@ -283,41 +283,6 @@ function DoctorPatientManagement() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="row mb-4">
-          <div className="col-md-3">
-            <div className="card bg-primary text-white">
-              <div className="card-body text-center">
-                <h4 className="mb-1">{stats.total}</h4>
-                <small>Tổng bệnh nhân</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card bg-success text-white">
-              <div className="card-body text-center">
-                <h4 className="mb-1">{stats.active}</h4>
-                <small>Đang điều trị</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card bg-info text-white">
-              <div className="card-body text-center">
-                <h4 className="mb-1">{stats.completed}</h4>
-                <small>Đã hoàn thành</small>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-3">
-            <div className="card bg-warning text-white">
-              <div className="card-body text-center">
-                <h4 className="mb-1">{stats.new}</h4>
-                <small>Bệnh nhân mới</small>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Patients List */}
         <div className="space-y-4">
@@ -334,7 +299,7 @@ function DoctorPatientManagement() {
                 className="flex items-center gap-4 rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
               >
                 {/* Patient Avatar & Basic Info */}
-                <div className="d-flex align-items-center gap-3" style={{ minWidth: "250px" }}>
+                <div className="d-flex align-items-center gap-3" style={{ minWidth: "300px" }}>
                   <Avatar
                     size={60}
                     src={patient.patientAvatar || "/placeholder.svg"}
@@ -363,7 +328,7 @@ function DoctorPatientManagement() {
                 </div>
 
                 {/* Contact Info */}
-                <div className="p-2" style={{ minWidth: "200px" }}>
+                <div className="p-2" style={{ minWidth: "250px" }}>
                   <div className="d-flex align-items-center gap-2 mb-2">
                     <Mail className="text-muted" size={14} />
                     <span className="small text-truncate">
@@ -393,7 +358,7 @@ function DoctorPatientManagement() {
                 </div>
 
                 {/* Last Appointment */}
-                <div className="p-2" style={{ minWidth: "180px" }}>
+                <div className="p-2" style={{ minWidth: "200px" }}>
                   {patient.lastAppointment ? (
                     <>
                       <div className="d-flex align-items-center gap-2 mb-1">

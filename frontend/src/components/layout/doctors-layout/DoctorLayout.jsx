@@ -132,8 +132,7 @@ const DoctorLayout = () => {
   return (
     <div className="doctor-layout">
       {/* Doctor Header */}
-      <DoctorHeader doctorInfo={doctorInfo} />
-
+      <DoctorHeader />
       {/* Sidebar cố định trái, main content dịch sang phải */}
       <DoctorSidebar doctorInfo={doctorInfo} loading={loading} />
       <div style={CONTENT_STYLES}>

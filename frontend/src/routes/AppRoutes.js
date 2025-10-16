@@ -33,7 +33,8 @@ import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBookin
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
 import PatientProfile from "../pages/Patient/PatientProfile";
 import Booking from "../pages/Booking";
-import DoctorDetail from "../pages/DoctorDetail";
+import DoctorDetail from "../pages/Patient/DoctorDetail";
+import BookingConfirmation from "../pages/Patient/BookingConfirmation";
 import TestAuth from "../pages/TestAuth";
 
 // Admin pages
@@ -80,6 +81,7 @@ const AppRoutes = () => {
         element={<PatientAppointmentHistory />}
       />
       <Route path="/patient/profile" element={<PatientProfile />} />
+      <Route path="/booking/confirm" element={<BookingConfirmation />} />
 
       {/* Doctor (protected) */}
       <Route

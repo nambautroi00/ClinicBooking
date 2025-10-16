@@ -1,7 +1,33 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axiosClient from "../../../api/axiosClient";
 
-const DoctorHeader = ({ doctorInfo }) => {
+const DoctorHeader = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      // Gọi API logout nếu có
+      await axiosClient.post('/auth/logout', { 
+        token: localStorage.getItem('token') 
+      });
+    } catch (error) {
+      console.error('Logout API error:', error);
+      // Tiếp tục logout ngay cả khi API lỗi
+    } finally {
+      // Xóa dữ liệu local
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('doctorId');
+      
+      // Dispatch event để các component khác biết user đã logout
+      window.dispatchEvent(new Event('userChanged'));
+      
+      // Chuyển về trang chủ
+      navigate('/');
+    }
+  };
+
   return (
     <nav
       className="navbar navbar-expand-lg navbar-dark bg-primary doctor-header shadow-sm"
@@ -22,47 +48,18 @@ const DoctorHeader = ({ doctorInfo }) => {
             <i className="bi bi-house fs-5"></i>
             <span className="ms-1">Trang chủ</span>
           </Link>
-          <div className="dropdown">
-            <button
-              className="btn btn-link dropdown-toggle text-white d-flex align-items-center"
-              type="button"
-              id="doctorMenu"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-              style={{ textDecoration: "none" }}
-            >
-              <i className="bi bi-person-circle me-2 fs-4"></i>
-              <span className="fw-semibold">{doctorInfo?.name || 'Tài khoản'}</span>
-            </button>
-            <ul
-              className="dropdown-menu dropdown-menu-end"
-              aria-labelledby="doctorMenu"
-            >
-              <li>
-                <Link className="dropdown-item" to="/doctor/profile">
-                  <i className="bi bi-person-circle me-2"></i> Hồ sơ cá nhân
-                </Link>
-              </li>
-              <li>
-                <Link className="dropdown-item" to="/doctor/settings">
-                  <i className="bi bi-gear me-2"></i> Cài đặt
-                </Link>
-              </li>
-              <li>
-                <hr className="dropdown-divider" />
-              </li>
-              <li>
-                <button
-                  className="dropdown-item text-danger"
-                  onClick={() => {
-                    /* TODO: handle logout */
-                  }}
-                >
-                  <i className="bi bi-box-arrow-right me-2"></i> Đăng xuất
-                </button>
-              </li>
-            </ul>
-          </div>
+          
+          {/* Nút đăng xuất nổi bật */}
+          <button
+            className="btn btn-outline-light btn-sm d-flex align-items-center"
+            onClick={handleLogout}
+            title="Đăng xuất"
+          >
+            <i className="bi bi-box-arrow-right me-1"></i>
+            <span className="d-none d-sm-inline">Đăng xuất</span>
+          </button>
+          
+          
         </div>
       </div>
     </nav>
