@@ -9,6 +9,8 @@ const fileUploadApi = {
         formData.append('doctorId', id);
       } else if (type === 'user') {
         formData.append('userId', id);
+      } else if (type === 'message') {
+        formData.append('messageId', id);
       } else {
         formData.append('articleId', id);
       }

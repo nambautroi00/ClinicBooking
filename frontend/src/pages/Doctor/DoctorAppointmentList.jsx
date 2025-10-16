@@ -616,7 +616,7 @@ function DoctorAppointmentList() {
                         borderRadius: "50%",
                       }}
                       onClick={() => {
-                        window.location.href = `/doctor/messages?patientId=${appointment.patientId}`;
+                        window.location.href = `/doctor/messages?patientId=${appointment.patientId}&doctorId=${doctorId}`;
                       }}
                     >
                       <MessageCircle

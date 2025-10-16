@@ -130,30 +130,17 @@ const ArticleDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <nav className="flex items-center space-x-2 text-sm">
-            <Link to="/articles" className="text-blue-600 hover:text-blue-700">
-              Bài viết
-            </Link>
-            <span className="text-gray-400">/</span>
-            <span className="text-gray-600">Chi tiết bài viết</span>
-          </nav>
-        </div>
-      </div>
-
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Back Button */}
           <div className="mb-6">
-            <Link 
-              to="/articles"
-              className="inline-flex items-center text-blue-600 hover:text-blue-700"
+            <button
+              onClick={() => navigate('/admin/articles')}
+              className="btn btn-outline-secondary"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Quay lại danh sách bài viết
-            </Link>
+              <i className="bi bi-arrow-left me-2"></i>
+              Quay lại danh sách
+            </button>
           </div>
 
           {/* Article Content */}

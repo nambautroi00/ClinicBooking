@@ -45,7 +45,8 @@ public class ConversationService {
                 .findByPatientIdAndDoctorId(dto.getPatientId(), dto.getDoctorId());
         
         if (existingConversation.isPresent()) {
-            throw new ConflictException("Cuộc trò chuyện giữa bệnh nhân và bác sĩ này đã tồn tại");
+            // Return existing conversation instead of throwing exception
+            return conversationMapper.entityToResponseDTO(existingConversation.get());
         }
 
         // Create new conversation
