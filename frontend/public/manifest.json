@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Hệ thống đặt lịch khám bệnh Clinic",
+  "name": "Hệ thống đặt lịch khám bệnh Clinic",
   "icons": [
     {
       "src": "favicon.ico",

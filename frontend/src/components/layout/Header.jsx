@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart } from "lucide-react";
+import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart, MessageCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import userApi from "../../api/userApi";
@@ -54,18 +54,38 @@ export default function Header() {
   useEffect(() => {
     const raw = localStorage.getItem('user');
     if (raw) {
-      try { setUser(JSON.parse(raw)); } catch (e) { setUser(null); }
+      try { 
+        const userData = JSON.parse(raw);
+        setUser(userData);
+        // Debug log để kiểm tra user object
+        console.log('Header - User loaded:', userData);
+        console.log('Header - User role:', userData?.role);
+      } catch (e) { 
+        setUser(null); 
+      }
     }
 
     const onStorage = (e) => {
       if (e.key === 'user') {
         const val = e.newValue;
-        if (val) setUser(JSON.parse(val)); else setUser(null);
+        if (val) {
+          const userData = JSON.parse(val);
+          setUser(userData);
+          console.log('Header - User updated from storage:', userData);
+        } else {
+          setUser(null);
+        }
       }
     };
     const onUserChanged = () => {
       const val = localStorage.getItem('user');
-      if (val) setUser(JSON.parse(val)); else setUser(null);
+      if (val) {
+        const userData = JSON.parse(val);
+        setUser(userData);
+        console.log('Header - User changed event:', userData);
+      } else {
+        setUser(null);
+      }
     };
 
     window.addEventListener('storage', onStorage);
@@ -242,6 +262,20 @@ export default function Header() {
             {/* If user is logged in show name + logout, otherwise show login button */}
             {user ? (
               <div className="hidden md:flex items-center gap-3">
+                {/* Messages link for patients */}
+                {(() => {
+                  const roleName = user.role?.name || user.role?.roleName || '';
+                  const isPatient = roleName.toLowerCase().includes('patient');
+                  return isPatient && (
+                    <Link 
+                      to="/patient/messages" 
+                      className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                    >
+                      <MessageCircle size={16} />
+                      Tin nhắn
+                    </Link>
+                  );
+                })()}
                 <button
                   className="text-sm font-medium hover:underline"
                   onClick={() => setShowProfile(true)}
@@ -298,7 +332,53 @@ export default function Header() {
                 </a>
               )
             ))}
-            <Link to="/login" className="w-full inline-block rounded-md bg-[#0d6efd] px-3 py-1 text-white text-center">Đăng nhập</Link>
+            {/* Messages link for patients in mobile */}
+            {(() => {
+              const roleName = user?.role?.name || user?.role?.roleName || '';
+              const isPatient = roleName.toLowerCase().includes('patient');
+              return user && isPatient && (
+                <Link 
+                  to="/patient/messages" 
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-[#0d6efd]" 
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <MessageCircle size={16} />
+                  Tin nhắn
+                </Link>
+              );
+            })()}
+            {user ? (
+              <div className="space-y-2">
+                <button
+                  className="w-full text-left text-sm font-medium text-gray-700 hover:text-[#0d6efd]"
+                  onClick={() => {
+                    setShowProfile(true);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  {user.firstName || user.email}
+                </button>
+                <button
+                  className="w-full inline-block rounded-md border border-red-200 bg-white px-3 py-1 text-red-600 text-center hover:bg-red-50"
+                  onClick={async () => {
+                    try {
+                      await axiosClient.post('/auth/logout', { token: localStorage.getItem('token') });
+                    } catch (e) {
+                      // ignore
+                    }
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.dispatchEvent(new Event('userChanged'));
+                    navigate('/');
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <Link to="/login" className="w-full inline-block rounded-md bg-[#0d6efd] px-3 py-1 text-white text-center">Đăng nhập</Link>
+            )}
           </nav>
         )}
       </div>

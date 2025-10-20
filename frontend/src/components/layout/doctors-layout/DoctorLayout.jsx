@@ -7,9 +7,10 @@ import userApi from "../../../api/userApi";
 import { getFullAvatarUrl } from "../../../utils/avatarUtils";
 
 // Constants
-const CONTENT_STYLES = {
-  marginLeft: "260px",
-};
+const getContentStyles = (sidebarOpen) => ({
+  marginLeft: window.innerWidth >= 992 ? (sidebarOpen ? "260px" : "0") : "0",
+  transition: "margin-left 0.3s ease-in-out",
+});
 
 const MAIN_STYLES = {
   marginTop: -90,
@@ -48,6 +49,31 @@ const DoctorLayout = () => {
   });
   
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 992);
+
+  // Toggle sidebar function
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  // Close sidebar function
+  const closeSidebar = () => {
+    setSidebarOpen(false);
+  };
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 992) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch doctor info with useCallback to avoid re-creating function
   const fetchDoctorInfo = useCallback(async () => {
@@ -132,10 +158,15 @@ const DoctorLayout = () => {
   return (
     <div className="doctor-layout">
       {/* Doctor Header */}
-      <DoctorHeader />
+      <DoctorHeader onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
       {/* Sidebar cố định trái, main content dịch sang phải */}
-      <DoctorSidebar doctorInfo={doctorInfo} loading={loading} />
-      <div style={CONTENT_STYLES}>
+      <DoctorSidebar 
+        doctorInfo={doctorInfo} 
+        loading={loading} 
+        sidebarOpen={sidebarOpen}
+        onClose={closeSidebar}
+      />
+      <div style={getContentStyles(sidebarOpen)}>
         {/* Main Content: chỉ hiện thanh cuộn khi nội dung vượt quá khung hình */}
         <main className="px-md-6" style={MAIN_STYLES}>
           <div className="doctor-content">

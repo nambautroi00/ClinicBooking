@@ -6,6 +6,7 @@ import doctorApi from "../../api/doctorApi";
 import conversationApi from "../../api/conversationApi";
 import messageApi from "../../api/messageApi";
 import fileUploadApi from "../../api/fileUploadApi";
+import userApi from "../../api/userApi";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import Cookies from "js-cookie";
@@ -79,24 +80,22 @@ const Avatar = ({ src, alt, children, size = 40, online = false }) => (
   </div>
 );
 
-// Messages are loaded from API
-
-function DoctorMessages() {
+function PatientMessages() {
   const [searchParams] = useSearchParams();
-  const selectedPatientId = searchParams.get("patientId");
-  const urlDoctorId = searchParams.get("doctorId");
+  const selectedDoctorId = searchParams.get("doctorId");
+  const urlPatientId = searchParams.get("patientId");
 
   // State
   const [searchQuery, setSearchQuery] = useState("");
-  const [patients, setPatients] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [pendingImage, setPendingImage] = useState(null); // local preview URL
   const [pendingFile, setPendingFile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [doctorId, setDoctorId] = useState(null);
+  const [patientId, setPatientId] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [lastFetchedAt, setLastFetchedAt] = useState(null);
@@ -159,51 +158,156 @@ function DoctorMessages() {
     }
   }, []);
 
-  // Fetch doctorId and currentUserId
+  // Fetch patientId and currentUserId
   useEffect(() => {
-    const fetchDoctorId = async () => {
+    const fetchPatientId = async () => {
       const userId = Cookies.get("userId") || currentUser?.id;
       if (userId) {
         setCurrentUserId(userId);
+        // Thử lấy patientId từ user object hoặc sử dụng userId trực tiếp
         try {
-          const res = await doctorApi.getDoctorByUserId(userId);
-          const data = res.data || res;
-          setDoctorId(data.doctorId);
+          // Kiểm tra xem user object có chứa patientId không
+          if (currentUser?.patientId) {
+            setPatientId(currentUser.patientId);
+            return;
+          }
+          
+          // Nếu không có, thử lấy từ API users với patient info
+          const res = await userApi.getAllUsersWithPatientInfo();
+          const usersWithPatientInfo = res.data || res;
+          const currentUserWithPatientInfo = usersWithPatientInfo.find(u => u.id === userId);
+          
+          if (currentUserWithPatientInfo?.patientId) {
+            setPatientId(currentUserWithPatientInfo.patientId);
+          } else {
+            // Fallback: sử dụng userId làm patientId nếu không tìm thấy
+            console.log("No patientId found, using userId as patientId:", userId);
+            setPatientId(userId);
+          }
         } catch (err) {
-          console.error("Error fetching doctorId:", err);
+          console.error("Error fetching patientId:", err);
+          // Fallback: sử dụng userId làm patientId
+          setPatientId(userId);
         }
       }
     };
-    fetchDoctorId();
+    fetchPatientId();
   }, [currentUser]);
 
-  // Fetch patients with appointments
-  const fetchPatients = useCallback(async () => {
-    if (!doctorId) return;
+  // Fetch doctors with appointments
+  const fetchDoctors = useCallback(async () => {
+    if (!patientId && !currentUserId) return;
 
     // Tránh flicker: chỉ bật loading trong lần tải đầu
-    if (patients.length === 0) setLoading(true);
+    if (doctors.length === 0) setLoading(true);
     try {
-      // Lấy tất cả appointments của bác sĩ
-      const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(doctorId);
+      let appointmentsRes;
       
-      // Lấy danh sách patient IDs từ appointments
-      const patientIds = [...new Set(
+      // Thử lấy appointments bằng patientId trước
+      if (patientId && patientId !== currentUserId) {
+        try {
+          appointmentsRes = await appointmentApi.getAppointmentsByPatient(patientId);
+        } catch (err) {
+          console.log("Failed to get appointments by patientId, trying alternative approach:", err);
+          appointmentsRes = null;
+        }
+      }
+      
+      // Nếu không có appointments hoặc patientId = userId, thử cách khác
+      if (!appointmentsRes || appointmentsRes.data.length === 0) {
+        console.log("No appointments found, loading all doctors for demo purposes");
+        // Fallback: lấy tất cả doctors để demo
+        const allDoctorsRes = await doctorApi.getAllDoctors();
+        const allDoctors = allDoctorsRes.data || [];
+        
+        // Lấy thông tin chi tiết của từng doctor với conversation info
+        const doctorsWithDetails = await Promise.all(
+          allDoctors.slice(0, 5).map(async (doctor) => { // Giới hạn 5 doctors để demo
+            try {
+            // Lấy conversation và tin nhắn cuối cùng từ backend
+            let lastMessageContent = "Chưa có tin nhắn";
+            let lastMessageTime = null;
+            let unreadCount = 0;
+            try {
+              const convRes = await conversationApi.getConversationByPatientAndDoctor(currentUserId, doctor.doctorId);
+              const conv = convRes?.data;
+              if (conv?.conversationId) {
+                try {
+                  const latestRes = await messageApi.getLatestByConversation(conv.conversationId);
+                  const latest = latestRes?.data;
+                  if (latest) {
+                    lastMessageContent = latest.content || lastMessageContent;
+                    lastMessageTime = latest.createdAt || latest.sentAt || null;
+                  }
+                  
+                  // Lấy số tin nhắn chưa đọc
+                  try {
+                    const unreadRes = await messageApi.getUnreadCount(conv.conversationId, currentUserId);
+                    unreadCount = unreadRes?.data || 0;
+                  } catch (e) {
+                    // ignore if no unread count
+                  }
+                } catch (e) {
+                  // ignore if no latest message
+                }
+              }
+            } catch (e) {
+              // No conversation yet
+            }
+
+              return {
+                ...doctor,
+                doctorId: doctor.doctorId,
+                doctorName: doctor.user?.lastName + " " + doctor.user?.firstName ||
+                            doctor.lastName + " " + doctor.firstName ||
+                            "Không rõ",
+                doctorEmail: doctor.user?.email || "",
+                doctorPhone: doctor.user?.phone || "",
+                doctorAvatar: doctor.user?.avatarUrl || "",
+                doctorSpecialty: doctor.specialty || "",
+                lastMessage: lastMessageContent,
+                lastMessageTime: lastMessageTime,
+                unreadCount,
+                totalAppointments: 0, // Demo data
+              };
+            } catch (error) {
+              console.error(`Error fetching doctor ${doctor.doctorId}:`, error);
+              return null;
+            }
+          })
+        );
+
+        // Filter out null results
+        const validDoctors = doctorsWithDetails.filter(doctor => doctor !== null);
+        setDoctors(validDoctors);
+        
+        // Set selected doctor if doctorId is provided
+        if (selectedDoctorId) {
+          const doctor = validDoctors.find(d => d.doctorId == selectedDoctorId);
+          if (doctor) {
+            setSelectedDoctor(doctor);
+          }
+        }
+        return;
+      }
+      
+      // Lấy danh sách doctor IDs từ appointments
+      const doctorIds = [...new Set(
         appointmentsRes.data
-          .filter(appointment => appointment.patientId !== null)
-          .map(appointment => appointment.patientId)
+          .filter(appointment => appointment.doctorId !== null)
+          .map(appointment => appointment.doctorId)
       )];
 
-      // Lấy thông tin chi tiết của từng patient
-      const patientsWithDetails = await Promise.all(
-        patientIds.map(async (patientId) => {
+      // Lấy thông tin chi tiết của từng doctor
+      const doctorsWithDetails = await Promise.all(
+        doctorIds.map(async (doctorId) => {
           try {
-            const patientRes = await patientApi.getPatientById(patientId);
-            const patient = patientRes.data;
+            const doctorRes = await doctorApi.getDoctorById(doctorId);
+            const doctor = doctorRes.data;
             
-            // Lấy appointments của patient này với bác sĩ
-            const patientAppointments = appointmentsRes.data.filter(
-              appointment => appointment.patientId === patientId
+            // Lấy appointments của doctor này với bệnh nhân
+            const doctorAppointments = appointmentsRes.data.filter(
+              appointment => appointment.doctorId === doctorId
             );
 
             // Lấy conversation và tin nhắn cuối cùng từ backend
@@ -238,63 +342,65 @@ function DoctorMessages() {
             }
 
             return {
-              ...patient,
-              patientId,
-              patientName: patient.user?.lastName + " " + patient.user?.firstName ||
-                          patient.lastName + " " + patient.firstName ||
+              ...doctor,
+              doctorId,
+              doctorName: doctor.user?.lastName + " " + doctor.user?.firstName ||
+                          doctor.lastName + " " + doctor.firstName ||
                           "Không rõ",
-              patientEmail: patient.user?.email || "",
-              patientPhone: patient.user?.phone || "",
-              patientAvatar: patient.user?.avatarUrl || "",
+              doctorEmail: doctor.user?.email || "",
+              doctorPhone: doctor.user?.phone || "",
+              doctorAvatar: doctor.user?.avatarUrl || "",
+              doctorSpecialty: doctor.specialty || "",
               lastMessage: lastMessageContent,
               lastMessageTime: lastMessageTime,
               unreadCount,
-              totalAppointments: patientAppointments.length,
+              totalAppointments: doctorAppointments.length,
             };
           } catch (error) {
-            console.error(`Error fetching patient ${patientId}:`, error);
+            console.error(`Error fetching doctor ${doctorId}:`, error);
             return null;
           }
         })
       );
 
       // Filter out null results
-      const validPatients = patientsWithDetails.filter(patient => patient !== null);
-      setPatients(validPatients);
+      const validDoctors = doctorsWithDetails.filter(doctor => doctor !== null);
+      setDoctors(validDoctors);
 
-      // Set selected patient if patientId is provided
-      if (selectedPatientId) {
-        const patient = validPatients.find(p => p.patientId == selectedPatientId);
-        if (patient) {
-          setSelectedPatient(patient);
+      // Set selected doctor if doctorId is provided
+      if (selectedDoctorId) {
+        const doctor = validDoctors.find(d => d.doctorId == selectedDoctorId);
+        if (doctor) {
+          setSelectedDoctor(doctor);
         }
       }
     } catch (error) {
-      console.error("Error fetching patients:", error);
-      setPatients([]);
+      console.error("Error fetching doctors:", error);
+      setDoctors([]);
     } finally {
       setLoading(false);
     }
-  }, [doctorId, selectedPatientId, patients.length]);
+  }, [patientId, currentUserId, selectedDoctorId, doctors.length]);
 
   useEffect(() => {
-    if (doctorId) {
-      fetchPatients();
+    if (patientId || currentUserId) {
+      fetchDoctors();
     }
-  }, [doctorId, fetchPatients]);
+  }, [patientId, currentUserId, fetchDoctors]);
 
-  // Create conversation for specific patient if needed
-  const createConversationForPatient = useCallback(async (patientId, doctorId) => {
-    if (!patientId || !doctorId) {
-      console.log("Missing patientId or doctorId:", { patientId, doctorId });
+  // Create conversation for specific doctor if needed
+  const createConversationForDoctor = useCallback(async (patientId, doctorId) => {
+    const actualPatientId = patientId || currentUserId;
+    if (!actualPatientId || !doctorId) {
+      console.log("Missing patientId or doctorId:", { actualPatientId, doctorId });
       return null;
     }
 
-    console.log("Checking for existing conversation between patient:", patientId, "and doctor:", doctorId);
+    console.log("Checking for existing conversation between patient:", actualPatientId, "and doctor:", doctorId);
 
     try {
       // Check if conversation already exists
-      const existingConversation = await conversationApi.getConversationByPatientAndDoctor(patientId, doctorId);
+      const existingConversation = await conversationApi.getConversationByPatientAndDoctor(actualPatientId, doctorId);
       if (existingConversation?.data) {
         return existingConversation.data;
       }
@@ -306,7 +412,7 @@ function DoctorMessages() {
     // Only create if conversation doesn't exist
     try {
       const conversationData = {
-        patientId: parseInt(patientId),
+        patientId: parseInt(actualPatientId),
         doctorId: parseInt(doctorId)
       };
 
@@ -317,15 +423,15 @@ function DoctorMessages() {
       console.error("❌ Error creating conversation:", error);
       return null;
     }
-  }, []);
+  }, [currentUserId]);
 
-  // Ensure conversation exists and load messages when patient is selected (from URL or sidebar)
+  // Ensure conversation exists and load messages when doctor is selected (from URL or sidebar)
   useEffect(() => {
     const ensureAndLoad = async () => {
-      const targetDoctorId = urlDoctorId || doctorId;
-      const targetPatientId = selectedPatient?.patientId || selectedPatientId;
+      const targetPatientId = urlPatientId || patientId || currentUserId;
+      const targetDoctorId = selectedDoctor?.doctorId || selectedDoctorId;
       if (targetPatientId && targetDoctorId) {
-        const conv = await createConversationForPatient(targetPatientId, targetDoctorId);
+        const conv = await createConversationForDoctor(targetPatientId, targetDoctorId);
         const convId = conv?.conversationId;
         setConversationId(convId || null);
         if (convId) {
@@ -339,14 +445,14 @@ function DoctorMessages() {
             scrollToBottom();
             setLastFetchedAt(new Date().toISOString());
             
-            // Đánh dấu tin nhắn đã đọc khi doctor mở conversation
+            // Đánh dấu tin nhắn đã đọc khi người dùng mở conversation
             try {
               await messageApi.markMessagesAsRead(convId, currentUserId);
-              // Cập nhật unreadCount trong danh sách patients
-              setPatients(prev => prev.map(p =>
-                p.patientId === targetPatientId
-                  ? { ...p, unreadCount: 0 }
-                  : p
+              // Cập nhật unreadCount trong danh sách doctors
+              setDoctors(prev => prev.map(d =>
+                d.doctorId === targetDoctorId
+                  ? { ...d, unreadCount: 0 }
+                  : d
               ));
             } catch (e) {
               console.error("Error marking messages as read:", e);
@@ -358,17 +464,17 @@ function DoctorMessages() {
         }
       }
     };
-    if ((doctorId || urlDoctorId) && (selectedPatient?.patientId || selectedPatientId)) {
+    if ((patientId || urlPatientId || currentUserId) && (selectedDoctor?.doctorId || selectedDoctorId)) {
       ensureAndLoad();
     }
-  }, [doctorId, urlDoctorId, selectedPatient, selectedPatientId, createConversationForPatient, scrollToBottom]);
+  }, [patientId, urlPatientId, currentUserId, selectedDoctor, selectedDoctorId, createConversationForDoctor, scrollToBottom]);
 
-  // Scroll to bottom when switching patient explicitly
+  // Scroll to bottom when switching doctor explicitly
   useEffect(() => {
-    if (selectedPatient) {
+    if (selectedDoctor) {
       scrollToBottom();
     }
-  }, [selectedPatient, scrollToBottom]);
+  }, [selectedDoctor, scrollToBottom]);
 
   // Poll for new messages (fallback when WS không hoạt động hoặc im ắng)
   useEffect(() => {
@@ -396,20 +502,20 @@ function DoctorMessages() {
           const newMsgs = Array.isArray(res.data) ? res.data : [];
           if (newMsgs.length > 0) {
             setMessages(prev => mergeUniqueMessages(prev, newMsgs));
-            // Cập nhật last message cho patient đang chọn ở sidebar
+            // Cập nhật last message cho doctor đang chọn ở sidebar
             const latest = newMsgs[newMsgs.length - 1];
-            if (latest && selectedPatient) {
-              // Kiểm tra xem tin nhắn mới có phải từ patient không
-              const isFromPatient = Number(latest.senderId) !== Number(currentUserId);
-              setPatients(prev => prev.map(p =>
-                p.patientId === selectedPatient.patientId
+            if (latest && selectedDoctor) {
+              // Kiểm tra xem tin nhắn mới có phải từ doctor không
+              const isFromDoctor = Number(latest.senderId) !== Number(currentUserId);
+              setDoctors(prev => prev.map(d =>
+                d.doctorId === selectedDoctor.doctorId
                   ? {
-                      ...p,
-                      lastMessage: latest.content || p.lastMessage,
-                      lastMessageTime: latest.createdAt || latest.sentAt || p.lastMessageTime,
-                      unreadCount: isFromPatient ? p.unreadCount + 1 : p.unreadCount,
+                      ...d,
+                      lastMessage: latest.content || d.lastMessage,
+                      lastMessageTime: latest.createdAt || latest.sentAt || d.lastMessageTime,
+                      unreadCount: isFromDoctor ? d.unreadCount + 1 : d.unreadCount,
                     }
-                  : p
+                  : d
               ));
             }
             // Tự động cuộn xuống cuối khi có tin nhắn mới
@@ -450,16 +556,16 @@ function DoctorMessages() {
           // Tránh thêm trùng
           setMessages((prev) => mergeUniqueMessages(prev, [incoming]));
           // Cập nhật dòng preview ở sidebar
-          const isFromPatient = Number(incoming.senderId) !== Number(currentUserId);
-          setPatients(prev => prev.map(p =>
-            selectedPatient?.patientId && p.patientId === selectedPatient.patientId
+          const isFromDoctor = Number(incoming.senderId) !== Number(currentUserId);
+          setDoctors(prev => prev.map(d =>
+            selectedDoctor?.doctorId && d.doctorId === selectedDoctor.doctorId
               ? {
-                  ...p,
-                  lastMessage: incoming.content || p.lastMessage,
-                  lastMessageTime: incoming.createdAt || incoming.sentAt || p.lastMessageTime,
-                  unreadCount: isFromPatient ? p.unreadCount + 1 : p.unreadCount,
+                  ...d,
+                  lastMessage: incoming.content || d.lastMessage,
+                  lastMessageTime: incoming.createdAt || incoming.sentAt || d.lastMessageTime,
+                  unreadCount: isFromDoctor ? d.unreadCount + 1 : d.unreadCount,
                 }
-              : p
+              : d
           ));
           // Cuộn xuống cuối
           requestAnimationFrame(() => {
@@ -482,32 +588,33 @@ function DoctorMessages() {
       setWsConnected(false);
       client.deactivate();
     };
-  }, [conversationId, selectedPatient]);
+  }, [conversationId, selectedDoctor]);
 
-  // Filter patients
-  const filteredPatients = useMemo(() => {
-    return patients.filter(patient => {
+  // Filter doctors
+  const filteredDoctors = useMemo(() => {
+    return doctors.filter(doctor => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
-          patient.patientName?.toLowerCase().includes(query) ||
-          patient.patientEmail?.toLowerCase().includes(query) ||
-          patient.patientPhone?.includes(query)
+          doctor.doctorName?.toLowerCase().includes(query) ||
+          doctor.doctorEmail?.toLowerCase().includes(query) ||
+          doctor.doctorPhone?.includes(query) ||
+          doctor.doctorSpecialty?.toLowerCase().includes(query)
         );
       }
       return true;
     });
-  }, [patients, searchQuery]);
+  }, [doctors, searchQuery]);
 
   // Messages for current conversation (already filtered)
-  const patientMessages = useMemo(() => {
+  const doctorMessages = useMemo(() => {
     const getTs = (m) => new Date(m.createdAt || m.sentAt || m._arrivalAt || 0).getTime();
     return [...messages].sort((a, b) => getTs(a) - getTs(b));
   }, [messages]);
 
   // Handle send message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedPatient || !conversationId || !currentUserId) return;
+    if (!newMessage.trim() || !selectedDoctor || !conversationId || !currentUserId) return;
 
     const payload = {
       conversationId: Number(conversationId),
@@ -723,7 +830,7 @@ function DoctorMessages() {
     <>
     <div className="bg-white rounded-4 shadow-sm border" style={{ height: "calc(100vh - 120px)", overflow: "hidden" }}>
       <div className="d-flex h-100">
-        {/* Patients List Sidebar */}
+        {/* Doctors List Sidebar */}
         <div
           className="border-end bg-light"
           style={{ width: "350px", minWidth: "350px" }}
@@ -744,7 +851,7 @@ function DoctorMessages() {
               />
               <Input
                 type="text"
-                placeholder="Tìm kiếm bệnh nhân..."
+                placeholder="Tìm kiếm bác sĩ..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{ paddingLeft: 32 }}
@@ -752,50 +859,53 @@ function DoctorMessages() {
             </div>
           </div>
 
-          {/* Patients List */}
+          {/* Doctors List */}
           <div className="overflow-auto" style={{ height: "calc(100% - 120px)" }}>
-            {filteredPatients.length === 0 ? (
+            {filteredDoctors.length === 0 ? (
               <div className="text-center py-5">
                 <MessageCircle size={48} color="#ccc" className="mb-3" />
-                <p className="text-muted">Không có bệnh nhân nào</p>
+                <p className="text-muted">Không có bác sĩ nào</p>
               </div>
             ) : (
-              filteredPatients.map((patient) => (
+              filteredDoctors.map((doctor) => (
                 <div
-                  key={patient.patientId}
+                  key={doctor.doctorId}
                   className={`p-3 border-bottom cursor-pointer ${
-                    selectedPatient?.patientId === patient.patientId
+                    selectedDoctor?.doctorId === doctor.doctorId
                       ? "bg-primary text-white"
                       : "hover-bg-light"
                   }`}
-                  onClick={() => setSelectedPatient(patient)}
+                  onClick={() => setSelectedDoctor(doctor)}
                   style={{ cursor: "pointer" }}
                 >
                   <div className="d-flex align-items-center gap-3">
                     <Avatar
                       size={50}
-                      src={patient.patientAvatar || "/placeholder.svg"}
-                      alt={patient.patientName}
-                      online={patient.unreadCount > 0}
+                      src={doctor.doctorAvatar || "/placeholder.svg"}
+                      alt={doctor.doctorName}
+                      online={doctor.unreadCount > 0}
                     >
-                      {patient.patientName
-                        ? patient.patientName.charAt(0).toUpperCase()
+                      {doctor.doctorName
+                        ? doctor.doctorName.charAt(0).toUpperCase()
                         : "?"}
                     </Avatar>
                     <div className="flex-grow-1">
                       <div className="d-flex align-items-center justify-content-between mb-1">
-                        <h6 className="mb-0 fw-bold">{patient.patientName}</h6>
-                        {patient.unreadCount > 0 && (
+                        <h6 className="mb-0 fw-bold">{doctor.doctorName}</h6>
+                        {doctor.unreadCount > 0 && (
                           <span className="badge bg-danger rounded-pill">
-                            {patient.unreadCount}
+                            {doctor.unreadCount}
                           </span>
                         )}
                       </div>
                       <p className="mb-1 small text-truncate">
-                        {patient.lastMessage}
+                        {doctor.doctorSpecialty}
+                      </p>
+                      <p className="mb-1 small text-truncate">
+                        {doctor.lastMessage}
                       </p>
                       <small className="text-muted">
-                        {patient.lastMessageTime ? formatTime(patient.lastMessageTime) : ""}
+                        {doctor.lastMessageTime ? formatTime(doctor.lastMessageTime) : ""}
                       </small>
                     </div>
                   </div>
@@ -807,24 +917,24 @@ function DoctorMessages() {
 
         {/* Chat Area */}
         <div className="flex-grow-1 d-flex flex-column">
-          {selectedPatient ? (
+          {selectedDoctor ? (
             <>
               {/* Chat Header */}
               <div className="p-3 border-bottom d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center gap-3">
                   <Avatar
                     size={45}
-                    src={selectedPatient.patientAvatar || "/placeholder.svg"}
-                    alt={selectedPatient.patientName}
+                    src={selectedDoctor.doctorAvatar || "/placeholder.svg"}
+                    alt={selectedDoctor.doctorName}
                   >
-                    {selectedPatient.patientName
-                      ? selectedPatient.patientName.charAt(0).toUpperCase()
+                    {selectedDoctor.doctorName
+                      ? selectedDoctor.doctorName.charAt(0).toUpperCase()
                       : "?"}
                   </Avatar>
                   <div>
-                    <h6 className="mb-0 fw-bold">{selectedPatient.patientName}</h6>
+                    <h6 className="mb-0 fw-bold">{selectedDoctor.doctorName}</h6>
                     <small className="text-muted">
-                      {selectedPatient.totalAppointments} lịch hẹn
+                      {selectedDoctor.doctorSpecialty} • {selectedDoctor.totalAppointments} lịch hẹn
                     </small>
                   </div>
                 </div>
@@ -858,30 +968,30 @@ function DoctorMessages() {
                 id="messages-container"
                 className="flex-grow-1 p-3 overflow-auto"
               >
-                {patientMessages.length === 0 ? (
+                {doctorMessages.length === 0 ? (
                   <div className="text-center py-5">
                     <MessageCircle size={48} color="#ccc" className="mb-3" />
                     <p className="text-muted">Chưa có tin nhắn nào</p>
                     <p className="text-muted small">
-                      Bắt đầu cuộc trò chuyện với {selectedPatient.patientName}
+                      Bắt đầu cuộc trò chuyện với {selectedDoctor.doctorName}
                     </p>
                   </div>
                 ) : (
-                  patientMessages.map((message) => {
-                    const isDoctorMsg = Number(message.senderId) === Number(doctorId);
+                  doctorMessages.map((message) => {
+                    const isPatientMsg = Number(message.senderId) === Number(currentUserId);
                     const key = message.messageId || message.id || `${message.senderId}-${message.sentAt}`;
                     return (
                       <div
                         key={key}
                         className={`mb-3 d-flex ${
-                          isDoctorMsg ? "justify-content-end" : "justify-content-start"
+                          isPatientMsg ? "justify-content-end" : "justify-content-start"
                         }`}
                         onMouseEnter={() => setHoveredMessageId(message.messageId)}
                         onMouseLeave={() => { if (menuOpenMessageId !== message.messageId) setHoveredMessageId(null); }}
                       >
                         <div
                           className={`p-3 rounded-3 ${
-                            isDoctorMsg ? "bg-primary text-white" : "bg-light text-dark"
+                            isPatientMsg ? "bg-primary text-white" : "bg-light text-dark"
                           }`}
                           style={{ maxWidth: "70%" }}
                         >
@@ -889,7 +999,7 @@ function DoctorMessages() {
                             <div className="position-relative" style={{ height: 0 }}>
                               {(hoveredMessageId === message.messageId || menuOpenMessageId === message.messageId) && (
                                 <button
-                                  className={`btn btn-sm ${isDoctorMsg ? "btn-light" : "btn-outline-secondary"}`}
+                                  className={`btn btn-sm ${isPatientMsg ? "btn-light" : "btn-outline-secondary"}`}
                                   style={{ position: 'absolute', top: -14, right: -14, padding: '2px 6px' }}
                                   onClick={() => setMenuOpenMessageId(prev => prev === message.messageId ? null : message.messageId)}
                                 >
@@ -914,7 +1024,7 @@ function DoctorMessages() {
                                 className="mb-2"
                               />
                               <div className="d-flex gap-2">
-                                <button className={`btn btn-sm ${isDoctorMsg ? 'btn-light' : 'btn-primary'}`} onClick={() => saveEditMessage(message)}>Lưu</button>
+                                <button className={`btn btn-sm ${isPatientMsg ? 'btn-light' : 'btn-primary'}`} onClick={() => saveEditMessage(message)}>Lưu</button>
                                 <button className="btn btn-sm btn-outline-secondary" onClick={cancelEditMessage}>Hủy</button>
                               </div>
                             </>
@@ -943,7 +1053,7 @@ function DoctorMessages() {
                           </>
                           )}
                           <small
-                            className={`${isDoctorMsg ? "text-white-50" : "text-muted"}`}
+                            className={`${isPatientMsg ? "text-white-50" : "text-muted"}`}
                           >
                           {formatTime(message.createdAt || message.sentAt)}
                         </small>
@@ -997,9 +1107,9 @@ function DoctorMessages() {
             <div className="d-flex align-items-center justify-content-center h-100">
               <div className="text-center">
                 <MessageCircle size={64} color="#ccc" className="mb-3" />
-                <h5 className="text-muted">Chọn bệnh nhân để bắt đầu trò chuyện</h5>
+                <h5 className="text-muted">Chọn bác sĩ để bắt đầu trò chuyện</h5>
                 <p className="text-muted">
-                  Chọn một bệnh nhân từ danh sách bên trái để xem tin nhắn
+                  Chọn một bác sĩ từ danh sách bên trái để xem tin nhắn
                 </p>
               </div>
             </div>
@@ -1042,4 +1152,4 @@ function DoctorMessages() {
   );
 }
 
-export default DoctorMessages;
+export default PatientMessages;

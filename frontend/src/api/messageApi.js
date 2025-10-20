@@ -24,6 +24,22 @@ const messageApi = {
 
   // Xoá message
   remove: (id) => axiosClient.delete(`/messages/${id}`),
+
+  // Lấy số lượng tin nhắn chưa đọc
+  getUnreadCount: (conversationId, userId) =>
+    axiosClient.get(`/messages/unread-count?conversationId=${conversationId}&userId=${userId}`),
+
+  // Lấy danh sách tin nhắn chưa đọc
+  getUnreadMessages: (conversationId, userId) =>
+    axiosClient.get(`/messages/unread?conversationId=${conversationId}&userId=${userId}`),
+
+  // Đánh dấu tất cả tin nhắn trong conversation là đã đọc
+  markMessagesAsRead: (conversationId, userId) =>
+    axiosClient.put(`/messages/mark-as-read?conversationId=${conversationId}&userId=${userId}`),
+
+  // Đánh dấu một tin nhắn cụ thể là đã đọc
+  markMessageAsRead: (messageId) =>
+    axiosClient.put(`/messages/${messageId}/mark-as-read`),
 };
 
 export default messageApi;

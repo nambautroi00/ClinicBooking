@@ -32,6 +32,7 @@ import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
 import PatientProfile from "../pages/Patient/PatientProfile";
+import PatientMessages from "../pages/Patient/PatientMessages";
 import Booking from "../pages/Booking";
 import DoctorDetail from "../pages/Patient/DoctorDetail";
 import BookingConfirmation from "../pages/Patient/BookingConfirmation";
@@ -81,6 +82,7 @@ const AppRoutes = () => {
         element={<PatientAppointmentHistory />}
       />
       <Route path="/patient/profile" element={<PatientProfile />} />
+      <Route path="/patient/messages" element={<PatientMessages />} />
       <Route path="/booking/confirm" element={<BookingConfirmation />} />
 
       {/* Doctor (protected) */}
