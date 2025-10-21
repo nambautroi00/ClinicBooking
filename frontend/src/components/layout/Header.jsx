@@ -252,7 +252,7 @@ export default function Header() {
     { label: "Dịch vụ", href: "/#services" },
     { label: "Bác sĩ tư vấn", href: "/video-consultation" },
     { label: "Bài viết", href: "/articles" },
-    { label: "Đặt lịch", href: "/#booking" },
+    { label: "Đặt lịch", href: "/patient/book-appointment" },
   ];
 
   return (
