@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { XCircle, ArrowLeft, RefreshCw } from 'lucide-react';
+import { XCircle, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
 import paymentApi from '../../api/paymentApi';
 
 export default function PaymentCancel() {
@@ -8,53 +8,54 @@ export default function PaymentCancel() {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [paymentInfo, setPaymentInfo] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Lấy thông tin từ PayOS redirect
+  const payOSId = searchParams.get('id');
+  const status = searchParams.get('status');
+  const orderCode = searchParams.get('orderCode');
+  const code = searchParams.get('code');
 
   useEffect(() => {
-    const handlePayOSRedirect = async () => {
-      // Lấy thông tin từ PayOS redirect
-      const payOSId = searchParams.get('id');
-      const payOSStatus = searchParams.get('status');
-      const orderCode = searchParams.get('orderCode');
-      const code = searchParams.get('code');
-
-      console.log('🔍 PayOS cancel redirect detected:', {
-        payOSId,
-        payOSStatus,
-        orderCode,
-        code
-      });
-
-      if (payOSId && payOSStatus === 'CANCELLED' && code === '00') {
-        try {
-          // Tìm payment theo PayOS Payment ID
-          console.log('🔍 Looking up payment by PayOS ID:', payOSId);
-          const response = await paymentApi.getPaymentByPayOSPaymentId(payOSId);
-          
-          if (response.data) {
-            console.log('✅ Found payment:', response.data);
-            const payment = response.data;
-            
-            // Cập nhật payment status thành CANCELLED
-            try {
-              console.log('🔄 Updating payment status to CANCELLED...');
-              await paymentApi.updatePaymentStatus(payment.paymentId, 'CANCELLED');
-              console.log('✅ Payment status updated to CANCELLED');
-            } catch (updateError) {
-              console.error('❌ Error updating payment status:', updateError);
-            }
-            
-            setPaymentInfo(payment);
-          }
-        } catch (error) {
-          console.error('❌ Error loading payment info:', error);
-        }
+    const handlePaymentCancel = async () => {
+      if (!payOSId) {
+        setError('Không tìm thấy thông tin thanh toán');
+        setLoading(false);
+        return;
       }
-      
-      setLoading(false);
+
+      try {
+        console.log('🔍 PayOS Cancel Redirect:', {
+          payOSId,
+          status,
+          orderCode,
+          code
+        });
+
+        // Cập nhật payment status thành CANCELLED
+        try {
+          await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'CANCELLED', orderCode);
+          console.log('✅ Payment status updated to CANCELLED');
+        } catch (updateError) {
+          console.warn('⚠️ Could not update payment status:', updateError);
+        }
+
+        // Lấy thông tin payment sau khi cập nhật
+        const response = await paymentApi.getPaymentByPayOSPaymentId(payOSId);
+        if (response.data) {
+          setPaymentInfo(response.data);
+          console.log('✅ Payment info loaded:', response.data);
+        }
+      } catch (err) {
+        console.error('❌ Error loading payment info:', err);
+        setError('Không thể tải thông tin thanh toán');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    handlePayOSRedirect();
-  }, [searchParams]);
+    handlePaymentCancel();
+  }, [payOSId, status, orderCode, code]);
 
   const handleGoHome = () => {
     navigate('/');
@@ -66,11 +67,10 @@ export default function PaymentCancel() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Đang xử lý thông tin...</h2>
-          <p className="text-gray-600">Vui lòng chờ trong giây lát</p>
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Đang xử lý thông tin thanh toán...</p>
         </div>
       </div>
     );
@@ -107,33 +107,31 @@ export default function PaymentCancel() {
             <p className="text-gray-600 mb-6">
               Bạn đã hủy quá trình thanh toán. Lịch hẹn chưa được xác nhận.
             </p>
-          </div>
-
-          {/* Payment Info */}
-          {paymentInfo && (
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Thông tin thanh toán</h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Mã thanh toán:</span>
-                  <span className="font-medium">#{paymentInfo.paymentId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Số tiền:</span>
-                  <span className="font-medium text-red-600">
-                    {new Intl.NumberFormat('vi-VN', {
-                      style: 'currency',
-                      currency: 'VND'
-                    }).format(paymentInfo.amount)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Trạng thái:</span>
-                  <span className="text-red-600 font-medium">Đã hủy</span>
+            
+            {/* Payment Info */}
+            {paymentInfo && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4 text-left">
+                <h3 className="font-semibold text-gray-900 mb-2">Thông tin thanh toán</h3>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <p><strong>Mã thanh toán:</strong> {paymentInfo.paymentId}</p>
+                  <p><strong>Trạng thái:</strong> 
+                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                      {paymentInfo.status}
+                    </span>
+                  </p>
+                  {paymentInfo.amount && (
+                    <p><strong>Số tiền:</strong> {paymentInfo.amount.toLocaleString('vi-VN')} VND</p>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800 text-sm">{error}</p>
+              </div>
+            )}
+          </div>
 
           {/* Information */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">

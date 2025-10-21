@@ -50,6 +50,13 @@ const paymentApi = {
     });
   },
 
+  // Cập nhật payment status từ PayOS redirect
+  updatePaymentStatusFromPayOS: (payOSPaymentId, status, orderCode) => {
+    return axiosClient.put(`/payments/payos/${payOSPaymentId}/status`, null, {
+      params: { status, orderCode }
+    });
+  },
+
   // Kiểm tra trạng thái payment
   checkPaymentStatus: (paymentId) => {
     return axiosClient.get(`/payments/${paymentId}/status`);

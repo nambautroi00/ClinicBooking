@@ -23,8 +23,10 @@ public class PaymentDTO {
         
         private String description;
         
+        @NotNull(message = "Return URL không được để trống")
         private String returnUrl;
         
+        @NotNull(message = "Cancel URL không được để trống")
         private String cancelUrl;
     }
     

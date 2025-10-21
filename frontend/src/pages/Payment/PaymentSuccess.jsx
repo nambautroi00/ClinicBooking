@@ -51,8 +51,23 @@ export default function PaymentSuccess() {
         code
       });
 
-      if (payOSId && payOSStatus === 'PAID' && code === '00') {
+      if (payOSId) {
+        // Kiểm tra status và redirect tương ứng
+        if (payOSStatus === 'CANCELLED') {
+          console.log('🔄 Redirecting to cancel page...');
+          navigate(`/payment/cancel?id=${payOSId}&status=${payOSStatus}&orderCode=${orderCode}&code=${code}`);
+          return;
+        }
+
         try {
+          // Cập nhật payment status thành PAID
+          try {
+            await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'PAID', orderCode);
+            console.log('✅ Payment status updated to PAID');
+          } catch (updateError) {
+            console.warn('⚠️ Could not update payment status:', updateError);
+          }
+
           // Tìm payment theo PayOS Payment ID
           console.log('🔍 Looking up payment by PayOS ID:', payOSId);
           const response = await paymentApi.getPaymentByPayOSPaymentId(payOSId);
@@ -60,15 +75,6 @@ export default function PaymentSuccess() {
           if (response.data) {
             console.log('✅ Found payment:', response.data);
             const payment = response.data;
-            
-            // Cập nhật payment status thành PAID
-            try {
-              console.log('🔄 Updating payment status to PAID...');
-              await paymentApi.updatePaymentStatus(payment.paymentId, 'PAID');
-              console.log('✅ Payment status updated to PAID');
-            } catch (updateError) {
-              console.error('❌ Error updating payment status:', updateError);
-            }
             
             // Lấy thông tin appointment từ payment
             if (payment.appointment) {
