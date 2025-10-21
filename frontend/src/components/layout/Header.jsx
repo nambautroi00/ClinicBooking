@@ -349,7 +349,7 @@ export default function Header() {
             </nav>
             {/* If user is logged in show name + logout, otherwise show login button */}
             {user ? (
-              <div className="hidden md:flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-2 sm:gap-3">
                 {/* Messages link for patients */}
                 {(() => {
                   const roleName = user.role?.name || user.role?.roleName || '';
@@ -364,9 +364,9 @@ export default function Header() {
                     </Link>
                   );
                 })()}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <div 
-                    className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-blue-300 transition-all duration-200"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-blue-300 transition-all duration-200"
                     onClick={handleAvatarClick}
                     title={getAvatarUrl(user) ? "Click để xem ảnh phóng to" : "Click để thêm ảnh đại diện"}
                   >
@@ -382,7 +382,7 @@ export default function Header() {
                       />
                     ) : null}
                     <div 
-                      className={`w-full h-full flex items-center justify-center text-white text-base font-bold ${getAvatarUrl(user) ? 'hidden' : 'flex'}`}
+                      className={`w-full h-full flex items-center justify-center text-white text-sm sm:text-base font-bold ${getAvatarUrl(user) ? 'hidden' : 'flex'}`}
                       style={{ backgroundImage: `url(${getDefaultAvatar(user)})`, backgroundSize: 'cover' }}
                     >
                       {(user?.firstName || user?.email || 'U').charAt(0).toUpperCase()}
@@ -418,7 +418,7 @@ export default function Header() {
 
             {/* Mobile Menu Button */}
             <button 
-              className="md:hidden" 
+              className="md:hidden p-1" 
               onClick={() => {
                 setShowMobileHeader(!showMobileHeader);
                 setMobileMenuOpen(!mobileMenuOpen);
