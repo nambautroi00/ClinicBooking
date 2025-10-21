@@ -129,4 +129,32 @@ public class MessageController {
         messageService.deleteMessagesByConversation(conversationId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<Long> getUnreadMessageCount(
+            @RequestParam("conversationId") Long conversationId,
+            @RequestParam("userId") Long userId) {
+        return ResponseEntity.ok(messageService.getUnreadMessageCount(conversationId, userId));
+    }
+
+    @GetMapping("/unread")
+    public ResponseEntity<List<MessageDTO.Response>> getUnreadMessages(
+            @RequestParam("conversationId") Long conversationId,
+            @RequestParam("userId") Long userId) {
+        return ResponseEntity.ok(messageService.getUnreadMessages(conversationId, userId));
+    }
+
+    @PutMapping("/mark-as-read")
+    public ResponseEntity<Void> markMessagesAsRead(
+            @RequestParam("conversationId") Long conversationId,
+            @RequestParam("userId") Long userId) {
+        messageService.markMessagesAsRead(conversationId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}/mark-as-read")
+    public ResponseEntity<Void> markMessageAsRead(@PathVariable("id") Long messageId) {
+        messageService.markMessageAsRead(messageId);
+        return ResponseEntity.ok().build();
+    }
 }

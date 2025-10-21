@@ -53,5 +53,6 @@ public class MessageDTO {
         private String attachmentURL;
         private LocalDateTime sentAt;
         private String messageType; // TEXT, IMAGE, FILE, etc.
+        private Boolean isRead;
     }
 }

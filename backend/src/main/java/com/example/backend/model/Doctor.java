@@ -28,10 +28,10 @@ public class Doctor {
     @JoinColumn(name = "DepartmentID", nullable = false)
     private Department department;
 
-    @Column(name = "Specialty")
+    @Column(name = "Specialty", columnDefinition = "NVARCHAR(MAX)")
     private String specialty;
     
-    @Column(name = "Bio")
+    @Column(name = "Bio", columnDefinition = "NVARCHAR(MAX)")
     private String bio;
 
     @Column(name = "CreatedAt")

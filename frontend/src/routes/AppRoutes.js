@@ -5,6 +5,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "../pages/Home/Home";
 import Articles from "../pages/Articles";
 import NotFound from "../pages/NotFound";
+import SpecialtyDoctors from "../pages/SpecialtyDoctors";
+import VideoConsultation from "../pages/VideoConsultation";
 
 // Auth
 import Login from "../pages/Auth/Login";
@@ -30,11 +32,12 @@ import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
+import PatientBookingDetail from "../pages/Patient/PatientBookingDetail";
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
 import PatientProfile from "../pages/Patient/PatientProfile";
+import PatientMessages from "../pages/Patient/PatientMessages";
 import Booking from "../pages/Booking";
-import DoctorDetail from "../pages/Patient/DoctorDetail";
-import BookingConfirmation from "../pages/Patient/BookingConfirmation";
+import DoctorDetail from "../pages/DoctorDetail";
 import TestAuth from "../pages/TestAuth";
 
 // Admin pages
@@ -49,6 +52,8 @@ import ReviewsManagement from "../pages/Admin/ReviewsManagement";
 import PaymentsManagement from "../pages/Admin/PaymentsManagement";
 import ArticleManagement from "../pages/Admin/ArticleManagement";
 import ArticleDetail from "../components/article/ArticleDetail";
+import PaymentSuccess from "../pages/Payment/PaymentSuccess";
+import PaymentCancel from "../pages/Payment/PaymentCancel";
 
 const AppRoutes = () => {
   return (
@@ -58,7 +63,11 @@ const AppRoutes = () => {
       <Route path="/articles" element={<Articles />} />
       <Route path="/articles/:id" element={<ArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
+      <Route path="/specialty/:departmentId" element={<SpecialtyDoctors />} />
+      <Route path="/video-consultation" element={<VideoConsultation />} />
       <Route path="/test-auth" element={<TestAuth />} />
+      <Route path="/payment/success" element={<PaymentSuccess />} />
+      <Route path="/payment/cancel" element={<PaymentCancel />} />
 
       {/* Auth */}
       <Route path="/login" element={<Login />} />
@@ -81,7 +90,8 @@ const AppRoutes = () => {
         element={<PatientAppointmentHistory />}
       />
       <Route path="/patient/profile" element={<PatientProfile />} />
-      <Route path="/booking/confirm" element={<BookingConfirmation />} />
+      <Route path="/patient/messages" element={<PatientMessages />} />
+      <Route path="/patient/booking/:doctorId" element={<PatientBookingDetail />} />
 
       {/* Doctor (protected) */}
       <Route

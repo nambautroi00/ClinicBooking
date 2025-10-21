@@ -6,6 +6,15 @@
   flex-direction: column;
 }
 
+/* Remove underlines from all links */
+a {
+  text-decoration: none !important;
+}
+
+a:hover {
+  text-decoration: none !important;
+}
+
 /* Sidebar styles */
 .sidebar {
   position: fixed;

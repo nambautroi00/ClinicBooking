@@ -44,6 +44,7 @@ public class MessageMapper {
         dto.setContent(entity.getContent());
         dto.setAttachmentURL(entity.getAttachmentURL());
         dto.setSentAt(entity.getSentAt());
+        dto.setIsRead(entity.getIsRead());
         
         // Determine message type based on content and attachment
         if (entity.getAttachmentURL() != null && !entity.getAttachmentURL().isEmpty()) {

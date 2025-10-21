@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
+import { Menu, X } from "lucide-react";
 
-const DoctorHeader = () => {
+const DoctorHeader = ({ onToggleSidebar, sidebarOpen }) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -35,6 +36,15 @@ const DoctorHeader = () => {
     >
       <div className="container-fluid d-flex align-items-center justify-content-between">
         <div className="d-flex align-items-center gap-3">
+          {/* Toggle Sidebar Button */}
+          <button
+            className="btn btn-outline-light btn-sm d-lg-none me-2"
+            onClick={onToggleSidebar}
+            title={sidebarOpen ? "Ẩn menu" : "Hiện menu"}
+          >
+            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          
           <Link
             className="navbar-brand d-flex align-items-center"
             to="/doctor/dashboard"

@@ -19,7 +19,7 @@ export default function Footer() {
                   />
                 </svg>
               </div>
-              <span className="text-xl font-semibold text-[#0d6efd]">MediCare</span>
+              <span className="text-xl font-semibold text-[#0d6efd]">ClinicBooking</span>
             </div>
             <p className="text-sm text-muted-foreground text-pretty">
               Hệ thống đặt lịch khám bệnh trực tuyến hàng đầu Việt Nam. Kết nối bạn với các bác sĩ chuyên khoa uy tín.
@@ -63,11 +63,11 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-2">
                 <Mail className="h-4 w-4 text-[#0d6efd] mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">contact@medicare.vn</span>
+                <span className="text-gray-700">tungdtde180564@fpt.edu.vn</span>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-[#0d6efd] mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">123 Đường ABC, Quận 1, TP. Hồ Chí Minh</span>
+                <span className="text-gray-700">FPT lỏ cạc</span>
               </li>
             </ul>
           </div>
@@ -94,7 +94,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 border-t pt-8 text-center text-sm text-gray-500">
-          <p>© 2025 MediCare. Tất cả quyền được bảo lưu.</p>
+          <p>© 2025 ClinicBooking. Tất cả quyền được bảo lưu.</p>
         </div>
       </div>
     </footer>
