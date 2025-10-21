@@ -6,7 +6,6 @@ import Home from "../pages/Home/Home";
 import Articles from "../pages/Articles";
 import NotFound from "../pages/NotFound";
 import SpecialtyDoctors from "../pages/SpecialtyDoctors";
-import VideoConsultation from "../pages/VideoConsultation";
 
 // Auth
 import Login from "../pages/Auth/Login";
@@ -29,12 +28,14 @@ import DoctorProfile from "../pages/Doctor/DoctorProfile";
 import DoctorAvailableSlotManagement from "../pages/Doctor/DoctorAvailableSlotManagement";
 import DoctorPrescriptions from "../pages/Doctor/DoctorPrescriptions";
 import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
+import MedicalRecords from "../pages/Doctor/MedicalRecords";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
 import PatientBookingDetail from "../pages/Patient/PatientBookingDetail";
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
 import PatientProfile from "../pages/Patient/PatientProfile";
+import PatientMedicalRecords from "../pages/Patient/PatientMedicalRecords";
 import PatientMessages from "../pages/Patient/PatientMessages";
 import Booking from "../pages/Booking";
 import DoctorDetail from "../pages/DoctorDetail";
@@ -64,7 +65,6 @@ const AppRoutes = () => {
       <Route path="/articles/:id" element={<ArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/specialty/:departmentId" element={<SpecialtyDoctors />} />
-      <Route path="/video-consultation" element={<VideoConsultation />} />
       <Route path="/test-auth" element={<TestAuth />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/cancel" element={<PaymentCancel />} />
@@ -90,6 +90,7 @@ const AppRoutes = () => {
         element={<PatientAppointmentHistory />}
       />
       <Route path="/patient/profile" element={<PatientProfile />} />
+      <Route path="/patient/medical-records" element={<PatientMedicalRecords />} />
       <Route path="/patient/messages" element={<PatientMessages />} />
       <Route path="/patient/booking/:doctorId" element={<PatientBookingDetail />} />
 
@@ -114,6 +115,7 @@ const AppRoutes = () => {
         <Route path="messages" element={<DoctorMessages />} />
         <Route path="prescriptions" element={<DoctorPrescriptions />} />
         <Route path="prescriptions/new" element={<PrescriptionForm />} />
+        <Route path="medical-records" element={<MedicalRecords />} />
         <Route path="profile" element={<DoctorProfile />} />
       </Route>
 
