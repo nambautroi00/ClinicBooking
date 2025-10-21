@@ -83,7 +83,7 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     @Query("SELECT p FROM Patient p " +
            "JOIN FETCH p.user u " +
            "JOIN FETCH u.role r " +
-           "WHERE p.patientId = :userId")
+           "WHERE p.user.id = :userId")
     Optional<Patient> findByUserIdWithUserAndRole(@Param("userId") Long userId);
 }
 

@@ -158,4 +158,27 @@ public class MessageService {
                 .map(messageMapper::entityToResponseDTO)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public Long getUnreadMessageCount(Long conversationId, Long userId) {
+        return messageRepository.countUnreadMessagesByConversationAndUser(conversationId, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MessageDTO.Response> getUnreadMessages(Long conversationId, Long userId) {
+        List<Message> messages = messageRepository.findUnreadMessagesByConversationAndUser(conversationId, userId);
+        return messages.stream()
+                .map(messageMapper::entityToResponseDTO)
+                .toList();
+    }
+
+    @Transactional
+    public void markMessagesAsRead(Long conversationId, Long userId) {
+        messageRepository.markMessagesAsReadByConversationAndUser(conversationId, userId);
+    }
+
+    @Transactional
+    public void markMessageAsRead(Long messageId) {
+        messageRepository.markMessageAsRead(messageId);
+    }
 }

@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
 
-const DoctorSidebar = ({ doctorInfo, loading = false }) => {
+const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClose }) => {
   const location = useLocation();
 
 
@@ -64,19 +64,35 @@ const DoctorSidebar = ({ doctorInfo, loading = false }) => {
   ];
 
   return (
-    <nav
-      className="bg-light doctor-sidebar"
-      style={{
-        position: "fixed",
-        top: "20px",
-        left: 0,
-        height: "100vh",
-        width: "280px",
-        overflowY: "auto",
-        borderRight: "1px solid #eee",
-        zIndex: 1040,
-      }}
-    >
+    <>
+      {/* Mobile Overlay */}
+      {sidebarOpen && window.innerWidth < 992 && (
+        <div
+          className="position-fixed w-100 h-100 bg-dark bg-opacity-50"
+          style={{ 
+            top: 0, 
+            left: 0, 
+            zIndex: 1039,
+            cursor: 'pointer'
+          }}
+          onClick={onClose}
+        />
+      )}
+      
+      <nav
+        className={`bg-light doctor-sidebar ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}
+        style={{
+          position: "fixed",
+          top: "20px",
+          left: sidebarOpen ? "0" : "-280px",
+          height: "100vh",
+          width: "280px",
+          overflowY: "auto",
+          borderRight: "1px solid #eee",
+          zIndex: 1040,
+          transition: "left 0.3s ease-in-out",
+        }}
+      >
       <div className="d-flex flex-column h-100">
         {/* Doctor Info */}
         <div className="doctor-info mb-1">
@@ -134,6 +150,7 @@ const DoctorSidebar = ({ doctorInfo, loading = false }) => {
 
       </div>
     </nav>
+    </>
   );
 };
 

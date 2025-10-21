@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,6 +31,20 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     
     @Query("SELECT m FROM Message m WHERE m.conversation.conversationId = :conversationId AND m.content LIKE %:keyword% ORDER BY m.sentAt DESC")
     List<Message> findByConversationIdAndContentContaining(@Param("conversationId") Long conversationId, @Param("keyword") String keyword);
+    
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.conversationId = :conversationId AND m.isRead = false AND m.sender.id != :userId")
+    Long countUnreadMessagesByConversationAndUser(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
+    
+    @Query("SELECT m FROM Message m WHERE m.conversation.conversationId = :conversationId AND m.isRead = false AND m.sender.id != :userId")
+    List<Message> findUnreadMessagesByConversationAndUser(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
+    
+    @Modifying
+    @Query("UPDATE Message m SET m.isRead = true WHERE m.conversation.conversationId = :conversationId AND m.sender.id != :userId")
+    int markMessagesAsReadByConversationAndUser(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
+    
+    @Modifying
+    @Query("UPDATE Message m SET m.isRead = true WHERE m.messageId = :messageId")
+    int markMessageAsRead(@Param("messageId") Long messageId);
     
     @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.conversationId = :conversationId")
     Long countByConversationId(@Param("conversationId") Long conversationId);

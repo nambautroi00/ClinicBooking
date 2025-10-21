@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Video, Stethoscope, TestTube, Brain, Pill, Scissors, Heart } from "lucide-react";
+import { Activity, Calendar, Stethoscope, TestTube, Brain, Pill, Scissors, FileText } from "lucide-react";
 
 const services = [
   {
@@ -9,9 +9,9 @@ const services = [
     color: "bg-blue-500",
   },
   {
-    icon: Video,
-    title: "Khám từ xa",
-    description: "Tư vấn sức khỏe qua video",
+    icon: Calendar,
+    title: "Khám định kỳ",
+    description: "Kiểm tra sức khỏe định kỳ hàng năm",
     color: "bg-teal-500",
   },
   {
@@ -45,16 +45,16 @@ const services = [
     color: "bg-orange-500",
   },
   {
-    icon: Heart,
-    title: "Y tế gần bạn",
-    description: "Tìm cơ sở y tế gần nhất",
+    icon: FileText,
+    title: "Hồ sơ bệnh án",
+    description: "Quản lý hồ sơ bệnh án điện tử",
     color: "bg-red-500",
   },
 ];
 
 export default function ServicesSection() {
   return (
-    <section className="py-16 bg-gray-50">
+    <section id="services" className="py-16 bg-gray-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900 mb-3">Dịch vụ toàn diện</h2>
@@ -65,10 +65,9 @@ export default function ServicesSection() {
           {services.map((service, index) => {
             const Icon = service.icon;
             return (
-              <a
+              <div
                 key={index}
-                href="#"
-                className="group relative overflow-hidden rounded-xl border bg-white p-6 transition-all hover:shadow-lg hover:border-blue-500/50"
+                className="group relative overflow-hidden rounded-xl border bg-white p-6 transition-all hover:shadow-lg hover:border-blue-500/50 cursor-pointer"
               >
                 <div className="flex flex-col items-center text-center gap-3">
                   <div className={`${service.color} p-3 rounded-lg text-white`}>
@@ -79,7 +78,7 @@ export default function ServicesSection() {
                     <p className="text-xs text-gray-600">{service.description}</p>
                   </div>
                 </div>
-              </a>
+              </div>
             );
           })}
         </div>

@@ -1,7 +1,7 @@
 -- ===========================================================
 -- COMPLETE INSERT STATEMENTS FOR CLINIC BOOKING DATABASE
 -- ===========================================================
-
+Create database CLINIC
 USE CLINIC;
 GO
 
@@ -23,7 +23,7 @@ DELETE FROM Doctors;
 DELETE FROM Departments;
 DBCC CHECKIDENT ('Departments', RESEED, 0);
 
-INSERT INTO Departments (DepartmentName, Description, Status) VALUES
+INSERT INTO Departments (department_name, Description, Status) VALUES
 -- Nhóm Nội khoa
 (N'Nội tổng hợp', N'Khoa Nội tổng hợp - Khám và điều trị các bệnh lý nội khoa thường gặp', 'ACTIVE'),
 (N'Tim mạch', N'Khoa Tim mạch - Chuyên điều trị các bệnh về tim và mạch máu', 'ACTIVE'),
@@ -84,7 +84,34 @@ INSERT INTO users(Email, password_hash, first_name, last_name, Phone, Gender, DO
 ('doctor2@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Lan', N'Trần Thị', '0977777777', 'FEMALE', '1982-08-15', N'Đà Nẵng', 2, 'ACTIVE', GETDATE()),
 ('doctor3@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Minh', N'Lê Văn', '0966666666', 'MALE', '1980-12-20', N'Hà Nội', 2, 'ACTIVE', GETDATE()),
 ('doctor4@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Hoa', N'Phạm Thị', '0955555555', 'FEMALE', '1978-07-08', N'Cần Thơ', 2, 'ACTIVE', GETDATE()),
-('doctor5@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Tuấn', N'Hoàng Văn', '0944444444', 'MALE', '1985-04-25', N'Hải Phòng', 2, 'ACTIVE', GETDATE());
+('doctor5@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Tuấn', N'Hoàng Văn', '0944444444', 'MALE', '1985-04-25', N'Hải Phòng', 2, 'ACTIVE', GETDATE()),
+('doctor6@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Minh', N'Nguyễn Văn', '0987654006', 'MALE', '1975-03-15', N'Hà Nội', 2, 'ACTIVE', GETDATE()),
+('doctor7@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Lan', N'Trần Thị', '0987654007', 'FEMALE', '1980-07-20', N'TP.HCM', 2, 'ACTIVE', GETDATE()),
+('doctor8@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Hùng', N'Lê Văn', '0987654008', 'MALE', '1978-11-10', N'Đà Nẵng', 2, 'ACTIVE', GETDATE()),
+('doctor9@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Hoa', N'Phạm Thị', '0987654009', 'FEMALE', '1982-05-25', N'Cần Thơ', 2, 'ACTIVE', GETDATE()),
+('doctor10@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Tuấn', N'Hoàng Văn', '0987654010', 'MALE', '1976-09-12', N'Hải Phòng', 2, 'ACTIVE', GETDATE()),
+('doctor11@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Mai', N'Nguyễn Thị', '0987654011', 'FEMALE', '1981-02-18', N'Vũng Tàu', 2, 'ACTIVE', GETDATE()),
+('doctor12@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Nam', N'Trần Văn', '0987654012', 'MALE', '1979-08-30', N'Bình Dương', 2, 'ACTIVE', GETDATE()),
+('doctor13@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Thu', N'Lê Thị', '0987654013', 'FEMALE', '1983-12-05', N'Đồng Nai', 2, 'ACTIVE', GETDATE()),
+('doctor14@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Long', N'Phạm Văn', '0987654014', 'MALE', '1977-04-22', N'An Giang', 2, 'ACTIVE', GETDATE()),
+('doctor15@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'An', N'Hoàng Thị', '0987654015', 'FEMALE', '1984-10-14', N'Kiên Giang', 2, 'ACTIVE', GETDATE()),
+('doctor16@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Bình', N'Nguyễn Văn', '0987654016', 'MALE', '1980-06-08', N'Long An', 2, 'ACTIVE', GETDATE()),
+('doctor17@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Chi', N'Trần Thị', '0987654017', 'FEMALE', '1978-01-16', N'Tiền Giang', 2, 'ACTIVE', GETDATE()),
+('doctor18@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Dũng', N'Lê Văn', '0987654018', 'MALE', '1982-03-28', N'Bến Tre', 2, 'ACTIVE', GETDATE()),
+('doctor19@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Em', N'Phạm Thị', '0987654019', 'FEMALE', '1985-07-11', N'Trà Vinh', 2, 'ACTIVE', GETDATE()),
+('doctor20@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Giang', N'Hoàng Văn', '0987654020', 'MALE', '1979-11-03', N'Sóc Trăng', 2, 'ACTIVE', GETDATE()),
+('doctor21@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Hạnh', N'Nguyễn Thị', '0987654021', 'FEMALE', '1981-09-19', N'Bạc Liêu', 2, 'ACTIVE', GETDATE()),
+('doctor22@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Inh', N'Trần Văn', '0987654022', 'MALE', '1977-05-26', N'Cà Mau', 2, 'ACTIVE', GETDATE()),
+('doctor23@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Khoa', N'Lê Thị', '0987654023', 'FEMALE', '1983-12-13', N'Bình Phước', 2, 'ACTIVE', GETDATE()),
+('doctor24@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Lâm', N'Phạm Văn', '0987654024', 'MALE', '1980-08-07', N'Tây Ninh', 2, 'ACTIVE', GETDATE()),
+('doctor25@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Minh', N'Hoàng Thị', '0987654025', 'FEMALE', '1984-04-21', N'Bình Thuận', 2, 'ACTIVE', GETDATE()),
+('doctor26@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Nam', N'Nguyễn Văn', '0987654026', 'MALE', '1978-10-15', N'Ninh Thuận', 2, 'ACTIVE', GETDATE()),
+('doctor27@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Oanh', N'Trần Thị', '0987654027', 'FEMALE', '1982-02-09', N'Khánh Hòa', 2, 'ACTIVE', GETDATE()),
+('doctor28@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Phúc', N'Lê Văn', '0987654028', 'MALE', '1976-06-17', N'Phú Yên', 2, 'ACTIVE', GETDATE()),
+('doctor29@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Quỳnh', N'Phạm Thị', '0987654029', 'FEMALE', '1985-01-24', N'Bình Định', 2, 'ACTIVE', GETDATE()),
+('doctor30@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Rồng', N'Hoàng Văn', '0987654030', 'MALE', '1979-03-31', N'Quảng Nam', 2, 'ACTIVE', GETDATE()),
+('doctor31@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Sơn', N'Nguyễn Văn', '0987654031', 'MALE', '1981-11-12', N'Quảng Ngãi', 2, 'ACTIVE', GETDATE()),
+('doctor32@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Thảo', N'Trần Thị', '0987654032', 'FEMALE', '1983-08-25', N'Quảng Trị', 2, 'ACTIVE', GETDATE());
 
 -- Patient users
 INSERT INTO users (Email, password_hash, first_name, last_name, Phone, Gender, DOB, Address, RoleID, Status, created_at) VALUES 
@@ -98,12 +125,48 @@ INSERT INTO users (Email, password_hash, first_name, last_name, Phone, Gender, D
 -- ===========================================================
 -- 4. DOCTORS (Bác sĩ)
 -- ===========================================================
-INSERT INTO Doctors (DoctorID, DepartmentID, Specialty, Bio) VALUES 
-(3, 1, N'Tim mạch', N'Bác sĩ chuyên khoa tim mạch với 15 năm kinh nghiệm'),
-(4, 2, N'Thần kinh', N'Bác sĩ chuyên khoa thần kinh, chuyên điều trị đau đầu và động kinh'),
-(5, 3, N'Chấn thương chỉnh hình', N'Bác sĩ chuyên khoa xương khớp, phẫu thuật chỉnh hình'),
-(6, 4, N'Nhi khoa', N'Bác sĩ nhi khoa chuyên điều trị bệnh trẻ em'),
-(7, 5, N'Nội tổng hợp', N'Bác sĩ nội khoa tổng quát, khám sức khỏe định kỳ');
+INSERT INTO Doctors (UserID, DepartmentID, Specialty, Bio) VALUES 
+-- Doctor 1-5 (Nội khoa)
+(3, 1, N'Nội tổng hợp', N'Bác sĩ chuyên khoa nội tổng hợp với 15 năm kinh nghiệm, chuyên khám và điều trị các bệnh lý nội khoa thường gặp'),
+(4, 2, N'Tim mạch', N'Bác sĩ chuyên khoa tim mạch, chuyên điều trị các bệnh về tim và mạch máu, có kinh nghiệm 12 năm'),
+(5, 3, N'Hô hấp', N'Bác sĩ chuyên khoa hô hấp, chuyên điều trị các bệnh lý phổi và đường hô hấp'),
+(6, 4, N'Tiêu hóa', N'Bác sĩ chuyên khoa tiêu hóa, chuyên điều trị các bệnh về dạ dày, gan, mật và ruột'),
+(7, 5, N'Thận - Tiết niệu', N'Bác sĩ chuyên khoa thận - tiết niệu, điều trị bệnh thận và hệ tiết niệu'),
+
+-- Doctor 8-12 (Nội tiết, Thần kinh, Ngoại khoa)
+(8, 6, N'Nội tiết', N'Bác sĩ chuyên khoa nội tiết, điều trị bệnh đái tháo đường, tuyến giáp và rối loạn chuyển hóa'),
+(9, 7, N'Thần kinh', N'Bác sĩ chuyên khoa thần kinh, điều trị các bệnh về thần kinh trung ương và ngoại biên'),
+(10, 8, N'Ngoại tổng hợp', N'Bác sĩ chuyên khoa ngoại tổng hợp, thực hiện phẫu thuật các bệnh lý ngoại khoa'),
+(11, 9, N'Chấn thương chỉnh hình', N'Bác sĩ chuyên khoa chấn thương chỉnh hình, điều trị gãy xương, trật khớp và phẫu thuật chỉnh hình'),
+(12, 10, N'Ngoại thần kinh', N'Bác sĩ chuyên khoa ngoại thần kinh, phẫu thuật điều trị các bệnh lý hệ thần kinh'),
+
+-- Doctor 13-17 (Ngoại tiêu hóa, Ngoại lồng ngực, Sản phụ khoa, Nhi khoa, Chẩn đoán hình ảnh)
+(13, 11, N'Ngoại tiêu hóa', N'Bác sĩ chuyên khoa ngoại tiêu hóa, phẫu thuật các bệnh dạ dày, ruột, gan, mật'),
+(14, 12, N'Ngoại lồng ngực', N'Bác sĩ chuyên khoa ngoại lồng ngực, phẫu thuật tim, phổi và mạch máu lớn'),
+(15, 13, N'Sản phụ khoa', N'Bác sĩ chuyên khoa sản phụ khoa, chăm sóc sức khỏe sinh sản và thai sản'),
+(16, 14, N'Nhi khoa', N'Bác sĩ chuyên khoa nhi, khám và điều trị cho trẻ em'),
+(17, 15, N'Chẩn đoán hình ảnh', N'Bác sĩ chuyên khoa chẩn đoán hình ảnh, siêu âm, X-quang, CT, MRI'),
+
+-- Doctor 18-22 (Xét nghiệm, Giải phẫu bệnh, Da liễu, Tai Mũi Họng, Răng Hàm Mặt)
+(18, 16, N'Xét nghiệm', N'Bác sĩ chuyên khoa xét nghiệm, thực hiện các xét nghiệm máu, nước tiểu, sinh hóa'),
+(19, 17, N'Giải phẫu bệnh', N'Bác sĩ chuyên khoa giải phẫu bệnh, phân tích mô bệnh học và tế bào học'),
+(20, 18, N'Da liễu', N'Bác sĩ chuyên khoa da liễu, điều trị các bệnh về da, tóc và móng'),
+(21, 19, N'Tai - Mũi - Họng', N'Bác sĩ chuyên khoa tai - mũi - họng, khám và điều trị các bệnh đường hô hấp trên'),
+(22, 20, N'Răng - Hàm - Mặt', N'Bác sĩ chuyên khoa răng - hàm - mặt, khám và điều trị răng miệng'),
+
+-- Doctor 23-27 (Mắt, Cơ Xương Khớp, Ung bướu, Phục hồi chức năng, Dinh dưỡng)
+(23, 21, N'Mắt', N'Bác sĩ chuyên khoa mắt, khám và điều trị bệnh lý về mắt'),
+(24, 22, N'Cơ - Xương - Khớp', N'Bác sĩ chuyên khoa cơ - xương - khớp, điều trị thoái hóa khớp, viêm khớp, loãng xương'),
+(25, 23, N'Ung bướu', N'Bác sĩ chuyên khoa ung bướu, điều trị ung thư và các khối u ác tính'),
+(26, 24, N'Phục hồi chức năng', N'Bác sĩ chuyên khoa phục hồi chức năng, tập vật lý trị liệu, phục hồi sau phẫu thuật'),
+(27, 25, N'Dinh dưỡng', N'Bác sĩ chuyên khoa dinh dưỡng, tư vấn và xây dựng chế độ ăn cho bệnh nhân'),
+
+-- Doctor 28-32 (Tâm lý Tâm thần, Cấp cứu, Kiểm soát nhiễm khuẩn, Dược, Hành chính)
+(28, 26, N'Tâm lý - Tâm thần', N'Bác sĩ chuyên khoa tâm lý - tâm thần, hỗ trợ điều trị rối loạn tâm lý và tâm thần'),
+(29, 27, N'Cấp cứu', N'Bác sĩ chuyên khoa cấp cứu, tiếp nhận và xử lý bệnh nhân cấp cứu 24/7'),
+(30, 28, N'Kiểm soát nhiễm khuẩn', N'Bác sĩ chuyên khoa kiểm soát nhiễm khuẩn, đảm bảo vệ sinh và an toàn trong bệnh viện'),
+(31, 29, N'Dược', N'Bác sĩ chuyên khoa dược, quản lý thuốc và vật tư y tế'),
+(32, 30, N'Hành chính', N'Bác sĩ chuyên khoa hành chính, quản lý hồ sơ, nhân sự và hành chính bệnh viện');
 
 -- ===========================================================
 -- 5. PATIENTS (Bệnh nhân)
@@ -121,27 +184,27 @@ INSERT INTO Patients (PatientID, health_insurance_number, medical_history) VALUE
 -- ===========================================================
 INSERT INTO doctor_schedules(DoctorID, work_date, start_time, end_time, Status, Notes) VALUES 
 -- Doctor 1 (Tim mạch) - Tuần này
-(3, CAST(GETDATE() AS DATE), '08:00', '12:00', 'Available', N'Khung giờ sáng'),
-(3, CAST(GETDATE() AS DATE), '13:00', '17:00', 'Available', N'Khung giờ chiều'),
-(3, DATEADD(DAY, 1, CAST(GETDATE() AS DATE)), '08:00', '12:00', 'Available', N'Ngày mai sáng'),
-(3, DATEADD(DAY, 1, CAST(GETDATE() AS DATE)), '13:00', '17:00', 'Available', N'Ngày mai chiều'),
+(1, CAST(GETDATE() AS DATE), '08:00', '12:00', 'Available', N'Khung giờ sáng'),
+(1, CAST(GETDATE() AS DATE), '13:00', '17:00', 'Available', N'Khung giờ chiều'),
+(1, DATEADD(DAY, 1, CAST(GETDATE() AS DATE)), '08:00', '12:00', 'Available', N'Ngày mai sáng'),
+(1, DATEADD(DAY, 1, CAST(GETDATE() AS DATE)), '13:00', '17:00', 'Available', N'Ngày mai chiều'),
 
 -- Doctor 2 (Thần kinh)
-(4, CAST(GETDATE() AS DATE), '09:00', '12:00', 'Available', N'Khung giờ sáng'),
-(4, CAST(GETDATE() AS DATE), '14:00', '17:00', 'Available', N'Khung giờ chiều'),
-(4, DATEADD(DAY, 1, CAST(GETDATE() AS DATE)), '09:00', '12:00', 'Available', N'Ngày mai sáng'),
+(2, CAST(GETDATE() AS DATE), '09:00', '12:00', 'Available', N'Khung giờ sáng'),
+(2, CAST(GETDATE() AS DATE), '14:00', '17:00', 'Available', N'Khung giờ chiều'),
+(2, DATEADD(DAY, 1, CAST(GETDATE() AS DATE)), '09:00', '12:00', 'Available', N'Ngày mai sáng'),
 
 -- Doctor 3 (Chấn thương chỉnh hình)
-(5, CAST(GETDATE() AS DATE), '08:30', '11:30', 'Available', N'Khung giờ sáng'),
-(5, CAST(GETDATE() AS DATE), '14:30', '17:30', 'Available', N'Khung giờ chiều'),
+(3, CAST(GETDATE() AS DATE), '08:30', '11:30', 'Available', N'Khung giờ sáng'),
+(3, CAST(GETDATE() AS DATE), '14:30', '17:30', 'Available', N'Khung giờ chiều'),
 
 -- Doctor 4 (Nhi khoa)
-(6, CAST(GETDATE() AS DATE), '08:00', '11:00', 'Available', N'Khung giờ sáng'),
-(6, CAST(GETDATE() AS DATE), '15:00', '18:00', 'Available', N'Khung giờ chiều'),
+(4, CAST(GETDATE() AS DATE), '08:00', '11:00', 'Available', N'Khung giờ sáng'),
+(4, CAST(GETDATE() AS DATE), '15:00', '18:00', 'Available', N'Khung giờ chiều'),
 
 -- Doctor 5 (Nội tổng hợp)
-(7, CAST(GETDATE() AS DATE), '09:30', '12:30', 'Available', N'Khung giờ sáng'),
-(7, CAST(GETDATE() AS DATE), '14:00', '17:00', 'Available', N'Khung giờ chiều');
+(5, CAST(GETDATE() AS DATE), '09:30', '12:30', 'Available', N'Khung giờ sáng'),
+(5, CAST(GETDATE() AS DATE), '14:00', '17:00', 'Available', N'Khung giờ chiều');
 
 -- ===========================================================
 -- 7. APPOINTMENTS (Cuộc hẹn)
@@ -149,25 +212,25 @@ INSERT INTO doctor_schedules(DoctorID, work_date, start_time, end_time, Status, 
 
 -- Insert appointments with new structure (StartTime, EndTime, Fee)
 INSERT INTO Appointments (PatientID, DoctorID, ScheduleID, start_time, end_time, Fee, Status, Notes) VALUES 
-(8, 3, 1, '09:00:00', '10:00:00', 500000.00, 'Completed', N'Khám tim mạch định kỳ'),
-(9, 4, 5, '10:00:00', '11:00:00', 300000.00, 'Completed', N'Khám đau đầu'),
-(10, 5, 9,  '11:00:00', '12:00:00', 400000.00, 'Scheduled', N'Khám xương khớp'),
-(11, 6, 11, '14:00:00', '15:00:00', 250000.00, 'Scheduled', N'Khám nhi khoa'),
-(12, 7, 13, '15:00:00', '16:00:00', 200000.00, 'Scheduled', N'Khám sức khỏe tổng quát'),
-(13, 3, 2,'16:00:00', '17:00:00', 500000.00, 'Scheduled', N'Tái khám tim mạch'),
-(8, 4, 6, '09:00:00', '10:00:00', 300000.00, 'Scheduled', N'Khám thần kinh'),
-(9, 5, 10, '10:00:00', '11:00:00', 400000.00, 'Scheduled', N'Khám chấn thương');
+(8, 1, 1, '09:00:00', '10:00:00', 500000.00, 'Completed', N'Khám tim mạch định kỳ'),
+(9, 2, 5, '10:00:00', '11:00:00', 300000.00, 'Completed', N'Khám đau đầu'),
+(10, 3, 9,  '11:00:00', '12:00:00', 400000.00, 'Scheduled', N'Khám xương khớp'),
+(11, 4, 11, '14:00:00', '15:00:00', 250000.00, 'Scheduled', N'Khám nhi khoa'),
+(12, 5, 13, '15:00:00', '16:00:00', 200000.00, 'Scheduled', N'Khám sức khỏe tổng quát'),
+(13, 1, 2,'16:00:00', '17:00:00', 500000.00, 'Scheduled', N'Tái khám tim mạch'),
+(8, 2, 6, '09:00:00', '10:00:00', 300000.00, 'Scheduled', N'Khám thần kinh'),
+(9, 3, 10, '10:00:00', '11:00:00', 400000.00, 'Scheduled', N'Khám chấn thương');
 
 -- Additional appointments for more comprehensive testing
 INSERT INTO Appointments (PatientID, DoctorID, scheduleid, start_time, end_time, Fee, Status, Notes) VALUES 
-(10, 6, 12, '08:00:00', '09:00:00', 250000.00, 'Scheduled', N'Khám nhi khoa cho trẻ'),
-(11, 7, 13, '09:30:00', '10:30:00', 200000.00, 'Scheduled', N'Khám sức khỏe tổng quát'),
-(12, 3, 3, '08:30:00', '09:30:00', 500000.00, 'Scheduled', N'Khám tim mạch'),
-(13, 4, 7, '10:30:00', '11:30:00', 300000.00, 'Scheduled', N'Khám thần kinh'),
-(8, 5, 11, '14:00:00', '15:00:00', 400000.00, 'Scheduled', N'Khám chấn thương'),
-(9, 6, 12,  '15:00:00', '16:00:00', 250000.00, 'Scheduled', N'Khám nhi khoa'),
-(10, 7, 13, '08:00:00', '09:00:00', 200000.00, 'Scheduled', N'Khám sức khỏe tổng quát'),
-(11, 3, 4, '09:00:00', '10:00:00', 500000.00, 'Scheduled', N'Khám tim mạch');
+(10, 4, 12, '08:00:00', '09:00:00', 250000.00, 'Scheduled', N'Khám nhi khoa cho trẻ'),
+(11, 5, 13, '09:30:00', '10:30:00', 200000.00, 'Scheduled', N'Khám sức khỏe tổng quát'),
+(12, 1, 3, '08:30:00', '09:30:00', 500000.00, 'Scheduled', N'Khám tim mạch'),
+(13, 2, 7, '10:30:00', '11:30:00', 300000.00, 'Scheduled', N'Khám thần kinh'),
+(8, 3, 11, '14:00:00', '15:00:00', 400000.00, 'Scheduled', N'Khám chấn thương'),
+(9, 4, 12,  '15:00:00', '16:00:00', 250000.00, 'Scheduled', N'Khám nhi khoa'),
+(10, 5, 13, '08:00:00', '09:00:00', 200000.00, 'Scheduled', N'Khám sức khỏe tổng quát'),
+(11, 1, 4, '09:00:00', '10:00:00', 500000.00, 'Scheduled', N'Khám tim mạch');
 
 -- ===========================================================
 -- 8. MEDICAL RECORDS (Bệnh án)
@@ -254,14 +317,14 @@ INSERT INTO Articles (Title, Content, image_url, AuthorID, created_at, Status) V
 -- 13. REVIEWS (Đánh giá bác sĩ)
 -- ===========================================================
 INSERT INTO Reviews (PatientID, DoctorID, Rating, Comment, created_at, Status) VALUES 
-(8, 3, 5, N'Bác sĩ rất tận tâm, chẩn đoán chính xác và điều trị hiệu quả. Tôi rất hài lòng với dịch vụ.', GETDATE(), 'ACTIVE'),
-(9, 4, 4, N'Bác sĩ thân thiện, giải thích rõ ràng về tình trạng bệnh. Phòng khám sạch sẽ.', GETDATE(), 'ACTIVE'),
-(10, 5, 5, N'Điều trị hiệu quả, bác sĩ có chuyên môn cao. Tôi đã khỏi bệnh nhanh chóng.', GETDATE(), 'ACTIVE'),
-(11, 6, 4, N'Bác sĩ nhi khoa rất yêu trẻ, con tôi không sợ khi khám bệnh.', GETDATE(), 'ACTIVE'),
-(12, 7, 5, N'Khám sức khỏe tổng quát rất chi tiết, bác sĩ tư vấn nhiệt tình.', GETDATE(), 'ACTIVE'),
-(13, 3, 4, N'Bác sĩ tim mạch giỏi, theo dõi bệnh tình cẩn thận.', GETDATE(), 'ACTIVE'),
-(8, 4, 3, N'Bác sĩ ok nhưng thời gian chờ hơi lâu.', GETDATE(), 'ACTIVE'),
-(9, 5, 5, N'Điều trị chấn thương rất hiệu quả, bác sĩ có tay nghề cao.', GETDATE(), 'ACTIVE');
+(8, 1, 5, N'Bác sĩ rất tận tâm, chẩn đoán chính xác và điều trị hiệu quả. Tôi rất hài lòng với dịch vụ.', GETDATE(), 'ACTIVE'),
+(9, 2, 4, N'Bác sĩ thân thiện, giải thích rõ ràng về tình trạng bệnh. Phòng khám sạch sẽ.', GETDATE(), 'ACTIVE'),
+(10, 3, 5, N'Điều trị hiệu quả, bác sĩ có chuyên môn cao. Tôi đã khỏi bệnh nhanh chóng.', GETDATE(), 'ACTIVE'),
+(11, 4, 4, N'Bác sĩ nhi khoa rất yêu trẻ, con tôi không sợ khi khám bệnh.', GETDATE(), 'ACTIVE'),
+(12, 5, 5, N'Khám sức khỏe tổng quát rất chi tiết, bác sĩ tư vấn nhiệt tình.', GETDATE(), 'ACTIVE'),
+(13, 1, 4, N'Bác sĩ tim mạch giỏi, theo dõi bệnh tình cẩn thận.', GETDATE(), 'ACTIVE'),
+(8, 2, 3, N'Bác sĩ ok nhưng thời gian chờ hơi lâu.', GETDATE(), 'ACTIVE'),
+(9, 3, 5, N'Điều trị chấn thương rất hiệu quả, bác sĩ có tay nghề cao.', GETDATE(), 'ACTIVE');
 
 -- ===========================================================
 -- 14. PAYMENTS (Thanh toán)
@@ -280,37 +343,37 @@ INSERT INTO Payments (OrderID, AppointmentID, Amount, Status, created_at, paid_a
 -- 15. CONVERSATIONS (Cuộc trò chuyện)
 -- ===========================================================
 INSERT INTO Conversations (PatientID, DoctorID, created_at) VALUES 
-(8, 3, GETDATE()),
-(9, 4, GETDATE()),
-(10, 5, GETDATE()),
-(11, 6, GETDATE()),
-(12, 7, GETDATE()),
-(13, 3, GETDATE()),
-(8, 4, GETDATE()),
-(9, 5, GETDATE());
+(8, 1, GETDATE()),
+(9, 2, GETDATE()),
+(10, 3, GETDATE()),
+(11, 4, GETDATE()),
+(12, 5, GETDATE()),
+(13, 1, GETDATE()),
+(8, 2, GETDATE()),
+(9, 3, GETDATE());
 
 -- ===========================================================
 -- 16. MESSAGES (Tin nhắn)
 -- ===========================================================
 INSERT INTO Messages (ConversationID, SenderID, Content, AttachmentURL, sent_at) VALUES 
--- Conversation 1 (Patient 8 - Doctor 3)
+-- Conversation 1 (Patient 8 - Doctor 1)
 (1, 8, N'Xin chào bác sĩ, tôi muốn hỏi về tình trạng huyết áp của mình', NULL, GETDATE()),
 (1, 3, N'Chào bạn, huyết áp của bạn hiện tại ổn định. Bạn có triệu chứng gì bất thường không?', NULL, DATEADD(MINUTE, 5, GETDATE())),
 (1, 8, N'Dạ không ạ, tôi chỉ muốn xác nhận lại thôi. Cảm ơn bác sĩ', NULL, DATEADD(MINUTE, 10, GETDATE())),
 
--- Conversation 2 (Patient 9 - Doctor 4)
+-- Conversation 2 (Patient 9 - Doctor 2)
 (2, 9, N'Bác sĩ ơi, tôi vẫn còn đau đầu, có cần uống thêm thuốc không?', NULL, GETDATE()),
 (2, 4, N'Bạn uống thuốc đúng liều chưa? Nếu vẫn đau có thể uống thêm 1 viên paracetamol', NULL, DATEADD(MINUTE, 3, GETDATE())),
 
--- Conversation 3 (Patient 10 - Doctor 5)
+-- Conversation 3 (Patient 10 - Doctor 3)
 (3, 10, N'Bác sĩ cho tôi hỏi, sau khi uống thuốc bao lâu thì khớp gối sẽ đỡ đau?', NULL, GETDATE()),
 (3, 5, N'Thông thường sau 3-5 ngày uống thuốc đều đặn, tình trạng đau sẽ giảm đáng kể', NULL, DATEADD(MINUTE, 2, GETDATE())),
 
--- Conversation 4 (Patient 11 - Doctor 6)
+-- Conversation 4 (Patient 11 - Doctor 4)
 (4, 11, N'Bác sĩ ơi, con tôi bị sốt, có cần đưa đi khám ngay không?', NULL, GETDATE()),
 (4, 6, N'Bạn đo nhiệt độ cho bé chưa? Nếu sốt trên 38.5 độ thì nên đưa đi khám ngay', NULL, DATEADD(MINUTE, 1, GETDATE())),
 
--- Conversation 5 (Patient 12 - Doctor 7)
+-- Conversation 5 (Patient 12 - Doctor 5)
 (5, 12, N'Bác sĩ cho tôi hỏi về kết quả xét nghiệm máu', NULL, GETDATE()),
 (5, 7, N'Kết quả xét nghiệm của bạn bình thường, chỉ cần duy trì chế độ ăn uống lành mạnh', NULL, DATEADD(MINUTE, 4, GETDATE()));
 
@@ -331,6 +394,11 @@ INSERT INTO system_notifications(Title, Message, AppointmentID, created_at) VALU
 	select * from users
 	select * from doctors
 	select * from patients
+	select * from departments
+	delete from doctors
+
+
+
 -- SELECT 'Roles' as TableName, COUNT(*) as RecordCount FROM Roles
 -- UNION ALL
 -- SELECT 'Departments', COUNT(*) FROM Departments

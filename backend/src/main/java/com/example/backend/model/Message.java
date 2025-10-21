@@ -29,4 +29,5 @@ public class Message {
 
     private String attachmentURL;
     private LocalDateTime sentAt;
+    private Boolean isRead = false;
 }

@@ -221,6 +221,14 @@ function DoctorMessages() {
                     lastMessageContent = latest.content || lastMessageContent;
                     lastMessageTime = latest.createdAt || latest.sentAt || null;
                   }
+                  
+                  // Lấy số tin nhắn chưa đọc
+                  try {
+                    const unreadRes = await messageApi.getUnreadCount(conv.conversationId, currentUserId);
+                    unreadCount = unreadRes?.data || 0;
+                  } catch (e) {
+                    // ignore if no unread count
+                  }
                 } catch (e) {
                   // ignore if no latest message
                 }
@@ -330,6 +338,19 @@ function DoctorMessages() {
             setMessages(data);
             scrollToBottom();
             setLastFetchedAt(new Date().toISOString());
+            
+            // Đánh dấu tin nhắn đã đọc khi doctor mở conversation
+            try {
+              await messageApi.markMessagesAsRead(convId, currentUserId);
+              // Cập nhật unreadCount trong danh sách patients
+              setPatients(prev => prev.map(p =>
+                p.patientId === targetPatientId
+                  ? { ...p, unreadCount: 0 }
+                  : p
+              ));
+            } catch (e) {
+              console.error("Error marking messages as read:", e);
+            }
           } catch (e) {
             console.error("Error loading messages:", e);
             setMessages([]);
@@ -378,12 +399,15 @@ function DoctorMessages() {
             // Cập nhật last message cho patient đang chọn ở sidebar
             const latest = newMsgs[newMsgs.length - 1];
             if (latest && selectedPatient) {
+              // Kiểm tra xem tin nhắn mới có phải từ patient không
+              const isFromPatient = Number(latest.senderId) !== Number(currentUserId);
               setPatients(prev => prev.map(p =>
                 p.patientId === selectedPatient.patientId
                   ? {
                       ...p,
                       lastMessage: latest.content || p.lastMessage,
                       lastMessageTime: latest.createdAt || latest.sentAt || p.lastMessageTime,
+                      unreadCount: isFromPatient ? p.unreadCount + 1 : p.unreadCount,
                     }
                   : p
               ));
@@ -426,12 +450,14 @@ function DoctorMessages() {
           // Tránh thêm trùng
           setMessages((prev) => mergeUniqueMessages(prev, [incoming]));
           // Cập nhật dòng preview ở sidebar
+          const isFromPatient = Number(incoming.senderId) !== Number(currentUserId);
           setPatients(prev => prev.map(p =>
             selectedPatient?.patientId && p.patientId === selectedPatient.patientId
               ? {
                   ...p,
                   lastMessage: incoming.content || p.lastMessage,
                   lastMessageTime: incoming.createdAt || incoming.sentAt || p.lastMessageTime,
+                  unreadCount: isFromPatient ? p.unreadCount + 1 : p.unreadCount,
                 }
               : p
           ));

@@ -1,9 +1,14 @@
-import React from 'react';
-import HeroSection from '../../components/HeroSection';
-import ServicesSection from '../../components/ServicesSection';
-import SpecialtiesSection from '../../components/SpecialtiesSection';
+import React, { useEffect } from 'react';
+import HeroSection from '../../components/home/HeroSection';
+import ServicesSection from '../../components/home/ServicesSection';
+import SpecialtiesSection from '../../components/home/SpecialtiesSection';
 
 const Home = () => {
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
 	<div>
 	  <HeroSection />

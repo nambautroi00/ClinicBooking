@@ -210,6 +210,7 @@ CREATE TABLE Messages (
     Content NVARCHAR(MAX),
     AttachmentURL NVARCHAR(500),
     SentAt DATETIME DEFAULT GETDATE(),
+    IsRead BIT DEFAULT 0,
     FOREIGN KEY (ConversationID) REFERENCES Conversations(ConversationID) ON DELETE CASCADE,
 	FOREIGN KEY (SenderID) REFERENCES Users(UserID)
 );

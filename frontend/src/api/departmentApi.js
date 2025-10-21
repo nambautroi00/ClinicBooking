@@ -28,6 +28,10 @@ const departmentApi = {
   // Search departments
   searchDepartments: (keyword) =>
     axiosClient.get(`/departments/search?keyword=${encodeURIComponent(keyword)}`),
+  
+  // Get departments with metadata (icon, image, etc.)
+  getDepartmentsWithMetadata: () =>
+    axiosClient.get('/departments?size=1000&include=metadata'),
 };
 
 export default departmentApi;

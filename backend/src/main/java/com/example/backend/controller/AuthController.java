@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.dto.AuthDTO;
+import com.example.backend.model.User;
+import com.example.backend.repository.UserRepository;
 import com.example.backend.service.AuthService;
 import com.example.backend.service.EmailOtpService;
 
@@ -29,6 +32,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailOtpService emailOtpService;
+    private final UserRepository userRepository;
 
     @PostMapping("/login")
     public ResponseEntity<AuthDTO.LoginResponse> login(@Valid @RequestBody AuthDTO.LoginRequest loginRequest) {
@@ -126,14 +130,42 @@ public class AuthController {
     // Email OTP Endpoints (no database storage)
     @PostMapping("/send-otp")
     public ResponseEntity<AuthDTO.OtpResponse> sendOtp(@Valid @RequestBody AuthDTO.SendOtpRequest request) {
-        boolean success = emailOtpService.sendOtp(request.getEmail());
-        
-        AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
-            success ? "Mã OTP đã được gửi đến email của bạn" : "Không thể gửi OTP, vui lòng thử lại",
-            success
-        );
-        
-        return success ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
+        try {
+            // Kiểm tra email có tồn tại trong database không
+            Optional<User> user = userRepository.findByEmail(request.getEmail());
+            if (!user.isPresent()) {
+                AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
+                    "Email không tồn tại trong hệ thống. Vui lòng kiểm tra lại email của bạn.",
+                    false
+                );
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Kiểm tra tài khoản có đang hoạt động không
+            if (user.get().getStatus() != User.UserStatus.ACTIVE) {
+                AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
+                    "Tài khoản đã bị khóa hoặc không hoạt động. Vui lòng liên hệ quản trị viên.",
+                    false
+                );
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Gửi OTP nếu email tồn tại và tài khoản hoạt động
+            boolean success = emailOtpService.sendOtp(request.getEmail());
+            
+            AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
+                success ? "Mã OTP đã được gửi đến email của bạn" : "Không thể gửi OTP, vui lòng thử lại",
+                success
+            );
+            
+            return success ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
+                "Lỗi hệ thống khi gửi OTP: " + e.getMessage(),
+                false
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 
     @PostMapping("/verify-otp") 
