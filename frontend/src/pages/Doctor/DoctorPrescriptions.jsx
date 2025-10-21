@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Alert, Badge } from "react-bootstrap";
-import { Pill, Plus, Eye, Search, Calendar, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Pill, Plus, Eye, Search, Calendar, User, RefreshCw } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { prescriptionApi } from "../../api/prescriptionApi";
 import Cookies from "js-cookie";
 import doctorApi from "../../api/doctorApi";
 
 const DoctorPrescriptions = () => {
+  const location = useLocation();
   const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -14,6 +15,11 @@ const DoctorPrescriptions = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [doctorId, setDoctorId] = useState(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  console.log('🎯 DoctorPrescriptions component rendered');
+  console.log('📍 Current location:', location.pathname);
+  console.log('📋 Location state:', location.state);
 
   // Lấy doctorId từ cookie và API
   useEffect(() => {
@@ -32,21 +38,76 @@ const DoctorPrescriptions = () => {
   }, []);
 
   useEffect(() => {
+    console.log('🔍 DoctorId changed:', doctorId);
     if (doctorId) {
       loadPrescriptions();
+    } else {
+      console.log('⚠️ No doctorId, loading mock data anyway...');
+      // Load mock data even without doctorId for demo purposes
+      setTimeout(() => {
+        loadPrescriptions();
+      }, 1000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctorId]);
+
+  // Auto refresh when page becomes visible (when user comes back from prescription form)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && doctorId) {
+        console.log('🔄 Trang được focus lại, refresh danh sách đơn thuốc...');
+        loadPrescriptions();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [doctorId]);
+
+  // Check for success message from navigation state
+  useEffect(() => {
+    if (location.state?.message && location.state?.newPrescription) {
+      setShowSuccessMessage(true);
+      console.log('🎉 Đã nhận thông báo từ PrescriptionForm:', location.state.message);
+      
+      // If there's mock data, add it to the list
+      if (location.state.mockData) {
+        console.log('📋 Adding mock prescription to list:', location.state.mockData);
+        setPrescriptions(prev => [location.state.mockData, ...prev]);
+      }
+      
+      // Auto hide success message after 5 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 5000);
+
+      // Clear the navigation state to prevent showing message on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const loadPrescriptions = async () => {
     try {
       setLoading(true);
       console.log('🔍 Đang tải danh sách đơn thuốc...');
+      console.log('👨‍⚕️ Doctor ID:', doctorId);
       
-      const response = await prescriptionApi.getPrescriptionsByDoctor(doctorId);
+      let response;
+      if (doctorId) {
+        response = await prescriptionApi.getPrescriptionsByDoctor(doctorId);
+      } else {
+        // Fallback: get all prescriptions if no doctorId
+        console.log('⚠️ No doctorId, trying to get all prescriptions...');
+        response = await prescriptionApi.getAllPrescriptions();
+      }
       console.log('✅ Đã tải danh sách đơn thuốc:', response.data);
       
-      setPrescriptions(response.data);
+      // Sort by date descending (newest first)
+      const sortedPrescriptions = response.data.sort((a, b) => 
+        new Date(b.createdDate) - new Date(a.createdDate)
+      );
+      
+      setPrescriptions(sortedPrescriptions);
     } catch (error) {
       console.error('❌ Lỗi khi tải danh sách đơn thuốc:', error);
       console.warn('DoctorPrescriptions: backend unavailable, using mock data.');
@@ -127,7 +188,12 @@ const DoctorPrescriptions = () => {
         }
       ];
       
-      setPrescriptions(mockPrescriptions);
+      // Sort mock data by date descending (newest first)
+      const sortedMockPrescriptions = mockPrescriptions.sort((a, b) => 
+        new Date(b.createdDate) - new Date(a.createdDate)
+      );
+      
+      setPrescriptions(sortedMockPrescriptions);
     } finally {
       setLoading(false);
     }
@@ -184,6 +250,41 @@ const DoctorPrescriptions = () => {
 
   return (
     <Container fluid className="py-4">
+      <style jsx>{`
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      {/* Debug Info */}
+      <Row className="mb-2">
+        <Col>
+          <small className="text-muted">
+            🎯 Route: {location.pathname} | 
+            👨‍⚕️ Doctor ID: {doctorId || 'N/A'} | 
+            📋 Prescriptions: {prescriptions.length} | 
+            🔄 Loading: {loading ? 'Yes' : 'No'}
+          </small>
+        </Col>
+      </Row>
+
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <Row className="mb-4">
+          <Col>
+            <Alert variant="success" className="d-flex align-items-center" dismissible onClose={() => setShowSuccessMessage(false)}>
+              <Pill className="me-2" size={20} />
+              <div>
+                <strong>Thành công!</strong> {location.state?.message || 'Đã kê đơn thuốc thành công!'}
+              </div>
+            </Alert>
+          </Col>
+        </Row>
+      )}
+
       {/* Header */}
       <Row className="mb-4">
         <Col>
@@ -194,15 +295,46 @@ const DoctorPrescriptions = () => {
                   <h4 className="mb-0">
                     <Pill className="me-2" size={24} />
                     Quản Lý Đơn Thuốc
+                    <Badge bg="primary" className="ms-2">{filteredPrescriptions.length}</Badge>
                   </h4>
-                  <small className="text-muted">Danh sách đơn thuốc đã kê cho bệnh nhân</small>
+                  <small className="text-muted">
+                    Danh sách đơn thuốc đã kê cho bệnh nhân
+                    {prescriptions.length > 0 && (
+                      <span className="ms-2">
+                        • Tổng {prescriptions.length} đơn thuốc
+                      </span>
+                    )}
+                  </small>
                 </div>
-                <Link to="/doctor/prescriptions/new">
-                  <Button variant="success">
-                    <Plus className="me-2" size={18} />
-                    Kê Đơn Thuốc Mới
+                <div className="d-flex gap-2">
+                  <Button 
+                    variant="outline-secondary" 
+                    onClick={() => loadPrescriptions()}
+                    disabled={loading}
+                    title="Làm mới danh sách"
+                  >
+                    <RefreshCw className={`me-1 ${loading ? 'spin' : ''}`} size={16} />
+                    {loading ? 'Đang tải...' : 'Làm mới'}
                   </Button>
-                </Link>
+                    <Button 
+                      variant="outline-info" 
+                      onClick={() => {
+                        console.log('🧪 Test: Force reload prescriptions...');
+                        loadPrescriptions();
+                      }}
+                      className="me-2"
+                      size="sm"
+                      title="Test reload"
+                    >
+                      🧪 Test
+                    </Button>
+                    <Link to="/doctor/prescriptions/new">
+                      <Button variant="success">
+                        <Plus className="me-2" size={18} />
+                        Kê Đơn Thuốc Mới
+                      </Button>
+                    </Link>
+                </div>
               </div>
             </Card.Header>
           </Card>

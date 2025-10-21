@@ -42,70 +42,22 @@ const MedicalRecords = () => {
 
       setMedicalRecords(records);
     } catch (error) {
-      console.error('Lỗi khi tải hồ sơ bệnh án:', error);
-      // Fallback to mock data nếu backend không available
-      loadMockData();
+      console.error('❌ Lỗi khi tải hồ sơ bệnh án từ backend:', error);
+      
+      // Show error message instead of mock data
+      if (error.response?.status === 404) {
+        console.log('ℹ️ Không tìm thấy hồ sơ bệnh án');
+        setMedicalRecords([]);
+      } else if (error.response?.status === 401) {
+        console.error('🔒 Không có quyền truy cập hồ sơ bệnh án');
+        setMedicalRecords([]);
+      } else {
+        console.error('🔌 Không thể kết nối đến server backend');
+        setMedicalRecords([]);
+      }
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadMockData = () => {
-    const mockRecords = [
-      {
-        id: 1,
-        patientId: "BN001",
-        patientName: "Nguyễn Văn An",
-        age: 35,
-        gender: "Nam",
-        phone: "0901234567",
-        diagnosis: "Viêm phổi cấp",
-        symptoms: "Ho, sốt cao, khó thở",
-        treatmentPlan: "Kháng sinh, nghỉ ngơi, theo dõi",
-        doctorName: "BS. Nguyễn Thị Hồng",
-        appointmentDate: "2025-10-08",
-        createdDate: "2025-10-08",
-        status: "completed",
-        notes: "Bệnh nhân đã có dấu hiệu cải thiện sau 3 ngày điều trị"
-      },
-      {
-        id: 2,
-        patientId: "BN002", 
-        patientName: "Trần Thị Bình",
-        age: 28,
-        gender: "Nữ",
-        phone: "0912345678",
-        diagnosis: "Đau dạ dày",
-        symptoms: "Đau bụng, ợ nóng, khó tiêu",
-        treatmentPlan: "Thuốc kháng acid, chế độ ăn uống",
-        doctorName: "BS. Nguyễn Thị Hồng",
-        appointmentDate: "2025-10-09",
-        createdDate: "2025-10-09", 
-        status: "in-progress",
-        notes: "Cần theo dõi thêm, tái khám sau 1 tuần"
-      },
-      {
-        id: 3,
-        patientId: "BN003",
-        patientName: "Lê Minh Cường",
-        age: 42,
-        gender: "Nam", 
-        phone: "0923456789",
-        diagnosis: "Tăng huyết áp",
-        symptoms: "Đau đầu, chóng mặt, mệt mỏi",
-        treatmentPlan: "Thuốc hạ huyết áp, chế độ ăn ít muối",
-        doctorName: "BS. Nguyễn Thị Hồng",
-        appointmentDate: "2025-10-10",
-        createdDate: "2025-10-10",
-        status: "new",
-        notes: ""
-      }
-    ];
-    
-    setTimeout(() => {
-      setMedicalRecords(mockRecords);
-      setLoading(false);
-    }, 1000);
   };
 
   const getStatusBadge = (status) => {

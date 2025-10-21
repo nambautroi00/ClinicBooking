@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ReCAPTCHA from 'react-google-recaptcha';
 import axiosClient from '../../api/axiosClient';
 import { useEffect } from 'react';
 
@@ -9,6 +10,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [recaptchaValue, setRecaptchaValue] = useState(null);
   const navigate = useNavigate();
 
   // Load saved credentials if remember me was checked
@@ -66,9 +68,20 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    // Kiểm tra reCAPTCHA
+    if (!recaptchaValue) {
+      setError('Vui lòng xác nhận reCAPTCHA');
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await axiosClient.post('/auth/login', { email, password });
+      const res = await axiosClient.post('/auth/login', { 
+        email, 
+        password,
+        recaptcha: recaptchaValue 
+      });
       const data = res.data;
       if (data.success) {
         // Save or clear remember me credentials
@@ -92,12 +105,28 @@ export default function Login() {
         else navigate('/');
       } else {
         setError(data.message || 'Đăng nhập thất bại');
+        // Reset reCAPTCHA on error
+        setRecaptchaValue(null);
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Lỗi mạng');
+      // Reset reCAPTCHA on error
+      setRecaptchaValue(null);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle reCAPTCHA change
+  const handleRecaptchaChange = (value) => {
+    setRecaptchaValue(value);
+    console.log('reCAPTCHA value:', value);
+  };
+
+  // Handle reCAPTCHA expired
+  const handleRecaptchaExpired = () => {
+    setRecaptchaValue(null);
+    console.log('reCAPTCHA expired');
   };
 
   // Handle Google sign-in callback
@@ -178,11 +207,22 @@ export default function Login() {
             </a>
           </div>
 
+          {/* reCAPTCHA */}
+          <div className="mb-4">
+            <ReCAPTCHA
+              sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY || "6LfeffErAAAAAJ-GRzSFQ3NcwFpKn-HAyiu_Jfku"}
+              onChange={handleRecaptchaChange}
+              onExpired={handleRecaptchaExpired}
+              theme="light"
+              size="normal"
+            />
+          </div>
+
           <div className="flex items-center justify-between">
             <button
               type="submit"
               className="inline-flex items-center rounded-md bg-[#0d6efd] px-4 py-2 text-white disabled:opacity-60"
-              disabled={loading}
+              disabled={loading || !recaptchaValue}
             >
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>

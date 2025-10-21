@@ -1,4 +1,5 @@
 import React from 'react';
+import PatientNavigation from '../../components/patient/PatientNavigation';
 
 const PatientProfile = () => {
   return (
@@ -12,7 +13,10 @@ const PatientProfile = () => {
       </div>
 
       <div className="row">
-        <div className="col-12">
+        <div className="col-md-3">
+          <PatientNavigation />
+        </div>
+        <div className="col-md-9">
           <div className="card">
             <div className="card-body text-center py-5">
               <i className="bi bi-person text-primary" style={{ fontSize: '4rem' }}></i>
