@@ -432,7 +432,7 @@ export default function Header() {
 
         {/* Mobile search */}
         {showMobileHeader && (
-          <div className="md:hidden pb-3">
+          <div className="md:hidden pb-3 animate-slideDown">
             <div className="max-w-full mx-auto px-2 relative w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input type="search" placeholder="Tìm kiếm..." className="pl-10 bg-gray-100 w-full rounded-md py-2" />
@@ -442,7 +442,7 @@ export default function Header() {
 
         {/* Mobile Navigation */}
         {showMobileHeader && (
-          <nav className="md:hidden border-t py-4 space-y-3 max-w-full mx-auto px-2">
+          <nav className="md:hidden border-t py-4 space-y-3 max-w-full mx-auto px-2 animate-slideDown">
             {menuItems.map((item) => {
               const handleClick = (e) => {
                 setMobileMenuOpen(false);
