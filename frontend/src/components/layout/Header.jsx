@@ -306,7 +306,7 @@ export default function Header() {
           </Link>
 
           {/* Center search - large pill */}
-          <div className="flex-1">
+          <div className="flex-1 hidden sm:block">
             <div className="relative max-w-3xl mx-auto">
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
@@ -318,8 +318,8 @@ export default function Header() {
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-4">
-            <nav className="hidden md:flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <nav className="hidden lg:flex items-center gap-6">
               {menuItems.map((item) => {
                 const handleClick = (e) => {
                   if (item.href.includes('#')) {
