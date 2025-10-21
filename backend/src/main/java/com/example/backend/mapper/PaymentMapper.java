@@ -1,46 +1,55 @@
 package com.example.backend.mapper;
 
-import org.springframework.stereotype.Component;
-
 import com.example.backend.dto.PaymentDTO;
-import com.example.backend.model.Appointment;
 import com.example.backend.model.Payment;
+import org.springframework.stereotype.Component;
 
 @Component
 public class PaymentMapper {
-
-
-    public Payment createDTOToEntity(PaymentDTO.Create dto, Appointment appointment, String orderId, java.math.BigDecimal amount) {
-        Payment payment = new Payment();
-        payment.setAppointment(appointment);
-        payment.setOrderId(orderId);
-        payment.setAmount(amount);
-        payment.setStatus("Pending");
-        payment.setCreatedAt(java.time.LocalDateTime.now());
-        payment.setUpdatedAt(java.time.LocalDateTime.now());
-        // Các trường transactionId, description, paidAt sẽ được cập nhật sau khi thanh toán Sepay thành công
-        return payment;
-    }
-
-    public PaymentDTO.ResponseDTO entityToResponseDTO(Payment payment) {
-        PaymentDTO.ResponseDTO dto = new PaymentDTO.ResponseDTO();
-        dto.setPaymentId(payment.getPaymentId());
-        if (payment.getAppointment() != null) {
-            Long apptId = payment.getAppointment().getAppointmentId();
-            dto.setAppointmentId(apptId != null ? apptId.longValue() : null);
-        } else {
-            dto.setAppointmentId(null);
+    
+    public PaymentDTO.Response toResponseDTO(Payment payment) {
+        if (payment == null) {
+            return null;
         }
-        dto.setOrderId(payment.getOrderId());
+        
+        PaymentDTO.Response dto = new PaymentDTO.Response();
+        dto.setPaymentId(payment.getPaymentId());
+        dto.setPayOSPaymentId(payment.getPayOSPaymentId());
         dto.setAmount(payment.getAmount());
+        dto.setCurrency(payment.getCurrency());
         dto.setStatus(payment.getStatus());
-        dto.setTransactionId(payment.getTransactionId());
+        dto.setPaymentMethod(payment.getPaymentMethod());
+        dto.setPayOSCode(payment.getPayOSCode());
+        dto.setPayOSLink(payment.getPayOSLink());
         dto.setDescription(payment.getDescription());
         dto.setCreatedAt(payment.getCreatedAt());
-        dto.setPaidAt(payment.getPaidAt());
         dto.setUpdatedAt(payment.getUpdatedAt());
+        dto.setPaidAt(payment.getPaidAt());
+        dto.setFailureReason(payment.getFailureReason());
+        
+        // Map appointment info if available
+        if (payment.getAppointment() != null) {
+            dto.setAppointmentId(payment.getAppointment().getAppointmentId());
+            
+            if (payment.getAppointment().getPatient() != null && 
+                payment.getAppointment().getPatient().getUser() != null) {
+                String patientName = payment.getAppointment().getPatient().getUser().getFirstName() + 
+                                   " " + payment.getAppointment().getPatient().getUser().getLastName();
+                dto.setPatientName(patientName);
+            }
+            
+            if (payment.getAppointment().getDoctor() != null && 
+                payment.getAppointment().getDoctor().getUser() != null) {
+                String doctorName = payment.getAppointment().getDoctor().getUser().getFirstName() + 
+                                 " " + payment.getAppointment().getDoctor().getUser().getLastName();
+                dto.setDoctorName(doctorName);
+            }
+            
+            if (payment.getAppointment().getStartTime() != null) {
+                dto.setAppointmentDate(payment.getAppointment().getStartTime().toString());
+            }
+        }
+        
         return dto;
     }
 }
-
-

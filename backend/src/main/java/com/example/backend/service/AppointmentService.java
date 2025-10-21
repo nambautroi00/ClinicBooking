@@ -1,6 +1,8 @@
 package com.example.backend.service;
 
 import java.util.List;
+import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
@@ -160,7 +163,20 @@ public class AppointmentService {
         }
         
         // Tìm patient
-        Patient patient = patientRepository.findById(patientId)
+        log.info("🔍 Searching for patient with ID: {}", patientId);
+        Optional<Patient> patientOpt = patientRepository.findById(patientId);
+        if (patientOpt.isPresent()) {
+            log.info("✅ Found patient: {}", patientOpt.get().getPatientId());
+        } else {
+            log.error("❌ No patient found with ID: {}", patientId);
+            // Debug: List all patients
+            List<Patient> allPatients = patientRepository.findAll();
+            log.info("📊 Total patients in database: {}", allPatients.size());
+            for (Patient p : allPatients) {
+                log.info("👤 Patient ID: {}", p.getPatientId());
+            }
+        }
+        Patient patient = patientOpt
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh nhân với ID: " + patientId));
         
         // Cập nhật appointment

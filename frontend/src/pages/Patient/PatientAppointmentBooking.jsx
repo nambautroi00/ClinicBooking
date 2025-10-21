@@ -1,790 +1,299 @@
-import React, { useState, useEffect } from 'react';
-import doctorApi from '../../api/doctorApi';
-import doctorScheduleApi from '../../api/doctorScheduleApi';
-import appointmentApi from '../../api/appointmentApi';
-import DoctorCarousel from '../../components/DoctorCarousel';
+import React, { useState, useEffect } from "react";
+import { Search, ArrowRight, Star, MapPin, Clock, Users, Heart, Stethoscope, Baby, Shield, Brain, Eye, Bone, Activity, Zap, Pill } from "lucide-react";
+import { Link } from "react-router-dom";
+import doctorApi from "../../api/doctorApi";
+import departmentApi from "../../api/departmentApi";
 
-const PatientAppointmentBooking = () => {
+export default function PatientAppointmentBooking() {
+  const [searchQuery, setSearchQuery] = useState("");
   const [doctors, setDoctors] = useState([]);
+  const [allDoctors, setAllDoctors] = useState([]); // Store all doctors for filtering
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('doctor');
-  const [selectedSpecialty, setSelectedSpecialty] = useState('');
+  const [activeTab, setActiveTab] = useState("doctor");
+
+  // Mock data for specialties
+  const specialties = [
+    { name: "Nhi khoa", icon: Baby, color: "bg-blue-100 text-blue-600" },
+    { name: "Sản phụ khoa", icon: Heart, color: "bg-pink-100 text-pink-600" },
+    { name: "Da liễu", icon: Shield, color: "bg-green-100 text-green-600" },
+    { name: "Tiêu hoá", icon: Stethoscope, color: "bg-yellow-100 text-yellow-600" },
+    { name: "Cơ xương khớp", icon: Bone, color: "bg-purple-100 text-purple-600" },
+    { name: "Dị ứng - miễn dịch", icon: Shield, color: "bg-indigo-100 text-indigo-600" },
+    { name: "Gây mê hồi sức", icon: Activity, color: "bg-cyan-100 text-cyan-600" },
+    { name: "Tai - mũi - họng", icon: Eye, color: "bg-orange-100 text-orange-600" },
+    { name: "Ung bướu", icon: Activity, color: "bg-red-100 text-red-600" },
+    { name: "Tim mạch", icon: Heart, color: "bg-pink-100 text-pink-600" },
+    { name: "Lão khoa", icon: Users, color: "bg-gray-100 text-gray-600" },
+    { name: "Chấn thương chỉnh hình", icon: Bone, color: "bg-purple-100 text-purple-600" }
+  ];
 
   useEffect(() => {
-    loadDoctors();
+    // Load doctors and departments from API
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch doctors from API
+        const doctorsResponse = await doctorApi.getAllDoctors();
+        if (doctorsResponse.data) {
+          // Transform API data to match our component structure
+          const transformedDoctors = doctorsResponse.data.map(doctor => ({
+            id: doctor.doctorId || doctor.id,
+            name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
+            specialty: doctor.specialty || 'Chưa cập nhật',
+            rating: 4.5, // Default rating, you can add this to your API
+            avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
+            experience: `${doctor.experience || 'Nhiều'} năm kinh nghiệm`,
+            department: doctor.department?.departmentName || 'Chưa phân khoa'
+          }));
+          setAllDoctors(transformedDoctors); // Store all doctors
+          setDoctors(transformedDoctors); // Display all doctors initially
+        }
+        
+        // Set specialties (static data for now)
+        setDepartments(specialties);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        setDepartments(specialties);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
-  const loadDoctors = async () => {
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    
     try {
       setLoading(true);
-      const response = await doctorApi.getAllDoctors();
-      console.log('Doctors data from API:', response.data);
-      setDoctors(response.data || []);
+      const searchResponse = await doctorApi.searchDoctors(searchQuery);
+      if (searchResponse.data) {
+        const transformedDoctors = searchResponse.data.map(doctor => ({
+          id: doctor.doctorId || doctor.id,
+          name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
+          specialty: doctor.specialty || 'Chưa cập nhật',
+          rating: 4.5,
+          avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
+          experience: `${doctor.experience || 'Nhiều'} năm kinh nghiệm`,
+          department: doctor.department?.departmentName || 'Chưa phân khoa'
+        }));
+        setDoctors(transformedDoctors);
+      }
     } catch (error) {
-      console.error('Error loading doctors:', error);
-      setDoctors([]);
+      console.error("Error searching doctors:", error);
+      // Keep current doctors list on search error
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredDoctors = doctors.filter(doctor => {
-    const searchLower = searchTerm.toLowerCase();
-    const doctorName = doctor.name || (doctor.user?.firstName + ' ' + doctor.user?.lastName) || '';
-    const specialty = doctor.specialty || '';
-    const department = doctor.department?.departmentName || '';
-    
-    const matchesSearch = doctorName.toLowerCase().includes(searchLower) ||
-                         specialty.toLowerCase().includes(searchLower) ||
-                         department.toLowerCase().includes(searchLower);
-    
-    const matchesSpecialty = !selectedSpecialty || 
-                            specialty.toLowerCase().includes(selectedSpecialty.toLowerCase()) ||
-                            department.toLowerCase().includes(selectedSpecialty.toLowerCase());
-    
-    return matchesSearch && matchesSpecialty;
-  });
+  const handleSpecialtyClick = (specialtyName) => {
+    // Filter doctors by specialty
+    const filteredDoctors = allDoctors.filter(doctor => 
+      doctor.specialty.toLowerCase().includes(specialtyName.toLowerCase())
+    );
+    setDoctors(filteredDoctors);
+  };
 
+  const handleShowAllDoctors = () => {
+    setDoctors(allDoctors);
+    setSearchQuery("");
+  };
 
   return (
-    <div className="patient-booking-page">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="hero-section bg-primary text-white py-5">
-        <div className="container">
-          <div className="row align-items-center">
-        <div className="col-lg-8">
-              <h1 className="display-4 fw-bold mb-3">Đặt khám bác sĩ</h1>
-              <p className="lead mb-4">
-                Đặt khám với hơn 1000 bác sĩ đã kết nối chính thức với YouMed để có số thứ tự và khung giờ khám trước
-              </p>
+      <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid lg:grid-cols-5 gap-12 items-center">
+            {/* Left Content - 60% */}
+            <div className="lg:col-span-3 space-y-8">
+              <div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+                  Đặt khám bác sĩ
+                </h1>
+                <p className="text-lg md:text-xl text-blue-100 leading-relaxed">
+                  Đặt khám với hơn 1000 bác sĩ đã kết nối chính thức với Medicare để có số thứ tự và khung giờ khám trước
+                </p>
+              </div>  
               
               {/* Search Bar */}
-              <div className="search-container position-relative">
-                <input
-                  type="text"
-                  className="form-control form-control-lg"
-                  placeholder="Triệu chứng, bác sĩ, bệnh viện..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{
-                    borderRadius: '50px',
-                    padding: '15px 50px 15px 20px',
-                    border: 'none',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <button 
-                  className="btn btn-primary position-absolute end-0 top-50 translate-middle-y me-3"
-                  style={{
-                    borderRadius: '50%',
-                    width: '40px',
-                    height: '40px',
-                    border: 'none'
-                  }}
-                >
-                  <i className="bi bi-search"></i>
-                </button>
+              <form onSubmit={handleSearch} className="max-w-2xl">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <input
+                    type="text"
+                    placeholder="Triệu chứng, bác sĩ, bệnh viện..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 rounded-full text-gray-900 text-lg focus:outline-none focus:ring-2 focus:ring-blue-300 shadow-lg"
+                  />
+                </div>
+              </form>
+
+              {/* Quick Stats */}
+              <div className="flex flex-wrap gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span>1000+ Bác sĩ</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                  <span>50+ Chuyên khoa</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                  <span>24/7 Hỗ trợ</span>
+                </div>
               </div>
+            </div>
+
+            {/* Right Content - Family Image - 40% */}
+            <div className="lg:col-span-2 flex justify-center lg:justify-end">
+              <div className="relative">
+                {/* Main Family Image */}
+                <div className="relative">
+                  <div className="w-80 h-80 bg-white/10 rounded-3xl backdrop-blur-sm border border-white/20 overflow-hidden shadow-2xl group hover:shadow-3xl transition-all duration-300 hover:scale-105">
+                    <img 
+                      src="/images/family.jpg" 
+                      alt="Gia đình khỏe mạnh" 
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      onError={(e) => {
+                        // Fallback to emoji if image fails to load
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="w-full h-full flex items-center justify-center text-8xl" style={{display: 'none'}}>
+                      👨‍👩‍👧‍👦
                     </div>
-            <div className="col-lg-4 d-none d-lg-block">
-              <div className="hero-image text-center">
-                <div 
-                  className="family-image"
-                  style={{
-                    width: '300px',
-                    height: '300px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                >
-                  <i className="bi bi-people-fill" style={{ fontSize: '120px', color: '#1976d2' }}></i>
-                                </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                    
+                    {/* Overlay gradient for better text readability if needed */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </div>
+                  
+                  {/* Floating Elements */}
+                  <div className="absolute -top-4 -right-4 w-16 h-16 bg-white-400 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                    <span className="text-2xl">💊</span>
+                  </div>
+                  
+                </div>
+
+                {/* Background decorative elements */}
+                <div className="absolute inset-0 -z-10">
+                  <div className="absolute top-10 left-10 w-32 h-32 bg-blue-500/20 rounded-full blur-xl"></div>
+                  <div className="absolute bottom-10 right-10 w-24 h-24 bg-green-500/20 rounded-full blur-xl"></div>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-yellow-500/10 rounded-full blur-2xl"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
 
       {/* Main Content */}
-      <div className="main-content bg-white py-5">
-        <div className="container">         
-          {/* Doctors List */}
-          {loading ? (
-            <div className="text-center py-5">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p className="mt-3">Đang tải danh sách bác sĩ...</p>
-            </div>
-          ) : (
-            <DoctorCarousel 
-              doctors={filteredDoctors}
-              title="Đặt khám bác sĩ"
-              showViewAll={true}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Medical Specialties Section */}
-      <div className="specialties-section bg-white py-5">
-        <div className="container">
-          <div className="text-center mb-5">
-            <h2 className="fw-bold mb-3">Đa dạng chuyên khoa khám</h2>
-            <p className="text-muted lead">
-              Đặt khám dễ dàng và tiện lợi hơn với đầy đủ các chuyên khoa
-            </p>
-          </div>
-
-          <div className="row g-3">
-            {/* Row 1 */}
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div 
-                className="specialty-card text-center p-3"
-                onClick={() => setSelectedSpecialty('Nhi khoa')}
-                style={{ cursor: 'pointer' }}
+      <div className="container mx-auto px-4 py-8">
+        {/* Doctors Section */}
+        <section className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Đặt khám bác sĩ</h2  >
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={handleShowAllDoctors}
+                className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
               >
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-heart-pulse" style={{ fontSize: '24px', color: '#4caf50' }}></i>
-                  </div>
-                </div>
-                <h6 className="fw-semibold">Nhi khoa</h6>
-              </div>
+                Hiển thị tất cả <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
+          </div>
 
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-person-heart" style={{ fontSize: '24px', color: '#e91e63' }}></i>
-                  </div>
-                </div>
-                <h6 className="fw-semibold">Sản phụ khoa</h6>
+          {/* Doctors Carousel */}
+          <div className="relative">
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Đang tải danh sách bác sĩ...</span>
               </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-droplet" style={{ fontSize: '24px', color: '#ff9800' }}></i>
-                  </div>
-                </div>
-                <h6 className="fw-semibold">Da liễu</h6>
+            ) : doctors.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-gray-500 text-lg mb-2">Không tìm thấy bác sĩ</div>
+                <div className="text-gray-400">Vui lòng thử lại với từ khóa khác</div>
               </div>
+            ) : (
+              <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide">
+                {doctors.map((doctor) => (
+                <div key={doctor.id} className="flex-shrink-0 w-64 bg-white rounded-lg shadow-md p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer group">
+                  <div className="text-center">
+                    <div className="w-20 h-20 rounded-full mx-auto mb-4 overflow-hidden relative flex items-center justify-center bg-gray-200 group-hover:bg-blue-100 transition-colors duration-300">
+                      <img
+                        src={doctor.avatar}
+                        alt={doctor.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          e.target.onerror = null; // Prevent infinite loop
+                          e.target.style.display = 'none'; // Hide the broken image
+                          const fallbackSpan = e.target.nextElementSibling; // Get the sibling span
+                          if (fallbackSpan) {
+                            fallbackSpan.style.display = 'flex'; // Show the emoji
+                          }
+                        }}
+                      />
+                      {/* Fallback emoji, initially hidden if doctor.avatar exists */}
+                      <span
+                        className="text-2xl group-hover:scale-110 transition-transform duration-300 absolute"
+                        style={{ display: doctor.avatar && doctor.avatar !== '/api/placeholder/150/150' ? 'none' : 'flex' }}
+                      >
+                        👨‍⚕️
+                      </span>
                     </div>
+                    <h3 className="font-bold text-gray-900 mb-2 text-sm group-hover:text-blue-600 transition-colors duration-300">{doctor.name}</h3>
+                    <p className="text-gray-600 text-sm mb-3 group-hover:text-gray-800 transition-colors duration-300">{doctor.specialty}</p>
+                    <div className="flex items-center justify-center gap-1 mb-4">
+                      <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                      <span className="text-sm font-medium">{doctor.rating}</span>
+                    </div>
+                    <Link 
+                      to={`/patient/booking/${doctor.id}`}
+                      className="w-full bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all duration-300 flex items-center justify-center gap-2 group-hover:shadow-md no-underline hover:no-underline"
+                    >
+                      Đặt lịch ngay <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                    </Link>
+                  </div>
+                </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
 
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div 
-                className="specialty-card text-center p-3"
-                onClick={() => setSelectedSpecialty('Tiêu hoá')}
-                style={{ cursor: 'pointer' }}
+        {/* Specialties Section */}
+        <section>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Đa dạng chuyên khoa khám</h2>
+            <p className="text-gray-600">Đặt khám dễ dàng và tiện lợi hơn với đầy đủ các chuyên khoa</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {specialties.map((specialty, index) => (
+              <button
+                key={index}
+                onClick={() => handleSpecialtyClick(specialty.name)}
+                className="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow group w-full"
               >
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-stomach" style={{ fontSize: '24px', color: '#2196f3' }}></i>
-                  </div>
+                <div className={`w-12 h-12 mx-auto mb-3 rounded-lg ${specialty.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                  <specialty.icon className="h-6 w-6" />
                 </div>
-                <h6 className="fw-semibold">Tiêu hoá</h6>
-              </div>
-            </div>
-                
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-activity" style={{ fontSize: '24px', color: '#9c27b0' }}></i>
-                  </div>
-                </div>
-                <h6 className="fw-semibold">Cơ xương khớp</h6>
-              </div>
-                    </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-shield-check" style={{ fontSize: '24px', color: '#4caf50' }}></i>
-                  </div>
-                </div>
-                <h6 className="fw-semibold">Dị ứng - miễn dịch</h6>
-                  </div>
-                </div>
-                
-            {/* Row 2 */}
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-mask" style={{ fontSize: '24px', color: '#009688' }}></i>
-                  </div>
-                </div>
-                <h6 className="fw-semibold">Gây mê hồi sức</h6>
-              </div>
-                    </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="specialty-icon mb-3">
-                  <div className="icon-wrapper" style={{
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto'
-                  }}>
-                    <i className="bi bi-ear" style={{ fontSize: '24px', color: '#ffc107' }}></i>
-                  </div>
-                </div>
-                <h6 className="fw-semibold">Tai - mũi - họng</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-bullseye" style={{ fontSize: '24px', color: '#f44336' }}></i>
-                </div>
-                <h6 className="fw-semibold">Ung bướu</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-heart-pulse" style={{ fontSize: '24px', color: '#e91e63' }}></i>
-                </div>
-                <h6 className="fw-semibold">Tim mạch</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-person-walking" style={{ fontSize: '24px', color: '#4caf50' }}></i>
-                </div>
-                <h6 className="fw-semibold">Lão khoa</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-bandage" style={{ fontSize: '24px', color: '#ff9800' }}></i>
-                </div>
-                <h6 className="fw-semibold">Chấn thương chỉnh hình</h6>
-              </div>
-            </div>
-
-            {/* Row 3 */}
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-hospital" style={{ fontSize: '24px', color: '#2196f3' }}></i>
-                </div>
-                <h6 className="fw-semibold">Hồi sức cấp cứu</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-scissors" style={{ fontSize: '24px', color: '#9c27b0' }}></i>
-                </div>
-                <h6 className="fw-semibold">Ngoại tổng quát</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-clipboard-check" style={{ fontSize: '24px', color: '#4caf50' }}></i>
-                </div>
-                <h6 className="fw-semibold">Y học dự phòng</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-tooth" style={{ fontSize: '24px', color: '#009688' }}></i>
-                </div>
-                <h6 className="fw-semibold">Răng - Hàm - Mặt</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-virus" style={{ fontSize: '24px', color: '#f44336' }}></i>
-                </div>
-                <h6 className="fw-semibold">Truyền nhiễm</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-droplet-half" style={{ fontSize: '24px', color: '#ffc107' }}></i>
-                </div>
-                <h6 className="fw-semibold">Nội thận</h6>
-              </div>
-            </div>
-
-            {/* Row 4 */}
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-droplet" style={{ fontSize: '24px', color: '#2196f3' }}></i>
-                </div>
-                <h6 className="fw-semibold">Nội tiết</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-brain" style={{ fontSize: '24px', color: '#9c27b0' }}></i>
-                </div>
-                <h6 className="fw-semibold">Tâm thần</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-lungs" style={{ fontSize: '24px', color: '#4caf50' }}></i>
-                </div>
-                <h6 className="fw-semibold">Hô hấp</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-microscope" style={{ fontSize: '24px', color: '#009688' }}></i>
-                </div>
-                <h6 className="fw-semibold">Xét nghiệm</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-search" style={{ fontSize: '24px', color: '#f44336' }}></i>
-                </div>
-                <h6 className="fw-semibold">Huyết học</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-chat-dots" style={{ fontSize: '24px', color: '#ffc107' }}></i>
-                </div>
-                <h6 className="fw-semibold">Tâm lý</h6>
-              </div>
-            </div>
-
-            {/* Row 5 */}
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-exclamation-triangle" style={{ fontSize: '24px', color: '#2196f3' }}></i>
-                </div>
-                <h6 className="fw-semibold">Nội thần kinh</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-chat-square-text" style={{ fontSize: '24px', color: '#9c27b0' }}></i>
-                </div>
-                <h6 className="fw-semibold">Ngôn ngữ trị liệu</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-person-walking" style={{ fontSize: '24px', color: '#4caf50' }}></i>
-                </div>
-                <h6 className="fw-semibold">Phục hồi chức năng</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-heart" style={{ fontSize: '24px', color: '#009688' }}></i>
-                </div>
-                <h6 className="fw-semibold">Vô sinh hiếm muộn</h6>
-            </div>
+                <p className="text-sm font-medium text-gray-900">{specialty.name}</p>
+              </button>
+            ))}
           </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-flower1" style={{ fontSize: '24px', color: '#ffc107' }}></i>
-                </div>
-                <h6 className="fw-semibold">Y học cổ truyền</h6>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-3 col-sm-4 col-6">
-              <div className="specialty-card text-center p-3">
-                <div className="icon-wrapper" style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto'
-                }}>
-                  <i className="bi bi-lungs-fill" style={{ fontSize: '24px', color: '#f44336' }}></i>
-                </div>
-                <h6 className="fw-semibold">Lao - bệnh phổi</h6>
-              </div>
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
-
-      <style jsx>{`
-        .hero-section {
-          background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .hero-section::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-          opacity: 0.3;
-        }
-        
-        .hero-section .container {
-          position: relative;
-          z-index: 2;
-        }
-        
-        .search-container {
-          max-width: 500px;
-        }
-        
-        .nav-tabs-container {
-          position: sticky;
-          top: 0;
-          z-index: 100;
-        }
-        
-        .doctor-card {
-          transition: all 0.3s ease;
-          border-radius: 12px;
-        }
-        
-        .doctor-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-        }
-        
-        .doctor-avatar img {
-          border: 3px solid #e3f2fd;
-        }
-        
-        .specialty-card {
-          transition: all 0.3s ease;
-          border-radius: 12px;
-          cursor: pointer;
-        }
-        
-        .specialty-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-        
-        .specialty-card:hover .icon-wrapper {
-          transform: scale(1.1);
-        }
-        
-        .icon-wrapper {
-          transition: all 0.3s ease;
-        }
-        
-      `}</style>
     </div>
   );
-};
-
-export default PatientAppointmentBooking;
+}

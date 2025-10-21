@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.dto.AppointmentDTO;
 import com.example.backend.service.AppointmentService;
-import com.example.backend.service.PaymentService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,30 +28,17 @@ import lombok.RequiredArgsConstructor;
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
-    private final PaymentService paymentService;
 
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody AppointmentDTO.Create dto) {
         AppointmentDTO.Response created = appointmentService.create(dto);
-        // Sau khi tạo appointment, tạo luôn payment và trả về qrUrl
-        Long appointmentId = created.getAppointmentId();
-        java.math.BigDecimal amount = created.getFee();
-        // Sinh orderId
-        String orderId = "APPT-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        String description = "Thanh toan lich kham #" + orderId;
-    com.example.backend.model.Payment payment = null;
-    String qrUrl = null;
-    if (appointmentId != null && amount != null) {
-        payment = paymentService.createPayment(orderId, appointmentId, amount, description);
-        qrUrl = paymentService.generateQrUrl(description, amount);
-    }
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(java.util.Map.of(
-            "appointment", created,
-            "paymentId", payment != null ? payment.getPaymentId() : null,
-            "orderId", payment != null ? payment.getOrderId() : null,
-            "qrUrl", qrUrl
-        ));
+        // Chỉ tạo appointment, không tạo payment
+        // Payment sẽ được tạo khi bệnh nhân đặt lịch
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(java.util.Map.of(
+                "appointment", created,
+                "message", "Appointment created successfully"
+            ));
     }
 
     // =====================================================================

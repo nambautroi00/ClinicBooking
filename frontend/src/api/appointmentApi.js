@@ -53,6 +53,11 @@ const appointmentApi = {
       notes,
     });
   },
+
+  // Tạo payment cho appointment
+  createPaymentForAppointment: (appointmentId, paymentData) => {
+    return axiosClient.post(`/appointments/${appointmentId}/create-payment`, paymentData);
+  },
 };
 
 export default appointmentApi;

@@ -4,44 +4,80 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @Table(name = "Payments")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Payment {
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "PaymentID")
     private Long paymentId;
-
-    @Column(name = "OrderID", nullable = false, unique = true, length = 100)
-    private String orderId;
-
-    @OneToOne
-    @JoinColumn(name = "AppointmentID", nullable = false)
-    private Appointment appointment;
-
-    @Column(name = "Amount", nullable = false, precision = 12, scale = 2)
-    private java.math.BigDecimal amount;
-
-    @Column(name = "Status", length = 20, columnDefinition = "NVARCHAR(20) DEFAULT 'Pending'")
-    private String status = "Pending";
-
-    @Column(name = "TransactionID", length = 100)
-    private String transactionId;
     
-    @Column(name = "Description", length = 255, columnDefinition = "NVARCHAR(MAX)")
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "AppointmentID")
+    private Appointment appointment;
+    
+    @Column(name = "PayOSPaymentId", unique = true)
+    private String payOSPaymentId;
+    
+    @Column(name = "Amount", nullable = false)
+    private BigDecimal amount;
+    
+    @Column(name = "Currency", nullable = false)
+    private String currency = "VND";
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Status", nullable = false)
+    private PaymentStatus status = PaymentStatus.PENDING;
+    
+    @Column(name = "PaymentMethod")
+    private String paymentMethod;
+    
+    @Column(name = "PayOSCode")
+    private String payOSCode;
+    
+    @Column(name = "PayOSLink")
+    private String payOSLink;
+    
+    @Column(name = "Description")
     private String description;
-
+    
     @Column(name = "CreatedAt", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-
+    private LocalDateTime createdAt;
+    
+    @Column(name = "UpdatedAt")
+    private LocalDateTime updatedAt;
+    
     @Column(name = "PaidAt")
     private LocalDateTime paidAt;
-
-    @Column(name = "UpdatedAt", nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @Column(name = "FailureReason")
+    private String failureReason;
+    
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+    
+    public enum PaymentStatus {
+        PENDING,    // Chờ thanh toán
+        PAID,       // Đã thanh toán
+        FAILED,     // Thanh toán thất bại
+        CANCELLED,  // Hủy thanh toán
+        REFUNDED    // Hoàn tiền
+    }
 }

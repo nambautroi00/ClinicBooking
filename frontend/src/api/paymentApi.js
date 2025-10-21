@@ -1,34 +1,64 @@
 import axiosClient from './axiosClient';
 
-// Thanh toán booking
-export async function payBooking({
-  cardHolderName,
-  cardNumber,
-  expireDate,
-  cvv,
-  method, // 'credit_card' | 'paypal' | 'stripe'
-  amount,
-  bookingId,
-}) {
-  // Payload gửi lên backend
-  const payload = {
-    cardHolderName,
-    cardNumber,
-    expireDate,
-    cvv,
-    method,
-    amount,
-    bookingId,
-  };
-  // Gọi API thanh toán
-  return axiosClient.post('/payments/checkout', payload);
-}
-
 const paymentApi = {
-  getTotalRevenue: () => axiosClient.get('/payments/total-revenue').then(r => r.data),
-  getHistoryByPatient: (patientId) => axiosClient.get('/payments/history', { params: { patientId } }).then(r => r.data),
+  // Tạo payment cho appointment
+  createPayment: (paymentData) => {
+    return axiosClient.post('/payments', paymentData);
+  },
+
+  // Lấy payment theo ID
+  getPaymentById: (paymentId) => {
+    return axiosClient.get(`/payments/${paymentId}`);
+  },
+
+  // Lấy payment theo PayOS Payment ID
+  getPaymentByPayOSPaymentId: (payOSPaymentId) => {
+    return axiosClient.get(`/payments/payos/${payOSPaymentId}`);
+  },
+
+  // Lấy payments theo appointment ID
+  getPaymentsByAppointmentId: (appointmentId) => {
+    return axiosClient.get(`/payments/appointment/${appointmentId}`);
+  },
+
+  // Lấy payments theo patient ID
+  getPaymentsByPatientId: (patientId) => {
+    return axiosClient.get(`/payments/patient/${patientId}`);
+  },
+
+  // Lấy payments theo doctor ID
+  getPaymentsByDoctorId: (doctorId) => {
+    return axiosClient.get(`/payments/doctor/${doctorId}`);
+  },
+
+  // Lấy tất cả payments với phân trang
+  getAllPayments: (page = 0, size = 20) => {
+    return axiosClient.get('/payments', {
+      params: { page, size }
+    });
+  },
+
+  // Lấy payments theo status
+  getPaymentsByStatus: (status) => {
+    return axiosClient.get(`/payments/status/${status}`);
+  },
+
+  // Cập nhật trạng thái payment
+  updatePaymentStatus: (paymentId, status) => {
+    return axiosClient.put(`/payments/${paymentId}/status`, null, {
+      params: { status }
+    });
+  },
+
+  // Kiểm tra trạng thái payment
+  checkPaymentStatus: (paymentId) => {
+    return axiosClient.get(`/payments/${paymentId}/status`);
+  },
+
+  // Xóa payment
+  deletePayment: (paymentId) => {
+    return axiosClient.delete(`/payments/${paymentId}`);
+  }
 };
 
 export default paymentApi;
-
-
