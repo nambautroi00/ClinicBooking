@@ -47,8 +47,8 @@ const PrescriptionForm = () => {
     if (appointmentInfo && patientInfo) {
       setFormData(prev => ({
         ...prev,
-        patientId: patientInfo.id,
-        patientName: patientInfo.name,
+        patientId: patientInfo.patientId || patientInfo.id,
+        patientName: patientInfo.patientName || patientInfo.name,
         diagnosis: '' // Doctor will fill this
       }));
     }
