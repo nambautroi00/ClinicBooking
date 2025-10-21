@@ -250,7 +250,6 @@ export default function Header() {
     { label: "Trang chủ", href: "/" },
     { label: "Chuyên khoa", href: "/#specialties" },
     { label: "Dịch vụ", href: "/#services" },
-    { label: "Bác sĩ tư vấn", href: "/video-consultation" },
     { label: "Bài viết", href: "/articles" },
     { label: "Đặt lịch", href: "/patient/book-appointment" },
   ];
@@ -289,30 +288,30 @@ export default function Header() {
       </div>
 
       {/* Main header */}
-      <div className="w-full px-2">
-        <div className="max-w-full mx-auto flex items-center gap-6 py-4">
+      <div className="w-full px-4">
+        <div className="max-w-full mx-auto flex items-center gap-8 py-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg bg-[#0d6efd] text-white">
               <Heart className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div className="hidden sm:block">
-              <div className="text-lg font-bold text-[#0d6efd]">ClinicBooking</div>
-              <div className="text-xs text-gray-500">Tìm bác sĩ, đặt lịch nhanh chóng</div>
+              <div className="text-xl font-bold text-[#0d6efd]">ClinicBooking</div>
+              <div className="text-sm text-gray-500">Tìm bác sĩ, đặt lịch nhanh chóng</div>
             </div>
             <div className="sm:hidden">
-              <div className="text-sm font-bold text-[#0d6efd]">CB</div>
+              <div className="text-base font-bold text-[#0d6efd]">CB</div>
             </div>
           </Link>
 
-          {/* Center search - large pill */}
+          {/* Center search - shorter with larger text */}
           <div className="flex-1 hidden sm:block">
-            <div className="relative max-w-3xl mx-auto">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <div className="relative max-w-xl mx-auto">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
-                placeholder="Tìm bác sĩ, chuyên khoa, bệnh viện..."
-                className="w-full rounded-full border border-gray-200 bg-white py-3 pl-12 pr-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
+                placeholder="Tìm bác sĩ, chuyên khoa..."
+                className="w-full rounded-full border border-gray-200 bg-white py-3 pl-10 pr-4 text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
               />
             </div>
           </div>
@@ -339,7 +338,7 @@ export default function Header() {
                   <Link 
                     key={item.label} 
                     to={item.href} 
-                    className="text-sm font-medium text-gray-700 hover:text-[#0d6efd]"
+                    className="text-base font-medium text-gray-700 hover:text-[#0d6efd]"
                     onClick={handleClick}
                   >
                     {item.label}
@@ -350,20 +349,6 @@ export default function Header() {
             {/* If user is logged in show name + logout, otherwise show login button */}
             {user ? (
               <div className="hidden md:flex items-center gap-2 sm:gap-3">
-                {/* Messages link for patients */}
-                {(() => {
-                  const roleName = user.role?.name || user.role?.roleName || '';
-                  const isPatient = roleName.toLowerCase().includes('patient');
-                  return isPatient && (
-                    <Link 
-                      to="/patient/messages" 
-                      className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white px-3 py-2 text-sm text-blue-600 hover:bg-blue-50"
-                    >
-                      <MessageCircle size={16} />
-                      Tin nhắn
-                    </Link>
-                  );
-                })()}
                 <div className="flex items-center gap-1 sm:gap-2">
                   <div 
                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-blue-300 transition-all duration-200"
@@ -389,14 +374,14 @@ export default function Header() {
                     </div>
                   </div>
                   <button
-                    className="text-sm font-medium hover:underline"
+                    className="text-base font-medium hover:underline"
                     onClick={() => setShowProfile(true)}
                   >
                     {user.firstName || user.email}
                   </button>
                 </div>
                 <button
-                  className="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-2 text-base text-red-600 hover:bg-red-50"
                   onClick={async () => {
                     try {
                       await axiosClient.post('/auth/logout', { token: localStorage.getItem('token') });
@@ -413,7 +398,7 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="hidden md:inline-block rounded-md bg-[#0d6efd] px-4 py-2 text-white">Đăng nhập</Link>
+              <Link to="/login" className="hidden md:inline-block rounded-md bg-[#0d6efd] px-4 py-2 text-base text-white">Đăng nhập</Link>
             )}
 
             {/* Mobile Menu Button */}
@@ -435,7 +420,7 @@ export default function Header() {
           <div className="md:hidden pb-3 animate-slideDown">
             <div className="max-w-full mx-auto px-2 relative w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input type="search" placeholder="Tìm kiếm..." className="pl-10 bg-gray-100 w-full rounded-md py-2" />
+              <input type="search" placeholder="Tìm bác sĩ, chuyên khoa..." className="pl-10 bg-gray-100 w-full rounded-md py-2 text-lg" />
             </div>
           </div>
         )}
@@ -464,35 +449,17 @@ export default function Header() {
                 <Link 
                   key={item.label} 
                   to={item.href} 
-                  className="block text-sm font-medium text-gray-700 hover:text-[#0d6efd]"
+                  className="block text-base font-medium text-gray-700 hover:text-[#0d6efd]"
                   onClick={handleClick}
                 >
                   {item.label}
                 </Link>
               );
             })}
-            {/* Messages link for patients in mobile */}
-            {(() => {
-              const roleName = user?.role?.name || user?.role?.roleName || '';
-              const isPatient = roleName.toLowerCase().includes('patient');
-              return user && isPatient && (
-                <Link 
-                  to="/patient/messages" 
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-[#0d6efd]" 
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setShowMobileHeader(false);
-                  }}
-                >
-                  <MessageCircle size={16} />
-                  Tin nhắn
-                </Link>
-              );
-            })()}
             {user ? (
               <div className="space-y-2">
                 <button
-                  className="w-full text-left text-sm font-medium text-gray-700 hover:text-[#0d6efd]"
+                  className="w-full text-left text-base font-medium text-gray-700 hover:text-[#0d6efd]"
                   onClick={() => {
                     setShowProfile(true);
                     setMobileMenuOpen(false);
@@ -502,7 +469,7 @@ export default function Header() {
                   {user.firstName || user.email}
                 </button>
                 <button
-                  className="w-full inline-block rounded-md border border-red-200 bg-white px-3 py-1 text-red-600 text-center hover:bg-red-50"
+                  className="w-full inline-block rounded-md border border-red-200 bg-white px-3 py-1 text-base text-red-600 text-center hover:bg-red-50"
                   onClick={async () => {
                     try {
                       await axiosClient.post('/auth/logout', { token: localStorage.getItem('token') });
@@ -521,7 +488,7 @@ export default function Header() {
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="w-full inline-block rounded-md bg-[#0d6efd] px-3 py-1 text-white text-center">Đăng nhập</Link>
+              <Link to="/login" className="w-full inline-block rounded-md bg-[#0d6efd] px-3 py-1 text-base text-white text-center">Đăng nhập</Link>
             )}
           </nav>
         )}
