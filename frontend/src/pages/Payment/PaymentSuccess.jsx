@@ -61,11 +61,14 @@ export default function PaymentSuccess() {
 
         try {
           // Cập nhật payment status thành PAID
+          console.log('🔄 Updating payment status to PAID for PayOS ID:', payOSId);
           try {
-            await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'PAID', orderCode);
-            console.log('✅ Payment status updated to PAID');
+            const updateResponse = await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'PAID', orderCode);
+            console.log('✅ Payment status updated to PAID:', updateResponse.data);
           } catch (updateError) {
-            console.warn('⚠️ Could not update payment status:', updateError);
+            console.error('❌ Could not update payment status:', updateError);
+            console.error('❌ Update error response:', updateError.response?.data);
+            console.error('❌ Update error status:', updateError.response?.status);
           }
 
           // Tìm payment theo PayOS Payment ID
@@ -103,6 +106,13 @@ export default function PaymentSuccess() {
                 paymentId: payment.paymentId
               });
             }
+
+            // Broadcast trạng thái để trang đặt lịch cập nhật ngay
+            try {
+              localStorage.setItem('payosStatus', 'PAID');
+              localStorage.setItem('payosLastUpdate', String(Date.now()));
+              window.dispatchEvent(new Event('payosStatusChanged'));
+            } catch (_) {}
           }
         } catch (error) {
           console.error('❌ Error loading payment info:', error);

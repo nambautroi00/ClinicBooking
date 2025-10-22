@@ -24,6 +24,12 @@ export default function PaymentCancel() {
         return;
       }
 
+      // Set timeout để tránh loading vô hạn
+      const timeoutId = setTimeout(() => {
+        console.warn('⚠️ Payment cancel timeout - forcing loading to stop');
+        setLoading(false);
+      }, 10000); // 10 seconds timeout
+
       try {
         console.log('🔍 PayOS Cancel Redirect:', {
           payOSId,
@@ -33,24 +39,54 @@ export default function PaymentCancel() {
         });
 
         // Cập nhật payment status thành CANCELLED
+        console.log('🔄 Updating payment status to CANCELLED for PayOS ID:', payOSId);
         try {
-          await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'CANCELLED', orderCode);
-          console.log('✅ Payment status updated to CANCELLED');
+          const updateResponse = await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'CANCELLED', orderCode);
+          console.log('✅ Payment status updated to CANCELLED:', updateResponse.data);
         } catch (updateError) {
-          console.warn('⚠️ Could not update payment status:', updateError);
+          console.error('❌ Could not update payment status:', updateError);
+          console.error('❌ Update error response:', updateError.response?.data);
+          console.error('❌ Update error status:', updateError.response?.status);
+          // Không dừng process nếu update status thất bại
         }
 
         // Lấy thông tin payment sau khi cập nhật
-        const response = await paymentApi.getPaymentByPayOSPaymentId(payOSId);
-        if (response.data) {
-          setPaymentInfo(response.data);
-          console.log('✅ Payment info loaded:', response.data);
+        console.log('🔍 Fetching payment info for PayOS ID:', payOSId);
+        try {
+          const response = await paymentApi.getPaymentByPayOSPaymentId(payOSId);
+          if (response.data) {
+            setPaymentInfo(response.data);
+            console.log('✅ Payment info loaded:', response.data);
+          } else {
+            console.warn('⚠️ No payment data received');
+            setError('Không tìm thấy thông tin thanh toán');
+          }
+        } catch (fetchError) {
+          console.error('❌ Error fetching payment info:', fetchError);
+          // Fallback: Tạo thông tin payment cơ bản từ URL params
+          setPaymentInfo({
+            paymentId: payOSId,
+            status: 'CANCELLED',
+            amount: 0,
+            payOSPaymentId: payOSId,
+            orderCode: orderCode
+          });
+          console.log('✅ Using fallback payment info');
         }
+
+        // Broadcast trạng thái để trang đặt lịch cập nhật ngay
+        try {
+          localStorage.setItem('payosStatus', 'CANCELLED');
+          localStorage.setItem('payosLastUpdate', String(Date.now()));
+          window.dispatchEvent(new Event('payosStatusChanged'));
+        } catch (_) {}
       } catch (err) {
-        console.error('❌ Error loading payment info:', err);
-        setError('Không thể tải thông tin thanh toán');
+        console.error('❌ Error in payment cancel process:', err);
+        setError('Có lỗi xảy ra khi xử lý hủy thanh toán');
       } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
+        console.log('✅ Payment cancel process completed');
       }
     };
 
@@ -71,6 +107,15 @@ export default function PaymentCancel() {
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Đang xử lý thông tin thanh toán...</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Nếu trang này tải quá lâu, 
+            <button 
+              onClick={() => setLoading(false)}
+              className="text-blue-600 hover:text-blue-800 underline ml-1"
+            >
+              nhấn vào đây
+            </button>
+          </p>
         </div>
       </div>
     );
