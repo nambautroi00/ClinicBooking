@@ -18,7 +18,9 @@ public class PayOSService {
     
     public CreatePaymentLinkResponse createPaymentLink(Payment payment, String returnUrl, String cancelUrl) {
         try {
-            log.info("Creating PayOS payment link for payment ID: {}", payment.getPaymentId());
+            log.info("🔍 Creating PayOS payment link for payment ID: {}", payment.getPaymentId());
+            log.info("🔍 Payment details: appointmentId={}, amount={}", 
+                payment.getAppointment().getAppointmentId(), payment.getAmount());
             
             String orderCode = String.valueOf(System.currentTimeMillis());
             // PayOS yêu cầu description tối đa 25 ký tự
@@ -74,14 +76,16 @@ public class PayOSService {
                 .build();
             
             // Gọi PayOS API sử dụng SDK
+            log.info("🔍 Calling PayOS API with data: {}", paymentData);
             CreatePaymentLinkResponse response = payOS.paymentRequests().create(paymentData);
+            log.info("✅ PayOS API response: {}", response);
             
             // Cập nhật payment với thông tin từ PayOS
             payment.setPayOSPaymentId(response.getPaymentLinkId());
             payment.setPayOSCode(orderCode);
             payment.setPayOSLink(response.getCheckoutUrl());
             
-            log.info("PayOS payment link created successfully for payment ID: {}", payment.getPaymentId());
+            log.info("✅ PayOS payment link created successfully for payment ID: {}", payment.getPaymentId());
             return response;
             
         } catch (Exception e) {

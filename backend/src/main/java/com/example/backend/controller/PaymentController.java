@@ -32,7 +32,13 @@ public class PaymentController {
             return ResponseEntity.status(HttpStatus.CREATED).body(payment);
         } catch (Exception e) {
             log.error("❌ Error creating payment: ", e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            PaymentDTO.Response errorResponse = new PaymentDTO.Response();
+            errorResponse.setPaymentId(null);
+            errorResponse.setAppointmentId(paymentCreateDTO.getAppointmentId());
+            errorResponse.setStatus(Payment.PaymentStatus.FAILED);
+            errorResponse.setDescription("Error: " + e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
     
@@ -146,6 +152,24 @@ public class PaymentController {
         } catch (Exception e) {
             log.error("Error checking payment status: ", e);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @PutMapping("/payos/{payOSPaymentId}/status")
+    public ResponseEntity<PaymentDTO.Response> updatePaymentStatusFromPayOS(
+            @PathVariable String payOSPaymentId,
+            @RequestParam String status,
+            @RequestParam(required = false) String orderCode) {
+        try {
+            log.info("🔍 Updating payment status from PayOS: payOSId={}, status={}, orderCode={}", 
+                payOSPaymentId, status, orderCode);
+            
+            PaymentDTO.Response payment = paymentService.updatePaymentStatusFromPayOS(
+                payOSPaymentId, status, orderCode);
+            return ResponseEntity.ok(payment);
+        } catch (Exception e) {
+            log.error("Error updating payment status from PayOS: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

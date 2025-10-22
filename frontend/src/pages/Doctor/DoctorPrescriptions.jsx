@@ -42,11 +42,8 @@ const DoctorPrescriptions = () => {
     if (doctorId) {
       loadPrescriptions();
     } else {
-      console.log('⚠️ No doctorId, loading mock data anyway...');
-      // Load mock data even without doctorId for demo purposes
-      setTimeout(() => {
-        loadPrescriptions();
-      }, 1000);
+      console.log('⚠️ Chưa có doctorId, không thể tải đơn thuốc');
+      setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctorId]);
@@ -70,11 +67,8 @@ const DoctorPrescriptions = () => {
       setShowSuccessMessage(true);
       console.log('🎉 Đã nhận thông báo từ PrescriptionForm:', location.state.message);
       
-      // If there's mock data, add it to the list
-      if (location.state.mockData) {
-        console.log('📋 Adding mock prescription to list:', location.state.mockData);
-        setPrescriptions(prev => [location.state.mockData, ...prev]);
-      }
+      // Reload prescriptions from backend to get the latest data
+      loadPrescriptions();
       
       // Auto hide success message after 5 seconds
       setTimeout(() => {
@@ -109,91 +103,19 @@ const DoctorPrescriptions = () => {
       
       setPrescriptions(sortedPrescriptions);
     } catch (error) {
-      console.error('❌ Lỗi khi tải danh sách đơn thuốc:', error);
-      console.warn('DoctorPrescriptions: backend unavailable, using mock data.');
+      console.error('❌ Lỗi khi tải danh sách đơn thuốc từ backend:', error);
       
-      // Mock data for testing
-      const mockPrescriptions = [
-        {
-          id: 1,
-          prescriptionId: "DT001",
-          patientId: "BN001",
-          patientName: "Nguyễn Văn An",
-          diagnosis: "Viêm họng cấp",
-          totalAmount: 125000,
-          status: "active",
-          createdDate: "2025-10-15",
-          prescriptionItems: [
-            {
-              id: 1,
-              medicineName: "Amoxicillin 500mg",
-              quantity: 10,
-              dosage: "1 viên x 3 lần/ngày",
-              duration: "7 ngày",
-              instructions: "Uống sau ăn",
-              price: 50000
-            },
-            {
-              id: 2,
-              medicineName: "Paracetamol 500mg", 
-              quantity: 15,
-              dosage: "1-2 viên khi sốt",
-              duration: "5 ngày",
-              instructions: "Uống khi cần thiết",
-              price: 75000
-            }
-          ]
-        },
-        {
-          id: 2,
-          prescriptionId: "DT002",
-          patientId: "BN002",
-          patientName: "Trần Thị Bình",
-          diagnosis: "Đau dạ dày",
-          totalAmount: 89000,
-          status: "completed",
-          createdDate: "2025-10-14",
-          prescriptionItems: [
-            {
-              id: 3,
-              medicineName: "Omeprazole 20mg",
-              quantity: 14,
-              dosage: "1 viên x 2 lần/ngày",
-              duration: "14 ngày", 
-              instructions: "Uống trước ăn 30 phút",
-              price: 89000
-            }
-          ]
-        },
-        {
-          id: 3,
-          prescriptionId: "DT003",
-          patientId: "BN003",
-          patientName: "Lê Minh Cường",
-          diagnosis: "Tăng huyết áp",
-          totalAmount: 156000,
-          status: "active",
-          createdDate: "2025-10-13",
-          prescriptionItems: [
-            {
-              id: 4,
-              medicineName: "Amlodipine 5mg",
-              quantity: 30,
-              dosage: "1 viên x 1 lần/ngày",
-              duration: "30 ngày",
-              instructions: "Uống vào buổi sáng",
-              price: 156000
-            }
-          ]
-        }
-      ];
-      
-      // Sort mock data by date descending (newest first)
-      const sortedMockPrescriptions = mockPrescriptions.sort((a, b) => 
-        new Date(b.createdDate) - new Date(a.createdDate)
-      );
-      
-      setPrescriptions(sortedMockPrescriptions);
+      // Show error message instead of mock data
+      if (error.response?.status === 404) {
+        console.log('ℹ️ Không tìm thấy đơn thuốc nào');
+        setPrescriptions([]);
+      } else if (error.response?.status === 401) {
+        console.error('🔒 Không có quyền truy cập đơn thuốc');
+        setPrescriptions([]);
+      } else {
+        console.error('🔌 Không thể kết nối đến server backend');
+        setPrescriptions([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -316,18 +238,7 @@ const DoctorPrescriptions = () => {
                     <RefreshCw className={`me-1 ${loading ? 'spin' : ''}`} size={16} />
                     {loading ? 'Đang tải...' : 'Làm mới'}
                   </Button>
-                    <Button 
-                      variant="outline-info" 
-                      onClick={() => {
-                        console.log('🧪 Test: Force reload prescriptions...');
-                        loadPrescriptions();
-                      }}
-                      className="me-2"
-                      size="sm"
-                      title="Test reload"
-                    >
-                      🧪 Test
-                    </Button>
+                    {/* Đã xoá nút test */}
                     <Link to="/doctor/prescriptions/new">
                       <Button variant="success">
                         <Plus className="me-2" size={18} />

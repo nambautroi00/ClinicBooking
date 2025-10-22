@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Calendar, User, Heart, Eye } from 'lucide-react';
 import articleApi from '../api/articleApi';
+import { toast } from '../utils/toast';
 
 const Articles = () => {
   const [articles, setArticles] = useState([]);
@@ -12,6 +13,7 @@ const Articles = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [likedArticles, setLikedArticles] = useState(new Set());
+  const [currentUser, setCurrentUser] = useState(null);
 
   const fetchArticles = async (page = 0, search = '') => {
     try {
@@ -35,6 +37,24 @@ const Articles = () => {
       setLoading(false);
     }
   };
+
+  // Kiểm tra trạng thái đăng nhập và localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      try {
+        const user = JSON.parse(raw);
+        setCurrentUser(user);
+        
+        // Load liked articles từ localStorage
+        const likedArticlesFromStorage = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+        setLikedArticles(new Set(likedArticlesFromStorage));
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        setCurrentUser(null);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchArticles();
@@ -86,6 +106,12 @@ const Articles = () => {
 
 
   const handleLike = async (articleId) => {
+    // Kiểm tra đăng nhập
+    if (!currentUser) {
+      toast.info('Vui lòng đăng nhập để thả tim bài viết!');
+      return;
+    }
+
     try {
       const isLiked = likedArticles.has(articleId);
       if (isLiked) {
@@ -95,6 +121,12 @@ const Articles = () => {
           newSet.delete(articleId);
           return newSet;
         });
+        
+        // Cập nhật localStorage
+        const likedArticlesFromStorage = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+        const updatedLikedArticles = likedArticlesFromStorage.filter(id => id !== articleId);
+        localStorage.setItem('likedArticles', JSON.stringify(updatedLikedArticles));
+        
         // Cập nhật likeCount trong articles
         setArticles(prev => prev.map(article => 
           article.articleId === articleId 
@@ -104,6 +136,14 @@ const Articles = () => {
       } else {
         await articleApi.likeArticle(articleId);
         setLikedArticles(prev => new Set(prev).add(articleId));
+        
+        // Cập nhật localStorage
+        const likedArticlesFromStorage = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+        if (!likedArticlesFromStorage.includes(articleId)) {
+          likedArticlesFromStorage.push(articleId);
+          localStorage.setItem('likedArticles', JSON.stringify(likedArticlesFromStorage));
+        }
+        
         // Cập nhật likeCount trong articles
         setArticles(prev => prev.map(article => 
           article.articleId === articleId 
@@ -282,35 +322,39 @@ const Articles = () => {
                         </div>
                       </div>
                       
-                      <Link
-                        to={`/articles/${article.articleId}`}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        Đọc tiếp
-                      </Link>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="px-4 py-2">
                     <div className="flex items-center justify-center">
-                      <button 
-                        onClick={() => handleLike(article.articleId)}
-                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
-                          likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-500'
-                        }`}
-                      >
-                        <Heart 
-                          className={`h-5 w-5 ${
-                            likedArticles.has(article.articleId) ? 'fill-current text-red-500' : 'text-gray-500'
-                          }`} 
-                        />
-                        <span className={`text-sm font-medium ${
-                          likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-700'
-                        }`}>
-                          {likedArticles.has(article.articleId) ? 'Đã thích' : 'Thích'}
-                        </span>
-                      </button>
+                      {!currentUser ? (
+                        <button 
+                          className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
+                          onClick={() => toast.info('Vui lòng đăng nhập để thả tim bài viết!')}
+                        >
+                          <Heart className="h-5 w-5" />
+                          <span className="text-sm font-medium">Thả tim</span>
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleLike(article.articleId)}
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                            likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-500'
+                          }`}
+                        >
+                          <Heart 
+                            className={`h-5 w-5 ${
+                              likedArticles.has(article.articleId) ? 'fill-current text-red-500' : 'text-gray-500'
+                            }`} 
+                          />
+                          <span className={`text-sm font-medium ${
+                            likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-700'
+                          }`}>
+                            {likedArticles.has(article.articleId) ? 'Đã thích' : 'Thích'}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -35,7 +35,6 @@ public class PatientService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
     
     @PersistenceContext
     private EntityManager entityManager;
@@ -257,17 +256,6 @@ public class PatientService {
 
         // 4️⃣ Tạo Patient với User ID đã tồn tại
         createPatientWithExistingUser(userId, request);
-        
-        // 5️⃣ Gửi email chào mừng thông minh
-        try {
-            System.out.println("🔄 Bắt đầu gửi email chào mừng cho Patient: " + savedUser.getEmail());
-            sendWelcomeEmail(savedUser);
-            System.out.println("✅ Email chào mừng Patient đã được gửi thành công!");
-        } catch (Exception e) {
-            // Không throw exception để không ảnh hưởng đến việc tạo tài khoản
-            System.err.println("❌ LỖI: Không thể gửi email chào mừng cho Patient: " + e.getMessage());
-            e.printStackTrace();
-        }
     }
 
     // Check if email already exists in users (helper used before creating pending registration)
@@ -352,64 +340,6 @@ public class PatientService {
 
         public String getMedicalHistory() { return medicalHistory; }
         public void setMedicalHistory(String medicalHistory) { this.medicalHistory = medicalHistory; }
-    }
-    
-    /**
-     * Gửi email chào mừng thông minh cho Patient mới
-     */
-    private void sendWelcomeEmail(User user) {
-        try {
-            String roleName = user.getRole() != null ? user.getRole().getName() : "Bệnh nhân";
-            String userName = (user.getFirstName() != null ? user.getFirstName() : "") + 
-                            (user.getLastName() != null ? " " + user.getLastName() : "");
-            
-            String subject = "🎉 Chào mừng bạn đến với ClinicBooking!";
-            String content = buildWelcomeEmailContent(userName, roleName, user.getEmail(), user);
-            
-            emailService.sendSimpleEmail(user.getEmail(), subject, content);
-            System.out.println("✅ Email chào mừng đã gửi đến: " + user.getEmail());
-            
-        } catch (Exception e) {
-            System.err.println("❌ Lỗi gửi email chào mừng: " + e.getMessage());
-            throw e;
-        }
-    }
-    
-    /**
-     * Xây dựng nội dung email chào mừng thông minh
-     */
-    private String buildWelcomeEmailContent(String userName, String roleName, String email, User user) {
-        StringBuilder content = new StringBuilder();
-        
-        content.append("Xin chào ").append(userName).append("!\n\n");
-        content.append("🎉 Chúc mừng bạn đã đăng ký thành công tài khoản ").append(roleName).append(" tại ClinicBooking!\n\n");
-        
-        // Nội dung thông minh dựa trên role
-        if ("Patient".equalsIgnoreCase(roleName)) {
-            content.append("🏥 Với tài khoản Bệnh nhân, bạn có thể:\n");
-            content.append("• Đặt lịch khám với bác sĩ chuyên khoa\n");
-            content.append("• Xem lịch sử khám bệnh\n");
-            content.append("• Nhận nhắc nhở lịch khám\n");
-            content.append("• Quản lý hồ sơ sức khỏe cá nhân\n\n");
-        } else {
-            content.append("🔧 Với tài khoản ").append(roleName).append(", bạn có thể:\n");
-            content.append("• Truy cập các tính năng phù hợp với vai trò\n");
-            content.append("• Nhận thông báo quan trọng\n\n");
-        }
-        
-        content.append("📧 Email đăng nhập: ").append(email).append("\n");
-        content.append("🔐 Mật khẩu: [Mật khẩu bạn đã đặt]\n\n");
-        
-        content.append("💡 Mẹo sử dụng:\n");
-        content.append("• Luôn kiểm tra email để nhận thông báo quan trọng\n");
-        content.append("• Cập nhật thông tin cá nhân để được phục vụ tốt nhất\n");
-        content.append("• Liên hệ hỗ trợ nếu cần trợ giúp\n\n");
-        
-        content.append("Chúc bạn có trải nghiệm tuyệt vời với ClinicBooking!\n\n");
-        content.append("Trân trọng,\n");
-        content.append("Đội ngũ ClinicBooking 🏥");
-        
-        return content.toString();
     }
 
 }

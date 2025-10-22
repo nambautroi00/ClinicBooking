@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Heart, Eye, Clock } from 'lucide-react';
 import articleApi from '../../api/articleApi';
+import { toast } from '../../utils/toast';
 
 const ArticleDetail = () => {
   const { id } = useParams();
@@ -10,6 +11,26 @@ const ArticleDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isLiking, setIsLiking] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLiked, setIsLiked] = useState(false);
+
+  // Kiểm tra trạng thái đăng nhập và localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      try {
+        const user = JSON.parse(raw);
+        setCurrentUser(user);
+        
+        // Kiểm tra trạng thái tim trong localStorage
+        const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+        setIsLiked(likedArticles.includes(parseInt(id)));
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        setCurrentUser(null);
+      }
+    }
+  }, [id]);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -67,10 +88,24 @@ const ArticleDetail = () => {
   const handleLike = async () => {
     if (isLiking) return;
     
+    // Kiểm tra đăng nhập
+    if (!currentUser) {
+      toast.info('Vui lòng đăng nhập để thả tim bài viết!');
+      return;
+    }
+    
     try {
       setIsLiking(true);
       const response = await articleApi.likeArticle(id);
       setArticle(response.data);
+      
+      // Cập nhật localStorage
+      const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+      if (!likedArticles.includes(parseInt(id))) {
+        likedArticles.push(parseInt(id));
+        localStorage.setItem('likedArticles', JSON.stringify(likedArticles));
+        setIsLiked(true);
+      }
     } catch (err) {
       console.error('Error liking article:', err);
       alert('Lỗi khi like bài viết: ' + (err.response?.data?.message || err.message));
@@ -82,10 +117,22 @@ const ArticleDetail = () => {
   const handleUnlike = async () => {
     if (isLiking) return;
     
+    // Kiểm tra đăng nhập
+    if (!currentUser) {
+      toast.info('Vui lòng đăng nhập để bỏ tim bài viết!');
+      return;
+    }
+    
     try {
       setIsLiking(true);
       const response = await articleApi.unlikeArticle(id);
       setArticle(response.data);
+      
+      // Cập nhật localStorage
+      const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+      const updatedLikedArticles = likedArticles.filter(articleId => articleId !== parseInt(id));
+      localStorage.setItem('likedArticles', JSON.stringify(updatedLikedArticles));
+      setIsLiked(false);
     } catch (err) {
       console.error('Error unliking article:', err);
       alert('Lỗi khi unlike bài viết: ' + (err.response?.data?.message || err.message));
@@ -223,30 +270,41 @@ const ArticleDetail = () => {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <button 
-                    className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
-                    onClick={handleLike}
-                    disabled={isLiking}
-                  >
-                    {isLiking ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
-                    ) : (
+                  {!currentUser ? (
+                    <button 
+                      className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50"
+                      onClick={() => toast.info('Vui lòng đăng nhập để thả tim bài viết!')}
+                    >
                       <Heart className="h-4 w-4 mr-1" />
-                    )}
-                    Like
-                  </button>
-                  <button 
-                    className="flex items-center px-3 py-1 text-sm border border-gray-200 text-gray-600 rounded-md hover:bg-gray-50 disabled:opacity-50"
-                    onClick={handleUnlike}
-                    disabled={isLiking}
-                  >
-                    {isLiking ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-1"></div>
-                    ) : (
-                      <Heart className="h-4 w-4 mr-1" />
-                    )}
-                    Unlike
-                  </button>
+                      Thả tim
+                    </button>
+                  ) : isLiked ? (
+                    <button 
+                      className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
+                      onClick={handleUnlike}
+                      disabled={isLiking}
+                    >
+                      {isLiking ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
+                      ) : (
+                        <Heart className="h-4 w-4 mr-1 fill-current" />
+                      )}
+                      Bỏ tim
+                    </button>
+                  ) : (
+                    <button 
+                      className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
+                      onClick={handleLike}
+                      disabled={isLiking}
+                    >
+                      {isLiking ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
+                      ) : (
+                        <Heart className="h-4 w-4 mr-1" />
+                      )}
+                      Thả tim
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
