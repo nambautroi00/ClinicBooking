@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, User, Heart, Eye, ArrowRight } from 'lucide-react';
+import { Calendar, User, Heart, ArrowRight, Clock } from 'lucide-react';
 import articleApi from '../../api/articleApi';
 import { getFullAvatarUrl } from '../../utils/avatarUtils';
 
@@ -16,7 +16,7 @@ const ArticlesSection = () => {
           status: 'ACTIVE'
         };
         
-        const response = await articleApi.searchArticles(searchParams, 0, 3, 'createdAt,desc');
+        const response = await articleApi.searchArticles(searchParams, 0, 8, 'createdAt,desc');
         const pageData = response.data;
         setArticles(pageData.content || []);
       } catch (err) {
@@ -81,14 +81,28 @@ const ArticlesSection = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
             Bài viết sức khỏe mới nhất
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
             Cập nhật những thông tin sức khỏe hữu ích và lời khuyên từ các chuyên gia y tế
           </p>
+          <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+              <span>{articles.length} bài viết mới nhất</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+              <span>Cập nhật hàng ngày</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+              <span>Chuyên gia y tế</span>
+            </div>
+          </div>
         </div>
 
         {/* Articles Grid */}
         {articles.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
             {articles.map((article) => (
               <div key={article.articleId} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                 {/* Article Image */}
@@ -114,30 +128,30 @@ const ArticlesSection = () => {
                         <img
                           src={getFullAvatarUrl(article.author.avatarUrl)}
                           alt={`${article.author.firstName} ${article.author.lastName}`}
-                          className="w-8 h-8 rounded-full object-cover"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';
                           }}
                         />
                       ) : null}
-                      <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-xs" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
+                      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm border-2 border-gray-200" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
                         {article.author?.firstName?.charAt(0)}{article.author?.lastName?.charAt(0)}
                       </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-900">
                           {article.author?.firstName} {article.author?.lastName}
                         </div>
                         <div className="flex items-center text-xs text-gray-500">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {formatDate(article.createdAt)}
+                          <Clock className="h-3 w-3 mr-1" />
+                          <span>{formatDate(article.createdAt)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Article Title */}
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 leading-tight">
                     <Link 
                       to={`/articles/${article.articleId}`}
                       className="hover:text-blue-600 transition-colors"
@@ -147,28 +161,25 @@ const ArticlesSection = () => {
                   </h3>
 
                   {/* Article Excerpt */}
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                    {article.content && article.content.length > 150 
-                      ? article.content.substring(0, 150) + '...' 
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
+                    {article.content && article.content.length > 200 
+                      ? article.content.substring(0, 200) + '...' 
                       : article.content
                     }
                   </p>
 
                   {/* Article Stats */}
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <div className="flex items-center space-x-4">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center space-x-1">
-                        <Heart className="h-4 w-4" />
-                        <span>{article.likeCount || 0}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Eye className="h-4 w-4" />
-                        <span>{article.viewCount || 0}</span>
+                        <Heart className="h-4 w-4 text-red-500" />
+                        <span className="font-medium">{article.likeCount || 0}</span>
+                        <span className="text-xs">lượt tim</span>
                       </div>
                     </div>
                     <Link 
                       to={`/articles/${article.articleId}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                      className="text-blue-600 hover:text-blue-800 font-semibold flex items-center text-sm"
                     >
                       Đọc thêm
                       <ArrowRight className="h-4 w-4 ml-1" />
@@ -179,8 +190,26 @@ const ArticlesSection = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">Chưa có bài viết nào được xuất bản</p>
+          <div className="text-center py-16">
+            <div className="max-w-md mx-auto">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <User className="h-12 w-12 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có bài viết nào</h3>
+              <p className="text-gray-600 mb-6">
+                Hiện tại chưa có bài viết nào được xuất bản. Hãy quay lại sau để xem những bài viết mới nhất về sức khỏe.
+              </p>
+              <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>Cập nhật thường xuyên</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Heart className="h-4 w-4" />
+                  <span>Nội dung chất lượng</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -188,11 +217,14 @@ const ArticlesSection = () => {
         <div className="text-center">
           <Link
             to="/articles"
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1"
           >
-            Xem tất cả bài viết
+            <span>Xem tất cả bài viết</span>
             <ArrowRight className="h-5 w-5 ml-2" />
           </Link>
+          <p className="text-sm text-gray-500 mt-3">
+            Khám phá thêm nhiều bài viết sức khỏe hữu ích khác
+          </p>
         </div>
       </div>
     </section>

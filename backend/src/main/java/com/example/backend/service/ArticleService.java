@@ -38,9 +38,24 @@ public class ArticleService {
 
     @Transactional(readOnly = true)
     public Page<ArticleDTO.ResponseDTO> searchArticles(String title, String status, Long authorId, Pageable pageable) {
+        System.out.println("=== SEARCH DEBUG ===");
         System.out.println("Search parameters - title: '" + title + "', status: '" + status + "', authorId: " + authorId);
-        return articleRepository.findArticlesWithFilters(title, status, authorId, pageable)
+        System.out.println("Pageable: page=" + pageable.getPageNumber() + ", size=" + pageable.getPageSize());
+        
+        // Test với method đơn giản trước
+        if (title != null && !title.trim().isEmpty() && status != null && !status.trim().isEmpty()) {
+            System.out.println("Testing with findByTitleContaining...");
+            Page<Article> testResult = articleRepository.findByTitleContaining(title.trim(), pageable);
+            System.out.println("Test result count: " + testResult.getTotalElements());
+        }
+        
+        Page<ArticleDTO.ResponseDTO> result = articleRepository.findArticlesWithFilters(title, status, authorId, pageable)
                 .map(articleMapper::entityToResponseDTO);
+        
+        System.out.println("Final result count: " + result.getTotalElements());
+        System.out.println("=== END SEARCH DEBUG ===");
+        
+        return result;
     }
 
     public ArticleDTO.ResponseDTO createArticle(ArticleDTO.Create createDTO) {

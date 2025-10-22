@@ -109,11 +109,11 @@ export default function SpecialtiesSection() {
   }
 
   return (
-    <section id="specialties" className="py-16 bg-white">
+    <section id="specialties" className="py-8 bg-white">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Đặt lịch theo chuyên khoa</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Đặt lịch theo chuyên khoa</h2>
             <p className="text-gray-600">Đặt lịch với bác sĩ chuyên khoa hàng đầu</p>
           </div>
           {departments.length > 12 && (
@@ -126,7 +126,7 @@ export default function SpecialtiesSection() {
           )}
         </div>
 
-        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
           {displayedDepartments.map((department) => {
             const imageUrl = getImageByDepartmentName(department.departmentName);
             return (
@@ -166,7 +166,7 @@ export default function SpecialtiesSection() {
         </div>
 
         {departments.length > 12 && (
-          <div className="text-center mt-8 md:hidden">
+          <div className="text-center mt-6 md:hidden">
             <button 
               onClick={handleViewMore}
               className="text-blue-600 font-medium hover:underline"
