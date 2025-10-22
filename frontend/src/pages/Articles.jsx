@@ -1,36 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Calendar, User, Heart, Eye } from 'lucide-react';
+import { Calendar, User, Heart, Eye, Clock } from 'lucide-react';
 import articleApi from '../api/articleApi';
 import { getFullAvatarUrl } from '../utils/avatarUtils';
 import { toast } from '../utils/toast';
+import useScrollToTop from '../hooks/useScrollToTop';
 
 const Articles = () => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [likedArticles, setLikedArticles] = useState(new Set());
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Scroll to top when component mounts
+  useScrollToTop();
+
   const fetchArticles = async (page = 0, search = '') => {
     try {
       setLoading(true);
-      const searchParams = {
-        title: search,
-        status: 'ACTIVE' // Chỉ lấy bài viết đã được xuất bản
-      };
       
-      const response = await articleApi.searchArticles(searchParams, page, 12, 'createdAt,desc');
+      let response;
+      if (search && search.trim()) {
+        // Tìm kiếm với từ khóa
+        const searchParams = {
+          title: search.trim(),
+          status: 'ACTIVE'
+        };
+        
+        response = await articleApi.searchArticles(searchParams, page, 12, 'createdAt,desc');
+      } else {
+        // Lấy tất cả bài viết
+        response = await articleApi.getAllArticles(page, 12, 'createdAt,desc');
+      }
+      
       const pageData = response.data;
       
       setArticles(pageData.content || []);
       setTotalPages(pageData.totalPages || 0);
       setTotalElements(pageData.totalElements || 0);
       setCurrentPage(page);
+      
     } catch (err) {
       console.error('Error fetching articles:', err);
       setError('Không thể tải danh sách bài viết');
@@ -61,13 +74,9 @@ const Articles = () => {
     fetchArticles();
   }, []);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchArticles(0, searchTerm);
-  };
 
   const handlePageChange = (page) => {
-    fetchArticles(page, searchTerm);
+    fetchArticles(page, '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -199,26 +208,6 @@ const Articles = () => {
               Cập nhật những thông tin y tế mới nhất, lời khuyên từ chuyên gia và kiến thức chăm sóc sức khỏe
             </p>
           </div>
-          
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mt-6">
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm bài viết..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-full border border-gray-200 bg-white py-3 pl-12 pr-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700"
-              >
-                Tìm kiếm
-              </button>
-            </form>
-          </div>
         </div>
       </div>
 
@@ -227,19 +216,8 @@ const Articles = () => {
         {articles.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-gray-500 text-lg mb-4">
-              {searchTerm ? 'Không tìm thấy bài viết nào' : 'Chưa có bài viết nào'}
+              Chưa có bài viết nào
             </div>
-            {searchTerm && (
-              <button 
-                onClick={() => {
-                  setSearchTerm('');
-                  fetchArticles(0, '');
-                }}
-                className="text-blue-600 hover:text-blue-700"
-              >
-                Xem tất cả bài viết
-              </button>
-            )}
           </div>
         ) : (
           <>
@@ -255,14 +233,14 @@ const Articles = () => {
                         <img
                           src={getFullAvatarUrl(article.author.avatarUrl)}
                           alt={`${article.author.firstName} ${article.author.lastName}`}
-                          className="w-12 h-12 rounded-full object-cover"
+                          className="w-12 h-12 rounded-full object-cover border-2 border-black"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';
                           }}
                         />
                       ) : null}
-                      <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-base" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
+                      <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-base border-2 border-black" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
                         {article.author?.firstName?.charAt(0)}{article.author?.lastName?.charAt(0)}
                       </div>
                       
@@ -271,7 +249,10 @@ const Articles = () => {
                         <h4 className="font-semibold text-gray-900 text-lg">
                           {article.author?.firstName} {article.author?.lastName}
                         </h4>
-                        <span className="text-base text-gray-500">{formatDate(article.createdAt)}</span>
+                        <div className="flex items-center text-base text-gray-500">
+                          <Clock className="h-4 w-4 mr-1" />
+                          <span>{formatDate(article.createdAt)}</span>
+                        </div>
                       </div>
                       
                       {/* More Options */}

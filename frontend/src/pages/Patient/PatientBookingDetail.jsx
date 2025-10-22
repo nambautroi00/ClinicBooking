@@ -483,20 +483,20 @@ export default function PatientBookingDetail() {
   const handlePaymentSuccess = (payment) => {
     console.log('Payment successful:', payment);
     setShowPaymentModal(false);
-    
-    // Chuyển đến trang xác nhận
-    const params = new URLSearchParams({
-      doctorId,
-      doctorName: doctor.name,
-      specialty: doctor.specialty,
-      date: selectedDate,
-      time: selectedTimeSlot,
-      fee: selectedAppointment.fee || 0,
-      note: patientNote,
+      
+      // Chuyển đến trang xác nhận
+      const params = new URLSearchParams({
+        doctorId,
+        doctorName: doctor.name,
+        specialty: doctor.specialty,
+        date: selectedDate,
+        time: selectedTimeSlot,
+        fee: selectedAppointment.fee || 0,
+        note: patientNote,
       appointmentId: selectedAppointment.appointmentId,
       paymentId: payment.paymentId
-    });
-    navigate(`/patient/booking-confirmation/${doctorId}?${params.toString()}`);
+      });
+      navigate(`/patient/booking-confirmation/${doctorId}?${params.toString()}`);
   };
 
   const handlePaymentError = (error) => {
@@ -800,7 +800,7 @@ export default function PatientBookingDetail() {
                         <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                         <p>Bác sĩ chưa lên lịch cho ngày này</p>
                         <p className="text-sm">Vui lòng chọn ngày khác</p>
-                      </div>
+                </div>
                     );
                   }
                   
@@ -826,36 +826,36 @@ export default function PatientBookingDetail() {
                           </div>
                           <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                             {morningSlots.map((slot) => (
-                              <button
-                                key={slot.id}
-                                onClick={() => handleTimeSlotSelect(slot.time)}
-                                disabled={!slot.available}
+                      <button
+                        key={slot.id}
+                        onClick={() => handleTimeSlotSelect(slot.time)}
+                        disabled={!slot.available}
                                 className={`p-2 rounded-lg border text-xs transition-colors ${
-                                  selectedTimeSlot === slot.time
-                                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                                    : slot.available
-                                    ? "border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
-                                    : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                                }`}
-                              >
-                                <div className="text-center">
+                          selectedTimeSlot === slot.time
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : slot.available
+                            ? "border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                            : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                        }`}
+                      >
+                        <div className="text-center">
                                   <div className="font-medium text-xs">{slot.time}</div>
-                                  {slot.fee && (
+                          {slot.fee && (
                                     <div className="text-xs text-gray-500 mt-0.5">
-                                      {new Intl.NumberFormat('vi-VN', {
-                                        style: 'currency',
+                              {new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
                                         currency: 'VND',
                                         minimumFractionDigits: 0
-                                      }).format(slot.fee)}
-                                    </div>
-                                  )}
-                                  {!slot.available && slot.status !== "Schedule" && (
+                              }).format(slot.fee)}
+                            </div>
+                          )}
+                          {!slot.available && slot.status !== "Schedule" && (
                                     <div className="text-xs text-red-500 mt-0.5">
-                                      Đã đặt
-                                    </div>
-                                  )}
-                                </div>
-                              </button>
+                              Đã đặt
+                            </div>
+                          )}
+                        </div>
+                      </button>
                             ))}
                           </div>
                         </div>
@@ -907,13 +907,13 @@ export default function PatientBookingDetail() {
                       
                       {/* Nếu không có slots nào */}
                       {morningSlots.length === 0 && afternoonSlots.length === 0 && (
-                        <div className="col-span-full text-center py-8 text-gray-500">
-                          <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                          <p>Không có khung giờ khả dụng cho ngày này</p>
-                          <p className="text-sm">Vui lòng chọn ngày khác</p>
-                        </div>
-                      )}
-                    </div>
+                    <div className="col-span-full text-center py-8 text-gray-500">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p>Không có khung giờ khả dụng cho ngày này</p>
+                      <p className="text-sm">Vui lòng chọn ngày khác</p>
+                    </div>  
+                  )}
+                </div>
                   );
                 })()}
               </div>

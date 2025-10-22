@@ -59,6 +59,39 @@ public class PaymentService {
                     return paymentMapper.toResponseDTO(payment);
                 } else if (payment.getStatus() == Payment.PaymentStatus.PAID) {
                     throw new RuntimeException("Lịch hẹn này đã được thanh toán");
+                } else if (payment.getStatus() == Payment.PaymentStatus.CANCELLED || 
+                          payment.getStatus() == Payment.PaymentStatus.FAILED) {
+                    // Nếu payment đã bị hủy hoặc thất bại, cập nhật lại thành PENDING và tạo link mới
+                    log.info("🔄 Reusing cancelled/failed payment for appointment ID: {}", paymentCreateDTO.getAppointmentId());
+                    
+                    // Reset payment fields
+                    payment.setStatus(Payment.PaymentStatus.PENDING);
+                    payment.setPayOSLink(null);
+                    payment.setPayOSPaymentId(null);
+                    payment.setPayOSCode(null);
+                    payment.setPaidAt(null);
+                    payment.setFailureReason(null);
+                    
+                    // Cập nhật amount từ appointment
+                    if (appointment.getFee() != null) {
+                        payment.setAmount(appointment.getFee());
+                        log.info("Updated payment amount from appointment fee: {} VND", appointment.getFee());
+                    }
+                    
+                    // Cập nhật description
+                    payment.setDescription(paymentCreateDTO.getDescription() != null ? 
+                        paymentCreateDTO.getDescription() : "Thanh toán lịch hẹn khám bệnh");
+                    
+                    // Tạo PayOS payment link mới
+                    payOSService.createPaymentLink(
+                        payment,
+                        paymentCreateDTO.getReturnUrl(),
+                        paymentCreateDTO.getCancelUrl()
+                    );
+                    
+                    payment = paymentRepository.save(payment);
+                    log.info("✅ Reused payment with new PayOS link for payment ID: {}", payment.getPaymentId());
+                    return paymentMapper.toResponseDTO(payment);
                 }
             }
             

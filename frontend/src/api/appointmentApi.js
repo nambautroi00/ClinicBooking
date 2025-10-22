@@ -13,7 +13,7 @@ const appointmentApi = {
 
   // Lấy lịch hẹn theo bệnh nhân
   getAppointmentsByPatient: (patientId) => {
-    return axiosClient.get(`/appointments?patientId=${patientId}`);
+    return axiosClient.get(`/appointments/by-patient?patientId=${patientId}`);
   },
 
   // Lấy lịch hẹn theo bác sĩ
