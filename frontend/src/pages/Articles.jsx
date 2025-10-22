@@ -23,19 +23,17 @@ const Articles = () => {
     try {
       setLoading(true);
       
-      let response;
+      // Luôn sử dụng searchArticles với status ACTIVE
+      const searchParams = {
+        status: 'ACTIVE'
+      };
+      
+      // Thêm title nếu có search
       if (search && search.trim()) {
-        // Tìm kiếm với từ khóa
-        const searchParams = {
-          title: search.trim(),
-          status: 'ACTIVE'
-        };
-        
-        response = await articleApi.searchArticles(searchParams, page, 12, 'createdAt,desc');
-      } else {
-        // Lấy tất cả bài viết
-        response = await articleApi.getAllArticles(page, 12, 'createdAt,desc');
+        searchParams.title = search.trim();
       }
+      
+      const response = await articleApi.searchArticles(searchParams, page, 12, 'createdAt,desc');
       
       const pageData = response.data;
       
