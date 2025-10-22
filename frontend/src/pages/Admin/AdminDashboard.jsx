@@ -29,7 +29,7 @@ const AdminDashboard = () => {
       const patientsRes = await patientApi.getAllPatients();
       const departmentsRes = await departmentApi.getAllDepartments(0, 1);
       const articlesRes = await articleApi.getAllArticles(0, 5);
-      const revenueRes = await paymentApi.getTotalRevenue();
+      //const revenueRes = await paymentApi.getTotalRevenue();
       const usersRes = await userApi.getAllUsersWithRoleInfo();
 
       const totalDoctors = Array.isArray(doctorsRes.data) ? doctorsRes.data.length : (doctorsRes.data?.content?.length ? doctorsRes.data.totalElements : 0);
@@ -40,7 +40,7 @@ const AdminDashboard = () => {
 
       const recent = articlesRes.data?.content ?? (Array.isArray(articlesRes.data) ? articlesRes.data.slice(0, 5) : []);
 
-      const totalRevenue = Number(revenueRes?.totalRevenue ?? 0);
+      //const totalRevenue = Number(revenueRes?.totalRevenue ?? 0);
 
       setStats({
         totalUsers,
@@ -48,7 +48,7 @@ const AdminDashboard = () => {
         totalPatients,
         totalDepartments,
         totalArticles,
-        totalRevenue,
+        //totalRevenue,
       });
       setRecentArticles(recent);
 
