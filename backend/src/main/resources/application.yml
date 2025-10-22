@@ -1,9 +1,16 @@
 spring:
   datasource:
-    url: jdbc:sqlserver://localhost:1433;databaseName=CLINIC;encrypt=false;characterEncoding=UTF-8;sendStringParametersAsUnicode=true
+    url: jdbc:sqlserver://localhost:1433;databaseName=CLINIC;encrypt=false;characterEncoding=UTF-8;sendStringParametersAsUnicode=true;useUnicode=true;responseBuffering=adaptive
     username: sa
     password: 123
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  
+  # HTTP encoding configuration
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
   jpa:
     hibernate:
@@ -16,6 +23,9 @@ spring:
         naming:
           physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
           implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+        connection:
+          characterEncoding: UTF-8
+          useUnicode: true
 
   # Email Configuration (optional - nếu không có sẽ simulate trong log)
   mail:
@@ -34,6 +44,10 @@ server:
   port: 8080
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 logging:
   level:

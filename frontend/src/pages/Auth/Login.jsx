@@ -129,6 +129,7 @@ export default function Login() {
     console.log('reCAPTCHA expired');
   };
 
+
   // Handle Google sign-in callback
   const handleGoogleCallback = async (response) => {
     try {
@@ -139,13 +140,32 @@ export default function Login() {
       const email = payload.email;
       const firstName = payload.given_name || 'Google';
       const lastName = payload.family_name || 'User';
+      const picture = payload.picture; // Lấy ảnh Google
+      
+      console.log('🔍 Google login data:', { email, firstName, lastName, picture });
+      console.log('🔍 Raw payload:', payload);
       
       // Send extracted data to backend
-      const res = await axiosClient.post('/auth/google', { email, firstName, lastName, idToken });
+      const res = await axiosClient.post('/auth/google', { email, firstName, lastName, picture, idToken });
       if (res.data?.success) {
+        console.log('🔍 Frontend - Received user data:', res.data.user);
+        console.log('🔍 Frontend - User avatarUrl:', res.data.user?.avatarUrl);
+        console.log('🔍 Frontend - User firstName:', res.data.user?.firstName);
+        console.log('🔍 Frontend - User lastName:', res.data.user?.lastName);
+        
+        
         if (res.data.token) localStorage.setItem('token', res.data.token);
         if (res.data.user) localStorage.setItem('user', JSON.stringify(res.data.user));
-        window.dispatchEvent(new Event('userChanged'));
+        // Force clear all cache and reload user data
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Set fresh data
+        if (res.data.token) localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        
+        // Force page reload to clear all cache
+        window.location.reload();
         // Same role-based redirect as normal login
         const roleName = res.data.user?.role?.name || res.data.user?.role?.roleName || '';
         const rn = String(roleName).toLowerCase();

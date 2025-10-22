@@ -119,6 +119,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "JOIN FETCH u.role r " +
            "WHERE r.id = 3")
     List<User> findUsersWithPatientRole();
+    
+    /**
+     * Tìm user theo password hash
+     */
+    List<User> findByPasswordHash(String passwordHash);
 }
 
 

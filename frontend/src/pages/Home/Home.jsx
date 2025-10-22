@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import HeroSection from '../../components/home/HeroSection';
-import ServicesSection from '../../components/home/ServicesSection';
 import SpecialtiesSection from '../../components/home/SpecialtiesSection';
 
 const Home = () => {
@@ -12,7 +11,6 @@ const Home = () => {
   return (
 	<div>
 	  <HeroSection />
-	  <ServicesSection />
 	  <SpecialtiesSection />
 	</div>
   );

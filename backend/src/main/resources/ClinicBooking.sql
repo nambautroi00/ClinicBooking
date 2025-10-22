@@ -230,9 +230,9 @@ CREATE TABLE SystemNotifications (
 
 -- Insert Roles
 INSERT INTO Roles (Name, Description) VALUES 
-('Admin', 'Qu?n tr? h? th?ng'),
-('Doctor', 'Bác s? có th? khám, t?o l?ch tr?nh, qu?n l? b?nh án'),
-('Patient', 'B?nh nhân có th? đ?t l?ch và tr? chuy?n v?i bác s?')
+('Admin', N'Quản trị hệ thống'),
+('Doctor', N'Bác sĩ có thể khám, tạo lịch trình, quản lý bệnh án'),
+('Patient', N'Bệnh nhân có thể đặt lịch và trò chuyện với bác sĩ')
 
 -- Insert Users
 -- Admin
