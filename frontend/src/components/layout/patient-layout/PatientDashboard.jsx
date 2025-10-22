@@ -6,14 +6,13 @@ import patientApi from '../../../api/patientApi';
 import userApi from '../../../api/userApi';
 import fileUploadApi from '../../../api/fileUploadApi';
 import addressApi from '../../../api/addressApi';
+import PatientAppointmentHistory from '../../../pages/Patient/PatientAppointmentHistory';
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('appointments');
   const [payments, setPayments] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
-  const [appointments, setAppointments] = useState([]);
-  const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [patientId, setPatientId] = useState(null);
   const [user, setUser] = useState(null);
   
@@ -186,12 +185,6 @@ const PatientDashboard = () => {
     }
   }, [patientId, activeTab]);
 
-  // Lấy danh sách lịch hẹn
-  useEffect(() => {
-    if (patientId && activeTab === 'appointments') {
-      loadAppointments();
-    }
-  }, [patientId, activeTab]);
 
   // Initialize form data when user data changes
   useEffect(() => {
@@ -223,20 +216,6 @@ const PatientDashboard = () => {
     }
   };
 
-  const loadAppointments = async () => {
-    try {
-      setLoadingAppointments(true);
-      // Tạm thời sử dụng mock data để tránh lỗi
-      setTimeout(() => {
-        setAppointments([]);
-        setLoadingAppointments(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Error loading appointments:', error);
-      setAppointments([]);
-      setLoadingAppointments(false);
-    }
-  };
 
   const getPaymentStatusBadge = (status) => {
     const statusConfig = {
@@ -551,183 +530,7 @@ const PatientDashboard = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'appointments':
-        return (
-          <div className="p-4">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h4 className="mb-0">Lịch khám</h4>
-              <button className="btn btn-outline-primary">
-                <i className="bi bi-funnel me-2"></i>Lọc
-              </button>
-            </div>
-            
-            {loadingAppointments ? (
-              <div className="text-center py-4">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-            </div>
-                <p className="mt-2">Đang tải dữ liệu...</p>
-              </div>
-            ) : appointments.length > 0 ? (
-              <div className="row g-0" style={{ height: 'calc(100vh - 300px)' }}>
-                {/* Left Panel - Appointment List */}
-              <div className="col-md-4 border-end">
-                  <div className="p-3 border-bottom">
-                    <div className="input-group">
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                        placeholder="Mã giao dịch, tên dịch vụ, tên bệnh nhân..."
-                      style={{ fontSize: '14px' }}
-                    />
-                  </div>
-                  </div>
-                  <div className="p-3" style={{ height: 'calc(100% - 80px)', overflowY: 'auto' }}>
-                    {appointments.map((appointment, index) => (
-                      <div 
-                        key={appointment.id}
-                        className="border rounded p-3 mb-3 cursor-pointer"
-                          style={{ 
-                          backgroundColor: index === 0 ? '#f8f9fa' : 'white',
-                          border: index === 0 ? '2px solid #007bff' : '1px solid #dee2e6'
-                        }}
-                      >
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div className="flex-grow-1">
-                            <h6 className="mb-1 fw-bold">{appointment.patientName || 'Bệnh nhân'}</h6>
-                            <p className="mb-1 text-muted small">
-                              {appointment.appointmentTime || '17:45'} - {appointment.appointmentDate || '21/10/2025'}
-                            </p>
-                            <p className="mb-1 text-muted small">{appointment.patientName || 'Quang'}</p>
-                            <span className={`badge ${
-                              appointment.status === 'CONFIRMED' ? 'bg-success' :
-                              appointment.status === 'PENDING' ? 'bg-warning' :
-                              appointment.status === 'CANCELLED' ? 'bg-danger' :
-                              'bg-info'
-                            }`}>
-                              {appointment.status === 'CONFIRMED' ? 'Đã đặt lịch' :
-                               appointment.status === 'PENDING' ? 'Chờ xác nhận' :
-                               appointment.status === 'CANCELLED' ? 'Đã hủy' :
-                               'Đã đặt lịch'}
-                        </span>
-                      </div>
-                          <div className="text-end">
-                            <div className="text-muted small">STT</div>
-                            <div className="fw-bold text-primary" style={{ fontSize: '24px' }}>{index + 1}</div>
-                    </div>
-                  </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-              
-                {/* Right Panel - Appointment Details */}
-              <div className="col-md-8">
-                <div className="p-4">
-                    <div className="d-flex justify-content-between align-items-center mb-4">
-                      <div>
-                        <span className="text-success fw-bold">STT: {1}</span>
-                      </div>
-                      <div className="d-flex align-items-center">
-                        <i className="bi bi-calendar-check text-success me-2"></i>
-                        <span className="text-success fw-bold">Đã đặt lịch</span>
-                      </div>
-                    </div>
-
-                  <div className="d-flex align-items-center mb-4">
-                      <img 
-                        src="/images/default-doctor.jpg" 
-                        alt="Doctor" 
-                        className="rounded-circle me-3" 
-                        style={{ width: '60px', height: '60px', objectFit: 'cover' }}
-                      />
-                      <div className="flex-grow-1">
-                        <h5 className="mb-1">{appointments[0]?.patientName || 'Lê Thị Minh Hồng'}</h5>
-                        <p className="text-muted mb-0">250 Nguyễn Xí, P.13, Q. Bình Thạnh, TP.HCM</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="bg-light p-2 rounded">
-                          <div className="text-muted small">QR Code</div>
-                          <div style={{ width: '80px', height: '80px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6' }}></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Appointment Information */}
-                    <div className="mb-4">
-                      <h6 className="fw-bold mb-3">Thông tin đặt khám</h6>
-                      <div className="row g-3">
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Mã phiếu khám</label>
-                          <p className="fw-medium">YMA2510210480</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Ngày khám</label>
-                          <p className="fw-medium">21/10/2025</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Giờ khám</label>
-                          <p className="fw-medium text-success">17:45-17:50 (Buổi chiều)</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Chuyên khoa</label>
-                          <p className="fw-medium">Nhi khoa</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Patient Information */}
-                    <div className="mb-4">
-                      <h6 className="fw-bold mb-3">Thông tin bệnh nhân</h6>
-                      <div className="row g-3">
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Mã bệnh nhân</label>
-                          <p className="fw-medium text-primary">YMP252466879</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Họ và tên</label>
-                          <p className="fw-medium">Quang</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Năm sinh</label>
-                          <p className="fw-medium">09/11/2004</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Số điện thoại</label>
-                          <p className="fw-medium">0906545241</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Giới tính</label>
-                          <p className="fw-medium">Nam</p>
-                        </div>
-                        <div className="col-6">
-                          <label className="form-label text-muted small">Địa chỉ</label>
-                          <p className="fw-medium text-muted">Chưa cập nhật</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Results Section */}
-                    <div>
-                      <h6 className="fw-bold mb-3">Kết quả</h6>
-                      <hr />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-5">
-                <h5>Chưa có lịch hẹn nào</h5>
-                <p className="text-muted">Bạn chưa có lịch hẹn nào. Hãy đặt lịch với bác sĩ để bắt đầu!</p>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => window.location.href = '/patient/book-appointment'}
-                >
-                  Đặt lịch ngay
-                </button>
-              </div>
-            )}
-          </div>
-        );
+        return <PatientAppointmentHistory />;
       
       case 'profile':
         return (
