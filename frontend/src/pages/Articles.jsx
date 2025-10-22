@@ -5,6 +5,7 @@ import articleApi from '../api/articleApi';
 import { getFullAvatarUrl } from '../utils/avatarUtils';
 import { toast } from '../utils/toast';
 import useScrollToTop from '../hooks/useScrollToTop';
+import config from '../config/config';
 
 const Articles = () => {
   const [articles, setArticles] = useState([]);
@@ -109,7 +110,7 @@ const Articles = () => {
   const getImageUrl = (imageUrl) => {
     if (!imageUrl) return null;
     if (imageUrl.startsWith('http')) return imageUrl;
-    return `http://localhost:8080${imageUrl}`;
+    return config.helpers.getImageUrl(imageUrl);
   };
 
 

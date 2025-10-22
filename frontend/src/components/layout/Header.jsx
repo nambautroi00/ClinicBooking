@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
+import config from "../../config/config";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -74,8 +75,8 @@ export default function Header() {
     // Ưu tiên: Uploaded avatar > Google avatar (avatarUrl) > Google picture
     if (user?.avatarUrl) {
       if (user.avatarUrl.startsWith('/uploads/')) {
-        console.log('✅ Header - Using uploaded avatar:', `http://localhost:8080${user.avatarUrl}`);
-        return `http://localhost:8080${user.avatarUrl}`;
+        console.log('✅ Header - Using uploaded avatar:', config.helpers.getAvatarUrl(user.avatarUrl));
+        return config.helpers.getAvatarUrl(user.avatarUrl);
       }
       console.log('✅ Header - Using avatarUrl:', user.avatarUrl);
       return user.avatarUrl;

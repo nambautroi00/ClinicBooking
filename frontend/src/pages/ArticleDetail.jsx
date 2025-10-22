@@ -5,6 +5,7 @@ import articleApi from '../api/articleApi';
 import { toast } from '../utils/toast';
 import { getFullAvatarUrl } from '../utils/avatarUtils';
 import useScrollToTop from '../hooks/useScrollToTop';
+import config from '../config/config';
 
 const ArticleDetail = () => {
   const { id } = useParams();
@@ -87,7 +88,7 @@ const ArticleDetail = () => {
   const getImageUrl = (imageUrl) => {
     if (!imageUrl) return null;
     if (imageUrl.startsWith('http')) return imageUrl;
-    return `http://localhost:8080${imageUrl}`;
+    return config.helpers.getImageUrl(imageUrl);
   };
 
   const handleLike = async () => {

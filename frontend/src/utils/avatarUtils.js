@@ -1,6 +1,7 @@
 /**
  * Utility functions for handling avatar URLs
  */
+import config from '../config/config';
 
 /**
  * Convert relative avatar URL to full URL
@@ -8,20 +9,7 @@
  * @returns {string} - Full URL for the avatar
  */
 export const getFullAvatarUrl = (avatarUrl) => {
-  if (!avatarUrl) return null;
-  
-  // If already a full URL, return as is
-  if (avatarUrl.startsWith('http')) {
-    return avatarUrl;
-  }
-  
-  // If relative URL, prepend backend URL
-  if (avatarUrl.startsWith('/')) {
-    return `http://localhost:8080${avatarUrl}`;
-  }
-  
-  // If no leading slash, add it
-  return `http://localhost:8080/${avatarUrl}`;
+  return config.helpers.getAvatarUrl(avatarUrl);
 };
 
 /**

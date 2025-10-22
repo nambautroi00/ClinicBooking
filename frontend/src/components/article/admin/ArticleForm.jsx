@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import articleApi from '../../../api/articleApi';
 import fileUploadApi from '../../../api/fileUploadApi';
 import { toast } from '../../../utils/toast';
+import config from '../../../config/config';
 
 const ArticleForm = ({ article, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -224,7 +225,7 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
                   <label className="form-label">Ảnh hiện tại</label>
                   <div>
                     <img
-                      src={formData.imageUrl.startsWith('http') ? formData.imageUrl : `http://localhost:8080${formData.imageUrl}`}
+                      src={formData.imageUrl.startsWith('http') ? formData.imageUrl : config.helpers.getImageUrl(formData.imageUrl)}
                       alt="Preview"
                       className="img-fluid rounded"
                       style={{ maxHeight: '200px' }}
