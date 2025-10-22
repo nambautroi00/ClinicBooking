@@ -165,7 +165,9 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(res.data.user));
         
         // Force page reload to clear all cache
-        window.location.reload();
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
         // Same role-based redirect as normal login
         const roleName = res.data.user?.role?.name || res.data.user?.role?.roleName || '';
         const rn = String(roleName).toLowerCase();

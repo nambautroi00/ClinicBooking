@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, FileText, User, Clock, MapPin, Phone, Mail, Calendar as CalendarIcon, CreditCard, DollarSign, Edit, Save, X, Camera } from 'lucide-react';
+import { Calendar, FileText, User, Clock, MapPin, Phone, Mail, Calendar as CalendarIcon, CreditCard, DollarSign, Edit, Save, X, Camera, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import paymentApi from '../../../api/paymentApi';
 import patientApi from '../../../api/patientApi';
@@ -13,10 +13,17 @@ const PatientDashboard = () => {
   const [payments, setPayments] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [appointments, setAppointments] = useState([]);
+
+  // Helper function để xử lý style an toàn
+  const safeSetStyle = (target, styles) => {
+    if (target && target.style) {
+      Object.assign(target.style, styles);
+    }
+  };
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [patientId, setPatientId] = useState(null);
   const [user, setUser] = useState(null);
-  
+
   // States for editing
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
@@ -25,6 +32,8 @@ const PatientDashboard = () => {
     currentPassword: '',
     newPassword: ''
   });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -34,7 +43,7 @@ const PatientDashboard = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [passwordErrors, setPasswordErrors] = useState({});
   const [isSuccess, setIsSuccess] = useState(true);
-  
+
   // Address states
   const [provinces, setProvinces] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -246,7 +255,7 @@ const PatientDashboard = () => {
       CANCELLED: { variant: "secondary", text: "Đã hủy" },
       REFUNDED: { variant: "info", text: "Đã hoàn tiền" }
     };
-    
+
     const config = statusConfig[status] || { variant: "secondary", text: status };
     return <span className={`badge bg-${config.variant}`}>{config.text}</span>;
   };
@@ -274,11 +283,11 @@ const PatientDashboard = () => {
     const birthDate = new Date(dateOfBirth);
     const age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       return age - 1 < 10 ? 'Bạn phải trên 10 tuổi' : '';
     }
-    
+
     return age < 10 ? 'Bạn phải trên 10 tuổi' : '';
   };
 
@@ -291,7 +300,9 @@ const PatientDashboard = () => {
 
   const validatePassword = (password) => {
     if (!password) return 'Mật khẩu không được để trống';
-    if (password.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự';
+    if (password.length < 8) return 'Mật khẩu phải có ít nhất 8 ký tự';
+    if (!/[A-Z]/.test(password)) return 'Mật khẩu phải có ít nhất 1 chữ hoa';
+    if (!/[.,@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt (.,@#$%...)';
     return '';
   };
 
@@ -302,7 +313,7 @@ const PatientDashboard = () => {
       ...prev,
       [name]: value
     }));
-    
+
     // Real-time validation
     let error = '';
     if (name === 'phone') {
@@ -312,7 +323,7 @@ const PatientDashboard = () => {
     } else if (name === 'email') {
       error = validateEmail(value);
     }
-    
+
     setErrors(prev => ({
       ...prev,
       [name]: error
@@ -326,7 +337,7 @@ const PatientDashboard = () => {
       ...prev,
       [name]: value
     }));
-    
+
     // Clear password errors when user starts typing
     if (passwordErrors[name]) {
       setPasswordErrors(prev => ({
@@ -357,38 +368,42 @@ const PatientDashboard = () => {
         try {
           setUploading(true);
           console.log('🚀 Starting avatar upload...');
-          
-          // Upload new avatar
-          const uploadResponse = await fileUploadApi.uploadImage(file, user.id, 'user');
+          console.log('📁 File details:', { name: file.name, size: file.size, type: file.type });
+          console.log('👤 User ID:', user.id);
+
+          // Upload avatar trực tiếp cho user
+          const uploadResponse = await userApi.uploadAvatar(user.id, file);
           console.log('📤 Upload response:', uploadResponse);
-          const avatarUrl = uploadResponse.data.url;
+          console.log('📤 Upload response data:', uploadResponse.data);
+          console.log('📤 Upload response status:', uploadResponse.status);
+
+          const avatarUrl = uploadResponse.data; // Backend trả về URL trực tiếp
           console.log('🔗 Avatar URL:', avatarUrl);
 
-          // Update user data
-          const updateData = {
-            ...user,
-            avatar: avatarUrl
-          };
-          console.log('👤 Update data:', updateData);
-
-          await userApi.updateUser(user.id, updateData);
-          console.log('✅ User updated in database');
-          
           // Update local user data
-          setUser(updateData);
-          localStorage.setItem('user', JSON.stringify(updateData));
-          console.log('💾 Local storage updated');
-          
+          const updatedUser = { ...user, avatar: avatarUrl };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          console.log('💾 Local storage updated with new avatar');
+
           // Dispatch event to update header
+          console.log('📡 Dispatching userChanged event...');
           window.dispatchEvent(new Event('userChanged'));
-          console.log('📡 Event dispatched');
-          
+          console.log('📡 Event dispatched successfully');
+
+          // Force refresh header after a short delay
+          setTimeout(() => {
+            console.log('🔄 Force refreshing header...');
+            window.dispatchEvent(new Event('userChanged'));
+          }, 100);
+
           setSuccessMessage('Cập nhật ảnh đại diện thành công!');
           setIsSuccess(true);
           setShowSuccessModal(true);
         } catch (error) {
-          console.error('Error updating avatar:', error);
-          setSuccessMessage('Có lỗi xảy ra khi cập nhật ảnh đại diện');
+          console.error('❌ Error updating avatar:', error);
+          console.error('❌ Error details:', error.response?.data || error.message);
+          setSuccessMessage(`Có lỗi xảy ra khi cập nhật ảnh đại diện: ${error.message}`);
           setIsSuccess(false);
           setShowSuccessModal(true);
         } finally {
@@ -412,19 +427,19 @@ const PatientDashboard = () => {
 
       // Validate all fields
       const newErrors = {};
-      
+
       // Required fields
       if (!formData.firstName?.trim()) newErrors.firstName = 'Họ tên không được để trống';
       if (!formData.lastName?.trim()) newErrors.lastName = 'Tên không được để trống';
-      
+
       // Phone validation
       const phoneError = validatePhone(formData.phone);
       if (phoneError) newErrors.phone = phoneError;
-      
+
       // Email validation
       const emailError = validateEmail(formData.email);
       if (emailError) newErrors.email = emailError;
-      
+
       // Age validation
       const ageError = validateAge(formData.dateOfBirth);
       if (ageError) newErrors.dateOfBirth = ageError;
@@ -441,7 +456,7 @@ const PatientDashboard = () => {
         const wardName = wards.find(w => w.code === selectedWard)?.name;
         const districtName = districts.find(d => d.code === selectedDistrict)?.name;
         const provinceName = provinces.find(p => p.code === selectedProvince)?.name;
-        
+
         if (wardName && districtName && provinceName) {
           address = `${wardName}, ${districtName}, ${provinceName}`;
         }
@@ -453,16 +468,16 @@ const PatientDashboard = () => {
         address: address
       };
 
-      await userApi.updateUser(user.id, updateData);
-      
+      await userApi.updateUserProfile(user.id, updateData);
+
       // Update local user data
       const updatedUser = { ...user, ...updateData };
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+
       // Dispatch event to update header
       window.dispatchEvent(new Event('userChanged'));
-      
+
       setIsEditing(false);
       setSuccessMessage('Cập nhật thông tin thành công!');
       setIsSuccess(true);
@@ -481,21 +496,21 @@ const PatientDashboard = () => {
   const handleSavePassword = async () => {
     try {
       setPasswordErrors({});
-      
+
       // Validate password fields
       const newPasswordErrors = {};
-      
+
       if (!passwordData.currentPassword?.trim()) {
         newPasswordErrors.currentPassword = 'Mật khẩu hiện tại không được để trống';
       }
-      
+
       if (!passwordData.newPassword?.trim()) {
         newPasswordErrors.newPassword = 'Mật khẩu mới không được để trống';
       } else {
         const passwordError = validatePassword(passwordData.newPassword);
         if (passwordError) newPasswordErrors.newPassword = passwordError;
       }
-      
+
       if (passwordData.currentPassword === passwordData.newPassword) {
         newPasswordErrors.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại';
       }
@@ -506,7 +521,7 @@ const PatientDashboard = () => {
       }
 
       setUploading(true);
-      await userApi.changePassword({
+      await userApi.changePassword(user.id, {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
@@ -518,8 +533,8 @@ const PatientDashboard = () => {
       setShowSuccessModal(true);
     } catch (error) {
       console.error('Error changing password:', error);
-      setPasswordErrors({ 
-        currentPassword: 'Mật khẩu hiện tại không đúng hoặc có lỗi xảy ra' 
+      setPasswordErrors({
+        currentPassword: 'Mật khẩu hiện tại không đúng hoặc có lỗi xảy ra'
       });
     } finally {
       setUploading(false);
@@ -559,34 +574,34 @@ const PatientDashboard = () => {
                 <i className="bi bi-funnel me-2"></i>Lọc
               </button>
             </div>
-            
+
             {loadingAppointments ? (
               <div className="text-center py-4">
                 <div className="spinner-border text-primary" role="status">
                   <span className="visually-hidden">Loading...</span>
-            </div>
+                </div>
                 <p className="mt-2">Đang tải dữ liệu...</p>
               </div>
             ) : appointments.length > 0 ? (
               <div className="row g-0" style={{ height: 'calc(100vh - 300px)' }}>
                 {/* Left Panel - Appointment List */}
-              <div className="col-md-4 border-end">
+                <div className="col-md-4 border-end">
                   <div className="p-3 border-bottom">
                     <div className="input-group">
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         placeholder="Mã giao dịch, tên dịch vụ, tên bệnh nhân..."
-                      style={{ fontSize: '14px' }}
-                    />
-                  </div>
+                        style={{ fontSize: '14px' }}
+                      />
+                    </div>
                   </div>
                   <div className="p-3" style={{ height: 'calc(100% - 80px)', overflowY: 'auto' }}>
                     {appointments.map((appointment, index) => (
-                      <div 
+                      <div
                         key={appointment.id}
                         className="border rounded p-3 mb-3 cursor-pointer"
-                          style={{ 
+                        style={{
                           backgroundColor: index === 0 ? '#f8f9fa' : 'white',
                           border: index === 0 ? '2px solid #007bff' : '1px solid #dee2e6'
                         }}
@@ -598,31 +613,30 @@ const PatientDashboard = () => {
                               {appointment.appointmentTime || '17:45'} - {appointment.appointmentDate || '21/10/2025'}
                             </p>
                             <p className="mb-1 text-muted small">{appointment.patientName || 'Quang'}</p>
-                            <span className={`badge ${
-                              appointment.status === 'CONFIRMED' ? 'bg-success' :
-                              appointment.status === 'PENDING' ? 'bg-warning' :
-                              appointment.status === 'CANCELLED' ? 'bg-danger' :
-                              'bg-info'
-                            }`}>
+                            <span className={`badge ${appointment.status === 'CONFIRMED' ? 'bg-success' :
+                                appointment.status === 'PENDING' ? 'bg-warning' :
+                                  appointment.status === 'CANCELLED' ? 'bg-danger' :
+                                    'bg-info'
+                              }`}>
                               {appointment.status === 'CONFIRMED' ? 'Đã đặt lịch' :
-                               appointment.status === 'PENDING' ? 'Chờ xác nhận' :
-                               appointment.status === 'CANCELLED' ? 'Đã hủy' :
-                               'Đã đặt lịch'}
-                        </span>
-                      </div>
+                                appointment.status === 'PENDING' ? 'Chờ xác nhận' :
+                                  appointment.status === 'CANCELLED' ? 'Đã hủy' :
+                                    'Đã đặt lịch'}
+                            </span>
+                          </div>
                           <div className="text-end">
                             <div className="text-muted small">STT</div>
                             <div className="fw-bold text-primary" style={{ fontSize: '24px' }}>{index + 1}</div>
-                    </div>
-                  </div>
+                          </div>
+                        </div>
                       </div>
                     ))}
+                  </div>
                 </div>
-              </div>
-              
+
                 {/* Right Panel - Appointment Details */}
-              <div className="col-md-8">
-                <div className="p-4">
+                <div className="col-md-8">
+                  <div className="p-4">
                     <div className="d-flex justify-content-between align-items-center mb-4">
                       <div>
                         <span className="text-success fw-bold">STT: {1}</span>
@@ -633,11 +647,11 @@ const PatientDashboard = () => {
                       </div>
                     </div>
 
-                  <div className="d-flex align-items-center mb-4">
-                      <img 
-                        src="/images/default-doctor.jpg" 
-                        alt="Doctor" 
-                        className="rounded-circle me-3" 
+                    <div className="d-flex align-items-center mb-4">
+                      <img
+                        src="/images/default-doctor.jpg"
+                        alt="Doctor"
+                        className="rounded-circle me-3"
                         style={{ width: '60px', height: '60px', objectFit: 'cover' }}
                       />
                       <div className="flex-grow-1">
@@ -718,7 +732,7 @@ const PatientDashboard = () => {
               <div className="text-center py-5">
                 <h5>Chưa có lịch hẹn nào</h5>
                 <p className="text-muted">Bạn chưa có lịch hẹn nào. Hãy đặt lịch với bác sĩ để bắt đầu!</p>
-                <button 
+                <button
                   className="btn btn-primary"
                   onClick={() => window.location.href = '/patient/book-appointment'}
                 >
@@ -728,21 +742,21 @@ const PatientDashboard = () => {
             )}
           </div>
         );
-      
+
       case 'profile':
         return (
           <div className="p-0" style={{ height: 'calc(100vh - 200px)', overflow: 'hidden' }}>
-            
+
             <div className="row g-0 h-100">
               {/* Left Panel - Profile Card */}
               <div className="col-md-4 border-end" style={{ height: 'calc(100vh - 250px)', overflow: 'auto' }}>
                 <div className="p-4">
                   {/* Profile Card */}
-                  <div className="card border-0 shadow-lg" style={{ borderRadius: '25px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', overflow: 'hidden' }}>
+                  <div className="card border-0 shadow-lg" style={{ borderRadius: '25px', background: 'linear-gradient(135deg, #a8d8ea 0%, #7bb3d3 100%)', overflow: 'hidden' }}>
                     <div className="card-body text-center p-4">
                       {/* Avatar Section */}
                       <div className="position-relative d-inline-block mb-3">
-                        <div 
+                        <div
                           className="position-relative"
                           style={{ cursor: 'pointer' }}
                           onClick={handleAvatarClick}
@@ -752,111 +766,112 @@ const PatientDashboard = () => {
                             console.log('🔍 PatientDashboard - User data:', user);
                             console.log('🔍 PatientDashboard - User avatarUrl:', user?.avatarUrl);
                             console.log('🔍 PatientDashboard - User avatar:', user?.avatar);
-                            
-                            // Ưu tiên avatarUrl từ database (đã lưu ảnh Google)
+                            console.log('🔍 PatientDashboard - User picture:', user?.picture);
+
+                            // Ưu tiên: Uploaded avatar > Google avatar (avatarUrl) > Google picture
+                            let avatarSrc = null;
+
                             if (user?.avatarUrl) {
-                              console.log('✅ PatientDashboard - Using avatarUrl from database:', user.avatarUrl);
+                              // Avatar đã upload hoặc Google avatar (ưu tiên cao nhất)
+                              avatarSrc = user.avatarUrl.startsWith('/uploads/') ?
+                                `http://localhost:8080${user.avatarUrl}` : user.avatarUrl;
+                              console.log('✅ PatientDashboard - Using avatarUrl:', avatarSrc);
+                            } else if (user?.picture) {
+                              // Google picture trực tiếp
+                              avatarSrc = user.picture;
+                              console.log('✅ PatientDashboard - Using Google picture:', avatarSrc);
+                            }
+
+                            if (avatarSrc) {
                               return (
-                                <img 
-                                  src={user.avatarUrl} 
-                                  alt="Avatar" 
-                                  className="rounded-circle border border-white border-3 shadow-lg"
-                                  style={{ width: '90px', height: '90px', objectFit: 'cover' }}
+                                <img
+                                  src={avatarSrc}
+                                  alt="Avatar"
+                                  className="rounded-circle shadow-lg"
+                                  style={{
+                                    width: '90px',
+                                    height: '90px',
+                                    objectFit: 'cover',
+                                    border: '3px solid #87CEEB' // Xanh biển nhẹ
+                                  }}
                                   onError={(e) => {
-                                    console.log('❌ PatientDashboard - avatarUrl failed to load');
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
+                                    console.log('❌ PatientDashboard - Avatar failed to load, showing initials');
+                                    safeSetStyle(e.target, { display: 'none' });
+                                    if (e.target.nextSibling) {
+                                      safeSetStyle(e.target.nextSibling, { display: 'flex' });
+                                     }
                                   }}
                                 />
                               );
                             }
-                            
-                            // Fallback to uploaded avatar
-                            const avatarUrl = user?.avatar ? 
-                              (user.avatar.startsWith('/uploads/') ? `http://localhost:8080${user.avatar}` : user.avatar) : 
-                              null;
-                            
-                            return avatarUrl ? (
-                              <img 
-                                src={avatarUrl} 
-                                alt="Avatar" 
-                                className="rounded-circle border border-white border-3 shadow-lg"
-                                style={{ width: '90px', height: '90px', objectFit: 'cover' }}
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
+
+                            // Chỉ hiển thị initials cho tài khoản thông thường (không có Google avatar)
+                            return (
+                              <div
+                                className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-lg"
+                                style={{
+                                  width: '90px',
+                                  height: '90px',
+                                  background: 'linear-gradient(135deg, #9370DB 0%, #8A2BE2 100%)',
+                                  fontSize: '32px',
+                                  border: '3px solid #87CEEB' // Xanh biển nhẹ
                                 }}
-                              />
-                            ) : null;
+                              >
+                                {(() => {
+                                  // Tạo initials từ tên
+                                  if (user?.firstName && user?.lastName) {
+                                    return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
+                                  } else if (user?.firstName) {
+                                    return user.firstName.charAt(0).toUpperCase();
+                                  } else if (user?.fullName) {
+                                    const names = user.fullName.split(' ');
+                                    if (names.length >= 2) {
+                                      return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
+                                    }
+                                    return user.fullName.charAt(0).toUpperCase();
+                                  } else if (user?.name) {
+                                    const names = user.name.split(' ');
+                                    if (names.length >= 2) {
+                                      return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
+                                    }
+                                    return user.name.charAt(0).toUpperCase();
+                                  } else if (user?.email) {
+                                    return user.email.charAt(0).toUpperCase();
+                                  } else {
+                                    return 'U';
+                                  }
+                                })()}
+                              </div>
+                            );
                           })()}
-                          <div 
-                            className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold border border-white border-3 shadow-lg"
-                      style={{ 
-                              width: '90px', 
-                              height: '90px', 
-                              background: 'linear-gradient(135deg, #9370DB 0%, #8A2BE2 100%)',
-                              fontSize: '32px',
-                              display: (user?.avatarUrl || user?.avatar) ? 'none' : 'flex'
-                            }}
-                          >
-                            {(() => {
-                              // Kiểm tra nếu có avatar từ database hoặc đã upload
-                              if (user?.avatarUrl || user?.avatar) {
-                                return null; // Không hiển thị initials nếu có avatar
-                              }
-                              
-                              // Tạo initials từ tên
-                              if (user?.firstName && user?.lastName) {
-                                return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
-                              } else if (user?.firstName) {
-                                return user.firstName.charAt(0).toUpperCase();
-                              } else if (user?.fullName) {
-                                const names = user.fullName.split(' ');
-                                if (names.length >= 2) {
-                                  return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                                }
-                                return user.fullName.charAt(0).toUpperCase();
-                              } else if (user?.name) {
-                                const names = user.name.split(' ');
-                                if (names.length >= 2) {
-                                  return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                                }
-                                return user.name.charAt(0).toUpperCase();
-                              } else if (user?.email) {
-                                return user.email.charAt(0).toUpperCase();
-                              } else {
-                                return 'U';
-                              }
-                            })()}
-                    </div>
-                    </div>
-                  </div>
-                  
+                        </div>
+                      </div>
+
                       {/* User Info */}
                       <h5 className="fw-bold mb-2 text-white" style={{ fontSize: '20px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                         {(() => {
                           if (!user) return 'Chưa đăng nhập';
-                          
+
                           // Kiểm tra nếu có fullName từ Google
                           if (user.fullName) {
                             return user.fullName;
                           }
-                          
+
                           // Kiểm tra firstName và lastName
                           if (user.firstName && user.lastName) {
                             return `${user.firstName} ${user.lastName}`;
                           }
-                          
+
                           // Kiểm tra name từ Google
                           if (user.name) {
                             return user.name;
                           }
-                          
+
                           // Fallback to email
                           if (user.email) {
                             return user.email.split('@')[0];
                           }
-                          
+
                           return 'Chưa cập nhật';
                         })()}
                       </h5>
@@ -865,30 +880,31 @@ const PatientDashboard = () => {
                       </small>
 
                       {/* Change Avatar Button - Integrated */}
-                      <button 
-                        className="btn btn-light btn-sm shadow-sm w-100" 
-                      style={{ 
-                          fontSize: '14px',
-                          borderRadius: '20px',
-                          fontWeight: '600',
-                          background: 'linear-gradient(45deg, #f093fb 0%, #f5576c 100%)',
-                          border: 'none',
-                          color: 'white',
+                      <button
+                        className="btn btn-outline-secondary btn-sm shadow-sm w-100"
+                        style={{
+                          fontSize: '12px',
+                          borderRadius: '15px',
+                          fontWeight: '500',
+                          background: 'transparent',
+                          border: '2px solid #6c757d',
+                          color: '#6c757d',
                           transition: 'all 0.3s ease',
-                          padding: '8px 16px',
-                          boxShadow: '0 4px 12px rgba(240,147,251,0.4)'
+                          padding: '6px 12px'
                         }}
                         onClick={handleChangeAvatar}
                         disabled={uploading}
                         onMouseEnter={(e) => {
                           if (!uploading) {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 16px rgba(240,147,251,0.6)';
+                            e.target.style.backgroundColor = '#6c757d';
+                            e.target.style.color = 'white';
+                            e.target.style.transform = 'translateY(-1px)';
                           }
                         }}
                         onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'transparent';
+                          e.target.style.color = '#6c757d';
                           e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(240,147,251,0.4)';
                         }}
                       >
                         {uploading ? (
@@ -905,25 +921,25 @@ const PatientDashboard = () => {
                       </button>
                     </div>
                   </div>
-                    </div>
-                  </div>
-              
+                </div>
+              </div>
+
               {/* Right Panel - Profile Details */}
               <div className="col-md-8" style={{ height: 'calc(100vh - 250px)', overflow: 'auto' }}>
                 <div className="p-3">
-                  
+
                   {/* Alert */}
-                  <div className="alert alert-warning d-flex align-items-center mb-4" style={{ 
-                    backgroundColor: 'linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%)', 
-                    border: 'none', 
+                  <div className="alert alert-warning d-flex align-items-center mb-4" style={{
+                    backgroundColor: 'linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%)',
+                    border: 'none',
                     borderRadius: '15px',
                     padding: '12px 16px',
                     boxShadow: '0 2px 8px rgba(255,193,7,0.3)'
                   }}>
-                    <div className="me-3" style={{ 
-                      width: '8px', 
-                      height: '8px', 
-                      backgroundColor: '#fdcb6e', 
+                    <div className="me-3" style={{
+                      width: '8px',
+                      height: '8px',
+                      backgroundColor: '#fdcb6e',
                       borderRadius: '50%',
                       boxShadow: '0 0 6px rgba(253,203,110,0.6)'
                     }}></div>
@@ -931,30 +947,33 @@ const PatientDashboard = () => {
                       Hoàn thiện thông tin để đặt khám và quản lý hồ sơ y tế được tốt hơn.
                     </small>
                   </div>
-                  
+
                   {/* Basic Information */}
                   <div className="mb-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                       <h6 className="fw-bold mb-0" style={{ fontSize: '16px', color: '#2d3436' }}>Thông tin cơ bản</h6>
                       {!isEditing && (
-                        <button 
-                          className="btn btn-primary btn-sm shadow-sm" 
-                          style={{ 
-                            fontSize: '12px', 
+                        <button
+                          className="btn btn-outline-secondary btn-sm shadow-sm"
+                          style={{
+                            fontSize: '12px',
                             padding: '6px 16px',
                             borderRadius: '20px',
-                            background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
-                            border: 'none',
+                            background: 'white',
+                            border: '2px solid #6c757d',
+                            color: '#6c757d',
                             transition: 'all 0.3s ease'
                           }}
                           onClick={() => setIsEditing(true)}
                           onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = '#6c757d';
+                            e.target.style.color = 'white';
                             e.target.style.transform = 'translateY(-1px)';
-                            e.target.style.boxShadow = '0 4px 12px rgba(102,126,234,0.4)';
                           }}
                           onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = 'white';
+                            e.target.style.color = '#6c757d';
                             e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
                           }}
                         >
                           <Edit size={14} className="me-1" />
@@ -967,13 +986,13 @@ const PatientDashboard = () => {
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Họ</label>
                         {isEditing ? (
                           <div>
-                            <input 
-                              type="text" 
-                              name="firstName" 
-                              value={formData.firstName || ''} 
+                            <input
+                              type="text"
+                              name="firstName"
+                              value={formData.firstName || ''}
                               onChange={handleInputChange}
                               className={`form-control ${errors.firstName ? 'is-invalid' : ''}`}
-                              style={{ 
+                              style={{
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
@@ -981,12 +1000,16 @@ const PatientDashboard = () => {
                                 padding: '8px 12px'
                               }}
                               onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#667eea',
+                                  boxShadow: '0 0 0 0.2rem rgba(102,126,234,0.25)'
+                                });
                               }}
                               onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#e9ecef',
+                                  boxShadow: 'none'
+                                });
                               }}
                             />
                             {errors.firstName && <div className="invalid-feedback" style={{ fontSize: '10px' }}>{errors.firstName}</div>}
@@ -1012,13 +1035,13 @@ const PatientDashboard = () => {
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Tên</label>
                         {isEditing ? (
                           <div>
-                            <input 
-                              type="text" 
-                              name="lastName" 
-                              value={formData.lastName || ''} 
+                            <input
+                              type="text"
+                              name="lastName"
+                              value={formData.lastName || ''}
                               onChange={handleInputChange}
                               className={`form-control ${errors.lastName ? 'is-invalid' : ''}`}
-                              style={{ 
+                              style={{
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
@@ -1026,12 +1049,16 @@ const PatientDashboard = () => {
                                 padding: '8px 12px'
                               }}
                               onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#667eea',
+                                  boxShadow: '0 0 0 0.2rem rgba(102,126,234,0.25)'
+                                });
                               }}
                               onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#e9ecef',
+                                  boxShadow: 'none'
+                                });
                               }}
                             />
                             {errors.lastName && <div className="invalid-feedback" style={{ fontSize: '10px' }}>{errors.lastName}</div>}
@@ -1057,13 +1084,13 @@ const PatientDashboard = () => {
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Điện thoại</label>
                         {isEditing ? (
                           <div>
-                            <input 
-                              type="text" 
-                              name="phone" 
-                              value={formData.phone || ''} 
+                            <input
+                              type="text"
+                              name="phone"
+                              value={formData.phone || ''}
                               onChange={handleInputChange}
                               className={`form-control ${errors.phone ? 'is-invalid' : ''}`}
-                              style={{ 
+                              style={{
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
@@ -1071,12 +1098,16 @@ const PatientDashboard = () => {
                                 padding: '8px 12px'
                               }}
                               onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#667eea',
+                                  boxShadow: '0 0 0 0.2rem rgba(102,126,234,0.25)'
+                                });
                               }}
                               onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#e9ecef',
+                                  boxShadow: 'none'
+                                });
                               }}
                             />
                             {errors.phone && <div className="invalid-feedback" style={{ fontSize: '10px' }}>{errors.phone}</div>}
@@ -1088,13 +1119,13 @@ const PatientDashboard = () => {
                       <div className="col-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Ngày sinh</label>
                         {isEditing ? (
-                          <input 
-                            type="date" 
-                            name="dateOfBirth" 
-                            value={formData.dateOfBirth || ''} 
+                          <input
+                            type="date"
+                            name="dateOfBirth"
+                            value={formData.dateOfBirth || ''}
                             onChange={handleInputChange}
                             className="form-control"
-                            style={{ 
+                            style={{
                               fontSize: '13px',
                               borderRadius: '10px',
                               border: '2px solid #e9ecef',
@@ -1117,12 +1148,12 @@ const PatientDashboard = () => {
                       <div className="col-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Giới tính</label>
                         {isEditing ? (
-                          <select 
-                            name="gender" 
-                            value={formData.gender || ''} 
+                          <select
+                            name="gender"
+                            value={formData.gender || ''}
                             onChange={handleInputChange}
                             className="form-control"
-                            style={{ 
+                            style={{
                               fontSize: '13px',
                               borderRadius: '10px',
                               border: '2px solid #e9ecef',
@@ -1149,16 +1180,16 @@ const PatientDashboard = () => {
                       </div>
                       {/* Address Section - All on one row */}
                       <div className="col-12">
-                    <div className="row">
+                        <div className="row">
                           <div className="col-4">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Tỉnh/TP</label>
                             {isEditing ? (
-                              <select 
-                                name="selectedProvince" 
-                                value={selectedProvince} 
+                              <select
+                                name="selectedProvince"
+                                value={selectedProvince}
                                 onChange={(e) => setSelectedProvince(e.target.value)}
                                 className="form-control"
-                                style={{ 
+                                style={{
                                   fontSize: '13px',
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
@@ -1187,16 +1218,16 @@ const PatientDashboard = () => {
                                 })()}
                               </p>
                             )}
-                      </div>
+                          </div>
                           <div className="col-4">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Quận/Huyện</label>
                             {isEditing ? (
-                              <select 
-                                name="selectedDistrict" 
-                                value={selectedDistrict} 
+                              <select
+                                name="selectedDistrict"
+                                value={selectedDistrict}
                                 onChange={(e) => setSelectedDistrict(e.target.value)}
                                 className="form-control"
-                                style={{ 
+                                style={{
                                   fontSize: '13px',
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
@@ -1226,16 +1257,16 @@ const PatientDashboard = () => {
                                 })()}
                               </p>
                             )}
-                      </div>
+                          </div>
                           <div className="col-4">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Phường/Xã</label>
                             {isEditing ? (
-                              <select 
-                                name="selectedWard" 
-                                value={selectedWard} 
+                              <select
+                                name="selectedWard"
+                                value={selectedWard}
                                 onChange={(e) => setSelectedWard(e.target.value)}
                                 className="form-control"
-                                style={{ 
+                                style={{
                                   fontSize: '13px',
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
@@ -1265,12 +1296,12 @@ const PatientDashboard = () => {
                                 })()}
                               </p>
                             )}
-                      </div>
-                      </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Additional Information */}
                   <div className="mb-4">
                     <h6 className="fw-bold mb-3" style={{ fontSize: '16px', color: '#2d3436' }}>Thông tin bổ sung</h6>
@@ -1278,13 +1309,13 @@ const PatientDashboard = () => {
                       <div className="col-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Mã BHYT</label>
                         {isEditing ? (
-                          <input 
-                            type="text" 
-                            name="healthInsurance" 
-                            value={formData.healthInsurance || ''} 
+                          <input
+                            type="text"
+                            name="healthInsurance"
+                            value={formData.healthInsurance || ''}
                             onChange={handleInputChange}
                             className="form-control"
-                            style={{ 
+                            style={{
                               fontSize: '13px',
                               borderRadius: '10px',
                               border: '2px solid #e9ecef',
@@ -1308,13 +1339,13 @@ const PatientDashboard = () => {
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Email</label>
                         {isEditing ? (
                           <div>
-                            <input 
-                              type="email" 
-                              name="email" 
-                              value={formData.email || ''} 
+                            <input
+                              type="email"
+                              name="email"
+                              value={formData.email || ''}
                               onChange={handleInputChange}
                               className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                              style={{ 
+                              style={{
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
@@ -1322,47 +1353,102 @@ const PatientDashboard = () => {
                                 padding: '8px 12px'
                               }}
                               onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#667eea',
+                                  boxShadow: '0 0 0 0.2rem rgba(102,126,234,0.25)'
+                                });
                               }}
                               onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
+                                safeSetStyle(e.target, {
+                                  borderColor: '#e9ecef',
+                                  boxShadow: 'none'
+                                });
                               }}
                             />
                             {errors.email && <div className="invalid-feedback" style={{ fontSize: '10px' }}>{errors.email}</div>}
-                      </div>
+                          </div>
                         ) : (
                           <p className="mb-0 fw-medium text-muted" style={{ fontSize: '13px' }}>{user?.email || 'Chưa cập nhật'}</p>
                         )}
                       </div>
+                      <div className="col-12">
+                        <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Lịch sử bệnh án</label>
+                        {isEditing ? (
+                          <textarea
+                            name="medicalHistory"
+                            value={formData.medicalHistory || ''}
+                            onChange={handleInputChange}
+                            className="form-control"
+                            rows="4"
+                            placeholder="Nhập lịch sử bệnh án, tiền sử bệnh lý, dị ứng thuốc..."
+                            style={{
+                              fontSize: '13px',
+                              borderRadius: '10px',
+                              border: '2px solid #e9ecef',
+                              transition: 'all 0.3s ease',
+                              padding: '8px 12px',
+                              resize: 'vertical'
+                            }}
+                            onFocus={(e) => {
+                              safeSetStyle(e.target, {
+                                borderColor: '#667eea',
+                                boxShadow: '0 0 0 0.2rem rgba(102,126,234,0.25)'
+                              });
+                            }}
+                            onBlur={(e) => {
+                              safeSetStyle(e.target, {
+                                borderColor: '#e9ecef',
+                                boxShadow: 'none'
+                              });
+                            }}
+                          />
+                        ) : (
+                          <div className="p-3" style={{ 
+                            backgroundColor: '#f8f9fa', 
+                            borderRadius: '10px', 
+                            border: '1px solid #e9ecef',
+                            minHeight: '80px'
+                          }}>
+                            <p className="mb-0 fw-medium text-muted" style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                              {user?.medicalHistory || 'Chưa cập nhật lịch sử bệnh án'}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      </div>
-                  
+                    </div>
+                  </div>
+
                   {/* Action Buttons */}
                   {isEditing && (
                     <div className="d-flex gap-3 mb-4">
-                      <button 
-                        className="btn btn-success btn-sm shadow-sm" 
+                      <button
+                        className="btn btn-outline-success btn-sm shadow-sm"
                         onClick={handleSaveProfile}
                         disabled={uploading}
-                        style={{ 
-                          fontSize: '13px', 
+                        style={{
+                          fontSize: '13px',
                           padding: '8px 20px',
                           borderRadius: '25px',
-                          background: 'linear-gradient(45deg, #00b894 0%, #00cec9 100%)',
-                          border: 'none',
+                          background: 'transparent',
+                          border: '2px solid #00b894',
+                          color: '#00b894',
                           transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
                           if (!uploading) {
-                            e.target.style.transform = 'translateY(-1px)';
-                            e.target.style.boxShadow = '0 4px 12px rgba(0,184,148,0.4)';
+                            safeSetStyle(e.target, {
+                              backgroundColor: '#00b894',
+                              color: 'white',
+                              transform: 'translateY(-1px)'
+                            });
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                          safeSetStyle(e.target, {
+                            backgroundColor: 'transparent',
+                            color: '#00b894',
+                            transform: 'translateY(0)'
+                          });
                         }}
                       >
                         {uploading ? (
@@ -1377,11 +1463,11 @@ const PatientDashboard = () => {
                           </>
                         )}
                       </button>
-                      <button 
-                        className="btn btn-outline-danger btn-sm shadow-sm" 
+                      <button
+                        className="btn btn-outline-danger btn-sm shadow-sm"
                         onClick={handleCancelEdit}
-                        style={{ 
-                          fontSize: '13px', 
+                        style={{
+                          fontSize: '13px',
                           padding: '8px 20px',
                           borderRadius: '25px',
                           border: '2px solid #e17055',
@@ -1389,14 +1475,18 @@ const PatientDashboard = () => {
                           transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = '#e17055';
-                          e.target.style.color = 'white';
-                          e.target.style.transform = 'translateY(-1px)';
+                          safeSetStyle(e.target, {
+                            backgroundColor: '#e17055',
+                            color: 'white',
+                            transform: 'translateY(-1px)'
+                          });
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = 'transparent';
-                          e.target.style.color = '#e17055';
-                          e.target.style.transform = 'translateY(0)';
+                          safeSetStyle(e.target, {
+                            backgroundColor: 'transparent',
+                            color: '#e17055',
+                            transform: 'translateY(0)'
+                          });
                         }}
                       >
                         <X size={14} className="me-2" />
@@ -1404,133 +1494,181 @@ const PatientDashboard = () => {
                       </button>
                     </div>
                   )}
-                  
+
                   {/* Change Password Section */}
                   <div className="card shadow-sm" style={{ borderRadius: '15px', background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
                     <div className="card-body p-4">
                       <div className="d-flex justify-content-between align-items-center mb-3">
                         <h6 className="card-title mb-0 fw-bold" style={{ fontSize: '16px', color: '#2d3436' }}>Thay đổi mật khẩu</h6>
                         {!isEditingPassword && (
-                          <button 
-                            className="btn btn-primary btn-sm shadow-sm" 
+                          <button
+                            className="btn btn-outline-secondary btn-sm shadow-sm"
                             onClick={() => setIsEditingPassword(true)}
-                            style={{ 
-                              fontSize: '12px', 
+                            style={{
+                              fontSize: '12px',
                               padding: '6px 16px',
                               borderRadius: '20px',
-                              background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
-                              border: 'none',
+                              background: 'white',
+                              border: '2px solid #6c757d',
+                              color: '#6c757d',
                               transition: 'all 0.3s ease'
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.transform = 'translateY(-1px)';
-                              e.target.style.boxShadow = '0 4px 12px rgba(102,126,234,0.4)';
+                              safeSetStyle(e.target, {
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                transform: 'translateY(-1px)'
+                              });
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.transform = 'translateY(0)';
-                              e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                              safeSetStyle(e.target, {
+                                backgroundColor: 'white',
+                                color: '#6c757d',
+                                transform: 'translateY(0)'
+                              });
                             }}
                           >
                             <Edit size={14} className="me-1" />
                             Chỉnh sửa
-                    </button>
+                          </button>
                         )}
-                  </div>
+                      </div>
                       {isEditingPassword ? (
                         <div>
                           <div className="mb-3">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Mật khẩu hiện tại *</label>
-                            <input 
-                              type="password" 
-                              name="currentPassword"
-                              value={passwordData.currentPassword}
-                              onChange={handlePasswordChange}
-                              className={`form-control ${passwordErrors.currentPassword ? 'is-invalid' : ''}`}
-                              placeholder="Mật khẩu hiện tại của bạn"
-                              style={{ 
-                                fontSize: '13px',
-                                borderRadius: '10px',
-                                border: '2px solid #e9ecef',
-                                transition: 'all 0.3s ease',
-                                padding: '8px 12px'
-                              }}
-                              onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
-                              }}
-                              onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
-                              }}
-                            />
+                            <div className="position-relative">
+                              <input
+                                type={showCurrentPassword ? "text" : "password"}
+                                name="currentPassword"
+                                value={passwordData.currentPassword}
+                                onChange={handlePasswordChange}
+                                className={`form-control ${passwordErrors.currentPassword ? 'is-invalid' : ''}`}
+                                placeholder="Mật khẩu hiện tại của bạn"
+                                style={{
+                                  fontSize: '13px',
+                                  borderRadius: '10px',
+                                  border: passwordErrors.currentPassword ? '2px solid #dc3545' : '2px solid #e9ecef',
+                                  transition: 'all 0.3s ease',
+                                  padding: '8px 40px 8px 12px',
+                                  WebkitAppearance: 'none',
+                                  MozAppearance: 'textfield',
+                                  backgroundImage: 'none'
+                                }}
+                                onFocus={(e) => {
+                                  e.target.style.borderColor = '#667eea';
+                                  e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                                }}
+                                onBlur={(e) => {
+                                  e.target.style.borderColor = '#e9ecef';
+                                  e.target.style.boxShadow = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-link position-absolute end-0 top-50 translate-middle-y"
+                                style={{
+                                  border: 'none',
+                                  background: 'none',
+                                  padding: '0 12px',
+                                  color: '#6c757d',
+                                  fontSize: '16px'
+                                }}
+                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                              >
+                                <Eye size={16} />
+                              </button>
+                            </div>
                             {passwordErrors.currentPassword && (
-                              <div className="invalid-feedback" style={{ fontSize: '10px' }}>
+                              <div className="mt-1" style={{ fontSize: '12px', color: '#dc3545' }}>
                                 {passwordErrors.currentPassword}
-                </div>
+                              </div>
                             )}
-              </div>
+                          </div>
                           <div className="mb-3">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Mật khẩu mới *</label>
-                            <input 
-                              type="password" 
-                              name="newPassword"
-                              value={passwordData.newPassword}
-                              onChange={handlePasswordChange}
-                              className={`form-control ${passwordErrors.newPassword ? 'is-invalid' : ''}`}
-                              placeholder="Nhập mật khẩu mới"
-                              style={{ 
-                                fontSize: '13px',
-                                borderRadius: '10px',
-                                border: '2px solid #e9ecef',
-                                transition: 'all 0.3s ease',
-                                padding: '8px 12px'
-                              }}
-                              onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
-                              }}
-                              onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
-                              }}
-                            />
+                            <div className="position-relative">
+                              <input
+                                type={showNewPassword ? "text" : "password"}
+                                name="newPassword"
+                                value={passwordData.newPassword}
+                                onChange={handlePasswordChange}
+                                className={`form-control ${passwordErrors.newPassword ? 'is-invalid' : ''}`}
+                                placeholder="Nhập mật khẩu mới"
+                                style={{
+                                  fontSize: '13px',
+                                  borderRadius: '10px',
+                                  border: passwordErrors.newPassword ? '2px solid #dc3545' : '2px solid #e9ecef',
+                                  transition: 'all 0.3s ease',
+                                  padding: '8px 40px 8px 12px',
+                                  WebkitAppearance: 'none',
+                                  MozAppearance: 'textfield',
+                                  backgroundImage: 'none'
+                                }}
+                                onFocus={(e) => {
+                                  e.target.style.borderColor = '#667eea';
+                                  e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                                }}
+                                onBlur={(e) => {
+                                  e.target.style.borderColor = '#e9ecef';
+                                  e.target.style.boxShadow = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-link position-absolute end-0 top-50 translate-middle-y"
+                                style={{
+                                  border: 'none',
+                                  background: 'none',
+                                  padding: '0 12px',
+                                  color: '#6c757d',
+                                  fontSize: '16px'
+                                }}
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                              >
+                                <Eye size={16} />
+                              </button>
+                            </div>
                             {passwordErrors.newPassword && (
-                              <div className="invalid-feedback" style={{ fontSize: '10px' }}>
+                              <div className="mt-1" style={{ fontSize: '12px', color: '#dc3545' }}>
                                 {passwordErrors.newPassword}
                               </div>
                             )}
                           </div>
                           <div className="d-flex gap-3">
-                            <button 
-                              className="btn btn-success btn-sm shadow-sm" 
+                            <button
+                              className="btn btn-outline-success btn-sm shadow-sm"
                               onClick={handleSavePassword}
                               disabled={uploading}
-                              style={{ 
-                                fontSize: '13px', 
+                              style={{
+                                fontSize: '13px',
                                 padding: '8px 20px',
                                 borderRadius: '25px',
-                                background: 'linear-gradient(45deg, #00b894 0%, #00cec9 100%)',
-                                border: 'none',
+                                background: 'transparent',
+                                border: '2px solid #00b894',
+                                color: '#00b894',
                                 transition: 'all 0.3s ease'
                               }}
                               onMouseEnter={(e) => {
                                 if (!uploading) {
+                                  e.target.style.backgroundColor = '#00b894';
+                                  e.target.style.color = 'white';
                                   e.target.style.transform = 'translateY(-1px)';
-                                  e.target.style.boxShadow = '0 4px 12px rgba(0,184,148,0.4)';
                                 }
                               }}
                               onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = 'transparent';
+                                e.target.style.color = '#00b894';
                                 e.target.style.transform = 'translateY(0)';
-                                e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
                               }}
                             >
                               {uploading ? 'Đang lưu...' : 'Lưu'}
                             </button>
-                            <button 
-                              className="btn btn-outline-danger btn-sm shadow-sm" 
+                            <button
+                              className="btn btn-outline-danger btn-sm shadow-sm"
                               onClick={handleCancelPassword}
-                              style={{ 
-                                fontSize: '13px', 
+                              style={{
+                                fontSize: '13px',
                                 padding: '8px 20px',
                                 borderRadius: '25px',
                                 border: '2px solid #e17055',
@@ -1565,7 +1703,7 @@ const PatientDashboard = () => {
             </div>
           </div>
         );
-      
+
       case 'payments':
         return (
           <div className="p-0">
@@ -1573,7 +1711,7 @@ const PatientDashboard = () => {
             <div className="bg-white border-bottom px-4 py-3">
               <h4 className="mb-0 fw-bold">Lịch sử thanh toán</h4>
             </div>
-            
+
             <div className="p-4">
               {loadingPayments ? (
                 <div className="text-center py-5">
@@ -1631,8 +1769,8 @@ const PatientDashboard = () => {
                             <div className="d-flex align-items-center">
                               <Clock size={16} className="me-2 text-muted" />
                               <span>
-                                {payment.paymentDate ? 
-                                  new Date(payment.paymentDate).toLocaleDateString('vi-VN') : 
+                                {payment.paymentDate ?
+                                  new Date(payment.paymentDate).toLocaleDateString('vi-VN') :
                                   '--'
                                 }
                               </span>
@@ -1655,7 +1793,7 @@ const PatientDashboard = () => {
             </div>
           </div>
         );
-      
+
       default:
         return null;
     }
@@ -1668,10 +1806,9 @@ const PatientDashboard = () => {
         <div className="col-md-3 col-lg-2">
           <div className="bg-white rounded shadow-sm p-0" style={{ minHeight: '500px' }}>
             <div className="list-group list-group-flush">
-              <button 
-                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
-                  activeTab === 'appointments' ? 'active' : ''
-                }`}
+              <button
+                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${activeTab === 'appointments' ? 'active' : ''
+                  }`}
                 onClick={() => setActiveTab('appointments')}
                 style={{
                   backgroundColor: activeTab === 'appointments' ? '#e3f2fd' : 'transparent',
@@ -1683,11 +1820,10 @@ const PatientDashboard = () => {
                 <Calendar className="me-2" size={18} />
                 Lịch khám
               </button>
-              
-              <button 
-                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
-                  activeTab === 'payments' ? 'active' : ''
-                }`}
+
+              <button
+                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${activeTab === 'payments' ? 'active' : ''
+                  }`}
                 onClick={() => setActiveTab('payments')}
                 style={{
                   backgroundColor: activeTab === 'payments' ? '#e3f2fd' : 'transparent',
@@ -1699,11 +1835,10 @@ const PatientDashboard = () => {
                 <CreditCard className="me-2" size={18} />
                 Lịch sử thanh toán
               </button>
-              
-              <button 
-                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
-                  activeTab === 'profile' ? 'active' : ''
-                }`}
+
+              <button
+                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${activeTab === 'profile' ? 'active' : ''
+                  }`}
                 onClick={() => setActiveTab('profile')}
                 style={{
                   backgroundColor: activeTab === 'profile' ? '#e3f2fd' : 'transparent',
@@ -1735,25 +1870,25 @@ const PatientDashboard = () => {
               <div className="modal-body p-0 text-center">
                 {/* Large Avatar Display */}
                 <div className="p-4" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
-                  {user?.avatar ? (
-                    <img 
-                      src={user.avatar} 
-                      alt="Avatar" 
+                  {user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl.startsWith('/uploads/') ? `http://localhost:8080${user.avatarUrl}` : user.avatarUrl}
+                      alt="Avatar"
                       className="img-fluid rounded-circle shadow-lg"
-                      style={{ 
-                        width: '200px', 
-                        height: '200px', 
+                      style={{
+                        width: '200px',
+                        height: '200px',
                         objectFit: 'cover',
                         border: '4px solid white',
                         boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
                       }}
                     />
                   ) : (
-                    <div 
+                    <div
                       className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold mx-auto shadow-lg"
-                      style={{ 
-                        width: '200px', 
-                        height: '200px', 
+                      style={{
+                        width: '200px',
+                        height: '200px',
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         fontSize: '60px',
                         border: '4px solid white',
@@ -1762,7 +1897,7 @@ const PatientDashboard = () => {
                     >
                       {(() => {
                         if (!user) return 'U';
-                        
+
                         // Tạo initials từ tên
                         if (user.firstName && user.lastName) {
                           return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
@@ -1793,11 +1928,11 @@ const PatientDashboard = () => {
                 {/* Action Buttons */}
                 <div className="p-3 bg-white">
                   <div className="d-flex gap-2 justify-content-center">
-                    <button 
-                      type="button" 
-                      className="btn btn-outline-secondary btn-sm px-3" 
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm px-3"
                       onClick={handleCloseAvatar}
-                      style={{ 
+                      style={{
                         borderRadius: '15px',
                         fontSize: '13px',
                         fontWeight: '500',
@@ -1807,12 +1942,12 @@ const PatientDashboard = () => {
                       <i className="bi bi-x-lg me-1"></i>
                       Đóng
                     </button>
-                    <button 
-                      type="button" 
-                      className="btn btn-primary btn-sm px-3" 
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm px-3"
                       onClick={handleChangeAvatar}
                       disabled={uploading}
-                      style={{ 
+                      style={{
                         borderRadius: '15px',
                         background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
                         border: 'none',
@@ -1852,9 +1987,9 @@ const PatientDashboard = () => {
                   <i className={`bi ${isSuccess ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
                   {isSuccess ? 'Thành công' : 'Lỗi'}
                 </h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
+                <button
+                  type="button"
+                  className="btn-close"
                   onClick={() => setShowSuccessModal(false)}
                 ></button>
               </div>
@@ -1865,8 +2000,8 @@ const PatientDashboard = () => {
                 <p className="mb-0">{successMessage}</p>
               </div>
               <div className="modal-footer border-0 justify-content-center">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className={`btn ${isSuccess ? 'btn-success' : 'btn-danger'}`}
                   onClick={() => setShowSuccessModal(false)}
                 >

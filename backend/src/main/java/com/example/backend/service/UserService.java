@@ -453,13 +453,55 @@ public class UserService {
      * @return URL của ảnh đã upload
      */
     public String uploadAvatar(Long userId, MultipartFile file) {
-        User user = getUserByIdWithRole(userId);
-        // For now, just return a placeholder URL
-        // In a real implementation, you would save the file and return the actual URL
-        String avatarUrl = "/uploads/avatars/" + userId + "_" + file.getOriginalFilename();
-        user.setAvatarUrl(avatarUrl);
-        userRepository.save(user);
-        return avatarUrl;
+        try {
+            User user = getUserByIdWithRole(userId);
+            
+            // Validate file
+            if (file.isEmpty()) {
+                throw new RuntimeException("File không được để trống");
+            }
+            
+            // Check file size (5MB limit)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                throw new RuntimeException("Kích thước file không được vượt quá 5MB");
+            }
+            
+            // Check file type
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                throw new RuntimeException("File phải là ảnh");
+            }
+            
+            // Generate unique filename
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || originalFilename.isEmpty()) {
+                throw new RuntimeException("Tên file không hợp lệ");
+            }
+            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            String filename = "user_" + userId + "_" + System.currentTimeMillis() + extension;
+            
+            // Save file to uploads directory
+            String uploadDir = "uploads/";
+            java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+            if (!java.nio.file.Files.exists(uploadPath)) {
+                java.nio.file.Files.createDirectories(uploadPath);
+            }
+            
+            java.nio.file.Path filePath = uploadPath.resolve(filename);
+            java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            
+            // Update user avatar
+            String avatarUrl = "/uploads/" + filename;
+            user.setAvatarUrl(avatarUrl);
+            userRepository.save(user);
+            
+            System.out.println("✅ Avatar uploaded successfully: " + avatarUrl);
+            return avatarUrl;
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error uploading avatar: " + e.getMessage());
+            throw new RuntimeException("Lỗi khi upload ảnh: " + e.getMessage());
+        }
     }
     
     /**
@@ -469,12 +511,27 @@ public class UserService {
      */
     public User getCurrentUserFromToken(String token) {
         try {
-            // Simplified implementation - in real app, decode JWT token
-            // For now, get user from localStorage or use a default method
-            // This is a placeholder implementation
-            return userRepository.findById(43L).orElse(null); // Hardcoded for testing
+            // For Google users, get the most recent Google user
+            List<User> googleUsers = userRepository.findByPasswordHash("oauth_google_user");
+            if (!googleUsers.isEmpty()) {
+                // Return the most recent Google user (highest ID)
+                return googleUsers.stream()
+                    .max((u1, u2) -> Long.compare(u1.getId(), u2.getId()))
+                    .orElse(null);
+            }
+            return null;
         } catch (Exception e) {
             throw new RuntimeException("Failed to get current user from token", e);
         }
+    }
+
+    /**
+     * So sánh password thô với password đã hash
+     * @param rawPassword password thô
+     * @param encodedPassword password đã hash
+     * @return true nếu khớp, false nếu không khớp
+     */
+    public boolean matchesPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
     }
 }

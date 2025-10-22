@@ -444,6 +444,9 @@ public class AuthService {
             user.setPasswordHash(passwordEncoder.encode(newPassword));
             userRepository.save(user);
 
+            // Xóa OTP sau khi reset password thành công
+            emailOtpService.consumeOtp(email);
+
             return new AuthDTO.ResetPasswordResponse("Đặt lại mật khẩu thành công", true);
         } catch (NotFoundException e) {
             return new AuthDTO.ResetPasswordResponse("Không tìm thấy người dùng", false);

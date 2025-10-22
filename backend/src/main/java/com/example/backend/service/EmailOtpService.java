@@ -109,14 +109,20 @@ public class EmailOtpService {
         boolean isValid = savedOtp.equals(inputOtp);
         
         if (isValid) {
-            // Xóa OTP sau khi verify thành công
-            otpStorage.remove(email);
             log.info("OTP verified successfully for email: {}", email);
         } else {
             log.warn("Invalid OTP for email: {}", email);
         }
         
         return isValid;
+    }
+
+    /**
+     * Xóa OTP sau khi sử dụng thành công (cho reset password)
+     */
+    public void consumeOtp(String email) {
+        otpStorage.remove(email);
+        log.info("OTP consumed and removed for email: {}", email);
     }
 
     private String generateOtp() {

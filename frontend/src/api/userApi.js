@@ -74,6 +74,11 @@ const userApi = {
     return axiosClient.put(`/users/${userId}`, userData);
   },
 
+  // Cập nhật profile bao gồm Patient information
+  updateUserProfile: (userId, profileData) => {
+    return axiosClient.put(`/users/${userId}/profile`, profileData);
+  },
+
   // Xóa user (soft delete)
   deleteUser: (userId) => {
     return axiosClient.delete(`/users/${userId}`);
@@ -93,6 +98,11 @@ const userApi = {
         'Content-Type': 'multipart/form-data',
       },
     });
+  },
+
+  // Đổi mật khẩu cho user đã đăng nhập
+  changePassword: (userId, passwordData) => {
+    return axiosClient.put(`/users/${userId}/change-password`, passwordData);
   },
 
   // Thống kê users

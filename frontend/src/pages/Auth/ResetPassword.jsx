@@ -40,15 +40,7 @@ export default function ResetPassword() {
     setLoading(true);
 
     try {
-      // Step 1: Verify OTP
-      const verifyRes = await axiosClient.post('/auth/verify-otp', { email, otp });
-      if (!verifyRes.data?.success) {
-        setError('Mã OTP không hợp lệ hoặc đã hết hạn');
-        setLoading(false);
-        return;
-      }
-
-      // Step 2: Reset password
+      // Chỉ cần gọi reset-password, API này sẽ tự verify OTP
       const resetRes = await axiosClient.post('/auth/reset-password', {
         email,
         otp,

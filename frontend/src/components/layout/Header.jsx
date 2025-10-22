@@ -13,44 +13,29 @@ export default function Header() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Force fetch fresh user data from backend
-        const response = await fetch('http://localhost:8080/api/users/me', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          console.log('🔍 Header - Fresh user data from backend:', userData);
-          console.log('🔍 Header - User firstName:', userData?.firstName);
-          console.log('🔍 Header - User lastName:', userData?.lastName);
-          setUser(userData);
-          // Update localStorage with fresh data
-          localStorage.setItem('user', JSON.stringify(userData));
-        } else {
-          // Fallback to localStorage
-          const raw = localStorage.getItem('user');
-          if (raw) {
-            const userData = JSON.parse(raw);
-            console.log('🔍 Header - Fallback to localStorage:', userData);
-            setUser(userData);
-          } else {
-            setUser(null);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch user data:', error);
-        // Fallback to localStorage
+        // Load user from localStorage
         const raw = localStorage.getItem('user');
         if (raw) {
           const userData = JSON.parse(raw);
+          console.log('🔍 Header - Loading user from localStorage:', userData);
+          console.log('🔍 Header - User firstName:', userData?.firstName);
+          console.log('🔍 Header - User lastName:', userData?.lastName);
+          
+          // Check for encoding issues
+          if (userData?.firstName?.includes('Ă') || userData?.lastName?.includes('Ă')) {
+            console.log('⚠️ Header - Detected encoding issues, forcing page reload');
+            window.location.reload();
+            return;
+          }
+          
           setUser(userData);
         } else {
+          console.log('❌ Header - No user data found');
           setUser(null);
         }
+      } catch (error) {
+        console.error('Failed to load user data:', error);
+        setUser(null);
       }
     };
 
@@ -62,11 +47,11 @@ export default function Header() {
       const val = localStorage.getItem('user');
       if (val) {
         const parsedUser = JSON.parse(val);
-        
-        
         console.log('👤 Updated user in header:', parsedUser);
         console.log('🔍 Header - User firstName:', parsedUser?.firstName);
         console.log('🔍 Header - User lastName:', parsedUser?.lastName);
+        console.log('🔍 Header - User avatar:', parsedUser?.avatar);
+        console.log('🔍 Header - User avatarUrl:', parsedUser?.avatarUrl);
         setUser(parsedUser);
       } else {
         setUser(null);
@@ -86,9 +71,13 @@ export default function Header() {
     console.log('🔍 Header - User avatar:', user?.avatar);
     console.log('🔍 Header - User picture:', user?.picture);
     
-    // Ưu tiên avatarUrl từ database (đã lưu ảnh Google)
+    // Ưu tiên: Uploaded avatar > Google avatar (avatarUrl) > Google picture
     if (user?.avatarUrl) {
-      console.log('✅ Header - Using avatarUrl from database:', user.avatarUrl);
+      if (user.avatarUrl.startsWith('/uploads/')) {
+        console.log('✅ Header - Using uploaded avatar:', `http://localhost:8080${user.avatarUrl}`);
+        return `http://localhost:8080${user.avatarUrl}`;
+      }
+      console.log('✅ Header - Using avatarUrl:', user.avatarUrl);
       return user.avatarUrl;
     }
     
@@ -96,16 +85,6 @@ export default function Header() {
     if (user?.picture) {
       console.log('✅ Header - Using Google picture:', user.picture);
       return user.picture;
-    }
-    
-    // Fallback to uploaded avatar
-    if (user?.avatar) {
-      if (user.avatar.startsWith('/uploads/')) {
-        console.log('✅ Header - Using uploaded avatar:', `http://localhost:8080${user.avatar}`);
-        return `http://localhost:8080${user.avatar}`;
-      }
-      console.log('✅ Header - Using avatar:', user.avatar);
-      return user.avatar;
     }
     
     console.log('❌ Header - No avatar found');
@@ -286,8 +265,12 @@ export default function Header() {
                         alt="Avatar" 
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                         onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
+                          if (e.target && e.target.style) {
+                            e.target.style.display = 'none';
+                          }
+                          if (e.target && e.target.nextSibling && e.target.nextSibling.style) {
+                            e.target.nextSibling.style.display = 'flex';
+                          }
                         }}
                       />
                     ) : null}
