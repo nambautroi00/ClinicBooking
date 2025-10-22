@@ -355,31 +355,9 @@ export default function PatientBookingDetail() {
         console.log('🎯 Setting available slots:', timeSlots);
         setAvailableSlots(timeSlots);
       } else {
-        console.log('📅 No appointments, creating default slots');
-        // Create default time slots if no appointments
-        const defaultSlots = [];
-        const startHour = 8;
-        const endHour = 17;
-        
-        for (let hour = startHour; hour < endHour; hour++) {
-          for (let minute = 0; minute < 60; minute += 30) {
-            const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            const endMinute = minute + 30;
-            const endHourAdjusted = endMinute >= 60 ? hour + 1 : hour;
-            const endMinuteAdjusted = endMinute >= 60 ? endMinute - 60 : endMinute;
-            const endTime = `${endHourAdjusted.toString().padStart(2, '0')}:${endMinuteAdjusted.toString().padStart(2, '0')}`;
-            
-            defaultSlots.push({
-              id: `${selectedDate}-${startTime}-${endTime}`,
-              time: `${startTime}-${endTime}`,
-              available: true,
-              appointmentId: null
-            });
-          }
-        }
-        
-        console.log('🎯 Setting default slots:', defaultSlots);
-        setAvailableSlots(defaultSlots);
+        console.log('📅 No appointments for this date');
+        // Không tạo default slots nếu không có appointments
+        setAvailableSlots([]);
       }
     }
   }, [appointments, selectedDate]);
@@ -572,19 +550,11 @@ export default function PatientBookingDetail() {
               
               console.log('✅ Appointment booked successfully after payment:', appointmentResponse);
               
-              // Chuyển đến trang xác nhận
+              // Chuyển đến trang payment success với paymentId
               const params = new URLSearchParams({
-                doctorId,
-                doctorName: doctor.name,
-                specialty: doctor.specialty,
-                date: selectedDate,
-                time: selectedTimeSlot,
-                fee: selectedAppointment.fee || 0,
-                note: patientNote,
-                appointmentId: selectedAppointment.appointmentId,
                 paymentId: paymentId
               });
-              navigate(`/patient/booking-confirmation/${doctorId}?${params.toString()}`);
+              navigate(`/payment/success?${params.toString()}`);
               
             } catch (bookingError) {
               console.error('❌ Error booking appointment after payment:', bookingError);
@@ -683,10 +653,10 @@ export default function PatientBookingDetail() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Doctor Info */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex items-start gap-6">
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+            <div className="flex items-start gap-4">
               <div className="relative">
-                <div className="w-32 h-32 rounded-full flex items-center justify-center overflow-hidden relative bg-gray-200">
+                <div className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden relative bg-gray-200">
                   <img
                     src={doctor.avatar}
                     alt={doctor.name}
@@ -701,35 +671,35 @@ export default function PatientBookingDetail() {
                     }}
                   />
                   <span
-                    className="text-4xl absolute"
+                    className="text-2xl absolute"
                     style={{ display: doctor.avatar && doctor.avatar !== '/api/placeholder/150/150' ? 'none' : 'flex' }}
                   >
                     👨‍⚕️
                   </span>
                 </div>
-                <button className="absolute -top-2 -right-2 bg-white border border-gray-300 rounded-full p-2 hover:bg-red-50 hover:border-red-300 transition-colors">
-                  <Heart className="h-4 w-4 text-gray-600" />
+                <button className="absolute -top-1 -right-1 bg-white border border-gray-300 rounded-full p-1 hover:bg-red-50 hover:border-red-300 transition-colors">
+                  <Heart className="h-3 w-3 text-gray-600" />
                 </button>
               </div>
               
               <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{doctor.name}</h1>
-                <div className="flex items-center gap-4 mb-4">
+                <h1 className="text-xl font-bold text-gray-900 mb-2">{doctor.name}</h1>
+                <div className="flex items-center gap-3 mb-3">
                   <div className="flex items-center gap-1">
-                    <User className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm text-gray-600">{doctor.experience}</span>
+                    <User className="h-3 w-3 text-blue-600" />
+                    <span className="text-xs text-gray-600">{doctor.experience}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{doctor.rating}</span>
-                    <span className="text-sm text-gray-500">({doctor.reviewCount} đánh giá)</span>
+                    <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                    <span className="text-xs font-medium">{doctor.rating}</span>
+                    <span className="text-xs text-gray-500">({doctor.reviewCount})</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-gray-600">{doctor.price}</span>
+                    <Clock className="h-3 w-3 text-green-600" />
+                    <span className="text-xs text-gray-600">{doctor.price}</span>
                   </div>
                 </div>
-                <p className="text-blue-600 font-medium mb-2">{doctor.specialty}</p>
+                <p className="text-blue-600 font-medium text-sm mb-2">{doctor.specialty}</p>
                 
               </div>
             </div>
@@ -737,78 +707,78 @@ export default function PatientBookingDetail() {
 
 
           {/* Quick Booking */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Đặt khám nhanh</h2>
-              <div className="flex items-center gap-4">
-                <div className={`flex items-center gap-2 ${bookingStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Đặt khám nhanh</h2>
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-1 ${bookingStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
                     bookingStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     1
                   </div>
-                  <span className="text-sm font-medium">Chọn ngày giờ</span>
+                  <span className="text-xs font-medium">Chọn ngày giờ</span>
                 </div>
-                <div className="w-8 h-0.5 bg-gray-200"></div>
-                <div className={`flex items-center gap-2 ${bookingStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                <div className="w-4 h-0.5 bg-gray-200"></div>
+                <div className={`flex items-center gap-1 ${bookingStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
                     bookingStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     2
                   </div>
-                  <span className="text-sm font-medium">Xác nhận</span>
+                  <span className="text-xs font-medium">Xác nhận</span>
                 </div>
-                <div className="w-8 h-0.5 bg-gray-200"></div>
-                <div className={`flex items-center gap-2 ${bookingStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                <div className="w-4 h-0.5 bg-gray-200"></div>
+                <div className={`flex items-center gap-1 ${bookingStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
                     bookingStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     3
                   </div>
-                  <span className="text-sm font-medium">Thanh toán</span>
+                  <span className="text-xs font-medium">Thanh toán</span>
                 </div>
               </div>
             </div>
             
             {/* Date Selection - Only show in step 1 */}
             {bookingStep === 1 && (
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Chọn ngày</h3>
-                  <div className="flex items-center gap-2">
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-medium text-gray-900">Chọn ngày</h3>
+                  <div className="flex items-center gap-1">
                     <button 
                       onClick={() => setCurrentWeek(currentWeek - 1)}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                      <ChevronLeft className="h-5 w-5" />
+                      <ChevronLeft className="h-4 w-4" />
                     </button>
                     <button 
                       onClick={() => setCurrentWeek(currentWeek + 1)}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                      <ChevronRight className="h-5 w-5" />
+                      <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
                 
-                <div className="flex gap-3 overflow-x-auto pb-2">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   {weekDates.map((dateInfo) => (
                     <button
                       key={dateInfo.date}
                       onClick={() => handleDateSelect(dateInfo.date)}
-                      disabled={dateInfo.isFullyBooked}
-                      className={`flex-shrink-0 w-24 p-3 rounded-lg border text-center transition-colors ${
+                      disabled={dateInfo.availableSlots === 0}
+                      className={`flex-shrink-0 w-20 p-2 rounded-lg border text-center transition-colors ${
                         selectedDate === dateInfo.date
                           ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : dateInfo.isFullyBooked
+                          : dateInfo.availableSlots === 0
                           ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
                           : "border-gray-300 bg-white hover:bg-gray-50"
                       }`}
                     >
-                      <div className="text-sm font-medium">{dateInfo.dayName}</div>
+                      <div className="text-xs font-medium">{dateInfo.dayName}</div>
                       <div className="text-xs text-gray-500">{dateInfo.dayMonth}</div>
                       <div className="text-xs mt-1">
-                        {dateInfo.isFullyBooked ? "Chưa lên lịch" : `${dateInfo.availableSlots} khung giờ`}
+                        {dateInfo.availableSlots === 0 ? "Chưa lên lịch" : `${dateInfo.availableSlots} khung`}
                       </div>
                     </button>
                   ))}
@@ -819,52 +789,133 @@ export default function PatientBookingDetail() {
             {/* Time Slots - Only show in step 1 */}
             {bookingStep === 1 && (
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Sun className="h-5 w-5 text-yellow-500" />
-                  <h3 className="text-lg font-medium text-gray-900">Buổi chiều</h3>
-                </div>
-                
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                  {availableSlots.length > 0 ? (
-                    availableSlots.map((slot) => (
-                      <button
-                        key={slot.id}
-                        onClick={() => handleTimeSlotSelect(slot.time)}
-                        disabled={!slot.available}
-                        className={`p-3 rounded-lg border text-sm transition-colors ${
-                          selectedTimeSlot === slot.time
-                            ? "border-blue-500 bg-blue-50 text-blue-700"
-                            : slot.available
-                            ? "border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
-                            : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                        }`}
-                      >
-                        <div className="text-center">
-                          <div className="font-medium">{slot.time}</div>
-                          {slot.fee && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {new Intl.NumberFormat('vi-VN', {
-                                style: 'currency',
-                                currency: 'VND'
-                              }).format(slot.fee)}
-                            </div>
-                          )}
-                          {!slot.available && slot.status !== "Schedule" && (
-                            <div className="text-xs text-red-500 mt-1">
-                              Đã đặt
-                            </div>
-                          )}
+                {/* Kiểm tra xem ngày được chọn có "Chưa lên lịch" không */}
+                {(() => {
+                  const selectedDateInfo = weekDates.find(date => date.date === selectedDate);
+                  const isNotScheduled = selectedDateInfo?.isFullyBooked || selectedDateInfo?.availableSlots === 0;
+                  
+                  if (isNotScheduled) {
+                    return (
+                      <div className="col-span-full text-center py-8 text-gray-500">
+                        <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p>Bác sĩ chưa lên lịch cho ngày này</p>
+                        <p className="text-sm">Vui lòng chọn ngày khác</p>
+                      </div>
+                    );
+                  }
+                  
+                  // Phân chia slots thành buổi sáng và buổi chiều
+                  const morningSlots = availableSlots.filter(slot => {
+                    const startHour = parseInt(slot.time.split('-')[0].split(':')[0]);
+                    return startHour >= 7 && startHour < 12;
+                  });
+                  
+                  const afternoonSlots = availableSlots.filter(slot => {
+                    const startHour = parseInt(slot.time.split('-')[0].split(':')[0]);
+                    return startHour >= 12 && startHour < 19;
+                  });
+                  
+                  return (
+                    <div className="space-y-4">
+                      {/* Buổi sáng */}
+                      {morningSlots.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Sun className="h-4 w-4 text-orange-500" />
+                            <h3 className="text-base font-medium text-gray-900">Buổi sáng</h3>
+                          </div>
+                          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                            {morningSlots.map((slot) => (
+                              <button
+                                key={slot.id}
+                                onClick={() => handleTimeSlotSelect(slot.time)}
+                                disabled={!slot.available}
+                                className={`p-2 rounded-lg border text-xs transition-colors ${
+                                  selectedTimeSlot === slot.time
+                                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                                    : slot.available
+                                    ? "border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                                    : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                }`}
+                              >
+                                <div className="text-center">
+                                  <div className="font-medium text-xs">{slot.time}</div>
+                                  {slot.fee && (
+                                    <div className="text-xs text-gray-500 mt-0.5">
+                                      {new Intl.NumberFormat('vi-VN', {
+                                        style: 'currency',
+                                        currency: 'VND',
+                                        minimumFractionDigits: 0
+                                      }).format(slot.fee)}
+                                    </div>
+                                  )}
+                                  {!slot.available && slot.status !== "Schedule" && (
+                                    <div className="text-xs text-red-500 mt-0.5">
+                                      Đã đặt
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center py-8 text-gray-500">
-                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                      <p>Không có khung giờ khả dụng cho ngày này</p>
-                      <p className="text-sm">Vui lòng chọn ngày khác</p>
-                    </div>  
-                  )}
-                </div>
+                      )}
+                      
+                      {/* Buổi chiều */}
+                      {afternoonSlots.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Sun className="h-4 w-4 text-yellow-500" />
+                            <h3 className="text-base font-medium text-gray-900">Buổi chiều</h3>
+                          </div>
+                          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                            {afternoonSlots.map((slot) => (
+                              <button
+                                key={slot.id}
+                                onClick={() => handleTimeSlotSelect(slot.time)}
+                                disabled={!slot.available}
+                                className={`p-2 rounded-lg border text-xs transition-colors ${
+                                  selectedTimeSlot === slot.time
+                                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                                    : slot.available
+                                    ? "border-gray-300 bg-white hover:bg-gray-50 text-gray-700"
+                                    : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                }`}
+                              >
+                                <div className="text-center">
+                                  <div className="font-medium text-xs">{slot.time}</div>
+                                  {slot.fee && (
+                                    <div className="text-xs text-gray-500 mt-0.5">
+                                      {new Intl.NumberFormat('vi-VN', {
+                                        style: 'currency',
+                                        currency: 'VND',
+                                        minimumFractionDigits: 0
+                                      }).format(slot.fee)}
+                                    </div>
+                                  )}
+                                  {!slot.available && slot.status !== "Schedule" && (
+                                    <div className="text-xs text-red-500 mt-0.5">
+                                      Đã đặt
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Nếu không có slots nào */}
+                      {morningSlots.length === 0 && afternoonSlots.length === 0 && (
+                        <div className="col-span-full text-center py-8 text-gray-500">
+                          <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                          <p>Không có khung giờ khả dụng cho ngày này</p>
+                          <p className="text-sm">Vui lòng chọn ngày khác</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

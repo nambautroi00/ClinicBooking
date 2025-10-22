@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Heart, Eye, Clock } from 'lucide-react';
-import articleApi from '../../api/articleApi';
-import { getFullAvatarUrl } from '../../utils/avatarUtils';
-import { toast } from '../../utils/toast';
+import articleApi from '../api/articleApi';
+import { toast } from '../utils/toast';
+import { getFullAvatarUrl } from '../utils/avatarUtils';
 
 const ArticleDetail = () => {
   const { id } = useParams();
@@ -88,17 +88,16 @@ const ArticleDetail = () => {
 
   const handleLike = async () => {
     if (isLiking) return;
-    
+
     // Kiểm tra đăng nhập
     if (!currentUser) {
       toast.warning('Vui lòng đăng nhập để thả tim bài viết!');
       return;
     }
-    
+
     try {
       setIsLiking(true);
-      const response = await articleApi.likeArticle(id);
-      setArticle(response.data);
+      await articleApi.likeArticle(id);
       
       // Cập nhật localStorage
       const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
@@ -117,17 +116,10 @@ const ArticleDetail = () => {
 
   const handleUnlike = async () => {
     if (isLiking) return;
-    
-    // Kiểm tra đăng nhập
-    if (!currentUser) {
-      toast.warning('Vui lòng đăng nhập để bỏ tim bài viết!');
-      return;
-    }
-    
+
     try {
       setIsLiking(true);
-      const response = await articleApi.unlikeArticle(id);
-      setArticle(response.data);
+      await articleApi.unlikeArticle(id);
       
       // Cập nhật localStorage
       const likedArticles = JSON.parse(localStorage.getItem('likedArticles') || '[]');
@@ -182,13 +174,13 @@ const ArticleDetail = () => {
         <div className="max-w-4xl mx-auto">
           {/* Back Button */}
           <div className="mb-6">
-            <button
-              onClick={() => navigate('/admin/articles')}
-              className="btn btn-outline-secondary"
+            <Link
+              to="/articles"
+              className="inline-flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
             >
-              <i className="bi bi-arrow-left me-2"></i>
-              Quay lại danh sách
-            </button>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Quay lại danh sách bài viết
+            </Link>
           </div>
 
           {/* Article Content */}
@@ -221,87 +213,76 @@ const ArticleDetail = () => {
                     </div>
                   </div>
                 </div>
-                <div className="ml-auto">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    article.status === 'PUBLISHED' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {article.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Lưu trữ'}
-                  </span>
-                </div>
               </div>
 
-              <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
                 {article.title}
               </h1>
 
-              {/* Article Content ngay dưới title */}
-              <div className="prose prose-lg max-w-none">
-                <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-base">
-                  {article.content}
-                </div>
-              </div>
-            </div>
-
-            {/* Article Image */}
-            {getImageUrl(article.imageUrl) && (
-              <div className="px-6 pb-6">
-                <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
-                  <img 
-                    src={getImageUrl(article.imageUrl)} 
+              {/* Article Image */}
+              {getImageUrl(article.imageUrl) && (
+                <div className="mb-6">
+                  <img
+                    src={getImageUrl(article.imageUrl)}
                     alt={article.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-auto rounded-lg object-cover"
                     onError={(e) => {
                       e.target.style.display = 'none';
                     }}
                   />
                 </div>
+              )}
+
+              {/* Article Content */}
+              <div className="prose prose-lg max-w-none">
+                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {article.content}
+                </div>
               </div>
-            )}
+            </div>
 
             {/* Article Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-4 bg-gray-50 border-t">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-6 text-sm text-gray-500">
-                  <div className="flex items-center">
-                    <Heart className="h-4 w-4 mr-1" />
-                    <span>{article.likeCount || 0} lượt thích</span>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm text-gray-500">{formatDate(article.createdAt)}</span>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   {!currentUser ? (
-                    <button 
-                      className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50"
+                    <button
+                      className="flex items-center space-x-2 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
                       onClick={() => toast.warning('Vui lòng đăng nhập để thả tim bài viết!')}
                     >
-                      <Heart className="h-4 w-4 mr-1" />
-                      Thả tim
+                      <Heart className="h-6 w-6" />
+                      <span className="text-base font-medium">Thả tim</span>
                     </button>
                   ) : isLiked ? (
-                    <button 
-                      className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
+                    <button
+                      className="flex items-center px-4 py-3 text-base border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
                       onClick={handleUnlike}
                       disabled={isLiking}
                     >
                       {isLiking ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600 mr-1"></div>
                       ) : (
-                        <Heart className="h-4 w-4 mr-1 fill-current" />
+                        <Heart className="h-6 w-6 mr-1 fill-current" />
                       )}
                       Bỏ tim
                     </button>
                   ) : (
-                    <button 
-                      className="flex items-center px-3 py-1 text-sm border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
+                    <button
+                      className="flex items-center px-4 py-3 text-base border border-red-200 text-red-600 rounded-md hover:bg-red-50 disabled:opacity-50"
                       onClick={handleLike}
                       disabled={isLiking}
                     >
                       {isLiking ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600 mr-1"></div>
                       ) : (
-                        <Heart className="h-4 w-4 mr-1" />
+                        <Heart className="h-6 w-6 mr-1" />
                       )}
                       Thả tim
                     </button>
@@ -310,55 +291,6 @@ const ArticleDetail = () => {
               </div>
             </div>
           </div>
-
-          {/* Article Info Sidebar */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông tin bài viết</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">ID:</span>
-                  <span className="font-medium">{article.articleId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tác giả:</span>
-                  <span className="font-medium">{article.author?.firstName} {article.author?.lastName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Email:</span>
-                  <span className="font-medium">{article.author?.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ngày tạo:</span>
-                  <span className="font-medium">{formatDate(article.createdAt)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Trạng thái:</span>
-                  <span className="font-medium">{article.status}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Lượt thích:</span>
-                  <span className="font-medium">{article.likeCount || 0}</span>
-                </div>
-              </div>
-            </div>
-
-            {getImageUrl(article.imageUrl) && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Hình ảnh bài viết</h3>
-                <div className="text-center">
-                  <img 
-                    src={getImageUrl(article.imageUrl)} 
-                    alt={article.title}
-                    className="w-full max-h-48 object-cover rounded-md"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -366,6 +298,3 @@ const ArticleDetail = () => {
 };
 
 export default ArticleDetail;
-
-
-

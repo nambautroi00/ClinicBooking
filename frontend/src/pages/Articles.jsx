@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Calendar, User, Heart, Eye } from 'lucide-react';
 import articleApi from '../api/articleApi';
+import { getFullAvatarUrl } from '../utils/avatarUtils';
+import { toast } from '../utils/toast';
 
 const Articles = () => {
   const [articles, setArticles] = useState([]);
@@ -12,6 +14,7 @@ const Articles = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [likedArticles, setLikedArticles] = useState(new Set());
+  const [currentUser, setCurrentUser] = useState(null);
 
   const fetchArticles = async (page = 0, search = '') => {
     try {
@@ -35,6 +38,24 @@ const Articles = () => {
       setLoading(false);
     }
   };
+
+  // Kiểm tra trạng thái đăng nhập và localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      try {
+        const user = JSON.parse(raw);
+        setCurrentUser(user);
+        
+        // Load liked articles từ localStorage
+        const likedArticlesFromStorage = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+        setLikedArticles(new Set(likedArticlesFromStorage));
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        setCurrentUser(null);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchArticles();
@@ -86,6 +107,12 @@ const Articles = () => {
 
 
   const handleLike = async (articleId) => {
+    // Kiểm tra đăng nhập
+    if (!currentUser) {
+      toast.warning('Vui lòng đăng nhập để thả tim bài viết!');
+      return;
+    }
+
     try {
       const isLiked = likedArticles.has(articleId);
       if (isLiked) {
@@ -95,6 +122,12 @@ const Articles = () => {
           newSet.delete(articleId);
           return newSet;
         });
+        
+        // Cập nhật localStorage
+        const likedArticlesFromStorage = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+        const updatedLikedArticles = likedArticlesFromStorage.filter(id => id !== articleId);
+        localStorage.setItem('likedArticles', JSON.stringify(updatedLikedArticles));
+        
         // Cập nhật likeCount trong articles
         setArticles(prev => prev.map(article => 
           article.articleId === articleId 
@@ -104,6 +137,14 @@ const Articles = () => {
       } else {
         await articleApi.likeArticle(articleId);
         setLikedArticles(prev => new Set(prev).add(articleId));
+        
+        // Cập nhật localStorage
+        const likedArticlesFromStorage = JSON.parse(localStorage.getItem('likedArticles') || '[]');
+        if (!likedArticlesFromStorage.includes(articleId)) {
+          likedArticlesFromStorage.push(articleId);
+          localStorage.setItem('likedArticles', JSON.stringify(likedArticlesFromStorage));
+        }
+        
         // Cập nhật likeCount trong articles
         setArticles(prev => prev.map(article => 
           article.articleId === articleId 
@@ -113,7 +154,7 @@ const Articles = () => {
       }
     } catch (err) {
       console.error('Error liking article:', err);
-      alert('Lỗi khi thả tim: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi thả tim: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -203,39 +244,39 @@ const Articles = () => {
         ) : (
           <>
 
-            <div className="max-w-2xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-8">
               {articles.map((article) => (
-                <div key={article.articleId} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div key={article.articleId} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
                   {/* Article Header */}
-                  <div className="p-4">
+                  <div className="p-6">
                     <div className="flex items-center space-x-3">
                       {/* Author Avatar */}
                       {article.author?.avatarUrl ? (
                         <img
-                          src={article.author.avatarUrl}
+                          src={getFullAvatarUrl(article.author.avatarUrl)}
                           alt={`${article.author.firstName} ${article.author.lastName}`}
-                          className="w-10 h-10 rounded-full object-cover"
+                          className="w-12 h-12 rounded-full object-cover"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';
                           }}
                         />
                       ) : null}
-                      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
+                      <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-base" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
                         {article.author?.firstName?.charAt(0)}{article.author?.lastName?.charAt(0)}
                       </div>
                       
                       {/* Author Info */}
                       <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">
+                        <h4 className="font-semibold text-gray-900 text-lg">
                           {article.author?.firstName} {article.author?.lastName}
                         </h4>
-                        <span className="text-sm text-gray-500">{formatDate(article.createdAt)}</span>
+                        <span className="text-base text-gray-500">{formatDate(article.createdAt)}</span>
                       </div>
                       
                       {/* More Options */}
                       <button className="text-gray-400 hover:text-gray-600">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
                         </svg>
                       </button>
@@ -243,17 +284,17 @@ const Articles = () => {
                   </div>
 
                   {/* Article Content */}
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  <div className="p-6">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4">
                       <Link 
                         to={`/articles/${article.articleId}`}
-                        className="hover:text-blue-600 transition-colors"
+                        className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
                       >
                         {article.title}
                       </Link>
                     </h3>
                     
-                    <div className="text-gray-700 mb-3 whitespace-pre-wrap">
+                    <div className="text-gray-700 mb-4 whitespace-pre-wrap text-lg leading-relaxed">
                       {article.content}
                     </div>
                   </div>
@@ -273,44 +314,48 @@ const Articles = () => {
                   )}
 
                   {/* Article Stats */}
-                  <div className="px-4 py-2">
+                  <div className="px-6 py-3">
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-1">
-                          <Heart className="h-4 w-4" />
-                          <span>{article.likeCount || 0}</span>
+                          <Heart className="h-5 w-5" />
+                          <span className="text-base">{article.likeCount || 0}</span>
                         </div>
                       </div>
                       
-                      <Link
-                        to={`/articles/${article.articleId}`}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        Đọc tiếp
-                      </Link>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="px-4 py-2">
+                  <div className="px-6 py-4">
                     <div className="flex items-center justify-center">
-                      <button 
-                        onClick={() => handleLike(article.articleId)}
-                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
-                          likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-500'
-                        }`}
-                      >
-                        <Heart 
-                          className={`h-5 w-5 ${
-                            likedArticles.has(article.articleId) ? 'fill-current text-red-500' : 'text-gray-500'
-                          }`} 
-                        />
-                        <span className={`text-sm font-medium ${
-                          likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-700'
-                        }`}>
-                          {likedArticles.has(article.articleId) ? 'Đã thích' : 'Thích'}
-                        </span>
-                      </button>
+                      {!currentUser ? (
+                        <button 
+                          className="flex items-center space-x-2 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
+                          onClick={() => toast.warning('Vui lòng đăng nhập để thả tim bài viết!')}
+                        >
+                          <Heart className="h-6 w-6" />
+                          <span className="text-base font-medium">Thả tim</span>
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleLike(article.articleId)}
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                            likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-500'
+                          }`}
+                        >
+                          <Heart 
+                            className={`h-5 w-5 ${
+                              likedArticles.has(article.articleId) ? 'fill-current text-red-500' : 'text-gray-500'
+                            }`} 
+                          />
+                          <span className={`text-sm font-medium ${
+                            likedArticles.has(article.articleId) ? 'text-red-500' : 'text-gray-700'
+                          }`}>
+                            {likedArticles.has(article.articleId) ? 'Đã thích' : 'Thích'}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

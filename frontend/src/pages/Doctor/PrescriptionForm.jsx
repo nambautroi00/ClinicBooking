@@ -74,75 +74,15 @@ const PrescriptionForm = () => {
       console.log('✅ Đã tải danh sách thuốc:', medicinesData);
       setMedicines(medicinesData);
     } catch (error) {
-      console.error('❌ Lỗi khi tải danh sách thuốc:', error);
-      console.warn('PrescriptionForm: backend unavailable, using mock data.');
+      console.error('❌ Lỗi khi tải danh sách thuốc từ backend:', error);
       
-      // Mock data với nhiều thuốc hơn để test search
-      const mockMedicines = [
-        {
-          id: 1,
-          medicineId: "TH001",
-          name: "Amoxicillin 500mg",
-          strength: "500mg",
-          category: "Kháng sinh",
-          price: 10000,
-          unit: "viên",
-          description: "Kháng sinh phổ rộng điều trị nhiễm khuẩn"
-        },
-        {
-          id: 2,
-          medicineId: "TH002",
-          name: "Paracetamol 500mg",
-          strength: "500mg",
-          category: "Giảm đau, hạ sốt",
-          price: 5000,
-          unit: "viên",
-          description: "Thuốc giảm đau, hạ sốt"
-        },
-        {
-          id: 3,
-          medicineId: "TH003",
-          name: "Omeprazole 20mg",
-          strength: "20mg",
-          category: "Tiêu hóa",
-          price: 15000,
-          unit: "viên",
-          description: "Ức chế bơm proton điều trị loét dạ dày"
-        },
-        {
-          id: 4,
-          medicineId: "TH004",
-          name: "Ibuprofen 400mg",
-          strength: "400mg",
-          category: "Giảm đau, chống viêm",
-          price: 8000,
-          unit: "viên",
-          description: "Thuốc giảm đau, chống viêm không steroid"
-        },
-        {
-          id: 5,
-          medicineId: "TH005",
-          name: "Cetirizine 10mg",
-          strength: "10mg",
-          category: "Kháng histamine",
-          price: 12000,
-          unit: "viên",
-          description: "Thuốc chống dị ứng"
-        },
-        {
-          id: 6,
-          medicineId: "TH006",
-          name: "Metformin 500mg",
-          strength: "500mg",
-          category: "Tiểu đường",
-          price: 6000,
-          unit: "viên",
-          description: "Thuốc điều trị tiểu đường type 2"
-        }
-      ];
+      if (error.response?.status === 401) {
+        console.error('🔒 Không có quyền truy cập danh sách thuốc');
+      } else {
+        console.error('🔌 Không thể kết nối đến server backend');
+      }
       
-      console.log('📋 Sử dụng mock medicines:', mockMedicines.length, 'thuốc');
-      setMedicines(mockMedicines);
+      setMedicines([]);
     } finally {
       setLoading(false);
     }
@@ -170,31 +110,15 @@ const PrescriptionForm = () => {
       console.log('✅ Đã tải danh sách bệnh nhân:', patientsData);
       setPatients(patientsData);
     } catch (error) {
-      console.error('❌ Lỗi khi tải danh sách bệnh nhân:', error);
-      console.warn('PrescriptionForm: backend unavailable for patients, using mock data.');
+      console.error('❌ Lỗi khi tải danh sách bệnh nhân từ backend:', error);
       
-      const mockPatients = [
-        {
-          id: 1,
-          patientId: "BN001",
-          name: "Nguyễn Văn An",
-          phone: "0901234567",
-          email: "nguyenvanan@email.com",
-          address: "123 Đường ABC, Q1, TP.HCM",
-          healthInsuranceNumber: "DN1234567890"
-        },
-        {
-          id: 2,
-          patientId: "BN002", 
-          name: "Trần Thị Bình",
-          phone: "0912345678",
-          email: "tranthibinh@email.com",
-          address: "456 Đường XYZ, Q3, TP.HCM",
-          healthInsuranceNumber: "DN0987654321"
-        }
-      ];
+      if (error.response?.status === 401) {
+        console.error('🔒 Không có quyền truy cập danh sách bệnh nhân');
+      } else {
+        console.error('🔌 Không thể kết nối đến server backend');
+      }
       
-      setPatients(mockPatients);
+      setPatients([]);
     }
   };
 
@@ -384,29 +308,22 @@ const PrescriptionForm = () => {
         });
 
       } catch (apiError) {
-        console.error('❌ API Error:', apiError);
-        console.warn('💡 API không khả dụng, sẽ simulate lưu thành công...');
+        console.error('❌ Lỗi khi lưu đơn thuốc vào database:', apiError);
         
-        // Fallback: Simulate successful save when API is down
-        const mockResult = {
-          id: Date.now(),
-          prescriptionId: `DT${Date.now()}`,
-          ...prescriptionData
-        };
-
-        console.log('✅ Mock save successful:', mockResult);
+        let errorMessage = '❌ Không thể lưu đơn thuốc vào hệ thống.\n\n';
         
-        alert(`✅ Đã lưu đơn thuốc thành công! (Mock Mode)\n\n📋 Bệnh nhân: ${formData.patientName}\n💊 Số loại thuốc: ${formData.medicines.length}\n💰 Tổng tiền: ${prescriptionData.totalAmount.toLocaleString('vi-VN')} ₫`);
+        if (apiError.response?.status === 401) {
+          errorMessage += 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+        } else if (apiError.response?.status === 400) {
+          errorMessage += 'Thông tin đơn thuốc không hợp lệ. Vui lòng kiểm tra lại.';
+        } else if (apiError.response?.status === 500) {
+          errorMessage += 'Lỗi server. Vui lòng thử lại sau.';
+        } else {
+          errorMessage += 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+        }
         
-        // Navigate back even in mock mode
-        console.log('🚀 Navigating to /doctor/prescriptions (Mock mode)...');
-        navigate('/doctor/prescriptions', { 
-          state: { 
-            message: 'Đã kê đơn thuốc thành công! (Mock)',
-            newPrescription: true,
-            mockData: mockResult
-          } 
-        });
+        alert(errorMessage);
+        return; // Don't navigate on error
       }
 
     } catch (error) {

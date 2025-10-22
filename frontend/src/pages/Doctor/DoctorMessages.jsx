@@ -277,11 +277,101 @@ function DoctorMessages() {
     }
   }, [doctorId, selectedPatientId, patients.length]);
 
+  // Fetch conversations for doctor and map to sidebar items
+  const fetchConversations = useCallback(async () => {
+    if (!doctorId) return 0;
+
+    if (patients.length === 0) setLoading(true);
+    try {
+      const convRes = await conversationApi.getConversationsByDoctor(doctorId);
+      const conversations = Array.isArray(convRes?.data) ? convRes.data : [];
+      console.log('Loaded conversations for doctor', doctorId, conversations);
+
+      const items = await Promise.all(
+        conversations.map(async (conv) => {
+          const convId = conv.conversationId || conv.id;
+          const patientId = conv.patientId || conv.patient?.patientId || conv.patient?.id;
+          if (!patientId) {
+            console.warn('Conversation missing patientId', conv);
+            return null;
+          }
+          let patient = null;
+          try {
+            const patientRes = await patientApi.getPatientById(patientId);
+            patient = patientRes?.data || null;
+          } catch (e) {
+            console.warn('Fallback to conv.patient due to patient API error:', e?.message);
+            patient = conv.patient || {};
+          }
+
+          let lastMessageContent = "Chưa có tin nhắn";
+          let lastMessageTime = null;
+          let unreadCount = 0;
+
+          try {
+            const latestRes = await messageApi.getLatestByConversation(convId);
+            const latest = latestRes?.data;
+            if (latest) {
+              lastMessageContent = latest.content || lastMessageContent;
+              lastMessageTime = latest.createdAt || latest.sentAt || null;
+            }
+            try {
+              if (currentUserId) {
+                const unreadRes = await messageApi.getUnreadCount(convId, currentUserId);
+                unreadCount = unreadRes?.data || 0;
+              }
+            } catch (_) {}
+          } catch (_) {}
+
+          const nameFromPatient = () => {
+            const u = patient?.user;
+            if (u?.firstName || u?.lastName) return `${u?.lastName || ''} ${u?.firstName || ''}`.trim();
+            if (patient?.firstName || patient?.lastName) return `${patient?.lastName || ''} ${patient?.firstName || ''}`.trim();
+            return 'Không rõ';
+          };
+
+          return {
+            ...patient,
+            conversationId: convId,
+            patientId,
+            patientName: nameFromPatient(),
+            patientEmail: patient?.user?.email || patient?.email || "",
+            patientPhone: patient?.user?.phone || patient?.phone || "",
+            patientAvatar: patient?.user?.avatarUrl || patient?.avatarUrl || "",
+            lastMessage: lastMessageContent,
+            lastMessageTime,
+            unreadCount,
+            totalAppointments: undefined,
+          };
+        })
+      );
+
+      const valid = items.filter(Boolean);
+      setPatients(valid);
+
+      if (selectedPatientId) {
+        const target = valid.find((p) => p.patientId == selectedPatientId);
+        if (target) setSelectedPatient(target);
+      }
+
+      return valid.length;
+    } catch (e) {
+      console.error("Error fetching conversations:", e);
+      return 0;
+    } finally {
+      setLoading(false);
+    }
+  }, [doctorId, selectedPatientId, patients.length, currentUserId]);
+
   useEffect(() => {
     if (doctorId) {
-      fetchPatients();
+      (async () => {
+        const count = await fetchConversations();
+        if (!count) await fetchPatients();
+      })();
     }
-  }, [doctorId, fetchPatients]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
 
   // Create conversation for specific patient if needed
   const createConversationForPatient = useCallback(async (patientId, doctorId) => {

@@ -73,7 +73,7 @@ const DoctorAvailableSlotManagement = () => {
       
       // Lọc chỉ lấy schedules Available
       const availableSchedules = (schedulesResponse.data || []).filter(
-        (s) => s.status === "Available"
+        (s) => s.status === "Available" 
       );
       setDoctorSchedules(availableSchedules);
     } catch (err) {

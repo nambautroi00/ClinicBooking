@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import articleApi from '../../../api/articleApi';
 import fileUploadApi from '../../../api/fileUploadApi';
+import { toast } from '../../../utils/toast';
 
 const ArticleForm = ({ article, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -53,7 +54,7 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
     try {
       if (article) {
         await articleApi.updateArticle(article.articleId, formData);
-        alert('Cập nhật bài viết thành công!');
+        toast.success('Cập nhật bài viết thành công!');
       } else {
         let authorId;
         try {
@@ -65,12 +66,12 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
         } catch (_) {}
         const payload = authorId ? { ...formData, authorId } : { ...formData };
         await articleApi.createArticle(payload);
-        alert('Tạo bài viết thành công!');
+        toast.success('Tạo bài viết thành công!');
       }
       onSave?.(formData);
     } catch (err) {
       console.error('Error saving article:', err);
-      alert('Lỗi khi lưu bài viết: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi lưu bài viết: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -81,29 +82,31 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
     if (!file) return;
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
+      toast.warning('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('Kích thước file không được vượt quá 5MB');
+      toast.warning('Kích thước file không được vượt quá 5MB');
       return;
     }
     setUploading(true);
     try {
-      const response = await fileUploadApi.uploadImage(file, article?.articleId);
+      // Nếu là bài viết mới (chưa có ID), upload không cần ID
+      // Nếu là bài viết đã có ID, gửi articleId để backend đổi tên file
+      const response = await fileUploadApi.uploadImage(file, article?.articleId || null, 'article');
       if (response.data.success) {
         setFormData(prev => ({
           ...prev,
           imageUrl: response.data.url
         }));
-        alert('Upload ảnh thành công!');
+        toast.success('Upload ảnh thành công!');
       } else {
-        alert('Lỗi: ' + response.data.message);
+        toast.error('Lỗi: ' + response.data.message);
       }
     } catch (err) {
       console.error('Error uploading file:', err);
       const errorMessage = err.response?.data?.message || 'Lỗi khi upload ảnh';
-      alert('Lỗi: ' + errorMessage);
+      toast.error('Lỗi: ' + errorMessage);
     } finally {
       setUploading(false);
     }
