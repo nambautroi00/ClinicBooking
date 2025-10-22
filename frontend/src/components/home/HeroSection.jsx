@@ -30,11 +30,11 @@ export default function HeroSection() {
 
   return (
     <section id="home" className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-accent-teal/10">
-      <div className="container mx-auto px-6 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="container mx-auto px-4 py-12">
+        <div className="grid lg:grid-cols-2 gap-8 items-center">
           {/* Left Content */}
           <div className="pr-6">
-            <div className="mb-6 inline-flex items-center gap-3 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+            <div className="mb-4 inline-flex items-center gap-3 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
               <span className="relative flex h-3 w-3">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60"></span>
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-primary"></span>
@@ -42,18 +42,18 @@ export default function HeroSection() {
               Nền tảng công nghệ y tế hàng đầu
             </div>
 
-            <h1 className="mb-6 text-3xl font-extrabold leading-tight tracking-tight text-foreground md:text-4xl lg:text-5xl">
+            <h1 className="mb-4 text-3xl font-extrabold leading-tight tracking-tight text-foreground md:text-4xl lg:text-5xl">
               Kết nối Người Dân với
               <br />
               <span className="text-primary">Cơ sở & Dịch vụ Y tế</span>
             </h1>
 
-            <p className="mb-8 text-lg text-muted-foreground max-w-xl">
+            <p className="mb-6 text-lg text-muted-foreground max-w-xl">
               Đặt khám nhanh - Lấy số thứ tự trực tuyến - Tư vấn sức khỏe từ xa
             </p>
 
             {/* Value Props */}
-            <div className="mb-8 space-y-3">
+            <div className="mb-6 space-y-2">
               {benefits.map((benefit, index) => (
                 <div key={index} className="flex items-start gap-3">
                   <div className="flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 text-primary shrink-0 mt-0.5">

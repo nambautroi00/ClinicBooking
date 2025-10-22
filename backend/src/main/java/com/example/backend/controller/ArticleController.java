@@ -38,10 +38,16 @@ public class ArticleController {
         return ResponseEntity.ok(articles);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ArticleDTO.ResponseDTO> getArticleById(@PathVariable Long id) {
-        ArticleDTO.ResponseDTO article = articleService.getArticleById(id);
-        return ResponseEntity.ok(article);
+    @GetMapping("/test-search")
+    public ResponseEntity<Page<ArticleDTO.ResponseDTO>> testSearch(
+            @RequestParam String title,
+            @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = AppConstants.DEFAULT_SORT_FIELD) Pageable pageable) {
+        System.out.println("=== TEST SEARCH ENDPOINT ===");
+        System.out.println("Title: '" + title + "'");
+        Page<ArticleDTO.ResponseDTO> articles = articleService.searchArticles(title, "ACTIVE", null, pageable);
+        System.out.println("Result count: " + articles.getTotalElements());
+        System.out.println("=== END TEST SEARCH ===");
+        return ResponseEntity.ok(articles);
     }
 
     @GetMapping("/search")
@@ -52,6 +58,12 @@ public class ArticleController {
             @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = AppConstants.DEFAULT_SORT_FIELD) Pageable pageable) {
         Page<ArticleDTO.ResponseDTO> articles = articleService.searchArticles(title, status, authorId, pageable);
         return ResponseEntity.ok(articles);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ArticleDTO.ResponseDTO> getArticleById(@PathVariable Long id) {
+        ArticleDTO.ResponseDTO article = articleService.getArticleById(id);
+        return ResponseEntity.ok(article);
     }
 
     @PostMapping

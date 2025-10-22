@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, User, Heart, Eye, Clock } from 'lucide-react';
 import articleApi from '../api/articleApi';
 import { toast } from '../utils/toast';
 import { getFullAvatarUrl } from '../utils/avatarUtils';
+import useScrollToTop from '../hooks/useScrollToTop';
 
 const ArticleDetail = () => {
   const { id } = useParams();
@@ -14,6 +15,9 @@ const ArticleDetail = () => {
   const [isLiking, setIsLiking] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
+
+  // Scroll to top when component mounts
+  useScrollToTop();
 
   // Kiểm tra trạng thái đăng nhập và localStorage
   useEffect(() => {
@@ -246,8 +250,8 @@ const ArticleDetail = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
-                    <Clock className="h-5 w-5 text-gray-500" />
-                    <span className="text-sm text-gray-500">{formatDate(article.createdAt)}</span>
+                    <Heart className="h-5 w-5 text-red-500" />
+                    <span className="text-sm text-gray-600">{article.likeCount || 0} lượt tim</span>
                   </div>
                 </div>
 
