@@ -8,9 +8,11 @@ export default function PatientAppointmentBooking() {
   const [searchQuery, setSearchQuery] = useState("");
   const [doctors, setDoctors] = useState([]);
   const [allDoctors, setAllDoctors] = useState([]); // Store all doctors for filtering
+  const [featuredDoctors, setFeaturedDoctors] = useState([]); // Store featured doctors
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("doctor");
+  const [showAllDoctors, setShowAllDoctors] = useState(false); // Control whether to show all or featured
 
   // Mock data for specialties
   const specialties = [
@@ -27,6 +29,30 @@ export default function PatientAppointmentBooking() {
     { name: "Lão khoa", icon: Users, color: "bg-gray-100 text-gray-600" },
     { name: "Chấn thương chỉnh hình", icon: Bone, color: "bg-purple-100 text-purple-600" }
   ];
+
+  // Function to select featured doctors (top 6-8 doctors)
+  const selectFeaturedDoctors = (allDoctorsList) => {
+    // Priority specialties for featured doctors
+    const prioritySpecialties = [
+      'Noi tong hop', 'Tim mach', 'Ho hap', 'Tieu hoa', 
+      'Than kinh', 'Ngoai tong hop', 'San phu khoa', 'Nhi khoa'
+    ];
+    
+    // Sort doctors by priority specialty and rating
+    const sortedDoctors = allDoctorsList.sort((a, b) => {
+      const aPriority = prioritySpecialties.includes(a.specialty) ? 1 : 0;
+      const bPriority = prioritySpecialties.includes(b.specialty) ? 1 : 0;
+      
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority; // Priority specialties first
+      }
+      
+      return b.rating - a.rating; // Higher rating first
+    });
+    
+    // Take top 6 doctors as featured
+    return sortedDoctors.slice(0, 6);
+  };
 
   useEffect(() => {
     // Load doctors and departments from API
@@ -48,7 +74,13 @@ export default function PatientAppointmentBooking() {
             department: doctor.department?.departmentName || 'Chưa phân khoa'
           }));
           setAllDoctors(transformedDoctors); // Store all doctors
-          setDoctors(transformedDoctors); // Display all doctors initially
+          
+          // Select featured doctors
+          const featured = selectFeaturedDoctors(transformedDoctors);
+          setFeaturedDoctors(featured);
+          
+          // Display featured doctors initially
+          setDoctors(featured);
         }
         
         // Set specialties (static data for now)
@@ -100,7 +132,15 @@ export default function PatientAppointmentBooking() {
   };
 
   const handleShowAllDoctors = () => {
-    setDoctors(allDoctors);
+    if (showAllDoctors) {
+      // If currently showing all, go back to featured
+      setDoctors(featuredDoctors);
+      setShowAllDoctors(false);
+    } else {
+      // If currently showing featured, show all
+      setDoctors(allDoctors);
+      setShowAllDoctors(true);
+    }
     setSearchQuery("");
   };
 
@@ -201,14 +241,34 @@ export default function PatientAppointmentBooking() {
         {/* Doctors Section */}
         <section className="mb-12">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Đặt khám bác sĩ</h2  >
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {showAllDoctors ? 'Tất cả bác sĩ' : 'Bác sĩ tiêu biểu'}
+              </h2>
+              {!showAllDoctors && (
+                <p className="text-gray-600 text-sm mt-1">
+                  Chọn từ {featuredDoctors.length} bác sĩ được đánh giá cao nhất
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-4">
-              <button 
-                onClick={handleShowAllDoctors}
-                className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-              >
-                Hiển thị tất cả <ArrowRight className="h-4 w-4" />
-              </button>
+              {showAllDoctors ? (
+                <button 
+                  onClick={handleShowAllDoctors}
+                  className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors duration-200"
+                >
+                  Thu gọn
+                  <ArrowRight className="h-4 w-4 transition-transform duration-200 rotate-180" />
+                </button>
+              ) : (
+                <Link
+                  to="/patient/doctors"
+                  className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors duration-200"
+                >
+                  Xem thêm
+                  <ArrowRight className="h-4 w-4 transition-transform duration-200" />
+                </Link>
+              )}
             </div>
           </div>
 
@@ -225,9 +285,15 @@ export default function PatientAppointmentBooking() {
                 <div className="text-gray-400">Vui lòng thử lại với từ khóa khác</div>
               </div>
             ) : (
-              <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide">
+              <div className={showAllDoctors ? 
+                "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : 
+                "flex space-x-6 overflow-x-auto pb-4 scrollbar-hide"
+              }>
                 {doctors.map((doctor) => (
-                <div key={doctor.id} className="flex-shrink-0 w-64 bg-white rounded-lg shadow-md p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer group">
+                <div key={doctor.id} className={`${showAllDoctors ? 
+                  "bg-white rounded-lg shadow-md p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer group" :
+                  "flex-shrink-0 w-64 bg-white rounded-lg shadow-md p-6 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer group"
+                }`}>
                   <div className="text-center">
                     <div className="w-20 h-20 rounded-full mx-auto mb-4 overflow-hidden relative flex items-center justify-center bg-gray-200 group-hover:bg-blue-100 transition-colors duration-300">
                       <img
