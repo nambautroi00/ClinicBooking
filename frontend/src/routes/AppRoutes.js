@@ -34,7 +34,7 @@ import MedicalRecords from "../pages/Doctor/MedicalRecords";
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
 import PatientBookingDetail from "../pages/Patient/PatientBookingDetail";
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
-import PatientProfile from "../pages/Patient/PatientProfile";
+import PatientDashboardPage from "../pages/Patient/PatientDashboardPage";
 import PatientMedicalRecords from "../pages/Patient/PatientMedicalRecords";
 import PatientMessages from "../pages/Patient/PatientMessages";
 import DoctorList from "../pages/Patient/DoctorList";
@@ -95,7 +95,7 @@ const AppRoutes = () => {
         path="/patient/appointments"
         element={<PatientAppointmentHistory />}
       />
-      <Route path="/patient/profile" element={<PatientProfile />} />
+      <Route path="/patient/profile" element={<PatientDashboardPage />} />
       <Route path="/patient/medical-records" element={<PatientMedicalRecords />} />
       <Route path="/patient/messages" element={<PatientMessages />} />
       <Route path="/patient/booking/:doctorId" element={<PatientBookingDetail />} />
