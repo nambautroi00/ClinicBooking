@@ -81,16 +81,10 @@ const UsersManagement = () => {
     avatarUrl: '',
     status: 'ACTIVE',
     roleId: 1, // Default to ADMIN role
-    // Các trường chung cho admin và doctor
-    degree: '',
-    experience: '',
-    idNumber: '',
     // Các trường đặc biệt cho bác sĩ
     specialty: '',
     departmentId: '',
-    bio: '',
-    licenseNumber: '',
-    workingHours: ''
+    bio: ''
   });
 
   // Search and filter states
@@ -342,20 +336,6 @@ const UsersManagement = () => {
       return;
     }
     
-    // Validation các trường chung cho admin và doctor
-    if (!formData.degree || !formData.degree.trim()) {
-      setError('Bằng cấp là bắt buộc');
-      return;
-    }
-    if (!formData.experience || !formData.experience.trim()) {
-      setError('Kinh nghiệm làm việc là bắt buộc');
-      return;
-    }
-    if (!formData.idNumber || !formData.idNumber.trim()) {
-      setError('Số CCCD/CMND là bắt buộc');
-      return;
-    }
-    
     // Validation đặc biệt cho bác sĩ
     if (createUserType === 'doctor') {
       if (!formData.specialty || !formData.specialty.trim()) {
@@ -364,14 +344,6 @@ const UsersManagement = () => {
       }
       if (!formData.departmentId) {
         setError('Khoa là bắt buộc cho bác sĩ');
-        return;
-      }
-      if (!formData.licenseNumber || !formData.licenseNumber.trim()) {
-        setError('Số chứng chỉ hành nghề là bắt buộc cho bác sĩ');
-        return;
-      }
-      if (!formData.workingHours || !formData.workingHours.trim()) {
-        setError('Giờ làm việc là bắt buộc cho bác sĩ');
         return;
       }
     }
@@ -545,16 +517,10 @@ const UsersManagement = () => {
       avatarUrl: '',
       status: 'ACTIVE',
       roleId: 1,
-      // Reset các trường chung cho admin và doctor
-      degree: '',
-      experience: '',
-      idNumber: '',
       // Reset các trường đặc biệt cho bác sĩ
       specialty: '',
       departmentId: '',
-      bio: '',
-      licenseNumber: '',
-      workingHours: ''
+      bio: ''
     });
     setSelectedUser(null);
   };
@@ -573,16 +539,10 @@ const UsersManagement = () => {
       avatarUrl: '',
       status: 'ACTIVE',
       roleId: userType === 'admin' ? 1 : 2, // 1 = ADMIN, 2 = DOCTOR
-      // Reset các trường chung cho admin và doctor
-      degree: '',
-      experience: '',
-      idNumber: '',
       // Reset các trường đặc biệt cho bác sĩ
       specialty: '',
       departmentId: '',
-      bio: '',
-      licenseNumber: '',
-      workingHours: ''
+      bio: ''
     });
     setShowCreateModal(true);
   };
@@ -1421,46 +1381,6 @@ const UsersManagement = () => {
                   />
                 </Form.Group>
               </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Số CCCD/CMND *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.idNumber}
-                    onChange={(e) => setFormData({...formData, idNumber: e.target.value})}
-                    required
-                    placeholder="Nhập số CCCD/CMND"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            {/* Các trường chung cho admin và doctor */}
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Bằng cấp *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.degree}
-                    onChange={(e) => setFormData({...formData, degree: e.target.value})}
-                    required
-                    placeholder="VD: Cử nhân, Thạc sĩ, Tiến sĩ..."
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Kinh nghiệm làm việc *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.experience}
-                    onChange={(e) => setFormData({...formData, experience: e.target.value})}
-                    required
-                    placeholder="VD: 5 năm, 10 năm..."
-                  />
-                </Form.Group>
-              </Col>
             </Row>
             
             <Form.Group className="mb-3">
@@ -1510,32 +1430,6 @@ const UsersManagement = () => {
                         <option value="9">Khoa Tai mũi họng</option>
                         <option value="10">Khoa Xương khớp</option>
                       </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Số chứng chỉ hành nghề *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={formData.licenseNumber || ''}
-                        onChange={(e) => setFormData({...formData, licenseNumber: e.target.value})}
-                        required
-                        placeholder="Nhập số chứng chỉ hành nghề"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Giờ làm việc *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={formData.workingHours || ''}
-                        onChange={(e) => setFormData({...formData, workingHours: e.target.value})}
-                        required
-                        placeholder="VD: 8:00-17:00, Thứ 2-6"
-                      />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -1596,7 +1490,7 @@ const UsersManagement = () => {
               Hủy
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
-              {loading ? 'Đang tạo...' : 'Tạo Quản trị viên'}
+              {loading ? 'Đang tạo...' : (createUserType === 'doctor' ? 'Tạo Bác sĩ' : 'Tạo Quản trị viên')}
             </Button>
           </Modal.Footer>
         </Form>
