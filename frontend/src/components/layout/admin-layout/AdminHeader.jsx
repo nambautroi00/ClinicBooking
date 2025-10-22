@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import userApi from "../../../api/userApi";
 
 const AdminHeader = () => {
   const navigate = useNavigate();
@@ -8,11 +9,49 @@ const AdminHeader = () => {
 
   useEffect(() => {
     // Lấy thông tin user từ localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
+    const loadUserData = () => {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+    };
+
+    // Load initial data
+    loadUserData();
+
+    // Listen for changes in localStorage
+    const handleStorageChange = () => {
+      loadUserData();
+    };
+
+    // Listen for custom events when user data is updated
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('userChanged', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('userChanged', handleStorageChange);
+    };
   }, []);
+
+  // Function to refresh user data from API
+  const refreshUserData = async () => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      if (currentUser) {
+        const response = await userApi.getUserById(currentUser.id);
+        if (response.data) {
+          setUser(response.data);
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(response.data));
+          // Dispatch custom event to notify other components
+          window.dispatchEvent(new CustomEvent('userChanged'));
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
 
   const handleLogout = () => {
     // Xóa token và user data
@@ -24,6 +63,8 @@ const AdminHeader = () => {
   };
 
   const handleProfileClick = () => {
+    // Refresh user data before showing modal
+    refreshUserData();
     setShowProfileModal(true);
   };
 
@@ -47,25 +88,6 @@ const AdminHeader = () => {
         </Link>
 
         <div className="d-flex align-items-center gap-2 ms-auto">
-          <div className="input-group d-none d-md-flex shadow-sm" style={{ maxWidth: 350 }}>
-            <span className="input-group-text bg-light border-end-0">
-              <i className="bi bi-search text-muted" />
-            </span>
-            <input 
-              type="text" 
-              className="form-control border-start-0 shadow-none" 
-              placeholder="Tìm kiếm..." 
-              style={{borderRadius: '0 0.375rem 0.375rem 0'}}
-            />
-          </div>
-
-          <button className="btn btn-outline-primary position-relative">
-            <i className="bi bi-bell" />
-            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{fontSize: '0.6rem'}}>
-              3
-            </span>
-          </button>
-
           <button 
             className="btn btn-outline-primary d-flex align-items-center px-3"
             style={{ minWidth: '160px' }}
@@ -127,7 +149,7 @@ const AdminHeader = () => {
                     </div>
                     <div className="mb-3">
                       <label className="form-label fw-semibold">Số điện thoại</label>
-                      <div className="form-control-plaintext">{user.phoneNumber || 'Chưa cập nhật'}</div>
+                      <div className="form-control-plaintext">{user.phone || 'Chưa cập nhật'}</div>
                     </div>
                     <div className="mb-3">
                       <label className="form-label fw-semibold">Địa chỉ</label>

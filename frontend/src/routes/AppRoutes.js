@@ -44,6 +44,7 @@ import TestAuth from "../pages/TestAuth";
 // Admin pages
 import AdminLayout from "../components/layout/admin-layout/AdminLayout";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
+import AdminProfile from "../pages/Admin/AdminProfile";
 import UsersManagement from "../pages/Admin/UsersManagement";
 import DepartmentsManagement from "../pages/Admin/DepartmentsManagement";
 import MedicinesManagement from "../pages/Admin/MedicinesManagement";
@@ -135,6 +136,7 @@ const AppRoutes = () => {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="profile" element={<AdminProfile />} />
         <Route path="users" element={<UsersManagement />} />
         <Route path="users/:id" element={<UsersManagement />} />
         <Route path="departments" element={<DepartmentsManagement />} />
