@@ -315,6 +315,13 @@ const UsersManagement = () => {
       setError('Số điện thoại là bắt buộc');
       return;
     }
+    
+    // Validation số điện thoại (10-11 số)
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+      setError('Số điện thoại phải có từ 10-11 chữ số');
+      return;
+    }
     if (!formData.gender) {
       setError('Giới tính là bắt buộc');
       return;
@@ -420,6 +427,55 @@ const UsersManagement = () => {
   const handleEditUser = async (e) => {
     e.preventDefault();
     
+    // Validation bắt buộc cơ bản
+    if (!formData.email || !formData.email.trim()) {
+      setError('Email là bắt buộc');
+      return;
+    }
+    if (!formData.firstName || !formData.firstName.trim()) {
+      setError('Tên là bắt buộc');
+      return;
+    }
+    if (!formData.lastName || !formData.lastName.trim()) {
+      setError('Họ là bắt buộc');
+      return;
+    }
+    if (!formData.phone || !formData.phone.trim()) {
+      setError('Số điện thoại là bắt buộc');
+      return;
+    }
+    
+    // Validation số điện thoại (10-11 số)
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+      setError('Số điện thoại phải có từ 10-11 chữ số');
+      return;
+    }
+    
+    if (!formData.gender) {
+      setError('Giới tính là bắt buộc');
+      return;
+    }
+    if (!formData.dateOfBirth) {
+      setError('Ngày sinh là bắt buộc');
+      return;
+    }
+    if (!formData.address || !formData.address.trim()) {
+      setError('Địa chỉ là bắt buộc');
+      return;
+    }
+    
+    // Validation tuổi
+    const userRole = selectedUser?.role?.name || (formData.roleId === 1 ? 'Admin' : 'Doctor');
+    const roleType = userRole.toLowerCase();
+    const ageError = validateAgeByRole(formData.dateOfBirth, roleType);
+    if (ageError) {
+      setError(ageError);
+      return;
+    }
+    
+    // Clear error before proceeding
+    setError('');
     
     try {
       setLoading(true);

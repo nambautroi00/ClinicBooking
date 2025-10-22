@@ -34,6 +34,12 @@ const validateAdminProfile = (formData) => {
     }
   }
 
+  // Validation số điện thoại (10-11 số)
+  const phoneRegex = /^[0-9]{10,11}$/;
+  if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+    return 'Số điện thoại phải có từ 10-11 chữ số';
+  }
+
   // Validation tuổi cho admin (phải từ 18 tuổi trở lên)
   const age = calculateAge(formData.dateOfBirth);
   if (age < 18) {
