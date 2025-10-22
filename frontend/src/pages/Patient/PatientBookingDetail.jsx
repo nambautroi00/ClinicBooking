@@ -439,13 +439,18 @@ export default function PatientBookingDetail() {
 
       // Tạo payment và lấy PayOS link TRƯỚC KHI đặt lịch
       try {
-        const paymentResponse = await paymentApi.createPayment({
+        const paymentData = {
           appointmentId: selectedAppointment.appointmentId,
           // Không gửi amount, backend sẽ lấy từ appointment.fee
           description: `Phí khám #${selectedAppointment.appointmentId}`,
           returnUrl: `${window.location.origin}/payment/success`,
           cancelUrl: `${window.location.origin}/payment/cancel`
-        });
+        };
+        
+        console.log('🔍 Sending payment data:', paymentData);
+        console.log('🔍 Selected appointment:', selectedAppointment);
+        
+        const paymentResponse = await paymentApi.createPayment(paymentData);
 
         if (paymentResponse.data && paymentResponse.data.payOSLink) {
           setPayOSLink(paymentResponse.data.payOSLink);
@@ -465,7 +470,28 @@ export default function PatientBookingDetail() {
         }
       } catch (paymentError) {
         console.error('❌ Error creating payment:', paymentError);
-        alert('Có lỗi xảy ra khi tạo thanh toán. Vui lòng thử lại.');
+        console.error('❌ Error response:', paymentError.response?.data);
+        console.error('❌ Error status:', paymentError.response?.status);
+        
+        // Xử lý error response từ backend
+        let errorMessage = 'Có lỗi xảy ra khi tạo thanh toán. Vui lòng thử lại.';
+        
+        if (paymentError.response?.data) {
+          const errorData = paymentError.response.data;
+          if (errorData.description) {
+            errorMessage = errorData.description;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          } else {
+            errorMessage = `Lỗi từ server: ${JSON.stringify(errorData)}`;
+          }
+        } else if (paymentError.message) {
+          errorMessage = paymentError.message;
+        }
+        
+        alert(`Lỗi tạo thanh toán: ${errorMessage}`);
         return;
       }
       

@@ -29,13 +29,18 @@ public class PaymentService {
     @Transactional
     public PaymentDTO.Response createPayment(PaymentDTO.Create paymentCreateDTO) {
         try {
+            log.info("🔍 Creating payment for appointment ID: {}", paymentCreateDTO.getAppointmentId());
+            log.info("🔍 Payment DTO: {}", paymentCreateDTO);
+            
             // Kiểm tra appointment có tồn tại không
             Optional<Appointment> appointmentOpt = appointmentRepository.findById(paymentCreateDTO.getAppointmentId());
             if (appointmentOpt.isEmpty()) {
+                log.error("❌ Appointment not found with ID: {}", paymentCreateDTO.getAppointmentId());
                 throw new RuntimeException("Không tìm thấy lịch hẹn với ID: " + paymentCreateDTO.getAppointmentId());
             }
             
             Appointment appointment = appointmentOpt.get();
+            log.info("✅ Found appointment: ID={}, Fee={}", appointment.getAppointmentId(), appointment.getFee());
             
             // Kiểm tra xem đã có payment cho appointment này chưa
             List<Payment> existingPayments = paymentRepository.findByAppointment_AppointmentId(paymentCreateDTO.getAppointmentId());
@@ -79,6 +84,7 @@ public class PaymentService {
             payment = paymentRepository.save(payment);
             
             // Tạo PayOS payment link
+            log.info("🔍 Creating PayOS payment link for payment ID: {}", payment.getPaymentId());
             payOSService.createPaymentLink(
                 payment,
                 paymentCreateDTO.getReturnUrl(),
@@ -185,6 +191,53 @@ public class PaymentService {
         
         payment = paymentRepository.save(payment);
         log.info("Payment status updated to {} for PayOS Payment ID: {}", status, payOSPaymentId);
+        
+        return paymentMapper.toResponseDTO(payment);
+    }
+
+    @Transactional
+    public PaymentDTO.Response updatePaymentStatusFromPayOS(String payOSPaymentId, String status, String orderCode) {
+        log.info("🔍 Updating payment status from PayOS: payOSId={}, status={}, orderCode={}", 
+            payOSPaymentId, status, orderCode);
+        
+        // Tìm payment theo PayOS Payment ID
+        Optional<Payment> paymentOpt = paymentRepository.findByPayOSPaymentId(payOSPaymentId);
+        if (paymentOpt.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy thanh toán với PayOS Payment ID: " + payOSPaymentId);
+        }
+        
+        Payment payment = paymentOpt.get();
+        
+        // Cập nhật status
+        Payment.PaymentStatus paymentStatus;
+        switch (status.toUpperCase()) {
+            case "PAID":
+                paymentStatus = Payment.PaymentStatus.PAID;
+                break;
+            case "CANCELLED":
+                paymentStatus = Payment.PaymentStatus.CANCELLED;
+                break;
+            case "PENDING":
+                paymentStatus = Payment.PaymentStatus.PENDING;
+                break;
+            default:
+                paymentStatus = Payment.PaymentStatus.FAILED;
+                break;
+        }
+        
+        payment.setStatus(paymentStatus);
+        
+        if (paymentStatus == Payment.PaymentStatus.PAID) {
+            payment.setPaidAt(java.time.LocalDateTime.now());
+        }
+        
+        // Cập nhật orderCode nếu có
+        if (orderCode != null && !orderCode.isEmpty()) {
+            payment.setPayOSCode(orderCode);
+        }
+        
+        payment = paymentRepository.save(payment);
+        log.info("✅ Payment status updated to {} for PayOS Payment ID: {}", paymentStatus, payOSPaymentId);
         
         return paymentMapper.toResponseDTO(payment);
     }

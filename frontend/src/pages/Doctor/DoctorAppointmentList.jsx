@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import doctorApi from "../../api/doctorApi";
@@ -62,6 +63,8 @@ const Avatar = ({ src, alt, children, size = 50 }) => (
 );
 
 function DoctorAppointmentList() {
+  const navigate = useNavigate();
+  
   // State
   const [activeTab, setActiveTab] = useState("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
@@ -189,6 +192,32 @@ function DoctorAppointmentList() {
       completed: appointments.filter((a) => a.status === "Completed").length,
     };
   }, [appointments]);
+
+  // Handle start appointment (go to prescription form)
+  const handleStartAppointment = (appointment) => {
+    console.log('🚀 Bắt đầu khám bệnh cho cuộc hẹn:', appointment);
+    
+    // Navigate to prescription form with appointment data
+    const appointmentId = appointment.appointmentId || appointment.id;
+    navigate(`/doctor/prescriptions/new/${appointmentId}`, {
+      state: {
+        appointment: {
+          id: appointment.id,
+          appointmentId: appointmentId,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+          appointmentDate: appointment.appointmentDate
+        },
+        patientInfo: {
+          patientId: appointment.patientId,
+          patientName: appointment.patientName,
+          phone: appointment.phone,
+          gender: appointment.gender,
+          age: appointment.age
+        }
+      }
+    });
+  };
 
   const filtered = appointments.filter((a) => {
     if (searchQuery) {
@@ -635,6 +664,15 @@ function DoctorAppointmentList() {
                             : "not-allowed",
                       }}
                       disabled={appointment.status !== "Confirmed"}
+                      onClick={() => {
+                        console.log('🖱️ Nút Start Now được nhấn cho appointment:', appointment);
+                        if (appointment.status === "Confirmed") {
+                          console.log('✅ Status confirmed, gọi handleStartAppointment');
+                          handleStartAppointment(appointment);
+                        } else {
+                          console.log('❌ Status không phải Confirmed:', appointment.status);
+                        }
+                      }}
                     >
                       Start Now
                     </Button>
