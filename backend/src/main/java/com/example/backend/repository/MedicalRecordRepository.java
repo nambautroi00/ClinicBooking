@@ -10,4 +10,5 @@ import com.example.backend.model.MedicalRecord;
 @Repository
 public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, Integer> {
     List<MedicalRecord> findByAppointmentAppointmentId(Long appointmentId);
+    boolean existsByAppointmentAppointmentId(Long appointmentId);
 }

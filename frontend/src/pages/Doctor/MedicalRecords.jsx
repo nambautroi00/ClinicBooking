@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Badge, Alert } from "react-bootstrap";
-import { Search, Plus, Eye, Edit, FileText, User, Calendar, Clock } from "lucide-react";
+import { Search, Plus, Eye, Edit, FileText, User, Calendar, Clock, Pill } from "lucide-react";
 import medicalRecordApi from "../../api/medicalRecordApi";
 
 const MedicalRecords = () => {
@@ -24,20 +24,20 @@ const MedicalRecords = () => {
       
       // Chuyển đổi dữ liệu từ backend format sang frontend format
       const records = response.data.map(record => ({
-        id: record.id,
+        id: record.recordId,
         patientId: record.patient?.patientId || record.patientId,
         patientName: record.patient?.user?.fullName || record.patientName,
         age: record.patient?.age || record.age,
         gender: record.patient?.gender || record.gender,
         phone: record.patient?.user?.phone || record.phone,
         diagnosis: record.diagnosis,
-        symptoms: record.symptoms,
-        treatmentPlan: record.treatmentPlan,
-        doctorName: record.doctor?.user?.fullName || record.doctorName,
-        appointmentDate: record.appointmentDate || record.createdDate,
-        createdDate: record.createdDate,
-        status: record.status || 'new',
-        notes: record.notes || ""
+        advice: record.advice, // Lời khuyên thay vì treatmentPlan
+        doctorName: record.doctor?.user?.fullName || record.doctorName || 'Chưa xác định',
+        appointmentDate: record.appointmentDate || record.createdAt,
+        createdDate: record.createdAt,
+        status: 'completed', // Medical record luôn completed khi đã tạo
+        notes: record.notes || "",
+        prescription: record.prescription // Thêm prescription data
       }));
 
       setMedicalRecords(records);
@@ -222,8 +222,9 @@ const MedicalRecords = () => {
                   <th>Bệnh nhân</th>
                   <th>Tuổi/Giới tính</th>
                   <th>Chẩn đoán</th>
-                  <th>Ngày khám</th>
-                  <th>Trạng thái</th>
+                  <th>Bác sĩ</th>
+                  <th>Đơn thuốc</th>
+                  <th>Ngày tạo</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
@@ -245,19 +246,36 @@ const MedicalRecords = () => {
                       <td>{record.age} tuổi / {record.gender}</td>
                       <td>
                         <strong>{record.diagnosis}</strong>
-                        <br />
-                        <small className="text-muted">{record.symptoms}</small>
+                        {record.advice && (
+                          <>
+                            <br />
+                            <small className="text-muted">Lời khuyên: {record.advice}</small>
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        <div>
+                          <strong>{record.doctorName}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        {record.prescription ? (
+                          <Badge bg="success">
+                            <Pill size={12} className="me-1" />
+                            Có đơn thuốc
+                          </Badge>
+                        ) : (
+                          <Badge bg="secondary">
+                            <Pill size={12} className="me-1" />
+                            Chưa kê đơn
+                          </Badge>
+                        )}
                       </td>
                       <td>
                         <div className="d-flex align-items-center">
                           <Calendar size={14} className="me-1 text-muted" />
-                          {new Date(record.appointmentDate).toLocaleDateString('vi-VN')}
+                          {new Date(record.createdDate).toLocaleDateString('vi-VN')}
                         </div>
-                      </td>
-                      <td>
-                        <Badge bg={statusConfig.variant}>
-                          {statusConfig.text}
-                        </Badge>
                       </td>
                       <td>
                         <Button
@@ -307,7 +325,7 @@ const MedicalRecords = () => {
                     <Col md={6}>
                       <p><strong>Giới tính:</strong> {selectedRecord.gender}</p>
                       <p><strong>Điện thoại:</strong> {selectedRecord.phone}</p>
-                      <p><strong>Bác sĩ:</strong> {selectedRecord.doctorName}</p>
+                      <p><strong>Bác sĩ khám:</strong> {selectedRecord.doctorName}</p>
                     </Col>
                   </Row>
                 </Card.Body>
@@ -324,14 +342,15 @@ const MedicalRecords = () => {
                 <Card.Body>
                   <Row>
                     <Col md={12}>
-                      <p><strong>Triệu chứng:</strong></p>
-                      <p className="ps-3">{selectedRecord.symptoms}</p>
-                      
                       <p><strong>Chẩn đoán:</strong></p>
                       <p className="ps-3">{selectedRecord.diagnosis}</p>
                       
-                      <p><strong>Phương án điều trị:</strong></p>
-                      <p className="ps-3">{selectedRecord.treatmentPlan}</p>
+                      {selectedRecord.advice && (
+                        <>
+                          <p><strong>Lời khuyên:</strong></p>
+                          <p className="ps-3">{selectedRecord.advice}</p>
+                        </>
+                      )}
                       
                       {selectedRecord.notes && (
                         <>
@@ -343,16 +362,61 @@ const MedicalRecords = () => {
                   </Row>
                   
                   <div className="d-flex justify-content-between align-items-center mt-3">
-                    <Badge bg={getStatusBadge(selectedRecord.status).variant} className="fs-6">
-                      {getStatusBadge(selectedRecord.status).text}
-                    </Badge>
+                    <div className="text-muted">
+                      <strong>Trạng thái:</strong> 
+                      <Badge bg="success" className="ms-2">Đã hoàn thành</Badge>
+                    </div>
                     <div className="text-muted">
                       <Clock size={14} className="me-1" />
-                      Tạo ngày: {new Date(selectedRecord.createdDate).toLocaleDateString('vi-VN')}
+                      Ngày tạo: {new Date(selectedRecord.createdDate).toLocaleDateString('vi-VN')}
                     </div>
                   </div>
                 </Card.Body>
               </Card>
+
+              {/* Prescription Details */}
+              {selectedRecord.prescription && (
+                <Card className="mb-3">
+                  <Card.Header className="bg-light">
+                    <h6 className="mb-0">
+                      <Pill className="me-2" size={18} />
+                      Đơn Thuốc
+                    </h6>
+                  </Card.Header>
+                  <Card.Body>
+                    <Row>
+                      <Col md={12}>
+                        <p><strong>Ghi chú đơn thuốc:</strong></p>
+                        <p className="ps-3">{selectedRecord.prescription.notes}</p>
+                        
+                        <p><strong>Thuốc kê đơn:</strong></p>
+                        {selectedRecord.prescription.items && selectedRecord.prescription.items.length > 0 ? (
+                          <div className="ps-3">
+                            {selectedRecord.prescription.items.map((item, index) => (
+                              <div key={index} className="mb-2 p-2 border rounded">
+                                <strong>{item.medicineName || `Thuốc ${index + 1}`}</strong>
+                                <br />
+                                <small className="text-muted">
+                                  Liều: {item.dosage} | Thời gian: {item.duration} | Hướng dẫn: {item.note}
+                                </small>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="ps-3 text-muted">Không có thuốc nào được kê</p>
+                        )}
+                      </Col>
+                    </Row>
+                    
+                    <div className="text-muted mt-2">
+                      <Clock size={14} className="me-1" />
+                      Ngày kê đơn: {selectedRecord.prescription.createdAt ? 
+                        new Date(selectedRecord.prescription.createdAt).toLocaleDateString('vi-VN') : 
+                        'N/A'}
+                    </div>
+                  </Card.Body>
+                </Card>
+              )}
             </div>
           ) : (
             <Form>

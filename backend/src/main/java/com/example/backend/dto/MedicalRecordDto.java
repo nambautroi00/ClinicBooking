@@ -13,6 +13,8 @@ public class MedicalRecordDto {
     private String diagnosis;
     private String advice;
     private LocalDateTime createdAt;
+    
+    private PrescriptionDto prescription;
 
     // Constructors
     public MedicalRecordDto() {}
@@ -48,4 +50,7 @@ public class MedicalRecordDto {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public PrescriptionDto getPrescription() { return prescription; }
+    public void setPrescription(PrescriptionDto prescription) { this.prescription = prescription; }
 }

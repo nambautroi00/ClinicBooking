@@ -12,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.dto.MedicalRecordDto;
 import com.example.backend.exception.NotFoundException;
 import com.example.backend.mapper.MedicalRecordMapper;
+import com.example.backend.model.Appointment;
 import com.example.backend.model.MedicalRecord;
+import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.MedicalRecordRepository;
 
 @Service
@@ -21,6 +23,9 @@ public class MedicalRecordService {
 
     @Autowired
     private MedicalRecordRepository medicalRecordRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
 
     @Autowired
     private MedicalRecordMapper medicalRecordMapper;
@@ -49,7 +54,17 @@ public class MedicalRecordService {
     }
 
     public MedicalRecordDto createMedicalRecord(MedicalRecordDto requestDto) {
+        // Validate appointment exists
+        Appointment appointment = appointmentRepository.findById(requestDto.getAppointmentId())
+                .orElseThrow(() -> new NotFoundException("Appointment not found with id: " + requestDto.getAppointmentId()));
+
+        // Check if medical record already exists for this appointment
+        if (medicalRecordRepository.existsByAppointmentAppointmentId(requestDto.getAppointmentId())) {
+            throw new IllegalArgumentException("Medical record already exists for appointment id: " + requestDto.getAppointmentId());
+        }
+
         MedicalRecord medicalRecord = medicalRecordMapper.toEntity(requestDto);
+        medicalRecord.setAppointment(appointment);
         MedicalRecord savedRecord = medicalRecordRepository.save(medicalRecord);
         return medicalRecordMapper.toDto(savedRecord);
     }

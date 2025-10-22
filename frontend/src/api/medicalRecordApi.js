@@ -21,6 +21,11 @@ const medicalRecordApi = {
     return axiosClient.get(`/medical-records/doctor/${doctorId}`);
   },
 
+  // Lấy hồ sơ bệnh án theo appointment
+  getMedicalRecordsByAppointment: (appointmentId) => {
+    return axiosClient.get(`/medical-records/appointment/${appointmentId}`);
+  },
+
   // Tạo hồ sơ bệnh án mới
   createMedicalRecord: (recordData) => {
     return axiosClient.post('/medical-records', recordData);

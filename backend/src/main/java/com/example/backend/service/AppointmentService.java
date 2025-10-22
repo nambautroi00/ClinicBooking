@@ -2,7 +2,6 @@ package com.example.backend.service;
 
 import java.util.List;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +19,7 @@ import com.example.backend.repository.DoctorScheduleRepository;
 import com.example.backend.repository.PatientRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -119,6 +119,14 @@ public class AppointmentService {
         if (appointment == null || appointment.getPatient() == null || appointment.getPatient().getUser() == null) return;
         String email = appointment.getPatient().getUser().getEmail();
         emailService.sendSimpleEmail(email, subject, body);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AppointmentDTO.Response> getAll() {
+        List<Appointment> entities = appointmentRepository.findAll();
+        return entities.stream()
+                .map(appointmentMapper::entityToResponseDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
