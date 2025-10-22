@@ -42,7 +42,7 @@ export default function HeroSection() {
               Nền tảng công nghệ y tế hàng đầu
             </div>
 
-            <h1 className="mb-6 text-5xl font-extrabold leading-tight tracking-tight text-foreground md:text-6xl lg:text-7xl">
+            <h1 className="mb-6 text-3xl font-extrabold leading-tight tracking-tight text-foreground md:text-4xl lg:text-5xl">
               Kết nối Người Dân với
               <br />
               <span className="text-primary">Cơ sở & Dịch vụ Y tế</span>

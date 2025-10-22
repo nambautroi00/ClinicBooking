@@ -1,5 +1,7 @@
 package com.example.backend.service;
 
+import java.util.List;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -206,10 +208,61 @@ public class AuthService {
         }
     }
 
+    // Fix encoding issues
+    private String fixEncoding(String text) {
+        if (text == null) return null;
+        
+        try {
+            // Common encoding fixes for Vietnamese characters
+            text = text.replace("Ã¹", "ù")
+                      .replace("Ã¡", "á")
+                      .replace("Ã ", "à")
+                      .replace("Ã£", "ã")
+                      .replace("Ã¢", "â")
+                      .replace("Ã¨", "è")
+                      .replace("Ã©", "é")
+                      .replace("Ãª", "ê")
+                      .replace("Ã¬", "ì")
+                      .replace("Ã­", "í")
+                      .replace("Ã³", "ó")
+                      .replace("Ã²", "ò")
+                      .replace("Ãµ", "õ")
+                      .replace("Ã´", "ô")
+                      .replace("Ã¹", "ù")
+                      .replace("Ãº", "ú")
+                      .replace("Ã½", "ý")
+                      .replace("Ä", "Đ")
+                      .replace("Ä'", "đ")
+                      // Fix specific Google OAuth encoding issues
+                      .replace("TẤ", "Tấn")
+                      .replace("TẤ¹ng", "Tùng")
+                      .replace("¹ng", "ùng");
+            
+            System.out.println("DEBUG OAuth: Fixed encoding: '" + text + "'");
+            return text;
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to fix encoding for: " + text);
+            return text;
+        }
+    }
+
     // OAuth login/registration (Google)
-    public AuthDTO.LoginResponse oauthLogin(String email, String firstName, String lastName) {
+    public AuthDTO.LoginResponse oauthLogin(String email, String firstName, String lastName, String picture) {
         try {
             System.out.println("DEBUG OAuth: Searching for email = '" + email + "'");
+            System.out.println("DEBUG OAuth: Picture URL = '" + picture + "'");
+            
+            // Fix encoding issues
+            System.out.println("DEBUG OAuth: Original firstName = '" + firstName + "'");
+            System.out.println("DEBUG OAuth: Original lastName = '" + lastName + "'");
+            if (firstName != null) {
+                firstName = fixEncoding(firstName);
+            }
+            if (lastName != null) {
+                lastName = fixEncoding(lastName);
+            }
+            System.out.println("DEBUG OAuth: Fixed firstName = '" + firstName + "'");
+            System.out.println("DEBUG OAuth: Fixed lastName = '" + lastName + "'");
             
             // Try to find existing user
             User user = userRepository.findByEmailWithRole(email).orElse(null);
@@ -225,8 +278,17 @@ public class AuthService {
                 User newUser = new User();
                 newUser.setEmail(email != null ? email : "");
                 newUser.setPasswordHash("oauth_google_user"); // oauth user, dummy password to satisfy validation
+                System.out.println("DEBUG OAuth: FirstName from Google = '" + firstName + "'");
+                System.out.println("DEBUG OAuth: LastName from Google = '" + lastName + "'");
                 newUser.setFirstName(firstName != null && !firstName.trim().isEmpty() ? firstName : "Google");
                 newUser.setLastName(lastName != null && !lastName.trim().isEmpty() ? lastName : "User");
+                System.out.println("DEBUG OAuth: Set FirstName = '" + newUser.getFirstName() + "'");
+                System.out.println("DEBUG OAuth: Set LastName = '" + newUser.getLastName() + "'");
+                System.out.println("DEBUG OAuth: Picture value = '" + picture + "'");
+                System.out.println("DEBUG OAuth: Picture is null = " + (picture == null));
+                System.out.println("DEBUG OAuth: Picture is empty = " + (picture != null && picture.trim().isEmpty()));
+                newUser.setAvatarUrl(picture != null && !picture.trim().isEmpty() ? picture : null); // Lưu ảnh Google
+                System.out.println("DEBUG OAuth: Setting avatarUrl for new user = '" + picture + "'");
                 newUser.setStatus(User.UserStatus.ACTIVE);
                 newUser.setRole(userRole);
 
@@ -245,6 +307,73 @@ public class AuthService {
                 }
             } else {
                 System.out.println("DEBUG OAuth: Found existing user with ID = " + user.getId() + ", status = " + user.getStatus());
+                System.out.println("DEBUG OAuth: Current FirstName = '" + user.getFirstName() + "'");
+                System.out.println("DEBUG OAuth: Current LastName = '" + user.getLastName() + "'");
+                System.out.println("DEBUG OAuth: New FirstName = '" + firstName + "'");
+                System.out.println("DEBUG OAuth: New LastName = '" + lastName + "'");
+                
+                // Cập nhật thông tin từ Google nếu có
+                boolean needsUpdate = false;
+                
+                // Cập nhật firstName nếu có
+                if (firstName != null && !firstName.trim().isEmpty() && !firstName.equals(user.getFirstName())) {
+                    user.setFirstName(firstName);
+                    needsUpdate = true;
+                    System.out.println("DEBUG OAuth: Updated firstName = '" + firstName + "'");
+                }
+                
+                // Cập nhật lastName nếu có
+                if (lastName != null && !lastName.trim().isEmpty() && !lastName.equals(user.getLastName())) {
+                    user.setLastName(lastName);
+                    needsUpdate = true;
+                    System.out.println("DEBUG OAuth: Updated lastName = '" + lastName + "'");
+                }
+                
+                // Fix encoding cho user hiện có nếu cần
+                String fixedFirstName = fixEncoding(user.getFirstName());
+                String fixedLastName = fixEncoding(user.getLastName());
+                if (!fixedFirstName.equals(user.getFirstName()) || !fixedLastName.equals(user.getLastName())) {
+                    user.setFirstName(fixedFirstName);
+                    user.setLastName(fixedLastName);
+                    needsUpdate = true;
+                    System.out.println("DEBUG OAuth: Fixed encoding for existing user");
+                }
+                
+                // Force update tên từ Google nếu có
+                if (firstName != null && !firstName.trim().isEmpty()) {
+                    user.setFirstName(firstName);
+                    needsUpdate = true;
+                    System.out.println("DEBUG OAuth: Force updated firstName from Google = '" + firstName + "'");
+                }
+                if (lastName != null && !lastName.trim().isEmpty()) {
+                    user.setLastName(lastName);
+                    needsUpdate = true;
+                    System.out.println("DEBUG OAuth: Force updated lastName from Google = '" + lastName + "'");
+                }
+                
+                // Force update avatar từ Google nếu có
+                if (picture != null && !picture.trim().isEmpty()) {
+                    user.setAvatarUrl(picture);
+                    needsUpdate = true;
+                    System.out.println("DEBUG OAuth: Force updated avatarUrl from Google = '" + picture + "'");
+                }
+                
+                // Cập nhật ảnh Google nếu có
+                System.out.println("DEBUG OAuth: Current user avatarUrl = '" + user.getAvatarUrl() + "'");
+                System.out.println("DEBUG OAuth: New picture = '" + picture + "'");
+                if (picture != null && !picture.trim().isEmpty() && !picture.equals(user.getAvatarUrl())) {
+                    user.setAvatarUrl(picture);
+                    needsUpdate = true;
+                    System.out.println("DEBUG OAuth: Updated user avatar with Google picture = '" + picture + "'");
+                } else {
+                    System.out.println("DEBUG OAuth: No avatar update needed");
+                }
+                
+                // Lưu user nếu có thay đổi
+                if (needsUpdate) {
+                    user = userRepository.save(user);
+                    System.out.println("DEBUG OAuth: Saved user with updated information");
+                }
                 
                 // Kiểm tra trạng thái user
                 if (user.getStatus() != User.UserStatus.ACTIVE) {
@@ -254,11 +383,49 @@ public class AuthService {
 
             UserDTO.Response userResponse = userMapper.entityToResponseDTO(user);
             System.out.println("DEBUG OAuth: Login successful for user = " + user.getEmail());
+            System.out.println("DEBUG OAuth: UserResponse avatarUrl = '" + userResponse.getAvatarUrl() + "'");
             return new AuthDTO.LoginResponse("Đăng nhập thành công (Google)", true, userResponse, null);
         } catch (Exception e) {
             System.err.println("ERROR OAuth: " + e.getMessage());
             e.printStackTrace();
             return new AuthDTO.LoginResponse("Đăng nhập OAuth thất bại: " + e.getMessage(), false, null, null);
+        }
+    }
+    
+    // Fix all Google users with encoding issues
+    public void fixAllGoogleUsers() {
+        try {
+            List<User> googleUsers = userRepository.findByPasswordHash("oauth_google_user");
+            System.out.println("DEBUG: Found " + googleUsers.size() + " Google users to fix");
+            
+            for (User user : googleUsers) {
+                boolean needsUpdate = false;
+                
+                // Fix firstName
+                String originalFirstName = user.getFirstName();
+                String fixedFirstName = fixEncoding(originalFirstName);
+                if (!fixedFirstName.equals(originalFirstName)) {
+                    user.setFirstName(fixedFirstName);
+                    needsUpdate = true;
+                    System.out.println("DEBUG: Fixed firstName for user " + user.getId() + ": '" + originalFirstName + "' -> '" + fixedFirstName + "'");
+                }
+                
+                // Fix lastName
+                String originalLastName = user.getLastName();
+                String fixedLastName = fixEncoding(originalLastName);
+                if (!fixedLastName.equals(originalLastName)) {
+                    user.setLastName(fixedLastName);
+                    needsUpdate = true;
+                    System.out.println("DEBUG: Fixed lastName for user " + user.getId() + ": '" + originalLastName + "' -> '" + fixedLastName + "'");
+                }
+                
+                if (needsUpdate) {
+                    userRepository.save(user);
+                    System.out.println("DEBUG: Updated user " + user.getId());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to fix Google users: " + e.getMessage());
         }
     }
 

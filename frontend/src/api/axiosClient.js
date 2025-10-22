@@ -3,7 +3,7 @@ import axios from 'axios';
 // Tạo instance axios với cấu hình cơ bản
 const axiosClient = axios.create({
   baseURL: 'http://localhost:8080/api', // Backend chạy trên port 8080
-  timeout: 10000, // 10 giây timeout
+  timeout: 30000, // tăng timeout lên 30 giây để giảm lỗi timeout trên mạng chậm
   headers: {
     'Content-Type': 'application/json',
   },
@@ -29,7 +29,18 @@ axiosClient.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error) => {
+  async (error) => {
+    // Retry nhẹ nhàng 1 lần cho GET khi timeout (ECONNABORTED)
+    const config = error.config || {};
+    const isTimeout = error.code === 'ECONNABORTED' || /timeout/i.test(String(error.message));
+    const isGet = (config.method || '').toLowerCase() === 'get';
+    if (isTimeout && isGet && !config._retriedOnce) {
+      config._retriedOnce = true;
+      // đợi ngắn trước khi thử lại
+      await new Promise((r) => setTimeout(r, 400));
+      return axiosClient(config);
+    }
+
     if (error.response?.status === 401) {
       // Token hết hạn hoặc không hợp lệ
       localStorage.removeItem('token');

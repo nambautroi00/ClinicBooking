@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import HeroSection from '../../components/home/HeroSection';
-import ServicesSection from '../../components/home/ServicesSection';
 import SpecialtiesSection from '../../components/home/SpecialtiesSection';
+import ArticlesSection from '../../components/home/ArticlesSection';
 
 const Home = () => {
   // Scroll to top when component mounts
@@ -12,8 +12,8 @@ const Home = () => {
   return (
 	<div>
 	  <HeroSection />
-	  <ServicesSection />
 	  <SpecialtiesSection />
+	  <ArticlesSection />
 	</div>
   );
 };

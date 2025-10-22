@@ -40,6 +40,24 @@ public class UserController {
     }
 
     /**
+     * Lấy thông tin user hiện tại
+     * GET /api/users/me
+     */
+    @GetMapping("/me")
+    public ResponseEntity<User> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+        try {
+            // Extract user ID from token (simplified)
+            String token = authHeader.replace("Bearer ", "");
+            // For now, get user from token or use a simple method
+            // This is a simplified implementation
+            User user = userService.getCurrentUserFromToken(token);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+    /**
      * Lấy user theo ID với thông tin role
      * GET /api/users/{userId}
      */
@@ -143,6 +161,9 @@ public class UserController {
      */
     @PutMapping("/{userId}")
     public ResponseEntity<User> updateUser(@PathVariable Long userId, @RequestBody UpdateUserRequest request) {
+        System.out.println("Received update request for user " + userId);
+        System.out.println("Address in request: " + request.getAddress());
+        
         User user = userService.updateUser(
             userId,
             request.getEmail(),
@@ -305,6 +326,9 @@ public class UserController {
         private String avatarUrl;
         private User.UserStatus status;
         private Long roleId;
+
+        // Default constructor
+        public UpdateUserRequest() {}
 
         // Getters and Setters
         public String getEmail() { return email; }

@@ -94,6 +94,7 @@ public class AuthController {
             String firstName = body.getOrDefault("firstName", "Google");
             String lastName = body.getOrDefault("lastName", "User");
             String idToken = body.get("idToken");
+            String picture = body.get("picture"); // Lấy ảnh Google
             
             // If email not provided but idToken exists, we need to decode it
             if ((email == null || email.trim().isEmpty()) && idToken != null) {
@@ -104,7 +105,7 @@ public class AuthController {
                 lastName = "User";
             }
 
-            AuthDTO.LoginResponse response = authService.oauthLogin(email, firstName, lastName);
+            AuthDTO.LoginResponse response = authService.oauthLogin(email, firstName, lastName, picture);
             if (response.isSuccess()) {
                 if (response.getUser() != null && response.getUser().getId() != null) {
                     // Chỉ lưu userId vào cookie
@@ -209,5 +210,21 @@ public class AuthController {
         );
         
         return response.isSuccess() ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
+    }
+    
+    @PostMapping("/fix-google-users")
+    public ResponseEntity<Map<String, Object>> fixGoogleUsers() {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            authService.fixAllGoogleUsers();
+            result.put("success", true);
+            result.put("message", "Đã sửa tất cả user Google");
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("message", "Lỗi khi sửa user Google: " + e.getMessage());
+        }
+        
+        return ResponseEntity.ok(result);
     }
 }

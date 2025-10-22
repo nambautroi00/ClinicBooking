@@ -34,7 +34,7 @@ import MedicalRecords from "../pages/Doctor/MedicalRecords";
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
 import PatientBookingDetail from "../pages/Patient/PatientBookingDetail";
 import PatientAppointmentHistory from "../pages/Patient/PatientAppointmentHistory";
-import PatientProfile from "../pages/Patient/PatientProfile";
+import PatientDashboardPage from "../pages/Patient/PatientDashboardPage";
 import PatientMedicalRecords from "../pages/Patient/PatientMedicalRecords";
 import PatientMessages from "../pages/Patient/PatientMessages";
 import DoctorList from "../pages/Patient/DoctorList";
@@ -44,6 +44,7 @@ import TestAuth from "../pages/TestAuth";
 // Admin pages
 import AdminLayout from "../components/layout/admin-layout/AdminLayout";
 import AdminDashboard from "../pages/Admin/AdminDashboard";
+import AdminProfile from "../pages/Admin/AdminProfile";
 import UsersManagement from "../pages/Admin/UsersManagement";
 import DepartmentsManagement from "../pages/Admin/DepartmentsManagement";
 import MedicinesManagement from "../pages/Admin/MedicinesManagement";
@@ -53,6 +54,7 @@ import ReviewsManagement from "../pages/Admin/ReviewsManagement";
 import PaymentsManagement from "../pages/Admin/PaymentsManagement";
 import ArticleManagement from "../pages/Admin/ArticleManagement";
 import ArticleDetail from "../components/article/ArticleDetail";
+import PublicArticleDetail from "../pages/ArticleDetail";
 import PaymentSuccess from "../pages/Payment/PaymentSuccess";
 import PaymentCancel from "../pages/Payment/PaymentCancel";
 
@@ -62,7 +64,7 @@ const AppRoutes = () => {
       {/* Public */}
       <Route path="/" element={<Home />} />
       <Route path="/articles" element={<Articles />} />
-      <Route path="/articles/:id" element={<ArticleDetail />} />
+      <Route path="/articles/:id" element={<PublicArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/specialty/:departmentId" element={<SpecialtyDoctors />} />
       <Route path="/test-auth" element={<TestAuth />} />
@@ -93,7 +95,7 @@ const AppRoutes = () => {
         path="/patient/appointments"
         element={<PatientAppointmentHistory />}
       />
-      <Route path="/patient/profile" element={<PatientProfile />} />
+      <Route path="/patient/profile" element={<PatientDashboardPage />} />
       <Route path="/patient/medical-records" element={<PatientMedicalRecords />} />
       <Route path="/patient/messages" element={<PatientMessages />} />
       <Route path="/patient/booking/:doctorId" element={<PatientBookingDetail />} />
@@ -134,6 +136,7 @@ const AppRoutes = () => {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="profile" element={<AdminProfile />} />
         <Route path="users" element={<UsersManagement />} />
         <Route path="users/:id" element={<UsersManagement />} />
         <Route path="departments" element={<DepartmentsManagement />} />

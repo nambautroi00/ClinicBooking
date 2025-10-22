@@ -7,6 +7,33 @@ import doctorApi from '../../api/doctorApi';
 import fileUploadApi from '../../api/fileUploadApi';
 import { getFullAvatarUrl } from '../../utils/avatarUtils';
 
+// Utility functions
+const calculateAge = (dateOfBirth) => {
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  const age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  // Tính tuổi chính xác (xét cả tháng và ngày)
+  return monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) 
+    ? age - 1 
+    : age;
+};
+
+const validateAgeByRole = (dateOfBirth, roleType) => {
+  const age = calculateAge(dateOfBirth);
+  
+  if (roleType === 'admin' && age < 18) {
+    return 'Admin phải từ 18 tuổi trở lên';
+  }
+  
+  if (roleType === 'doctor' && age < 22) {
+    return 'Bác sĩ phải từ 22 tuổi trở lên';
+  }
+  
+  return null; // No error
+};
+
 const UsersManagement = () => {
   const location = useLocation();
   const [users, setUsers] = useState([]);
@@ -261,8 +288,7 @@ const UsersManagement = () => {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     
-    
-    // Validation bắt buộc
+    // Validation bắt buộc cơ bản
     if (!formData.email || !formData.email.trim()) {
       setError('Email là bắt buộc');
       return;
@@ -283,6 +309,13 @@ const UsersManagement = () => {
       setError('Số điện thoại là bắt buộc');
       return;
     }
+    
+    // Validation số điện thoại (10-11 số)
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+      setError('Số điện thoại phải có từ 10-11 chữ số');
+      return;
+    }
     if (!formData.gender) {
       setError('Giới tính là bắt buộc');
       return;
@@ -293,6 +326,13 @@ const UsersManagement = () => {
     }
     if (!formData.address || !formData.address.trim()) {
       setError('Địa chỉ là bắt buộc');
+      return;
+    }
+    
+    // Validation tuổi
+    const ageError = validateAgeByRole(formData.dateOfBirth, createUserType);
+    if (ageError) {
+      setError(ageError);
       return;
     }
     
@@ -359,6 +399,55 @@ const UsersManagement = () => {
   const handleEditUser = async (e) => {
     e.preventDefault();
     
+    // Validation bắt buộc cơ bản
+    if (!formData.email || !formData.email.trim()) {
+      setError('Email là bắt buộc');
+      return;
+    }
+    if (!formData.firstName || !formData.firstName.trim()) {
+      setError('Tên là bắt buộc');
+      return;
+    }
+    if (!formData.lastName || !formData.lastName.trim()) {
+      setError('Họ là bắt buộc');
+      return;
+    }
+    if (!formData.phone || !formData.phone.trim()) {
+      setError('Số điện thoại là bắt buộc');
+      return;
+    }
+    
+    // Validation số điện thoại (10-11 số)
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+      setError('Số điện thoại phải có từ 10-11 chữ số');
+      return;
+    }
+    
+    if (!formData.gender) {
+      setError('Giới tính là bắt buộc');
+      return;
+    }
+    if (!formData.dateOfBirth) {
+      setError('Ngày sinh là bắt buộc');
+      return;
+    }
+    if (!formData.address || !formData.address.trim()) {
+      setError('Địa chỉ là bắt buộc');
+      return;
+    }
+    
+    // Validation tuổi
+    const userRole = selectedUser?.role?.name || (formData.roleId === 1 ? 'Admin' : 'Doctor');
+    const roleType = userRole.toLowerCase();
+    const ageError = validateAgeByRole(formData.dateOfBirth, roleType);
+    if (ageError) {
+      setError(ageError);
+      return;
+    }
+    
+    // Clear error before proceeding
+    setError('');
     
     try {
       setLoading(true);
@@ -1293,6 +1382,7 @@ const UsersManagement = () => {
                 </Form.Group>
               </Col>
             </Row>
+            
             <Form.Group className="mb-3">
               <Form.Label>Địa chỉ *</Form.Label>
               <Form.Control
@@ -1400,7 +1490,7 @@ const UsersManagement = () => {
               Hủy
             </Button>
             <Button variant="primary" type="submit" disabled={loading}>
-              {loading ? 'Đang tạo...' : 'Tạo Quản trị viên'}
+              {loading ? 'Đang tạo...' : (createUserType === 'doctor' ? 'Tạo Bác sĩ' : 'Tạo Quản trị viên')}
             </Button>
           </Modal.Footer>
         </Form>

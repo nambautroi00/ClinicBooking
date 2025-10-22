@@ -3,7 +3,6 @@ import { Card, Container, Row, Col, Table, Modal, Badge, Alert, Tabs, Tab } from
 import { FileText, Eye, Calendar, TestTube, Camera, Download } from "lucide-react";
 import medicalRecordApi from "../../api/medicalRecordApi";
 import patientApi from "../../api/patientApi";
-import PatientNavigation from "../../components/patient/PatientNavigation";
 
 const PatientMedicalRecords = () => {
   const [medicalRecords, setMedicalRecords] = useState([]);
@@ -127,13 +126,6 @@ const PatientMedicalRecords = () => {
 
   return (
     <Container fluid className="py-4">
-      {/* Navigation */}
-      <Row className="mb-4">
-        <Col>
-          <PatientNavigation />
-        </Col>
-      </Row>
-      
       {/* Header */}
       <Row className="mb-4">
         <Col>
