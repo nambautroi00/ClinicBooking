@@ -4,6 +4,8 @@ const fileUploadApi = {
   uploadImage: (file, id = null, type = 'article') => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('type', type); // Luôn gửi type để backend biết
+    
     if (id) {
       if (type === 'doctor') {
         formData.append('doctorId', id);

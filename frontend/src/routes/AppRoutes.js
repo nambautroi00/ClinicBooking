@@ -53,6 +53,7 @@ import ReviewsManagement from "../pages/Admin/ReviewsManagement";
 import PaymentsManagement from "../pages/Admin/PaymentsManagement";
 import ArticleManagement from "../pages/Admin/ArticleManagement";
 import ArticleDetail from "../components/article/ArticleDetail";
+import PublicArticleDetail from "../pages/ArticleDetail";
 import PaymentSuccess from "../pages/Payment/PaymentSuccess";
 import PaymentCancel from "../pages/Payment/PaymentCancel";
 
@@ -62,7 +63,7 @@ const AppRoutes = () => {
       {/* Public */}
       <Route path="/" element={<Home />} />
       <Route path="/articles" element={<Articles />} />
-      <Route path="/articles/:id" element={<ArticleDetail />} />
+      <Route path="/articles/:id" element={<PublicArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/specialty/:departmentId" element={<SpecialtyDoctors />} />
       <Route path="/test-auth" element={<TestAuth />} />
