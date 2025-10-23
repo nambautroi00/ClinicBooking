@@ -58,6 +58,11 @@ const appointmentApi = {
   createPaymentForAppointment: (appointmentId, paymentData) => {
     return axiosClient.post(`/appointments/${appointmentId}/create-payment`, paymentData);
   },
+
+  // Kiểm tra xem có appointment nào giữa patient và doctor không
+  checkAppointmentBetweenPatientAndDoctor: (patientId, doctorId) => {
+    return axiosClient.get(`/appointments/by-patient-and-doctor?patientId=${patientId}&doctorId=${doctorId}`);
+  },
 };
 
 export default appointmentApi;

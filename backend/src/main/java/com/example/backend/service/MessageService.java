@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,16 +20,19 @@ import com.example.backend.repository.MessageRepository;
 import com.example.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class MessageService {
 
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
     private final MessageMapper messageMapper;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public MessageDTO.Response createMessage(MessageDTO.Create dto) {
         // Validate conversation exists
@@ -43,8 +47,9 @@ public class MessageService {
         Message message = messageMapper.createDTOToEntity(dto, sender);
         message.setConversation(conversation);
         Message savedMessage = messageRepository.save(message);
-        
-        return messageMapper.entityToResponseDTO(savedMessage);
+        MessageDTO.Response response = messageMapper.entityToResponseDTO(savedMessage);
+        broadcastMessage(response);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -134,8 +139,9 @@ public class MessageService {
         
         messageMapper.applyUpdateToEntity(message, dto);
         Message savedMessage = messageRepository.save(message);
-        
-        return messageMapper.entityToResponseDTO(savedMessage);
+        MessageDTO.Response response = messageMapper.entityToResponseDTO(savedMessage);
+        broadcastMessage(response);
+        return response;
     }
 
     public void deleteMessage(Long messageId) {
@@ -180,5 +186,19 @@ public class MessageService {
     @Transactional
     public void markMessageAsRead(Long messageId) {
         messageRepository.markMessageAsRead(messageId);
+    }
+
+    private void broadcastMessage(MessageDTO.Response message) {
+        if (message == null || message.getConversationId() == null) {
+            return;
+        }
+        try {
+            messagingTemplate.convertAndSend(
+                    "/topic/conversations/" + message.getConversationId(),
+                    message
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to publish message {} to WebSocket: {}", message.getMessageId(), ex.getMessage());
+        }
     }
 }

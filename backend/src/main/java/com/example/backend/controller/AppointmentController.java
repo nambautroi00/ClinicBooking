@@ -67,6 +67,13 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getAvailableSlotsByDoctor(doctorId));
     }
 
+    @GetMapping("/by-patient-and-doctor")
+    public ResponseEntity<List<AppointmentDTO.Response>> getAppointmentsByPatientAndDoctor(
+            @RequestParam("patientId") Long patientId,
+            @RequestParam("doctorId") Long doctorId) {
+        return ResponseEntity.ok(appointmentService.getAppointmentsByPatientAndDoctor(patientId, doctorId));
+    }
+
     // =====================================================================
     // Endpoints với PATH VARIABLE - Phải đặt SAU
     // =====================================================================

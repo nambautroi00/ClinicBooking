@@ -9,6 +9,7 @@ import fileUploadApi from "../../api/fileUploadApi";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import Cookies from "js-cookie";
+import config from "../../config/config";
 import {
   Search,
   Send,
@@ -111,20 +112,57 @@ function DoctorMessages() {
   const [uploadError, setUploadError] = useState("");
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 
-  const mergeUniqueMessages = useCallback((existing, incomingList) => {
-    const next = [...existing];
-    for (const msg of incomingList) {
-      const id = msg.messageId || msg.id;
-      if (id) {
-        if (!seenMessageIdsRef.current.has(id)) {
-          seenMessageIdsRef.current.add(id);
-          next.push({ ...msg, _arrivalAt: Date.now() });
-        }
-      } else {
-        const duplicate = next.some(m => m.senderId === msg.senderId && m.content === msg.content && (m.createdAt || m.sentAt) === (msg.createdAt || msg.sentAt));
-        if (!duplicate) next.push({ ...msg, _arrivalAt: Date.now() });
-      }
+  const markConversationAsRead = useCallback(async () => {
+    if (!conversationId || !currentUserId) return;
+    try {
+      await messageApi.markMessagesAsRead(conversationId, currentUserId);
+      setMessages(prev => prev.map(msg =>
+        Number(msg.senderId) === Number(currentUserId) ? msg : { ...msg, isRead: true }
+      ));
+      setPatients(prev => prev.map(p =>
+        selectedPatient && p.patientId === selectedPatient.patientId
+          ? { ...p, unreadCount: 0 }
+          : p
+      ));
+    } catch (e) {
+      console.error("Failed to mark conversation as read:", e);
     }
+  }, [conversationId, currentUserId, setMessages, setPatients, selectedPatient]);
+
+  const mergeUniqueMessages = useCallback((existing, incomingList) => {
+    const toKey = (msg) => {
+      const id = msg.messageId ?? msg.id;
+      if (id !== undefined && id !== null) {
+        return `id-${id}`;
+      }
+      const sender = msg.senderId ?? "unknown";
+      const timestamp = msg.createdAt || msg.sentAt || msg._arrivalAt || "";
+      const content = msg.content || "";
+      return `fallback-${sender}-${timestamp}-${content}`;
+    };
+
+    const next = [...existing];
+    const indexByKey = new Map();
+    next.forEach((msg, idx) => {
+      indexByKey.set(toKey(msg), idx);
+    });
+
+    incomingList.forEach((msg) => {
+      const key = toKey(msg);
+      if (indexByKey.has(key)) {
+        const idx = indexByKey.get(key);
+        next[idx] = { ...next[idx], ...msg };
+      } else {
+        const enriched = { ...msg, _arrivalAt: Date.now() };
+        next.push(enriched);
+        indexByKey.set(key, next.length - 1);
+        const id = msg.messageId ?? msg.id;
+        if (id !== undefined && id !== null) {
+          seenMessageIdsRef.current.add(String(id));
+        }
+      }
+    });
+
     return next;
   }, []);
 
@@ -168,9 +206,11 @@ function DoctorMessages() {
         try {
           const res = await doctorApi.getDoctorByUserId(userId);
           const data = res.data || res;
+          console.log("✅ Fetched doctor data:", data);
           setDoctorId(data.doctorId);
+          console.log("✅ Set doctorId:", data.doctorId);
         } catch (err) {
-          console.error("Error fetching doctorId:", err);
+          console.error("❌ Error fetching doctorId:", err);
         }
       }
     };
@@ -179,13 +219,28 @@ function DoctorMessages() {
 
   // Fetch patients with appointments
   const fetchPatients = useCallback(async () => {
-    if (!doctorId) return;
+    console.log("🔄 fetchPatients called with doctorId:", doctorId);
+    if (!doctorId) {
+      console.log("❌ No doctorId, skipping fetchPatients");
+      return;
+    }
 
     // Tránh flicker: chỉ bật loading trong lần tải đầu
     if (patients.length === 0) setLoading(true);
     try {
       // Lấy tất cả appointments của bác sĩ
       const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(doctorId);
+      console.log(`✅ Loaded appointments for doctor ${doctorId}:`, appointmentsRes.data?.length || 0);
+      
+      // Nếu không có appointments, không hiển thị patients nào
+      if (!appointmentsRes.data || appointmentsRes.data.length === 0) {
+        console.log("❌ No appointments found for doctor", doctorId, "- no patients to display");
+        console.log("Appointments response:", appointmentsRes);
+        setPatients([]);
+        return;
+      }
+      
+      console.log("✅ Found appointments:", appointmentsRes.data.length);
       
       // Lấy danh sách patient IDs từ appointments
       const patientIds = [...new Set(
@@ -193,6 +248,8 @@ function DoctorMessages() {
           .filter(appointment => appointment.patientId !== null)
           .map(appointment => appointment.patientId)
       )];
+      
+      console.log("✅ Patient IDs from appointments:", patientIds);
 
       // Lấy thông tin chi tiết của từng patient
       const patientsWithDetails = await Promise.all(
@@ -363,15 +420,12 @@ function DoctorMessages() {
     }
   }, [doctorId, selectedPatientId, patients.length, currentUserId]);
 
+  // Load patients when URL parameters are present or when doctor is logged in
   useEffect(() => {
-    if (doctorId) {
-      (async () => {
-        const count = await fetchConversations();
-        if (!count) await fetchPatients();
-      })();
+    if (doctorId && (selectedPatientId || doctorId)) {
+      fetchPatients();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doctorId]);
+  }, [doctorId, selectedPatientId, fetchPatients]);
 
   // Create conversation for specific patient if needed
   const createConversationForPatient = useCallback(async (patientId, doctorId) => {
@@ -390,10 +444,28 @@ function DoctorMessages() {
       }
     } catch (error) {
       // If API returns 404 or error, conversation doesn't exist
-      console.log("❌ Conversation doesn't exist, will create new one. Error:", error.message);
+      console.log("❌ Conversation doesn't exist, will check appointment first. Error:", error.message);
     }
 
-    // Only create if conversation doesn't exist
+    // Check if there's an appointment between patient and doctor before creating conversation
+    try {
+      console.log("🔍 Checking for appointments between patient:", patientId, "and doctor:", doctorId);
+      const appointmentResponse = await appointmentApi.checkAppointmentBetweenPatientAndDoctor(patientId, doctorId);
+      
+      if (!appointmentResponse.data || appointmentResponse.data.length === 0) {
+        console.log("❌ No appointments found between patient and doctor. Cannot create conversation.");
+        alert("Bệnh nhân cần đặt lịch khám với bạn trước khi có thể nhắn tin.");
+        return null;
+      }
+      
+      console.log("✅ Found appointments, proceeding to create conversation");
+    } catch (error) {
+      console.error("❌ Error checking appointments:", error);
+      alert("Không thể kiểm tra lịch hẹn. Vui lòng thử lại sau.");
+      return null;
+    }
+
+    // Only create if conversation doesn't exist and appointment exists
     try {
       const conversationData = {
         patientId: parseInt(patientId),
@@ -422,9 +494,11 @@ function DoctorMessages() {
           try {
             const res = await messageApi.getByConversation(convId);
             const data = Array.isArray(res.data) ? res.data : [];
-            // seed seen ids to avoid future duplicates
-            const ids = data.map(m => m.messageId || m.id).filter(Boolean);
-            ids.forEach(id => seenMessageIdsRef.current.add(id));
+            const ids = data
+              .map((m) => m.messageId ?? m.id)
+              .filter((id) => id !== null && id !== undefined)
+              .map((id) => String(id));
+            seenMessageIdsRef.current = new Set(ids);
             setMessages(data);
             scrollToBottom();
             setLastFetchedAt(new Date().toISOString());
@@ -525,15 +599,20 @@ function DoctorMessages() {
   useEffect(() => {
     if (!conversationId) return;
 
-    const sock = new SockJS("http://localhost:8080/ws");
+    const sock = new SockJS(config.helpers.getWebSocketUrl());
     const client = new Client({
       webSocketFactory: () => sock,
       reconnectDelay: 3000,
+      debug: (str) => {
+        console.log("WebSocket Debug:", str);
+      },
     });
 
     client.onConnect = () => {
-          setWsConnected(true);
+      console.log("✅ WebSocket connected for conversation:", conversationId);
+      setWsConnected(true);
       client.subscribe(`/topic/conversations/${conversationId}`, (frame) => {
+        console.log("📨 Received WebSocket message:", frame.body);
         try {
           const incoming = JSON.parse(frame.body);
           lastWsMessageAtRef.current = Date.now();
@@ -556,14 +635,18 @@ function DoctorMessages() {
             const el = document.getElementById("messages-container");
             if (el) el.scrollTop = el.scrollHeight;
           });
-        } catch {}
+        } catch (e) {
+          console.error("❌ Error parsing WebSocket message:", e);
+        }
       });
     };
 
-    client.onStompError = () => {
+    client.onStompError = (error) => {
+      console.error("❌ WebSocket STOMP error:", error);
       setWsConnected(false);
     };
-    client.onWebSocketClose = () => {
+    client.onWebSocketClose = (event) => {
+      console.log("❌ WebSocket closed:", event);
       setWsConnected(false);
     };
 
@@ -628,6 +711,18 @@ function DoctorMessages() {
       if (!wsConnected && optimistic) {
         setMessages(prev => prev.map(m => (m.messageId === optimistic.messageId ? created : m)));
       }
+      setMessages(prev => mergeUniqueMessages(prev, [created]));
+      setPatients(prev => prev.map(p =>
+        selectedPatient && p.patientId === selectedPatient.patientId
+          ? {
+              ...p,
+              lastMessage: created.content || p.lastMessage,
+              lastMessageTime: created.createdAt || created.sentAt || p.lastMessageTime,
+              unreadCount: p.unreadCount,
+            }
+          : p
+      ));
+      markConversationAsRead();
     } catch (e) {
       console.error("Failed to send message:", e);
       // rollback optimistic
@@ -735,6 +830,18 @@ function DoctorMessages() {
       if (!wsConnected && optimistic) {
         setMessages(prev => prev.map(m => (m.messageId === optimistic.messageId ? created : m)));
       }
+      setMessages(prev => mergeUniqueMessages(prev, [created]));
+      setPatients(prev => prev.map(p =>
+        selectedPatient && p.patientId === selectedPatient.patientId
+          ? {
+              ...p,
+              lastMessage: created.content || (newMessage && newMessage.trim()) || p.lastMessage,
+              lastMessageTime: created.createdAt || created.sentAt || p.lastMessageTime,
+              unreadCount: p.unreadCount,
+            }
+          : p
+      ));
+      markConversationAsRead();
 
       setNewMessage("");
       setPendingFile(null);
@@ -847,7 +954,15 @@ function DoctorMessages() {
             {filteredPatients.length === 0 ? (
               <div className="text-center py-5">
                 <MessageCircle size={48} color="#ccc" className="mb-3" />
-                <p className="text-muted">Không có bệnh nhân nào</p>
+                <p className="text-muted">Chưa có cuộc hội thoại nào</p>
+                <p className="text-muted small">Bệnh nhân đặt lịch khám để bắt đầu nhắn tin</p>
+                <button 
+                  className="btn btn-outline-primary btn-sm mt-2"
+                  onClick={() => fetchPatients()}
+                  disabled={loading}
+                >
+                  {loading ? "Đang tải..." : "Tải danh sách"}
+                </button>
               </div>
             ) : (
               filteredPatients.map((patient) => (
@@ -858,7 +973,13 @@ function DoctorMessages() {
                       ? "bg-primary text-white"
                       : "hover-bg-light"
                   }`}
-                  onClick={() => setSelectedPatient(patient)}
+                  onClick={() => {
+                    setSelectedPatient(patient);
+                    // Load patients if list is empty
+                    if (patients.length === 0) {
+                      fetchPatients();
+                    }
+                  }}
                   style={{ cursor: "pointer" }}
                 >
                   <div className="d-flex align-items-center gap-3">

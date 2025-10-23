@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart } from "lucide-react";
+import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart, MessageCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import config from "../../config/config";
@@ -10,6 +10,17 @@ export default function Header() {
   const [user, setUser] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const navigate = useNavigate();
+
+  // Function to navigate to messages based on user role
+  const handleMessagesClick = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    // Always navigate to patient messages page
+    navigate('/patient/messages');
+  };
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -237,6 +248,16 @@ export default function Header() {
                 );
               })}
             </nav>
+            
+            {/* Messages Button */}
+            <button
+              onClick={handleMessagesClick}
+              className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
+              title="Nhắn tin"
+            >
+              <MessageCircle className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+            </button>
+            
             {/* If user is logged in show name + logout, otherwise show login button */}
             {user ? (
               <div className="hidden md:flex items-center gap-2 sm:gap-3">
@@ -413,6 +434,20 @@ export default function Header() {
                 </Link>
               );
             })}
+            
+            {/* Mobile Messages Button */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setShowMobileHeader(false);
+                handleMessagesClick();
+              }}
+              className="flex items-center gap-3 w-full text-base font-medium text-gray-700 hover:text-[#0d6efd] py-2"
+            >
+              <MessageCircle className="h-5 w-5" />
+              <span>Nhắn tin</span>
+            </button>
+            
             {user ? (
               <div className="space-y-2">
                 <div className="text-base font-medium text-gray-700 mb-2">

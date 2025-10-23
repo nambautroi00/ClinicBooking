@@ -255,6 +255,14 @@ public class AppointmentService {
         }
         return appointmentMapper.entityToResponseDTO(saved);
     }
+
+    @Transactional(readOnly = true)
+    public List<AppointmentDTO.Response> getAppointmentsByPatientAndDoctor(Long patientId, Long doctorId) {
+        List<Appointment> appointments = appointmentRepository.findByPatientIdAndDoctorId(patientId, doctorId);
+        return appointments.stream()
+                .map(appointmentMapper::entityToResponseDTO)
+                .toList();
+    }
     
 }
 
