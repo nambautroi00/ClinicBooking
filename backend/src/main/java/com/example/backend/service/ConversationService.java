@@ -14,6 +14,7 @@ import com.example.backend.mapper.ConversationMapper;
 import com.example.backend.model.Conversation;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.Patient;
+import com.example.backend.model.User;
 import com.example.backend.repository.ConversationRepository;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.MessageRepository;
@@ -33,84 +34,94 @@ public class ConversationService {
     private final ConversationMapper conversationMapper;
 
     public ConversationDTO.Response createConversation(ConversationDTO.Create dto) {
-        // Validate patient and doctor exist
-        Patient patient = patientRepository.findById(dto.getPatientId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh nhân với ID: " + dto.getPatientId()));
-        
-        Doctor doctor = doctorRepository.findById(dto.getDoctorId())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy bác sĩ với ID: " + dto.getDoctorId()));
+        Patient patient = resolvePatient(dto.getPatientUserId(), dto.getPatientId());
+        Doctor doctor = resolveDoctor(dto.getDoctorUserId(), dto.getDoctorId());
 
-        // Check if conversation already exists
+        User patientUser = patient.getUser();
+        User doctorUser = doctor.getUser();
+
+        validateParticipantRoles(patientUser, doctorUser);
+
         Optional<Conversation> existingConversation = conversationRepository
-                .findByPatientIdAndDoctorId(dto.getPatientId(), dto.getDoctorId());
-        
+                .findByPatientUser_IdAndDoctorUser_Id(patientUser.getId(), doctorUser.getId());
+
         if (existingConversation.isPresent()) {
-            // Return existing conversation instead of throwing exception
             return conversationMapper.entityToResponseDTO(existingConversation.get());
         }
 
-        // Create new conversation
-        Conversation conversation = conversationMapper.createDTOToEntity(dto, patient, doctor);
+        Conversation conversation = conversationMapper.createDTOToEntity(dto, patientUser, doctorUser);
         Conversation savedConversation = conversationRepository.save(conversation);
-        
+
         return conversationMapper.entityToResponseDTO(savedConversation);
     }
 
     @Transactional(readOnly = true)
     public ConversationDTO.Response getConversationById(Long conversationId) {
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
-        
+                .orElseThrow(() -> new NotFoundException(
+                        "Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
+
         return conversationMapper.entityToResponseDTO(conversation);
     }
 
     @Transactional(readOnly = true)
     public ConversationDTO.Response getConversationByIdWithMessages(Long conversationId) {
         Conversation conversation = conversationRepository.findByIdWithMessages(conversationId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
-        
+                .orElseThrow(() -> new NotFoundException(
+                        "Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
+
         return conversationMapper.entityToResponseDTO(conversation);
     }
 
     @Transactional(readOnly = true)
-    public List<ConversationDTO.Response> getConversationsByPatient(Long patientId) {
-        List<Conversation> conversations = conversationRepository.findByPatientIdOrderByCreatedAtDesc(patientId);
+    public List<ConversationDTO.Response> getConversationsByPatient(Long patientUserId, Long patientId) {
+        Long resolvedUserId = resolvePatientUserId(patientUserId, patientId);
+        List<Conversation> conversations = conversationRepository
+                .findByPatientUser_IdOrderByCreatedAtDesc(resolvedUserId);
         return conversations.stream()
                 .map(conversationMapper::entityToResponseDTO)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<ConversationDTO.Response> getConversationsByDoctor(Long doctorId) {
-        List<Conversation> conversations = conversationRepository.findByDoctorIdOrderByCreatedAtDesc(doctorId);
+    public List<ConversationDTO.Response> getConversationsByDoctor(Long doctorUserId, Long doctorId) {
+        Long resolvedUserId = resolveDoctorUserId(doctorUserId, doctorId);
+        List<Conversation> conversations = conversationRepository
+                .findByDoctorUser_IdOrderByCreatedAtDesc(resolvedUserId);
         return conversations.stream()
                 .map(conversationMapper::entityToResponseDTO)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public Optional<ConversationDTO.Response> getConversationByPatientAndDoctor(Long patientId, Long doctorId) {
+    public Optional<ConversationDTO.Response> getConversationByParticipants(
+            Long patientUserId, Long patientId, Long doctorUserId, Long doctorId) {
+        Long resolvedPatientUserId = resolvePatientUserId(patientUserId, patientId);
+        Long resolvedDoctorUserId = resolveDoctorUserId(doctorUserId, doctorId);
+
         Optional<Conversation> conversation = conversationRepository
-                .findByPatientIdAndDoctorId(patientId, doctorId);
-        
+                .findByPatientUser_IdAndDoctorUser_Id(resolvedPatientUserId, resolvedDoctorUserId);
+
         return conversation.map(conversationMapper::entityToResponseDTO);
     }
 
     @Transactional(readOnly = true)
-    public Long getConversationCountByPatient(Long patientId) {
-        return conversationRepository.countByPatientId(patientId);
+    public Long getConversationCountByPatient(Long patientUserId, Long patientId) {
+        Long resolvedUserId = resolvePatientUserId(patientUserId, patientId);
+        return conversationRepository.countByPatientUser_Id(resolvedUserId);
     }
 
     @Transactional(readOnly = true)
-    public Long getConversationCountByDoctor(Long doctorId) {
-        return conversationRepository.countByDoctorId(doctorId);
+    public Long getConversationCountByDoctor(Long doctorUserId, Long doctorId) {
+        Long resolvedUserId = resolveDoctorUserId(doctorUserId, doctorId);
+        return conversationRepository.countByDoctorUser_Id(resolvedUserId);
     }
 
     public void deleteConversation(Long conversationId) {
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
-        
-        // Delete all messages first
+                .orElseThrow(() -> new NotFoundException(
+                        "Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
+
         List<MessageDTO.Response> messages = messageRepository.findByConversationIdOrderBySentAtAsc(conversationId)
                 .stream()
                 .map(msg -> {
@@ -119,20 +130,17 @@ public class ConversationService {
                     return response;
                 })
                 .toList();
-        
-        // Delete messages
+
         messageRepository.deleteAllById(messages.stream().map(MessageDTO.Response::getMessageId).toList());
-        
-        // Delete conversation
         conversationRepository.delete(conversation);
     }
 
     @Transactional(readOnly = true)
     public ConversationDTO.Response getConversationWithLatestMessages(Long conversationId, int limit) {
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
-        
-        // Get latest messages
+                .orElseThrow(() -> new NotFoundException(
+                        "Không tìm thấy cuộc trò chuyện với ID: " + conversationId));
+
         List<MessageDTO.Response> latestMessages = messageRepository
                 .findByConversationIdOrderBySentAtDesc(conversationId)
                 .stream()
@@ -148,7 +156,70 @@ public class ConversationService {
                     return response;
                 })
                 .toList();
-        
+
         return conversationMapper.entityToResponseDTOWithMessages(conversation, latestMessages);
+    }
+
+    private Patient resolvePatient(Long patientUserId, Long patientId) {
+        if (patientUserId != null) {
+            return patientRepository.findByUserIdWithUserAndRole(patientUserId)
+                    .orElseThrow(() -> new NotFoundException(
+                            "Không tìm thấy bệnh nhân với user ID: " + patientUserId));
+        }
+
+        if (patientId != null) {
+            Patient patient = patientRepository.findById(patientId)
+                    .orElseThrow(() -> new NotFoundException(
+                            "Không tìm thấy bệnh nhân với ID: " + patientId));
+            if (patient.getUser() == null) {
+                throw new ConflictException("Bệnh nhân không có thông tin người dùng hợp lệ.");
+            }
+            return patientRepository.findByUserIdWithUserAndRole(patient.getUser().getId())
+                    .orElse(patient);
+        }
+
+        throw new ConflictException("Thiếu thông tin định danh bệnh nhân.");
+    }
+
+    private Doctor resolveDoctor(Long doctorUserId, Long doctorId) {
+        if (doctorUserId != null) {
+            return doctorRepository.findByUserId(doctorUserId)
+                    .orElseThrow(() -> new NotFoundException(
+                            "Không tìm thấy bác sĩ với user ID: " + doctorUserId));
+        }
+
+        if (doctorId != null) {
+            Doctor doctor = doctorRepository.findByDoctorId(doctorId)
+                    .orElseThrow(() -> new NotFoundException(
+                            "Không tìm thấy bác sĩ với ID: " + doctorId));
+            if (doctor.getUser() == null) {
+                throw new ConflictException("Bác sĩ không có thông tin người dùng hợp lệ.");
+            }
+            return doctor;
+        }
+
+        throw new ConflictException("Thiếu thông tin định danh bác sĩ.");
+    }
+
+    private Long resolvePatientUserId(Long patientUserId, Long patientId) {
+        return resolvePatient(patientUserId, patientId).getUser().getId();
+    }
+
+    private Long resolveDoctorUserId(Long doctorUserId, Long doctorId) {
+        return resolveDoctor(doctorUserId, doctorId).getUser().getId();
+    }
+
+    private void validateParticipantRoles(User patientUser, User doctorUser) {
+        if (patientUser == null || patientUser.getRole() == null
+                || !"PATIENT".equalsIgnoreCase(patientUser.getRole().getName())) {
+            throw new ConflictException("Người dùng " + (patientUser != null ? patientUser.getId() : null)
+                    + " không có vai trò 'PATIENT'.");
+        }
+
+        if (doctorUser == null || doctorUser.getRole() == null
+                || !"DOCTOR".equalsIgnoreCase(doctorUser.getRole().getName())) {
+            throw new ConflictException("Người dùng " + (doctorUser != null ? doctorUser.getId() : null)
+                    + " không có vai trò 'DOCTOR'.");
+        }
     }
 }

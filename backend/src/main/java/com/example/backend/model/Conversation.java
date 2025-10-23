@@ -4,8 +4,11 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.example.backend.model.User;
 
 @Data
 @NoArgsConstructor
@@ -17,13 +20,13 @@ public class Conversation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long conversationId;
 
-    @ManyToOne
-    @JoinColumn(name = "PatientID", nullable = false)
-    private Patient patient;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "UserIdOfPatient", referencedColumnName = "UserID", nullable = false)
+    private User patientUser;
 
-    @ManyToOne
-    @JoinColumn(name = "DoctorID", nullable = false)
-    private Doctor doctor;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "UserIdOfDoctor", referencedColumnName = "UserID", nullable = false)
+    private User doctorUser;
 
     private LocalDateTime createdAt;
 

@@ -196,6 +196,23 @@ function PatientMessages() {
     }
   }, []);
 
+  const currentUserName = useMemo(() => {
+    if (!currentUser) return "";
+    const parts = [currentUser.firstName, currentUser.lastName].filter(Boolean);
+    const joined = parts.join(" ").trim();
+    return joined || currentUser.email || "";
+  }, [currentUser]);
+
+  const currentUserAvatarUrl = useMemo(() => {
+    if (!currentUser) return null;
+    return currentUser.avatarUrl || currentUser.avatarURL || null;
+  }, [currentUser]);
+
+  const resolveSenderAvatar = useCallback((avatarUrl) => {
+    if (!avatarUrl) return null;
+    return config.helpers.getAvatarUrl(avatarUrl);
+  }, []);
+
   // Fetch patientId and currentUserId
   useEffect(() => {
     const fetchPatientId = async () => {
@@ -318,6 +335,7 @@ function PatientMessages() {
             return {
               ...doctor,
               doctorId,
+              doctorUserId: doctor.user?.id ?? doctor?.userId,
               doctorName: doctor.user?.lastName + " " + doctor.user?.firstName ||
                           doctor.lastName + " " + doctor.firstName ||
                           "Không rõ",
@@ -599,7 +617,7 @@ function PatientMessages() {
 
   // Filter doctors
   const filteredDoctors = useMemo(() => {
-    return doctors.filter(doctor => {
+    const matches = doctors.filter(doctor => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -611,6 +629,14 @@ function PatientMessages() {
       }
       return true;
     });
+
+    matches.sort((a, b) => {
+      const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+      const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    return matches;
   }, [doctors, searchQuery]);
 
   // Messages for current conversation (already filtered)
@@ -641,6 +667,9 @@ function PatientMessages() {
         attachmentURL: null,
         sentAt: new Date().toISOString(),
         messageType: "TEXT",
+        senderAvatarUrl: currentUserAvatarUrl,
+        senderName: currentUserName || "Ban",
+        senderRole: "PATIENT",
       };
       setMessages(prev => [...prev, optimistic]);
     }
@@ -746,12 +775,15 @@ function PatientMessages() {
         optimistic = {
           messageId: `temp-img-${Date.now()}`,
           conversationId: Number(conversationId),
-          senderId: Number(currentUserId),
-          content: (newMessage && newMessage.trim()) || "",
-          attachmentURL: pendingImage, // local preview
-          sentAt: new Date().toISOString(),
-          messageType: "IMAGE",
-        };
+        senderId: Number(currentUserId),
+        content: (newMessage && newMessage.trim()) || "",
+        attachmentURL: pendingImage, // local preview
+        sentAt: new Date().toISOString(),
+        messageType: "IMAGE",
+        senderAvatarUrl: currentUserAvatarUrl,
+        senderName: currentUserName || "Ban",
+        senderRole: "PATIENT",
+      };
         setMessages(prev => [...prev, optimistic]);
       }
 
@@ -1023,87 +1055,137 @@ function PatientMessages() {
                   </div>
                 ) : (
                   doctorMessages.map((message) => {
-                    const isPatientMsg = Number(message.senderId) === Number(currentUserId);
+                    const senderRole = (message.senderRole || "").toUpperCase();
+                    const isCurrentUser = Number(message.senderId) === Number(currentUserId);
+                    const doctorUserId =
+                      selectedDoctor?.doctorUserId ?? selectedDoctor?.user?.id ?? selectedDoctor?.userId ?? null;
+                    const isPatientSender =
+                      senderRole === "PATIENT" || (!senderRole && isCurrentUser);
+                    const isDoctorSender =
+                      senderRole === "DOCTOR" ||
+                      (!senderRole &&
+                        ((doctorUserId != null && Number(message.senderId) === Number(doctorUserId)) ||
+                          (!isCurrentUser && doctorUserId == null)));
+                    const alignRight = isPatientSender;
+                    const containerClass = alignRight ? "justify-content-end" : "justify-content-start";
+                    const bubbleClass = alignRight ? "bg-primary text-white" : "bg-light text-dark";
+                    const timeClass = alignRight ? "text-white-50" : "text-muted";
+                    const menuBtnClass = alignRight ? "btn-light" : "btn-outline-secondary";
+
                     const key = message.messageId || message.id || `${message.senderId}-${message.sentAt}`;
+                    const rawAvatar =
+                      message.senderAvatarUrl ||
+                      (isDoctorSender
+                        ? selectedDoctor?.doctorAvatar || selectedDoctor?.user?.avatarUrl
+                        : currentUserAvatarUrl);
+                    const senderAvatar = resolveSenderAvatar(rawAvatar);
+                    const fallbackNameRaw = (message.senderName && message.senderName.trim().length > 0)
+                      ? message.senderName
+                      : isDoctorSender
+                        ? (selectedDoctor?.doctorName || "Bac si")
+                        : (currentUserName || "Ban");
+                    const fallbackName = fallbackNameRaw.trim();
+                    const senderInitial = fallbackName ? fallbackName.charAt(0).toUpperCase() : "?";
+
                     return (
                       <div
                         key={key}
-                        className={`mb-3 d-flex ${
-                          isPatientMsg ? "justify-content-end" : "justify-content-start"
-                        }`}
+                        className={`mb-3 d-flex align-items-end ${containerClass}`}
                         onMouseEnter={() => setHoveredMessageId(message.messageId)}
-                        onMouseLeave={() => { if (menuOpenMessageId !== message.messageId) setHoveredMessageId(null); }}
+                        onMouseLeave={() => {
+                          if (menuOpenMessageId !== message.messageId) setHoveredMessageId(null);
+                        }}
                       >
-                        <div
-                          className={`p-3 rounded-3 ${
-                            isPatientMsg ? "bg-primary text-white" : "bg-light text-dark"
-                          }`}
-                          style={{ maxWidth: "70%" }}
-                        >
-                          {Number(message.senderId) === Number(currentUserId) && (
-                            <div className="position-relative" style={{ height: 0 }}>
-                              {(hoveredMessageId === message.messageId || menuOpenMessageId === message.messageId) && (
-                                <button
-                                  className={`btn btn-sm ${isPatientMsg ? "btn-light" : "btn-outline-secondary"}`}
-                                  style={{ position: 'absolute', top: -14, right: -14, padding: '2px 6px' }}
-                                  onClick={() => setMenuOpenMessageId(prev => prev === message.messageId ? null : message.messageId)}
-                                >
-                                  <MoreVertical size={14} />
-                                </button>
-                              )}
-                              {menuOpenMessageId === message.messageId && (
-                                <div className="dropdown-menu show" style={{ position: 'absolute', top: 0, right: 16 }}>
-                                  <button className="dropdown-item" onClick={() => beginEditMessage(message)}>Chỉnh sửa</button>
-                                  <button className="dropdown-item text-danger" onClick={() => recallMessage(message)}>Thu hồi</button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {editingMessageId === message.messageId ? (
-                            <>
-                              <Input
-                                type="text"
-                                value={editingText}
-                                onChange={(e) => setEditingText(e.target.value)}
-                                className="mb-2"
-                              />
-                              <div className="d-flex gap-2">
-                                <button className={`btn btn-sm ${isPatientMsg ? 'btn-light' : 'btn-primary'}`} onClick={() => saveEditMessage(message)}>Lưu</button>
-                                <button className="btn btn-sm btn-outline-secondary" onClick={cancelEditMessage}>Hủy</button>
+                        {!alignRight && (
+                          <div className="me-2">
+                            <Avatar size={36} src={senderAvatar} alt={fallbackName || "User"}>
+                              {senderInitial}
+                            </Avatar>
+                          </div>
+                        )}
+                        <div className="position-relative" style={{ maxWidth: "70%" }}>
+                          <div className={`p-3 rounded-3 ${bubbleClass}`} style={{ maxWidth: "100%" }}>
+                            {isCurrentUser && (
+                              <div className="position-relative" style={{ height: 0 }}>
+                                {(hoveredMessageId === message.messageId || menuOpenMessageId === message.messageId) && (
+                                  <button
+                                    className={`btn btn-sm ${menuBtnClass}`}
+                                    style={{ position: "absolute", top: -14, right: -14, padding: "2px 6px" }}
+                                    onClick={() =>
+                                      setMenuOpenMessageId(prev => (prev === message.messageId ? null : message.messageId))
+                                    }
+                                  >
+                                    <MoreVertical size={14} />
+                                  </button>
+                                )}
+                                {menuOpenMessageId === message.messageId && (
+                                  <div className="dropdown-menu show" style={{ position: "absolute", top: 0, right: 16 }}>
+                                    <button className="dropdown-item" onClick={() => beginEditMessage(message)}>
+                                      Chỉnh sửa
+                                    </button>
+                                    <button className="dropdown-item text-danger" onClick={() => recallMessage(message)}>
+                                      Thu hồi
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            </>
-                          ) : (
-                            <>
-                          {message.attachmentURL && (
-                            <div className="mb-2">
-                              <img
-                                src={resolveAttachmentUrl(message.attachmentURL)}
-                                alt="attachment"
-                                onDoubleClick={() => setLightboxSrc(resolveAttachmentUrl(message.attachmentURL))}
-                                style={{
-                                  display: 'block',
-                                  maxWidth: '100%',
-                                  maxHeight: 300,
-                                  width: 'auto',
-                                  height: 'auto',
-                                  objectFit: 'contain',
-                                  borderRadius: 8,
-                                  cursor: 'zoom-in',
-                                }}
-                              />
-                            </div>
-                          )}
-                          {message.content && <p className="mb-0">{message.content}</p>}
-                          </>
-                          )}
-                          <small
-                            className={`${isPatientMsg ? "text-white-50" : "text-muted"}`}
-                          >
-                          {formatTime(message.createdAt || message.sentAt)}
-                        </small>
+                            )}
+
+                            {editingMessageId === message.messageId ? (
+                              <>
+                                <Input
+                                  type="text"
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  className="mb-2"
+                                />
+                                <div className="d-flex gap-2">
+                                  <button
+                                    className={`btn btn-sm ${alignRight ? "btn-light" : "btn-primary"}`}
+                                    onClick={() => saveEditMessage(message)}
+                                  >
+                                    Lưu
+                                  </button>
+                                  <button className="btn btn-sm btn-outline-secondary" onClick={cancelEditMessage}>
+                                    Hủy
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                {message.attachmentURL && (
+                                  <div className="mb-2">
+                                    <img
+                                      src={resolveAttachmentUrl(message.attachmentURL)}
+                                      alt="attachment"
+                                      onDoubleClick={() => setLightboxSrc(resolveAttachmentUrl(message.attachmentURL))}
+                                      style={{
+                                        display: "block",
+                                        maxWidth: "100%",
+                                        maxHeight: 300,
+                                        width: "auto",
+                                        height: "auto",
+                                        objectFit: "contain",
+                                        borderRadius: 8,
+                                        cursor: "zoom-in",
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                {message.content && <p className="mb-0">{message.content}</p>}
+                              </>
+                            )}
+                            <small className={timeClass}>{formatTime(message.createdAt || message.sentAt)}</small>
+                          </div>
+                        </div>
+                        {alignRight && (
+                          <div className="ms-2">
+                            <Avatar size={36} src={senderAvatar} alt={fallbackName || "User"}>
+                              {senderInitial}
+                            </Avatar>
+                          </div>
+                        )}
                       </div>
-                    </div>
                     );
                   })
                 )}
