@@ -109,7 +109,7 @@ export default function PatientAppointmentHistory() {
   }, [currentUser]);
 
   const getUserIdFromCookie = () => {
-    const cookies = document.cookie.split(';');
+    const cookies = document.cookie.split(';'); 
     for (let cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
       if (name === 'userId' || name === 'user_id') {
@@ -366,39 +366,14 @@ export default function PatientAppointmentHistory() {
         </div>
       </div>
     );
-  }
+    }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-           <div className="flex items-center justify-between">
-             <div>
-               <h1 className="text-2xl font-bold text-gray-900">
-                 Lịch sử đặt lịch
-               </h1>
-               <p className="text-gray-600">Xem lại tất cả lịch hẹn đã đặt</p>
-             </div>
-             
-             <button
-               className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-               onClick={() => navigate(-1)}
-             >
-               <ArrowLeft className="h-5 w-5" />
-               Quay lại
-             </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full py-8"> 
         <div className="max-w-6xl mx-auto">
-
-
-
           {/* Filters */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="bg-white rounded-lg shadow-sm p-3 mb-2 border">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Bộ lọc</h2>
               <button
@@ -553,13 +528,6 @@ export default function PatientAppointmentHistory() {
                                   </button>
                                 )}
 
-                                <button
-                                  className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
-                                  onClick={() => navigate('/patient/messages')}
-                                >
-                                  <MessageCircle className="h-4 w-4" />
-                                  Nhắn tin
-                                </button>
                               </div>
                             </div>
                           </div>
@@ -705,7 +673,7 @@ export default function PatientAppointmentHistory() {
                 >
                   {cancellingId ? 'Đang hủy...' : 'Xác nhận hủy'}
                 </button>
-              </div>
+        </div>
             </div>
           </div>
         </div>

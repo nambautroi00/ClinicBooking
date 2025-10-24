@@ -176,23 +176,6 @@ export default function PaymentSuccess() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={handleGoHome}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              Về trang chủ
-            </button>
-            <div className="text-sm text-gray-500">
-              Thanh toán thành công
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
@@ -214,59 +197,7 @@ export default function PaymentSuccess() {
             )}
           </div>
 
-          {/* Appointment Details */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Chi tiết lịch hẹn</h2>
-            
-            <div className="space-y-4">
-              {/* Doctor Info */}
-              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
-                <User className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="font-medium text-gray-900">{paymentInfo.doctorName}</p>
-                  <p className="text-sm text-blue-600">{paymentInfo.specialty}</p>
-                </div>
-              </div>
-
-              {/* Date & Time */}
-              <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
-                <Calendar className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {new Date(paymentInfo.date).toLocaleDateString('vi-VN', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                  <p className="text-sm text-green-600">{paymentInfo.time}</p>
-                </div>
-              </div>
-
-              {/* Fee */}
-              <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg">
-                <CreditCard className="h-5 w-5 text-yellow-600" />
-                <div>
-                  <p className="font-medium text-gray-900">Phí khám</p>
-                  <p className="text-sm text-yellow-600">
-                    {new Intl.NumberFormat('vi-VN', {
-                      style: 'currency',
-                      currency: 'VND'
-                    }).format(paymentInfo.fee)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Note */}
-              {paymentInfo.note && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Ghi chú:</p>
-                  <p className="text-gray-900">{paymentInfo.note}</p>
-                </div>
-              )}
-            </div>
-          </div>
+          
 
           {/* Next Steps */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">

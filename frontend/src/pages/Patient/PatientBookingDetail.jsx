@@ -419,6 +419,7 @@ export default function PatientBookingDetail() {
       try {
         const paymentData = {
           appointmentId: selectedAppointment.appointmentId,
+          patientId: patientId, // Thêm patientId
           // Không gửi amount, backend sẽ lấy từ appointment.fee
           description: `Phí khám #${selectedAppointment.appointmentId}`,
           returnUrl: `${window.location.origin}/payment/success`,
@@ -434,9 +435,9 @@ export default function PatientBookingDetail() {
           setPayOSLink(paymentResponse.data.payOSLink);
           setPaymentStatus('PENDING');
           
-          // Tự động mở PayOS link
+          // Tự động mở PayOS link trong tab hiện tại
           console.log('🚀 Auto-opening PayOS link:', paymentResponse.data.payOSLink);
-          window.open(paymentResponse.data.payOSLink, '_blank');
+          window.location.href = paymentResponse.data.payOSLink;
           
           // Chuyển đến bước thanh toán
           setBookingStep(3);
@@ -849,11 +850,7 @@ export default function PatientBookingDetail() {
                               }).format(slot.fee)}
                             </div>
                           )}
-                          {!slot.available && slot.status !== "Schedule" && (
-                                    <div className="text-xs text-red-500 mt-0.5">
-                              Đã đặt
-                            </div>
-                          )}
+                          
                         </div>
                       </button>
                             ))}
@@ -893,11 +890,7 @@ export default function PatientBookingDetail() {
                                       }).format(slot.fee)}
                                     </div>
                                   )}
-                                  {!slot.available && slot.status !== "Schedule" && (
-                                    <div className="text-xs text-red-500 mt-0.5">
-                                      Đã đặt
-                                    </div>
-                                  )}
+                                  
                                 </div>
                               </button>
                             ))}
@@ -1147,10 +1140,10 @@ export default function PatientBookingDetail() {
                 <strong>Đặt lịch khám với {doctor.name}</strong>
               </p>
               <p className="text-sm text-blue-700">
-                Khuyến khích bệnh nhân đặt lịch trước qua "ứng dụng YouMed" để lấy số thứ tự sớm, hạn chế thời gian chờ đợi và giúp phòng khám phục vụ tốt hơn.
+                Khuyến khích bệnh nhân đặt lịch trước qua "ứng dụng Clinic Booking" để lấy số thứ tự sớm, hạn chế thời gian chờ đợi và giúp phòng khám phục vụ tốt hơn.
               </p>
-              <a href="#" className="text-sm text-blue-600 hover:underline">
-                Tải ứng dụng YouMed tại đây
+              <a href="https://play.google.com/store/apps/details?id=com.clinicbooking.app" className="text-sm text-blue-600 hover:underline">
+                Tải ứng dụng Clinic Booking tại đây
               </a>
             </div>
           </div>

@@ -25,6 +25,7 @@ public class PaymentService {
     private final AppointmentRepository appointmentRepository;
     private final PayOSService payOSService;
     private final PaymentMapper paymentMapper;
+    private final AppointmentService appointmentService;
     
     @Transactional
     public PaymentDTO.Response createPayment(PaymentDTO.Create paymentCreateDTO) {
@@ -98,6 +99,7 @@ public class PaymentService {
             // Tạo payment mới
             Payment payment = new Payment();
             payment.setAppointment(appointment);
+            payment.setPatientId(paymentCreateDTO.getPatientId());
             
             // Lấy fee từ appointment thay vì từ DTO
             if (appointment.getFee() != null) {
@@ -262,6 +264,33 @@ public class PaymentService {
         
         if (paymentStatus == Payment.PaymentStatus.PAID) {
             payment.setPaidAt(java.time.LocalDateTime.now());
+            
+            // Tự động đặt lịch hẹn khi thanh toán thành công
+            try {
+                log.info("🎯 Auto-booking appointment after successful payment for PayOS ID: {}", payOSPaymentId);
+                
+                // Debug: Kiểm tra appointment và patient data
+                Appointment appointment = payment.getAppointment();
+                Long patientId = payment.getPatientId();
+                String notes = payment.getDescription();
+                
+                log.info("📋 Appointment ID: {}", appointment.getAppointmentId());
+                log.info("📋 Appointment status: {}", appointment.getStatus());
+                log.info("📋 Payment patientId: {}", patientId);
+                log.info("📋 Payment notes: {}", notes);
+                
+                if (patientId == null) {
+                    log.error("❌ PatientId is null in payment, cannot auto-book");
+                    return paymentMapper.toResponseDTO(payment);
+                }
+                
+                log.info("🔍 Calling bookAppointment with patientId: {}, notes: {}", patientId, notes);
+                appointmentService.bookAppointment(appointment.getAppointmentId(), patientId, notes);
+                log.info("✅ Appointment booked successfully after payment");
+            } catch (Exception e) {
+                log.error("❌ Error auto-booking appointment after payment: ", e);
+                // Không throw exception để không ảnh hưởng đến việc cập nhật payment status
+            }
         }
         
         // Cập nhật orderCode nếu có
