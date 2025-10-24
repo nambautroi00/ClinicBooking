@@ -5,6 +5,7 @@ import articleApi from '../api/articleApi';
 import { getFullAvatarUrl } from '../utils/avatarUtils';
 import { toast } from '../utils/toast';
 import useScrollToTop from '../hooks/useScrollToTop';
+import config from '../config/config';
 
 const Articles = () => {
   const [articles, setArticles] = useState([]);
@@ -23,19 +24,17 @@ const Articles = () => {
     try {
       setLoading(true);
       
-      let response;
+      // Luôn sử dụng searchArticles với status ACTIVE
+      const searchParams = {
+        status: 'ACTIVE'
+      };
+      
+      // Thêm title nếu có search
       if (search && search.trim()) {
-        // Tìm kiếm với từ khóa
-        const searchParams = {
-          title: search.trim(),
-          status: 'ACTIVE'
-        };
-        
-        response = await articleApi.searchArticles(searchParams, page, 12, 'createdAt,desc');
-      } else {
-        // Lấy tất cả bài viết
-        response = await articleApi.getAllArticles(page, 12, 'createdAt,desc');
+        searchParams.title = search.trim();
       }
+      
+      const response = await articleApi.searchArticles(searchParams, page, 12, 'createdAt,desc');
       
       const pageData = response.data;
       
@@ -111,7 +110,7 @@ const Articles = () => {
   const getImageUrl = (imageUrl) => {
     if (!imageUrl) return null;
     if (imageUrl.startsWith('http')) return imageUrl;
-    return `http://localhost:8080${imageUrl}`;
+    return config.helpers.getImageUrl(imageUrl);
   };
 
 

@@ -29,6 +29,11 @@ public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
+    @GetMapping
+    public ResponseEntity<List<AppointmentDTO.Response>> getAll() {
+        return ResponseEntity.ok(appointmentService.getAll());
+    }
+
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody AppointmentDTO.Create dto) {
         AppointmentDTO.Response created = appointmentService.create(dto);
@@ -60,6 +65,13 @@ public class AppointmentController {
     @GetMapping("/available-slots")
     public ResponseEntity<List<AppointmentDTO.Response>> getAvailableSlots(@RequestParam("doctorId") Long doctorId) {
         return ResponseEntity.ok(appointmentService.getAvailableSlotsByDoctor(doctorId));
+    }
+
+    @GetMapping("/by-patient-and-doctor")
+    public ResponseEntity<List<AppointmentDTO.Response>> getAppointmentsByPatientAndDoctor(
+            @RequestParam("patientId") Long patientId,
+            @RequestParam("doctorId") Long doctorId) {
+        return ResponseEntity.ok(appointmentService.getAppointmentsByPatientAndDoctor(patientId, doctorId));
     }
 
     // =====================================================================

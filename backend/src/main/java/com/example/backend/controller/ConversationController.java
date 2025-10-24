@@ -46,32 +46,43 @@ public class ConversationController {
     }
 
     @GetMapping("/by-patient")
-    public ResponseEntity<List<ConversationDTO.Response>> getConversationsByPatient(@RequestParam("patientId") Long patientId) {
-        return ResponseEntity.ok(conversationService.getConversationsByPatient(patientId));
+    public ResponseEntity<List<ConversationDTO.Response>> getConversationsByPatient(
+            @RequestParam(value = "patientUserId", required = false) Long patientUserId,
+            @RequestParam(value = "patientId", required = false) Long patientId) {
+        return ResponseEntity.ok(conversationService.getConversationsByPatient(patientUserId, patientId));
     }
 
     @GetMapping("/by-doctor")
-    public ResponseEntity<List<ConversationDTO.Response>> getConversationsByDoctor(@RequestParam("doctorId") Long doctorId) {
-        return ResponseEntity.ok(conversationService.getConversationsByDoctor(doctorId));
+    public ResponseEntity<List<ConversationDTO.Response>> getConversationsByDoctor(
+            @RequestParam(value = "doctorUserId", required = false) Long doctorUserId,
+            @RequestParam(value = "doctorId", required = false) Long doctorId) {
+        return ResponseEntity.ok(conversationService.getConversationsByDoctor(doctorUserId, doctorId));
     }
 
     @GetMapping("/by-patient-and-doctor")
     public ResponseEntity<ConversationDTO.Response> getConversationByPatientAndDoctor(
-            @RequestParam("patientId") Long patientId,
-            @RequestParam("doctorId") Long doctorId) {
-        Optional<ConversationDTO.Response> conversation = conversationService.getConversationByPatientAndDoctor(patientId, doctorId);
+            @RequestParam(value = "patientUserId", required = false) Long patientUserId,
+            @RequestParam(value = "patientId", required = false) Long patientId,
+            @RequestParam(value = "doctorUserId", required = false) Long doctorUserId,
+            @RequestParam(value = "doctorId", required = false) Long doctorId) {
+        Optional<ConversationDTO.Response> conversation = conversationService.getConversationByParticipants(
+                patientUserId, patientId, doctorUserId, doctorId);
         return conversation.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/count/by-patient")
-    public ResponseEntity<Long> getConversationCountByPatient(@RequestParam("patientId") Long patientId) {
-        return ResponseEntity.ok(conversationService.getConversationCountByPatient(patientId));
+    public ResponseEntity<Long> getConversationCountByPatient(
+            @RequestParam(value = "patientUserId", required = false) Long patientUserId,
+            @RequestParam(value = "patientId", required = false) Long patientId) {
+        return ResponseEntity.ok(conversationService.getConversationCountByPatient(patientUserId, patientId));
     }
 
     @GetMapping("/count/by-doctor")
-    public ResponseEntity<Long> getConversationCountByDoctor(@RequestParam("doctorId") Long doctorId) {
-        return ResponseEntity.ok(conversationService.getConversationCountByDoctor(doctorId));
+    public ResponseEntity<Long> getConversationCountByDoctor(
+            @RequestParam(value = "doctorUserId", required = false) Long doctorUserId,
+            @RequestParam(value = "doctorId", required = false) Long doctorId) {
+        return ResponseEntity.ok(conversationService.getConversationCountByDoctor(doctorUserId, doctorId));
     }
 
     @GetMapping("/{id}/latest-messages")

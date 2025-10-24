@@ -39,6 +39,10 @@ public class MessageMapper {
             dto.setSenderId(entity.getSender().getId());
             dto.setSenderName(entity.getSender().getFirstName() + " " + entity.getSender().getLastName());
             dto.setSenderEmail(entity.getSender().getEmail());
+            dto.setSenderAvatarUrl(entity.getSender().getAvatarUrl());
+            if (entity.getSender().getRole() != null) {
+                dto.setSenderRole(entity.getSender().getRole().getName());
+            }
         }
         
         dto.setContent(entity.getContent());

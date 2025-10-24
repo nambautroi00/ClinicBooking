@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, User, Heart, ArrowRight, Clock } from 'lucide-react';
 import articleApi from '../../api/articleApi';
 import { getFullAvatarUrl } from '../../utils/avatarUtils';
+import config from '../../config/config';
 
 const ArticlesSection = () => {
   const [articles, setArticles] = useState([]);
@@ -58,7 +59,7 @@ const ArticlesSection = () => {
   const getImageUrl = (imageUrl) => {
     if (!imageUrl) return null;
     if (imageUrl.startsWith('http')) return imageUrl;
-    return `http://localhost:8080${imageUrl}`;
+    return config.helpers.getImageUrl(imageUrl);
   };
 
   if (loading) {

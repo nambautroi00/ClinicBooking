@@ -9,6 +9,17 @@ const MedicinesManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [modalData, setModalData] = useState({
+    medicineId: '',
+    name: '',
+    strength: '',
+    category: '',
+    price: '',
+    unit: 'viên',
+    stock: '',
+    expiryDate: '',
+    description: ''
+  });
 
   useEffect(() => {
     loadMedicines();
@@ -133,11 +144,25 @@ const MedicinesManagement = () => {
 
   const handleAddNew = () => {
     setSelectedMedicine(null);
+    setModalData({
+      medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên', stock: '', expiryDate: '', description: ''
+    });
     setShowModal(true);
   };
 
   const handleEdit = (medicine) => {
     setSelectedMedicine(medicine);
+    setModalData({
+      medicineId: medicine.medicineId || '',
+      name: medicine.name || '',
+      strength: medicine.strength || '',
+      category: medicine.category || '',
+      price: medicine.price || '',
+      unit: medicine.unit || 'viên',
+      stock: medicine.stock || '',
+      expiryDate: medicine.expiryDate ? (medicine.expiryDate.split && medicine.expiryDate.split('T')[0]) : '',
+      description: medicine.description || ''
+    });
     setShowModal(true);
   };
 
@@ -153,14 +178,37 @@ const MedicinesManagement = () => {
     }
   };
 
-  const handleSave = async (medicineData) => {
+  const handleSave = async () => {
+    // Minimal validation: medicineId, name, price required
+    if (!modalData.medicineId || !modalData.name || modalData.price === '' || modalData.price === null) {
+      alert('Vui lòng nhập đầy đủ: Mã thuốc, Tên thuốc và Đơn giá.');
+      return;
+    }
+
+    const payload = {
+      medicineId: modalData.medicineId,
+      name: modalData.name,
+      strength: modalData.strength || undefined,
+      category: modalData.category || undefined,
+      // backend expects category in `note` field in current mapping, include it so updates persist
+      note: modalData.category || undefined,
+      unitPrice: Number(modalData.price) || 0,
+      unit: modalData.unit || 'viên',
+      stock: modalData.stock !== '' ? Number(modalData.stock) : undefined,
+      expiryDate: modalData.expiryDate || undefined,
+      description: modalData.description || undefined
+    };
+
     try {
       if (selectedMedicine) {
-        await medicineApi.update(selectedMedicine.id, medicineData);
+        await medicineApi.update(selectedMedicine.id, payload);
       } else {
-        await medicineApi.create(medicineData);
+        await medicineApi.create(payload);
       }
       setShowModal(false);
+      // reset
+  setSelectedMedicine(null);
+  setModalData({ medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên', stock: '', expiryDate: '', description: '' });
       loadMedicines();
     } catch (error) {
       console.error('Lỗi khi lưu thuốc:', error);
@@ -345,7 +393,8 @@ const MedicinesManagement = () => {
                   <Form.Control 
                     type="text" 
                     placeholder="Mã thuốc"
-                    defaultValue={selectedMedicine?.medicineId || ''}
+                    value={modalData.medicineId}
+                    onChange={(e) => setModalData(prev => ({...prev, medicineId: e.target.value}))}
                   />
                 </Form.Group>
               </Col>
@@ -355,7 +404,8 @@ const MedicinesManagement = () => {
                   <Form.Control 
                     type="text" 
                     placeholder="Tên thuốc"
-                    defaultValue={selectedMedicine?.name || ''}
+                    value={modalData.name}
+                    onChange={(e) => setModalData(prev => ({...prev, name: e.target.value}))}
                   />
                 </Form.Group>
               </Col>
@@ -367,15 +417,20 @@ const MedicinesManagement = () => {
                   <Form.Control 
                     type="text" 
                     placeholder="VD: 500mg"
-                    defaultValue={selectedMedicine?.strength || ''}
+                    value={modalData.strength}
+                    onChange={(e) => setModalData(prev => ({...prev, strength: e.target.value}))}
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Loại thuốc</Form.Label>
-                  <Form.Select defaultValue={selectedMedicine?.category || ''}>
+                  <Form.Select value={modalData.category} onChange={(e) => setModalData(prev => ({...prev, category: e.target.value}))}>
                     <option value="">Chọn loại</option>
+                    {/* If current category is non-empty and not in the list, show it as the first selectable option */}
+                    {modalData.category && !["Kháng sinh","Giảm đau, hạ sốt","Tiêu hóa","Tim mạch","Hô hấp"].includes(modalData.category) && (
+                      <option value={modalData.category}>{modalData.category}</option>
+                    )}
                     <option value="Kháng sinh">Kháng sinh</option>
                     <option value="Giảm đau, hạ sốt">Giảm đau, hạ sốt</option>
                     <option value="Tiêu hóa">Tiêu hóa</option>
@@ -392,14 +447,15 @@ const MedicinesManagement = () => {
                   <Form.Control 
                     type="number" 
                     placeholder="Giá"
-                    defaultValue={selectedMedicine?.price || ''}
+                    value={modalData.price}
+                    onChange={(e) => setModalData(prev => ({...prev, price: e.target.value}))}
                   />
                 </Form.Group>
               </Col>
               <Col md={4}>
                 <Form.Group className="mb-3">
                   <Form.Label>Đơn vị</Form.Label>
-                  <Form.Select defaultValue={selectedMedicine?.unit || 'viên'}>
+                  <Form.Select value={modalData.unit} onChange={(e) => setModalData(prev => ({...prev, unit: e.target.value}))}>
                     <option value="viên">viên</option>
                     <option value="chai">chai</option>
                     <option value="ống">ống</option>
@@ -414,24 +470,19 @@ const MedicinesManagement = () => {
                   <Form.Control 
                     type="number" 
                     placeholder="Số lượng"
-                    defaultValue={selectedMedicine?.stock || ''}
+                    value={modalData.stock}
+                    onChange={(e) => setModalData(prev => ({...prev, stock: e.target.value}))}
                   />
                 </Form.Group>
               </Col>
             </Row>
-            <Form.Group className="mb-3">
-              <Form.Label>Nhà sản xuất</Form.Label>
-              <Form.Control 
-                type="text" 
-                placeholder="Nhà sản xuất"
-                defaultValue={selectedMedicine?.manufacturer || ''}
-              />
-            </Form.Group>
+            {/* manufacturer removed - not required */}
             <Form.Group className="mb-3">
               <Form.Label>Hạn sử dụng</Form.Label>
               <Form.Control 
                 type="date"
-                defaultValue={selectedMedicine?.expiryDate ? selectedMedicine.expiryDate.split('T')[0] : ''}
+                value={modalData.expiryDate}
+                onChange={(e) => setModalData(prev => ({...prev, expiryDate: e.target.value}))}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -440,7 +491,8 @@ const MedicinesManagement = () => {
                 as="textarea" 
                 rows={3} 
                 placeholder="Mô tả thuốc..."
-                defaultValue={selectedMedicine?.description || ''}
+                value={modalData.description}
+                onChange={(e) => setModalData(prev => ({...prev, description: e.target.value}))}
               />
             </Form.Group>
           </Form>
@@ -449,7 +501,7 @@ const MedicinesManagement = () => {
           <Button variant="secondary" onClick={() => setShowModal(false)}>
             Hủy
           </Button>
-          <Button variant="primary" onClick={() => handleSave({})}>
+          <Button variant="primary" onClick={() => handleSave()}>
             {selectedMedicine ? 'Cập Nhật' : 'Thêm Thuốc'}
           </Button>
         </Modal.Footer>

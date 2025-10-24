@@ -23,6 +23,7 @@ const prescriptionApi = {
 
   // Tạo đơn thuốc mới
   createPrescription: (prescriptionData) => {
+    console.log('📡 Sending prescription data to backend:', JSON.stringify(prescriptionData, null, 2));
     return axiosClient.post('/prescriptions', prescriptionData);
   },
 
@@ -67,58 +68,5 @@ const prescriptionApi = {
   }
 };
 
-// API cho thuốc (Medicines)
-const medicineApi = {
-  // Lấy tất cả thuốc
-  getAllMedicines: () => {
-    return axiosClient.get('/medicines');
-  },
-
-  // Lấy thuốc theo ID
-  getMedicineById: (medicineId) => {
-    return axiosClient.get(`/medicines/${medicineId}`);
-  },
-
-  // Tạo thuốc mới
-  createMedicine: (medicineData) => {
-    return axiosClient.post('/medicines', medicineData);
-  },
-
-  // Cập nhật thông tin thuốc
-  updateMedicine: (medicineId, medicineData) => {
-    return axiosClient.put(`/medicines/${medicineId}`, medicineData);
-  },
-
-  // Xóa thuốc
-  deleteMedicine: (medicineId) => {
-    return axiosClient.delete(`/medicines/${medicineId}`);
-  },
-
-  // Tìm kiếm thuốc
-  searchMedicines: (keyword) => {
-    return axiosClient.get(`/medicines/search?keyword=${encodeURIComponent(keyword)}`);
-  },
-
-  // Lấy thuốc theo loại
-  getMedicinesByCategory: (category) => {
-    return axiosClient.get(`/medicines/category/${encodeURIComponent(category)}`);
-  },
-
-  // Cập nhật tồn kho
-  updateMedicineStock: (medicineId, stock) => {
-    return axiosClient.patch(`/medicines/${medicineId}/stock`, { stock });
-  },
-
-  // Lấy thuốc sắp hết hạn
-  getExpiringMedicines: (days = 30) => {
-    return axiosClient.get(`/medicines/expiring?days=${days}`);
-  },
-
-  // Lấy thuốc tồn kho thấp
-  getLowStockMedicines: (threshold = 100) => {
-    return axiosClient.get(`/medicines/low-stock?threshold=${threshold}`);
-  }
-};
-
-export { prescriptionApi, medicineApi };
+export { prescriptionApi };
 export default prescriptionApi;

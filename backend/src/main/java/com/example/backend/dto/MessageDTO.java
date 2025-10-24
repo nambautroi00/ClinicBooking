@@ -49,6 +49,8 @@ public class MessageDTO {
         private Long senderId;
         private String senderName;
         private String senderEmail;
+        private String senderAvatarUrl;
+        private String senderRole;
         private String content;
         private String attachmentURL;
         private LocalDateTime sentAt;

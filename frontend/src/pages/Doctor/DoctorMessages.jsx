@@ -9,6 +9,7 @@ import fileUploadApi from "../../api/fileUploadApi";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import Cookies from "js-cookie";
+import config from "../../config/config";
 import {
   Search,
   Send,
@@ -111,20 +112,57 @@ function DoctorMessages() {
   const [uploadError, setUploadError] = useState("");
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 
-  const mergeUniqueMessages = useCallback((existing, incomingList) => {
-    const next = [...existing];
-    for (const msg of incomingList) {
-      const id = msg.messageId || msg.id;
-      if (id) {
-        if (!seenMessageIdsRef.current.has(id)) {
-          seenMessageIdsRef.current.add(id);
-          next.push({ ...msg, _arrivalAt: Date.now() });
-        }
-      } else {
-        const duplicate = next.some(m => m.senderId === msg.senderId && m.content === msg.content && (m.createdAt || m.sentAt) === (msg.createdAt || msg.sentAt));
-        if (!duplicate) next.push({ ...msg, _arrivalAt: Date.now() });
-      }
+  const markConversationAsRead = useCallback(async () => {
+    if (!conversationId || !currentUserId) return;
+    try {
+      await messageApi.markMessagesAsRead(conversationId, currentUserId);
+      setMessages(prev => prev.map(msg =>
+        Number(msg.senderId) === Number(currentUserId) ? msg : { ...msg, isRead: true }
+      ));
+      setPatients(prev => prev.map(p =>
+        selectedPatient && p.patientId === selectedPatient.patientId
+          ? { ...p, unreadCount: 0 }
+          : p
+      ));
+    } catch (e) {
+      console.error("Failed to mark conversation as read:", e);
     }
+  }, [conversationId, currentUserId, setMessages, setPatients, selectedPatient]);
+
+  const mergeUniqueMessages = useCallback((existing, incomingList) => {
+    const toKey = (msg) => {
+      const id = msg.messageId ?? msg.id;
+      if (id !== undefined && id !== null) {
+        return `id-${id}`;
+      }
+      const sender = msg.senderId ?? "unknown";
+      const timestamp = msg.createdAt || msg.sentAt || msg._arrivalAt || "";
+      const content = msg.content || "";
+      return `fallback-${sender}-${timestamp}-${content}`;
+    };
+
+    const next = [...existing];
+    const indexByKey = new Map();
+    next.forEach((msg, idx) => {
+      indexByKey.set(toKey(msg), idx);
+    });
+
+    incomingList.forEach((msg) => {
+      const key = toKey(msg);
+      if (indexByKey.has(key)) {
+        const idx = indexByKey.get(key);
+        next[idx] = { ...next[idx], ...msg };
+      } else {
+        const enriched = { ...msg, _arrivalAt: Date.now() };
+        next.push(enriched);
+        indexByKey.set(key, next.length - 1);
+        const id = msg.messageId ?? msg.id;
+        if (id !== undefined && id !== null) {
+          seenMessageIdsRef.current.add(String(id));
+        }
+      }
+    });
+
     return next;
   }, []);
 
@@ -159,6 +197,23 @@ function DoctorMessages() {
     }
   }, []);
 
+  const currentUserName = useMemo(() => {
+    if (!currentUser) return "";
+    const parts = [currentUser.firstName, currentUser.lastName].filter(Boolean);
+    const joined = parts.join(" ").trim();
+    return joined || currentUser.email || "";
+  }, [currentUser]);
+
+  const currentUserAvatarUrl = useMemo(() => {
+    if (!currentUser) return null;
+    return currentUser.avatarUrl || currentUser.avatarURL || null;
+  }, [currentUser]);
+
+  const resolveSenderAvatar = useCallback((avatarUrl) => {
+    if (!avatarUrl) return null;
+    return config.helpers.getAvatarUrl(avatarUrl);
+  }, []);
+
   // Fetch doctorId and currentUserId
   useEffect(() => {
     const fetchDoctorId = async () => {
@@ -168,9 +223,11 @@ function DoctorMessages() {
         try {
           const res = await doctorApi.getDoctorByUserId(userId);
           const data = res.data || res;
+          console.log("✅ Fetched doctor data:", data);
           setDoctorId(data.doctorId);
+          console.log("✅ Set doctorId:", data.doctorId);
         } catch (err) {
-          console.error("Error fetching doctorId:", err);
+          console.error("❌ Error fetching doctorId:", err);
         }
       }
     };
@@ -179,13 +236,28 @@ function DoctorMessages() {
 
   // Fetch patients with appointments
   const fetchPatients = useCallback(async () => {
-    if (!doctorId) return;
+    console.log("🔄 fetchPatients called with doctorId:", doctorId);
+    if (!doctorId) {
+      console.log("❌ No doctorId, skipping fetchPatients");
+      return;
+    }
 
     // Tránh flicker: chỉ bật loading trong lần tải đầu
     if (patients.length === 0) setLoading(true);
     try {
       // Lấy tất cả appointments của bác sĩ
       const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(doctorId);
+      console.log(`✅ Loaded appointments for doctor ${doctorId}:`, appointmentsRes.data?.length || 0);
+      
+      // Nếu không có appointments, không hiển thị patients nào
+      if (!appointmentsRes.data || appointmentsRes.data.length === 0) {
+        console.log("❌ No appointments found for doctor", doctorId, "- no patients to display");
+        console.log("Appointments response:", appointmentsRes);
+        setPatients([]);
+        return;
+      }
+      
+      console.log("✅ Found appointments:", appointmentsRes.data.length);
       
       // Lấy danh sách patient IDs từ appointments
       const patientIds = [...new Set(
@@ -193,6 +265,8 @@ function DoctorMessages() {
           .filter(appointment => appointment.patientId !== null)
           .map(appointment => appointment.patientId)
       )];
+      
+      console.log("✅ Patient IDs from appointments:", patientIds);
 
       // Lấy thông tin chi tiết của từng patient
       const patientsWithDetails = await Promise.all(
@@ -240,6 +314,7 @@ function DoctorMessages() {
             return {
               ...patient,
               patientId,
+              patientUserId: patient.user?.id ?? patient?.userId,
               patientName: patient.user?.lastName + " " + patient.user?.firstName ||
                           patient.lastName + " " + patient.firstName ||
                           "Không rõ",
@@ -334,6 +409,7 @@ function DoctorMessages() {
             ...patient,
             conversationId: convId,
             patientId,
+            patientUserId: conv.patientUserId || patient?.user?.id,
             patientName: nameFromPatient(),
             patientEmail: patient?.user?.email || patient?.email || "",
             patientPhone: patient?.user?.phone || patient?.phone || "",
@@ -363,15 +439,12 @@ function DoctorMessages() {
     }
   }, [doctorId, selectedPatientId, patients.length, currentUserId]);
 
+  // Load patients when URL parameters are present or when doctor is logged in
   useEffect(() => {
-    if (doctorId) {
-      (async () => {
-        const count = await fetchConversations();
-        if (!count) await fetchPatients();
-      })();
+    if (doctorId && (selectedPatientId || doctorId)) {
+      fetchPatients();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doctorId]);
+  }, [doctorId, selectedPatientId, fetchPatients]);
 
   // Create conversation for specific patient if needed
   const createConversationForPatient = useCallback(async (patientId, doctorId) => {
@@ -390,10 +463,28 @@ function DoctorMessages() {
       }
     } catch (error) {
       // If API returns 404 or error, conversation doesn't exist
-      console.log("❌ Conversation doesn't exist, will create new one. Error:", error.message);
+      console.log("❌ Conversation doesn't exist, will check appointment first. Error:", error.message);
     }
 
-    // Only create if conversation doesn't exist
+    // Check if there's an appointment between patient and doctor before creating conversation
+    try {
+      console.log("🔍 Checking for appointments between patient:", patientId, "and doctor:", doctorId);
+      const appointmentResponse = await appointmentApi.checkAppointmentBetweenPatientAndDoctor(patientId, doctorId);
+      
+      if (!appointmentResponse.data || appointmentResponse.data.length === 0) {
+        console.log("❌ No appointments found between patient and doctor. Cannot create conversation.");
+        alert("Bệnh nhân cần đặt lịch khám với bạn trước khi có thể nhắn tin.");
+        return null;
+      }
+      
+      console.log("✅ Found appointments, proceeding to create conversation");
+    } catch (error) {
+      console.error("❌ Error checking appointments:", error);
+      alert("Không thể kiểm tra lịch hẹn. Vui lòng thử lại sau.");
+      return null;
+    }
+
+    // Only create if conversation doesn't exist and appointment exists
     try {
       const conversationData = {
         patientId: parseInt(patientId),
@@ -422,9 +513,11 @@ function DoctorMessages() {
           try {
             const res = await messageApi.getByConversation(convId);
             const data = Array.isArray(res.data) ? res.data : [];
-            // seed seen ids to avoid future duplicates
-            const ids = data.map(m => m.messageId || m.id).filter(Boolean);
-            ids.forEach(id => seenMessageIdsRef.current.add(id));
+            const ids = data
+              .map((m) => m.messageId ?? m.id)
+              .filter((id) => id !== null && id !== undefined)
+              .map((id) => String(id));
+            seenMessageIdsRef.current = new Set(ids);
             setMessages(data);
             scrollToBottom();
             setLastFetchedAt(new Date().toISOString());
@@ -525,15 +618,20 @@ function DoctorMessages() {
   useEffect(() => {
     if (!conversationId) return;
 
-    const sock = new SockJS("http://localhost:8080/ws");
+    const sock = new SockJS(config.helpers.getWebSocketUrl());
     const client = new Client({
       webSocketFactory: () => sock,
       reconnectDelay: 3000,
+      debug: (str) => {
+        console.log("WebSocket Debug:", str);
+      },
     });
 
     client.onConnect = () => {
-          setWsConnected(true);
+      console.log("✅ WebSocket connected for conversation:", conversationId);
+      setWsConnected(true);
       client.subscribe(`/topic/conversations/${conversationId}`, (frame) => {
+        console.log("📨 Received WebSocket message:", frame.body);
         try {
           const incoming = JSON.parse(frame.body);
           lastWsMessageAtRef.current = Date.now();
@@ -556,14 +654,18 @@ function DoctorMessages() {
             const el = document.getElementById("messages-container");
             if (el) el.scrollTop = el.scrollHeight;
           });
-        } catch {}
+        } catch (e) {
+          console.error("❌ Error parsing WebSocket message:", e);
+        }
       });
     };
 
-    client.onStompError = () => {
+    client.onStompError = (error) => {
+      console.error("❌ WebSocket STOMP error:", error);
       setWsConnected(false);
     };
-    client.onWebSocketClose = () => {
+    client.onWebSocketClose = (event) => {
+      console.log("❌ WebSocket closed:", event);
       setWsConnected(false);
     };
 
@@ -576,7 +678,7 @@ function DoctorMessages() {
 
   // Filter patients
   const filteredPatients = useMemo(() => {
-    return patients.filter(patient => {
+    const matches = patients.filter(patient => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -587,6 +689,14 @@ function DoctorMessages() {
       }
       return true;
     });
+
+    matches.sort((a, b) => {
+      const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+      const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    return matches;
   }, [patients, searchQuery]);
 
   // Messages for current conversation (already filtered)
@@ -617,6 +727,9 @@ function DoctorMessages() {
         attachmentURL: null,
         sentAt: new Date().toISOString(),
         messageType: "TEXT",
+        senderAvatarUrl: currentUserAvatarUrl,
+        senderName: currentUserName || "Ban",
+        senderRole: "DOCTOR",
       };
       setMessages(prev => [...prev, optimistic]);
     }
@@ -628,6 +741,18 @@ function DoctorMessages() {
       if (!wsConnected && optimistic) {
         setMessages(prev => prev.map(m => (m.messageId === optimistic.messageId ? created : m)));
       }
+      setMessages(prev => mergeUniqueMessages(prev, [created]));
+      setPatients(prev => prev.map(p =>
+        selectedPatient && p.patientId === selectedPatient.patientId
+          ? {
+              ...p,
+              lastMessage: created.content || p.lastMessage,
+              lastMessageTime: created.createdAt || created.sentAt || p.lastMessageTime,
+              unreadCount: p.unreadCount,
+            }
+          : p
+      ));
+      markConversationAsRead();
     } catch (e) {
       console.error("Failed to send message:", e);
       // rollback optimistic
@@ -710,12 +835,15 @@ function DoctorMessages() {
         optimistic = {
           messageId: `temp-img-${Date.now()}`,
           conversationId: Number(conversationId),
-          senderId: Number(currentUserId),
-          content: (newMessage && newMessage.trim()) || "",
-          attachmentURL: pendingImage, // local preview
-          sentAt: new Date().toISOString(),
-          messageType: "IMAGE",
-        };
+        senderId: Number(currentUserId),
+        content: (newMessage && newMessage.trim()) || "",
+        attachmentURL: pendingImage, // local preview
+        sentAt: new Date().toISOString(),
+        messageType: "IMAGE",
+        senderAvatarUrl: currentUserAvatarUrl,
+        senderName: currentUserName || "Ban",
+        senderRole: "DOCTOR",
+      };
         setMessages(prev => [...prev, optimistic]);
       }
 
@@ -735,6 +863,18 @@ function DoctorMessages() {
       if (!wsConnected && optimistic) {
         setMessages(prev => prev.map(m => (m.messageId === optimistic.messageId ? created : m)));
       }
+      setMessages(prev => mergeUniqueMessages(prev, [created]));
+      setPatients(prev => prev.map(p =>
+        selectedPatient && p.patientId === selectedPatient.patientId
+          ? {
+              ...p,
+              lastMessage: created.content || (newMessage && newMessage.trim()) || p.lastMessage,
+              lastMessageTime: created.createdAt || created.sentAt || p.lastMessageTime,
+              unreadCount: p.unreadCount,
+            }
+          : p
+      ));
+      markConversationAsRead();
 
       setNewMessage("");
       setPendingFile(null);
@@ -847,7 +987,15 @@ function DoctorMessages() {
             {filteredPatients.length === 0 ? (
               <div className="text-center py-5">
                 <MessageCircle size={48} color="#ccc" className="mb-3" />
-                <p className="text-muted">Không có bệnh nhân nào</p>
+                <p className="text-muted">Chưa có cuộc hội thoại nào</p>
+                <p className="text-muted small">Bệnh nhân đặt lịch khám để bắt đầu nhắn tin</p>
+                <button 
+                  className="btn btn-outline-primary btn-sm mt-2"
+                  onClick={() => fetchPatients()}
+                  disabled={loading}
+                >
+                  {loading ? "Đang tải..." : "Tải danh sách"}
+                </button>
               </div>
             ) : (
               filteredPatients.map((patient) => (
@@ -858,7 +1006,13 @@ function DoctorMessages() {
                       ? "bg-primary text-white"
                       : "hover-bg-light"
                   }`}
-                  onClick={() => setSelectedPatient(patient)}
+                  onClick={() => {
+                    setSelectedPatient(patient);
+                    // Load patients if list is empty
+                    if (patients.length === 0) {
+                      fetchPatients();
+                    }
+                  }}
                   style={{ cursor: "pointer" }}
                 >
                   <div className="d-flex align-items-center gap-3">
@@ -958,87 +1112,138 @@ function DoctorMessages() {
                   </div>
                 ) : (
                   patientMessages.map((message) => {
-                    const isDoctorMsg = Number(message.senderId) === Number(doctorId);
+                    const senderRole = (message.senderRole || "").toUpperCase();
+                    const isCurrentUser = Number(message.senderId) === Number(currentUserId);
+                    const patientUserId =
+                      selectedPatient?.user?.id ?? selectedPatient?.patientUserId ?? selectedPatient?.userId ?? null;
+                    const isDoctorSender =
+                      senderRole === "DOCTOR" || (!senderRole && isCurrentUser);
+                    const isPatientSender =
+                      senderRole === "PATIENT" ||
+                      (!senderRole &&
+                        ((patientUserId != null &&
+                          Number(message.senderId) === Number(patientUserId)) ||
+                          (!isCurrentUser && patientUserId == null)));
+                    const alignRight = isDoctorSender;
+                    const containerClass = alignRight ? "justify-content-end" : "justify-content-start";
+                    const bubbleClass = alignRight ? "bg-primary text-white" : "bg-light text-dark";
+                    const timeClass = alignRight ? "text-white-50" : "text-muted";
+                    const menuBtnClass = alignRight ? "btn-light" : "btn-outline-secondary";
+
                     const key = message.messageId || message.id || `${message.senderId}-${message.sentAt}`;
+                    const rawAvatar =
+                      message.senderAvatarUrl ||
+                      (isDoctorSender
+                        ? currentUserAvatarUrl
+                        : selectedPatient?.patientAvatar || selectedPatient?.user?.avatarUrl);
+                    const senderAvatar = resolveSenderAvatar(rawAvatar);
+                    const fallbackNameRaw = (message.senderName && message.senderName.trim().length > 0)
+                      ? message.senderName
+                      : isDoctorSender
+                        ? (currentUserName || "Ban")
+                        : (selectedPatient?.patientName || "Nguoi dung");
+                    const fallbackName = fallbackNameRaw.trim();
+                    const senderInitial = fallbackName ? fallbackName.charAt(0).toUpperCase() : "?";
+
                     return (
                       <div
                         key={key}
-                        className={`mb-3 d-flex ${
-                          isDoctorMsg ? "justify-content-end" : "justify-content-start"
-                        }`}
+                        className={`mb-3 d-flex align-items-end ${containerClass}`}
                         onMouseEnter={() => setHoveredMessageId(message.messageId)}
-                        onMouseLeave={() => { if (menuOpenMessageId !== message.messageId) setHoveredMessageId(null); }}
+                        onMouseLeave={() => {
+                          if (menuOpenMessageId !== message.messageId) setHoveredMessageId(null);
+                        }}
                       >
-                        <div
-                          className={`p-3 rounded-3 ${
-                            isDoctorMsg ? "bg-primary text-white" : "bg-light text-dark"
-                          }`}
-                          style={{ maxWidth: "70%" }}
-                        >
-                          {Number(message.senderId) === Number(currentUserId) && (
-                            <div className="position-relative" style={{ height: 0 }}>
-                              {(hoveredMessageId === message.messageId || menuOpenMessageId === message.messageId) && (
-                                <button
-                                  className={`btn btn-sm ${isDoctorMsg ? "btn-light" : "btn-outline-secondary"}`}
-                                  style={{ position: 'absolute', top: -14, right: -14, padding: '2px 6px' }}
-                                  onClick={() => setMenuOpenMessageId(prev => prev === message.messageId ? null : message.messageId)}
-                                >
-                                  <MoreVertical size={14} />
-                                </button>
-                              )}
-                              {menuOpenMessageId === message.messageId && (
-                                <div className="dropdown-menu show" style={{ position: 'absolute', top: 0, right: 16 }}>
-                                  <button className="dropdown-item" onClick={() => beginEditMessage(message)}>Chỉnh sửa</button>
-                                  <button className="dropdown-item text-danger" onClick={() => recallMessage(message)}>Thu hồi</button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {editingMessageId === message.messageId ? (
-                            <>
-                              <Input
-                                type="text"
-                                value={editingText}
-                                onChange={(e) => setEditingText(e.target.value)}
-                                className="mb-2"
-                              />
-                              <div className="d-flex gap-2">
-                                <button className={`btn btn-sm ${isDoctorMsg ? 'btn-light' : 'btn-primary'}`} onClick={() => saveEditMessage(message)}>Lưu</button>
-                                <button className="btn btn-sm btn-outline-secondary" onClick={cancelEditMessage}>Hủy</button>
+                        {!alignRight && (
+                          <div className="me-2">
+                            <Avatar size={36} src={senderAvatar} alt={fallbackName || "User"}>
+                              {senderInitial}
+                            </Avatar>
+                          </div>
+                        )}
+                        <div className="position-relative" style={{ maxWidth: "70%" }}>
+                          <div className={`p-3 rounded-3 ${bubbleClass}`} style={{ maxWidth: "100%" }}>
+                            {isCurrentUser && (
+                              <div className="position-relative" style={{ height: 0 }}>
+                                {(hoveredMessageId === message.messageId || menuOpenMessageId === message.messageId) && (
+                                  <button
+                                    className={`btn btn-sm ${menuBtnClass}`}
+                                    style={{ position: "absolute", top: -14, right: -14, padding: "2px 6px" }}
+                                    onClick={() =>
+                                      setMenuOpenMessageId(prev => (prev === message.messageId ? null : message.messageId))
+                                    }
+                                  >
+                                    <MoreVertical size={14} />
+                                  </button>
+                                )}
+                                {menuOpenMessageId === message.messageId && (
+                                  <div className="dropdown-menu show" style={{ position: "absolute", top: 0, right: 16 }}>
+                                    <button className="dropdown-item" onClick={() => beginEditMessage(message)}>
+                                      Chỉnh sửa
+                                    </button>
+                                    <button className="dropdown-item text-danger" onClick={() => recallMessage(message)}>
+                                      Thu hồi
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            </>
-                          ) : (
-                            <>
-                          {message.attachmentURL && (
-                            <div className="mb-2">
-                              <img
-                                src={resolveAttachmentUrl(message.attachmentURL)}
-                                alt="attachment"
-                                onDoubleClick={() => setLightboxSrc(resolveAttachmentUrl(message.attachmentURL))}
-                                style={{
-                                  display: 'block',
-                                  maxWidth: '100%',
-                                  maxHeight: 300,
-                                  width: 'auto',
-                                  height: 'auto',
-                                  objectFit: 'contain',
-                                  borderRadius: 8,
-                                  cursor: 'zoom-in',
-                                }}
-                              />
-                            </div>
-                          )}
-                          {message.content && <p className="mb-0">{message.content}</p>}
-                          </>
-                          )}
-                          <small
-                            className={`${isDoctorMsg ? "text-white-50" : "text-muted"}`}
-                          >
-                          {formatTime(message.createdAt || message.sentAt)}
-                        </small>
+                            )}
+
+                            {editingMessageId === message.messageId ? (
+                              <>
+                                <Input
+                                  type="text"
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  className="mb-2"
+                                />
+                                <div className="d-flex gap-2">
+                                  <button
+                                    className={`btn btn-sm ${alignRight ? "btn-light" : "btn-primary"}`}
+                                    onClick={() => saveEditMessage(message)}
+                                  >
+                                    Lưu
+                                  </button>
+                                  <button className="btn btn-sm btn-outline-secondary" onClick={cancelEditMessage}>
+                                    Hủy
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                {message.attachmentURL && (
+                                  <div className="mb-2">
+                                    <img
+                                      src={resolveAttachmentUrl(message.attachmentURL)}
+                                      alt="attachment"
+                                      onDoubleClick={() => setLightboxSrc(resolveAttachmentUrl(message.attachmentURL))}
+                                      style={{
+                                        display: "block",
+                                        maxWidth: "100%",
+                                        maxHeight: 300,
+                                        width: "auto",
+                                        height: "auto",
+                                        objectFit: "contain",
+                                        borderRadius: 8,
+                                        cursor: "zoom-in",
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                {message.content && <p className="mb-0">{message.content}</p>}
+                              </>
+                            )}
+                            <small className={timeClass}>{formatTime(message.createdAt || message.sentAt)}</small>
+                          </div>
+                        </div>
+                        {alignRight && (
+                          <div className="ms-2">
+                            <Avatar size={36} src={senderAvatar} alt={fallbackName || "User"}>
+                              {senderInitial}
+                            </Avatar>
+                          </div>
+                        )}
                       </div>
-                    </div>
                     );
                   })
                 )}

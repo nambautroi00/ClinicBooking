@@ -3,7 +3,6 @@ package com.example.backend.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,18 +13,16 @@ public class ConversationDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Create {
-        @NotNull(message = "PatientID không được để trống")
+        private Long patientUserId;
         private Long patientId;
-
-        @NotNull(message = "DoctorID không được để trống")
+        private Long doctorUserId;
         private Long doctorId;
     }
 
     @Data
     @NoArgsConstructor
     public static class Update {
-        // Conversation không có trường nào cần update
-        // Chỉ có thể tạo mới hoặc xóa
+        // No updatable fields for conversations currently
     }
 
     @Data
@@ -33,8 +30,10 @@ public class ConversationDTO {
     @AllArgsConstructor
     public static class Response {
         private Long conversationId;
+        private Long patientUserId;
         private Long patientId;
         private String patientName;
+        private Long doctorUserId;
         private Long doctorId;
         private String doctorName;
         private LocalDateTime createdAt;

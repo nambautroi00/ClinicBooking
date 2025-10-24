@@ -1,9 +1,10 @@
 import axios from 'axios';
+import config from '../config/config';
 
 // Tạo instance axios với cấu hình cơ bản
 const axiosClient = axios.create({
-  baseURL: 'http://localhost:8080/api', // Backend chạy trên port 8080
-  timeout: 30000, // tăng timeout lên 30 giây để giảm lỗi timeout trên mạng chậm
+  baseURL: config.API.BASE_URL + '/api', // Backend chạy trên devtunnels
+  timeout: config.FRONTEND.REQUEST_TIMEOUT, // tăng timeout lên 30 giây để giảm lỗi timeout trên mạng chậm
   headers: {
     'Content-Type': 'application/json',
   },
