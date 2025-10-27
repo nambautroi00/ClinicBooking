@@ -21,6 +21,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import doctorApi from "../../api/doctorApi";
+import reviewApi from "../../api/reviewApi";
 import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import paymentApi from "../../api/paymentApi";
@@ -292,14 +293,24 @@ export default function PatientBookingDetail() {
         const doctorResponse = await doctorApi.getDoctorById(doctorId);
         if (doctorResponse.data) {
           const doctorData = doctorResponse.data;
+          // Try to fetch avg rating and review count
+          let avg = 0;
+          let count = 0;
+          try {
+            avg = await reviewApi.getAverageRatingByDoctor(doctorData.doctorId || doctorData.id);
+            count = await reviewApi.getReviewCountByDoctor(doctorData.doctorId || doctorData.id);
+          } catch (e) {
+            // ignore
+          }
+
           const transformedDoctor = {
             id: doctorData.doctorId || doctorData.id,
             name: `${doctorData.user?.firstName || ''} ${doctorData.user?.lastName || ''}`.trim(),
             specialty: doctorData.specialty || 'Chưa cập nhật',
             experience: `${doctorData.experience || 'Nhiều'} năm kinh nghiệm`,
             avatar: doctorData.user?.avatarUrl || '/api/placeholder/200/200',
-            rating: 4.5, // Default rating
-            reviewCount: 0, // Default review count
+            rating: count > 0 ? Number(avg) : 0,
+            reviewCount: Number(count || 0),
             bio: doctorData.bio || 'Bác sĩ chuyên khoa với nhiều năm kinh nghiệm.',
             price: doctorData.price || 'Liên hệ để biết giá',
 
