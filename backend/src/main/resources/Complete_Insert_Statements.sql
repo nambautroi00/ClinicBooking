@@ -280,8 +280,10 @@ INSERT INTO Prescriptions (RecordID, created_at, Notes) VALUES
 -- ===========================================================
 INSERT INTO prescription_items(PrescriptionID, MedicineID, Dosage, Duration, Note) VALUES 
 -- Prescription 1 (Tăng huyết áp)
+(1, 1, N'1 viên/ngày, uống sau ăn', N'7 ngày', N'Theo dõi tác dụng phụ'),
 (1, 10, N'1 viên/ngày, uống vào buổi sáng', N'30 ngày', N'Uống cùng với thức ăn để giảm kích ứng dạ dày'),
 (1, 9, N'1 viên/ngày, uống vào buổi tối', N'30 ngày', N'Theo dõi tác dụng phụ'),
+
 
 -- Prescription 2 (Đau đầu)
 (2, 1, N'1-2 viên khi đau, tối đa 4 lần/ngày', N'7 ngày', N'Không uống quá liều'),
@@ -397,6 +399,14 @@ INSERT INTO system_notifications(Title, Message, AppointmentID, created_at) VALU
 	select * from departments
 	delete from doctors
 
+
+--Thêm số lượng đơn thuốc
+ALTER TABLE prescription_items
+ADD quantity INT DEFAULT 1;
+
+UPDATE prescription_items
+SET quantity = 1
+WHERE quantity IS NULL;
 
 
 -- SELECT 'Roles' as TableName, COUNT(*) as RecordCount FROM Roles
