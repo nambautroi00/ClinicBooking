@@ -32,7 +32,13 @@ public class FileUploadController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "articleId", required = false) Long articleId,
             @RequestParam(value = "doctorId", required = false) Long doctorId,
-            @RequestParam(value = "userId", required = false) Long userId) {
+            @RequestParam(value = "userId", required = false) Long userId,
+            @RequestParam(value = "departmentId", required = false) Long departmentId) {
+        
+        System.out.println("=== UPLOAD REQUEST DEBUG ===");
+        System.out.println("Received upload request - departmentId: " + departmentId + ", articleId: " + articleId + ", doctorId: " + doctorId + ", userId: " + userId);
+        System.out.println("File name: " + (file != null ? file.getOriginalFilename() : "null"));
+        System.out.println("File size: " + (file != null ? file.getSize() : "null"));
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -64,25 +70,42 @@ public class FileUploadController {
                 Files.createDirectories(uploadPath);
             }
 
-            // Tạo tên file theo articleId, doctorId, userId hoặc UUID
+            // Tạo tên file theo articleId, doctorId, userId, departmentId hoặc UUID
             String fileExtension = getFileExtension(originalFilename);
             String filename;
+            String subDir = "";
+            
             if (articleId != null) {
                 filename = "article_" + articleId + fileExtension;
             } else if (doctorId != null) {
                 filename = "doctor_" + doctorId + fileExtension;
             } else if (userId != null) {
                 filename = "user_" + userId + fileExtension;
+            } else if (departmentId != null) {
+                filename = "department_" + departmentId + fileExtension;
+                subDir = "departments/";
+                System.out.println("Uploading department image for ID: " + departmentId + ", filename: " + filename);
             } else {
                 filename = UUID.randomUUID().toString() + fileExtension;
+                System.out.println("No departmentId provided, using UUID filename: " + filename);
             }
-            Path filePath = uploadPath.resolve(filename);
+            
+            // Tạo thư mục con nếu cần
+            Path finalUploadPath = uploadPath;
+            if (!subDir.isEmpty()) {
+                finalUploadPath = uploadPath.resolve(subDir);
+                if (!Files.exists(finalUploadPath)) {
+                    Files.createDirectories(finalUploadPath);
+                }
+            }
+            
+            Path filePath = finalUploadPath.resolve(filename);
 
             // Lưu file
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
             // Tạo URL để truy cập file
-            String fileUrl = "/uploads/" + filename;
+            String fileUrl = "/uploads/" + subDir + filename;
 
             response.put("success", true);
             response.put("message", "Upload thành công");

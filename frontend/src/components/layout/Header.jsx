@@ -76,56 +76,6 @@ export default function Header() {
     };
   }, []);
 
-  // Hàm lấy avatar URL
-  const getAvatarUrl = (user) => {
-    console.log('🔍 Header - User data:', user);
-    console.log('🔍 Header - User avatarUrl:', user?.avatarUrl);
-    console.log('🔍 Header - User avatar:', user?.avatar);
-    console.log('🔍 Header - User picture:', user?.picture);
-    
-    // Ưu tiên: Uploaded avatar > Google avatar (avatarUrl) > Google picture
-    if (user?.avatarUrl) {
-      if (user.avatarUrl.startsWith('/uploads/')) {
-        console.log('✅ Header - Using uploaded avatar:', config.helpers.getAvatarUrl(user.avatarUrl));
-        return config.helpers.getAvatarUrl(user.avatarUrl);
-      }
-      console.log('✅ Header - Using avatarUrl:', user.avatarUrl);
-      return user.avatarUrl;
-    }
-    
-    // Fallback to Google picture
-    if (user?.picture) {
-      console.log('✅ Header - Using Google picture:', user.picture);
-      return user.picture;
-    }
-    
-    console.log('❌ Header - No avatar found');
-    return null;
-  };
-
-  // Hàm tạo avatar mặc định
-  const getDefaultAvatar = (user) => {
-    let initials = 'U';
-    if (user?.firstName && user?.lastName) {
-      initials = (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
-    } else if (user?.firstName) {
-      initials = user.firstName.charAt(0).toUpperCase();
-    } else if (user?.email) {
-      initials = user.email.charAt(0).toUpperCase();
-    }
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=9370DB&color=fff&size=40&bold=true&format=svg`;
-  };
-
-  // Hàm tạo gradient background cho avatar (lavender style)
-  const getAvatarGradient = (user) => {
-    return 'linear-gradient(135deg, #9370DB 0%, #8A2BE2 100%)'; // Lavender gradient
-  };
-
-  // Xử lý click avatar để chuyển đến trang profile
-  const handleAvatarClick = (e) => {
-    e.stopPropagation();
-    navigate('/patient/profile');
-  };
 
 
   const menuItems = [
@@ -261,79 +211,16 @@ export default function Header() {
             {/* If user is logged in show name + logout, otherwise show login button */}
             {user ? (
               <div className="hidden md:flex items-center gap-2 sm:gap-3">
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <div 
-                    className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden cursor-pointer group"
-                    onClick={handleAvatarClick}
-                    title={getAvatarUrl(user) ? "Click để xem ảnh phóng to" : "Click để thêm ảnh đại diện"}
-                    style={{
-                      background: getAvatarGradient(user),
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                      transition: 'all 0.3s ease',
-                      border: '3px solid white'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = 'scale(1.05)';
-                      e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = 'scale(1)';
-                      e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                    }}
-                  >
-                    {getAvatarUrl(user) ? (
-                      <img 
-                        src={getAvatarUrl(user)} 
-                        alt="Avatar" 
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                        onError={(e) => {
-                          if (e.target && e.target.style) {
-                            e.target.style.display = 'none';
-                          }
-                          if (e.target && e.target.nextSibling && e.target.nextSibling.style) {
-                            e.target.nextSibling.style.display = 'flex';
-                          }
-                        }}
-                      />
-                    ) : null}
-                    <div 
-                      className={`w-full h-full flex items-center justify-center text-white font-bold transition-all duration-300 ${getAvatarUrl(user) ? 'hidden' : 'flex'}`}
-                      style={{ 
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                        background: getAvatarGradient(user),
-                        letterSpacing: '1px'
-                      }}
-                    >
-                      {(() => {
-                        if (user?.firstName && user?.lastName) {
-                          return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
-                        } else if (user?.firstName) {
-                          return user.firstName.charAt(0).toUpperCase();
-                        } else if (user?.email) {
-                          return user.email.charAt(0).toUpperCase();
-                        } else {
-                          return 'U';
-                        }
-                      })()}
-                    </div>
-                    
-                  </div>
-                  <div className="relative">
+                <div className="relative">
                     <button
                       className="text-base font-medium hover:underline flex items-center gap-1"
-                      onMouseEnter={() => setShowUserDropdown(true)}
-                      onMouseLeave={() => setShowUserDropdown(false)}
+                      onClick={() => setShowUserDropdown(!showUserDropdown)}
                     >
                       {user ? (
                         user.firstName && user.lastName 
                           ? `${user.firstName} ${user.lastName}` 
                           : user.firstName || user.email || 'User'
                       ) : 'Đăng nhập'}
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
                     </button>
                     
                     {/* User Dropdown Menu */}
@@ -356,7 +243,6 @@ export default function Header() {
                         ))}
                       </div>
                     )}
-                  </div>
                 </div>
                 <button
                   className="inline-flex items-center rounded-md border border-red-200 bg-white px-3 py-2 text-base text-red-600 hover:bg-red-50"

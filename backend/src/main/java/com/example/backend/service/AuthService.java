@@ -280,8 +280,10 @@ public class AuthService {
                 newUser.setPasswordHash("oauth_google_user"); // oauth user, dummy password to satisfy validation
                 System.out.println("DEBUG OAuth: FirstName from Google = '" + firstName + "'");
                 System.out.println("DEBUG OAuth: LastName from Google = '" + lastName + "'");
+                
                 newUser.setFirstName(firstName != null && !firstName.trim().isEmpty() ? firstName : "Google");
                 newUser.setLastName(lastName != null && !lastName.trim().isEmpty() ? lastName : "User");
+                
                 System.out.println("DEBUG OAuth: Set FirstName = '" + newUser.getFirstName() + "'");
                 System.out.println("DEBUG OAuth: Set LastName = '" + newUser.getLastName() + "'");
                 System.out.println("DEBUG OAuth: Picture value = '" + picture + "'");
@@ -294,6 +296,34 @@ public class AuthService {
 
                 user = userRepository.save(newUser);
                 System.out.println("DEBUG OAuth: Created new user with ID = " + user.getId());
+                
+                // Tạo Patient record cho user mới (nếu role là Patient)
+                if (user.getRole() != null) {
+                    String userRoleName = user.getRole().getName();
+                    System.out.println("DEBUG OAuth: User role = '" + userRoleName + "'");
+                    
+                    if ("PATIENT".equals(userRoleName) || "Patient".equals(userRoleName)) {
+                        try {
+                            System.out.println("DEBUG OAuth: Creating Patient record for new Google user ID = " + user.getId());
+                            // Tạo Patient record giống như đăng ký bình thường
+                            Patient patient = new Patient();
+                            patient.setPatientId(user.getId()); // Set patientId = userId
+                            patient.setUser(user);
+                            patient.setMedicalHistory("Chưa có thông tin");
+                            
+                            patientRepository.save(patient);
+                            System.out.println("✅ Created Patient for Google user: " + user.getEmail() + " with ID: " + user.getId());
+                        } catch (Exception e) {
+                            System.err.println("❌ LỖI: Không thể tạo Patient record cho Google user: " + e.getMessage());
+                            e.printStackTrace();
+                            // Không throw exception để không ảnh hưởng đến việc đăng nhập
+                        }
+                    } else {
+                        System.out.println("DEBUG OAuth: User role is not Patient, skipping Patient record creation");
+                    }
+                } else {
+                    System.out.println("DEBUG OAuth: User role is null, skipping Patient record creation");
+                }
                 
                 // Gửi email chào mừng cho tài khoản Google mới tạo
                 try {

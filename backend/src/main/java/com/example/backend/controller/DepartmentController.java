@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import com.example.backend.constant.AppConstants;
 import com.example.backend.dto.DepartmentDTO;
@@ -100,5 +104,55 @@ public class DepartmentController {
             @PageableDefault(size = AppConstants.DEFAULT_PAGE_SIZE, sort = "departmentName") Pageable pageable) {
         Page<DepartmentDTO.Response> departments = departmentService.getActiveDepartments(pageable);
         return ResponseEntity.ok(departments);
+    }
+
+    @PostMapping("/{id}/upload-image")
+    public ResponseEntity<Map<String, Object>> uploadDepartmentImage(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        System.out.println("=== DEPARTMENT UPLOAD ENDPOINT CALLED ===");
+        System.out.println("Department ID: " + id);
+        System.out.println("File: " + (file != null ? file.getOriginalFilename() : "null"));
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Validate file
+            if (file.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "File không được để trống");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Check file size (5MB limit)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                response.put("success", false);
+                response.put("message", "Kích thước file không được vượt quá 5MB");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Check file type
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                response.put("success", false);
+                response.put("message", "File phải là ảnh");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Upload image and update department
+            String imageUrl = departmentService.uploadDepartmentImage(id, file);
+            
+            response.put("success", true);
+            response.put("message", "Upload ảnh thành công");
+            response.put("imageUrl", imageUrl);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            System.err.println("Exception in uploadDepartmentImage endpoint: " + e.getMessage());
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "Lỗi khi upload ảnh: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
     }
 }
