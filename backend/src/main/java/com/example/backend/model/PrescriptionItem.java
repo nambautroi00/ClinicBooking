@@ -36,4 +36,7 @@ public class PrescriptionItem {
     private String duration;
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String note;
+    
+    @Column(name = "Quantity")
+    private Integer quantity;
 }

@@ -19,6 +19,12 @@ const reviewApi = {
   // Update review
   update: (id, payload) => axiosClient.put(`/reviews/${id}`, payload).then(r => r.data),
 
+  // Create new review
+  createReview: (data) => axiosClient.post('/reviews', data).then(r => r.data),
+
+  // Get review by appointment
+  getReviewByAppointment: (appointmentId) => axiosClient.get(`/reviews/by-appointment/${appointmentId}`).then(r => r.data),
+
   // Deactivate review
   deactivate: (id) => axiosClient.put(`/reviews/${id}/deactivate`).then(r => r.data),
 

@@ -4,19 +4,27 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
 public class PrescriptionDto {
     private Long prescriptionId;
     
-    @NotNull(message = "Medical record ID is required")
+    // recordId is optional now; if missing the service may create a medical record
     private Long recordId;
+    // Optional appointmentId: when provided and recordId is null, backend can create a MedicalRecord for this appointment
+    private Long appointmentId;
     
     private String notes;
     private LocalDateTime createdAt;
     
     @Valid
     private List<PrescriptionItemDto> items;
+    
+    // Additional fields for display
+    private Long patientId;
+    private String patientName;
+    private String diagnosis; // From MedicalRecord
+    private Double totalAmount; // Calculated from items
+    private LocalDateTime createdDate; // Alias for createdAt for frontend compatibility
 
     // Constructors
     public PrescriptionDto() {}
@@ -37,12 +45,22 @@ public class PrescriptionDto {
         this.items = items;
     }
 
+    // Constructor allowing appointmentId (for requests where recordId is not present)
+    public PrescriptionDto(Long appointmentId, String notes, List<PrescriptionItemDto> items, boolean useAppointment) {
+        this.appointmentId = appointmentId;
+        this.notes = notes;
+        this.items = items;
+    }
+
     // Getters and Setters
     public Long getPrescriptionId() { return prescriptionId; }
     public void setPrescriptionId(Long prescriptionId) { this.prescriptionId = prescriptionId; }
 
     public Long getRecordId() { return recordId; }
     public void setRecordId(Long recordId) { this.recordId = recordId; }
+
+    public Long getAppointmentId() { return appointmentId; }
+    public void setAppointmentId(Long appointmentId) { this.appointmentId = appointmentId; }
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
@@ -52,4 +70,19 @@ public class PrescriptionDto {
 
     public List<PrescriptionItemDto> getItems() { return items; }
     public void setItems(List<PrescriptionItemDto> items) { this.items = items; }
+
+    public Long getPatientId() { return patientId; }
+    public void setPatientId(Long patientId) { this.patientId = patientId; }
+
+    public String getPatientName() { return patientName; }
+    public void setPatientName(String patientName) { this.patientName = patientName; }
+
+    public String getDiagnosis() { return diagnosis; }
+    public void setDiagnosis(String diagnosis) { this.diagnosis = diagnosis; }
+
+    public Double getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(Double totalAmount) { this.totalAmount = totalAmount; }
+
+    public LocalDateTime getCreatedDate() { return createdAt != null ? createdAt : createdDate; }
+    public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }
 }

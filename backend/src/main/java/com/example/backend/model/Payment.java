@@ -62,6 +62,9 @@ public class Payment {
     @Column(name = "FailureReason")
     private String failureReason;
     
+    @Column(name = "PatientID")
+    private Long patientId;
+    
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

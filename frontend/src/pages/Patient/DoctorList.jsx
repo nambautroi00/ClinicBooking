@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, MapPin, Filter, Star, Calendar, Clock, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import doctorApi from "../../api/doctorApi";
+import reviewApi from "../../api/reviewApi";
 
 export default function DoctorList() {
   const [doctors, setDoctors] = useState([]);
@@ -43,19 +44,42 @@ export default function DoctorList() {
       setLoading(true);
       const response = await doctorApi.getAllDoctors();
       if (response.data) {
-        const transformedDoctors = response.data.map(doctor => ({
-          id: doctor.doctorId || doctor.id,
-          name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
-          specialty: doctor.specialty || 'Chưa cập nhật',
-          rating: 4.5 + Math.random() * 0.5, // Random rating between 4.5-5.0
-          avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
-          experience: doctor.experience || Math.floor(Math.random() * 20) + 5,
-          department: doctor.department?.departmentName || 'Chưa phân khoa',
-          address: generateMockAddress(), // Mock address for now
-          degree: generateMockDegree(), // Mock degree
-          availableSlots: Math.floor(Math.random() * 10) + 1,
-          nextAvailable: generateNextAvailable()
-        }));
+        const docs = response.data;
+
+        // Fetch avg rating and review count for each doctor (best-effort)
+        const ratingPromises = docs.map(async (d) => {
+          try {
+            const avg = await reviewApi.getAverageRatingByDoctor(d.doctorId || d.id);
+            const count = await reviewApi.getReviewCountByDoctor(d.doctorId || d.id);
+            return { doctorId: d.doctorId || d.id, avg: Number(avg || 0), count: Number(count || 0) };
+          } catch (e) {
+            return { doctorId: d.doctorId || d.id, avg: 0, count: 0 };
+          }
+        });
+
+        const ratings = await Promise.all(ratingPromises);
+        const ratingMap = {};
+        ratings.forEach(r => { ratingMap[r.doctorId] = r; });
+
+        const transformedDoctors = docs.map(doctor => {
+          const id = doctor.doctorId || doctor.id;
+          const r = ratingMap[id] || { avg: 0, count: 0 };
+          return {
+            id,
+            name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
+            specialty: doctor.specialty || 'Chưa cập nhật',
+            rating: r.count > 0 ? r.avg : 0,
+            reviewCount: r.count || 0,
+            avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
+            experience: doctor.experience || Math.floor(Math.random() * 20) + 5,
+            department: doctor.department?.departmentName || 'Chưa phân khoa',
+            address: generateMockAddress(), // Mock address for now
+            degree: generateMockDegree(), // Mock degree
+            availableSlots: Math.floor(Math.random() * 10) + 1,
+            nextAvailable: generateNextAvailable()
+          };
+        });
+
         setDoctors(transformedDoctors);
       }
     } catch (error) {
