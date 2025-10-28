@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Badge, Alert } from "react-bootstrap";
 import { FileText, Eye, User, Calendar, Search } from "lucide-react";
-import prescriptionApi from "../../api/prescriptionApi";
+import prescriptionApi, { exportPrescriptionPdf } from "../../api/prescriptionApi";
 
 const PrescriptionsManagement = () => {
   const [prescriptions, setPrescriptions] = useState([]);
@@ -9,6 +9,7 @@ const PrescriptionsManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [exportId, setExportId] = useState("");
 
   useEffect(() => {
     loadPrescriptions();
@@ -70,6 +71,19 @@ const PrescriptionsManagement = () => {
   const handleViewPrescription = (prescription) => {
     setSelectedPrescription(prescription);
     setShowModal(true);
+  };
+
+  const downloadBlob = (data, filename) => {
+    const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPrescription = async (id) => {
+    if (!id) return;
+    const res = await exportPrescriptionPdf(id);
+    downloadBlob(res.data, `prescription-${id}.pdf`);
   };
 
   return (
@@ -221,6 +235,12 @@ const PrescriptionsManagement = () => {
                           <Eye size={14} className="me-1" />
                           Xem
                         </Button>
+                        <button
+                          className="px-3 py-1 border rounded text-sm"
+                          onClick={() => handleExportPrescription(prescription.id)}
+                        >
+                          Xuất PDF
+                        </button>
                       </td>
                     </tr>
                   );

@@ -1,9 +1,12 @@
-import axiosClient from './axiosClient';
+import axiosClient from "./axiosClient";
+
+export const exportPrescriptionPdf = (id) =>
+  axiosClient.get(`/prescriptions/${id}/export-pdf`, { responseType: "blob" });
 
 const prescriptionApi = {
   // Lấy tất cả đơn thuốc
   getAllPrescriptions: () => {
-    return axiosClient.get('/prescriptions');
+    return axiosClient.get("/prescriptions");
   },
 
   // Lấy đơn thuốc theo ID
@@ -23,8 +26,11 @@ const prescriptionApi = {
 
   // Tạo đơn thuốc mới
   createPrescription: (prescriptionData) => {
-    console.log('📡 Sending prescription data to backend:', JSON.stringify(prescriptionData, null, 2));
-    return axiosClient.post('/prescriptions', prescriptionData);
+    console.log(
+      "📡 Sending prescription data to backend:",
+      JSON.stringify(prescriptionData, null, 2)
+    );
+    return axiosClient.post("/prescriptions", prescriptionData);
   },
 
   // Cập nhật đơn thuốc
@@ -49,24 +55,33 @@ const prescriptionApi = {
 
   // Cập nhật thuốc trong đơn
   updatePrescriptionItem: (prescriptionId, itemId, itemData) => {
-    return axiosClient.put(`/prescriptions/${prescriptionId}/items/${itemId}`, itemData);
+    return axiosClient.put(
+      `/prescriptions/${prescriptionId}/items/${itemId}`,
+      itemData
+    );
   },
 
   // Xóa thuốc khỏi đơn
   removePrescriptionItem: (prescriptionId, itemId) => {
-    return axiosClient.delete(`/prescriptions/${prescriptionId}/items/${itemId}`);
+    return axiosClient.delete(
+      `/prescriptions/${prescriptionId}/items/${itemId}`
+    );
   },
 
   // Cập nhật trạng thái đơn thuốc
   updatePrescriptionStatus: (prescriptionId, status) => {
-    return axiosClient.patch(`/prescriptions/${prescriptionId}/status`, { status });
+    return axiosClient.patch(
+      `/prescriptions/${prescriptionId}/status`,
+      { status }
+    );
   },
 
   // Tìm kiếm đơn thuốc
   searchPrescriptions: (keyword) => {
-    return axiosClient.get(`/prescriptions/search?keyword=${encodeURIComponent(keyword)}`);
-  }
+    return axiosClient.get(
+      `/prescriptions/search?keyword=${encodeURIComponent(keyword)}`
+    );
+  },
+  exportPrescriptionPdf,
 };
-
-export { prescriptionApi };
 export default prescriptionApi;

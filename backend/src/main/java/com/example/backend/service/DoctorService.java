@@ -100,7 +100,9 @@ public class DoctorService {
      * @throws NotFoundException nếu không tìm thấy user
      * @throws ConflictException nếu user không phải là doctor hoặc đã có thông tin doctor
      */
-    public Doctor createDoctor(Long userId, String bio, String specialty, Long departmentId) {
+    public Doctor createDoctor(Long userId, String bio, String specialty, Long departmentId, 
+                              String degree, String workExperience, String workingHours, 
+                              String practiceCertificateNumber, String citizenId) {
         // Kiểm tra user tồn tại
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy user với ID: " + userId));
@@ -134,6 +136,11 @@ public class DoctorService {
         doctor.setDepartment(refreshedDepartment); // Set department reference
         doctor.setBio(bio);
         doctor.setSpecialty(specialty);
+        doctor.setDegree(degree);
+        doctor.setWorkExperience(workExperience);
+        doctor.setWorkingHours(workingHours);
+        doctor.setPracticeCertificateNumber(practiceCertificateNumber);
+        doctor.setCitizenId(citizenId);
         doctor.setCreatedAt(java.time.LocalDate.now()); // Set default values
         doctor.setStatus("ACTIVE");
 
@@ -150,10 +157,17 @@ public class DoctorService {
      * @param specialty chuyên khoa mới
      * @param departmentId ID department mới
      * @param status trạng thái mới
+     * @param degree bằng cấp mới
+     * @param workExperience kinh nghiệm làm việc mới
+     * @param workingHours giờ làm việc mới
+     * @param practiceCertificateNumber số chứng chỉ hành nghề mới
+     * @param citizenId số CCCD/CMND mới
      * @return doctor đã được cập nhật
      * @throws NotFoundException nếu không tìm thấy doctor
      */
-    public Doctor updateDoctor(Long doctorId, String bio, String specialty, Long departmentId, String status) {
+    public Doctor updateDoctor(Long doctorId, String bio, String specialty, Long departmentId, String status,
+                              String degree, String workExperience, String workingHours, 
+                              String practiceCertificateNumber, String citizenId) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bác sĩ với ID: " + doctorId));
 
@@ -162,6 +176,21 @@ public class DoctorService {
         }
         if (specialty != null) {
             doctor.setSpecialty(specialty);
+        }
+        if (degree != null) {
+            doctor.setDegree(degree);
+        }
+        if (workExperience != null) {
+            doctor.setWorkExperience(workExperience);
+        }
+        if (workingHours != null) {
+            doctor.setWorkingHours(workingHours);
+        }
+        if (practiceCertificateNumber != null) {
+            doctor.setPracticeCertificateNumber(practiceCertificateNumber);
+        }
+        if (citizenId != null) {
+            doctor.setCitizenId(citizenId);
         }
         
         // Update department if provided
@@ -387,6 +416,11 @@ public class DoctorService {
         doctor.setDepartment(refreshedDepartment); // Set department reference
         doctor.setBio(request.getBio());
         doctor.setSpecialty(request.getSpecialty());
+        doctor.setDegree(request.getDegree());
+        doctor.setWorkExperience(request.getWorkExperience());
+        doctor.setWorkingHours(request.getWorkingHours());
+        doctor.setPracticeCertificateNumber(request.getPracticeCertificateNumber());
+        doctor.setCitizenId(request.getCitizenId());
         doctor.setCreatedAt(java.time.LocalDate.now()); // Set default values
         doctor.setStatus("ACTIVE");
 
@@ -411,6 +445,11 @@ public class DoctorService {
         private Long departmentId;
         private String specialty;
         private String bio;
+        private String degree;
+        private String workExperience;
+        private String workingHours;
+        private String practiceCertificateNumber;
+        private String citizenId;
 
         // Getters and Setters
         public String getEmail() { return email; }
@@ -448,6 +487,21 @@ public class DoctorService {
         
         public String getAvatarUrl() { return avatarUrl; }
         public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+        
+        public String getDegree() { return degree; }
+        public void setDegree(String degree) { this.degree = degree; }
+        
+        public String getWorkExperience() { return workExperience; }
+        public void setWorkExperience(String workExperience) { this.workExperience = workExperience; }
+        
+        public String getWorkingHours() { return workingHours; }
+        public void setWorkingHours(String workingHours) { this.workingHours = workingHours; }
+        
+        public String getPracticeCertificateNumber() { return practiceCertificateNumber; }
+        public void setPracticeCertificateNumber(String practiceCertificateNumber) { this.practiceCertificateNumber = practiceCertificateNumber; }
+        
+        public String getCitizenId() { return citizenId; }
+        public void setCitizenId(String citizenId) { this.citizenId = citizenId; }
     }
 
 }

@@ -34,6 +34,22 @@ public class Doctor {
     @Column(name = "Bio", columnDefinition = "NVARCHAR(MAX)")
     private String bio;
 
+    // Thêm các trường mới từ form
+    @Column(name = "Degree", columnDefinition = "NVARCHAR(MAX)")
+    private String degree; // Bằng cấp
+
+    @Column(name = "WorkExperience", columnDefinition = "NVARCHAR(MAX)")
+    private String workExperience; // Kinh nghiệm làm việc
+
+    @Column(name = "WorkingHours", columnDefinition = "NVARCHAR(MAX)")
+    private String workingHours; // Giờ làm việc
+
+    @Column(name = "PracticeCertificateNumber", columnDefinition = "NVARCHAR(MAX)")
+    private String practiceCertificateNumber; // Số chứng chỉ hành nghề
+
+    @Column(name = "CitizenId", columnDefinition = "NVARCHAR(MAX)")
+    private String citizenId; // Số CCCD/CMND
+
     @Column(name = "CreatedAt")
     private LocalDate createdAt;
 
