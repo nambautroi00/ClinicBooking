@@ -18,6 +18,9 @@ public class PaymentDTO {
         @NotNull(message = "Appointment ID không được để trống")
         private Long appointmentId;
         
+        @NotNull(message = "Patient ID không được để trống")
+        private Long patientId;
+        
         // Amount không bắt buộc, sẽ lấy từ appointment.fee
         private BigDecimal amount;
         

@@ -28,7 +28,7 @@ const appointmentApi = {
 
   // Hủy lịch hẹn
   cancelAppointment: (appointmentId) => {
-    return axiosClient.put(`/appointments/${appointmentId}/cancel`);
+    return axiosClient.delete(`/appointments/${appointmentId}`);
   },
 
   // Xóa lịch hẹn

@@ -123,23 +123,6 @@ export default function PaymentCancel() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={handleGoHome}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              Về trang chủ
-            </button>
-            <div className="text-sm text-gray-500">
-              Thanh toán đã hủy
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
@@ -177,47 +160,16 @@ export default function PaymentCancel() {
               </div>
             )}
           </div>
-
-          {/* Information */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Thông tin</h2>
-            
-            <div className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h3 className="font-semibold text-yellow-900 mb-2">Lịch hẹn chưa được xác nhận</h3>
-                <p className="text-sm text-yellow-800">
-                  Để hoàn tất đặt lịch, bạn cần thanh toán phí khám. 
-                  Lịch hẹn sẽ được giữ trong 15 phút.
-                </p>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">Các phương thức thanh toán</h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Thẻ tín dụng/ghi nợ (Visa, Mastercard)</li>
-                  <li>• Ví điện tử (MoMo, ZaloPay, VNPay)</li>
-                  <li>• Chuyển khoản ngân hàng</li>
-                  <li>• Thanh toán tại phòng khám</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
+         
           {/* Action Buttons */}
           <div className="flex gap-4">
             <button
               onClick={handleGoHome}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2  "
             >
               Về trang chủ
             </button>
-            <button
-              onClick={handleTryAgain}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Thử lại
-            </button>
+            
           </div>
         </div>
       </div>

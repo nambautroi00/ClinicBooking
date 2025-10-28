@@ -492,7 +492,8 @@ public class UserService {
             
             // Update user avatar
             String avatarUrl = "/uploads/" + filename;
-            user.setAvatarUrl(avatarUrl);
+            user.setAvatarUrl(avatarUrl);  // Set avatar field
+            user.setAvatarUrl(avatarUrl);  // Also set avatarUrl field for compatibility
             userRepository.save(user);
             
             System.out.println("✅ Avatar uploaded successfully: " + avatarUrl);

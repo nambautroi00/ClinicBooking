@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Badge, Alert } from "react-bootstrap";
 import { Search, Plus, Eye, Edit, FileText, User, Calendar, Clock, Pill } from "lucide-react";
 import medicalRecordApi from "../../api/medicalRecordApi";
+import doctorApi from "../../api/doctorApi";
+import Cookies from "js-cookie";
 
 const MedicalRecords = () => {
   const [medicalRecords, setMedicalRecords] = useState([]);
@@ -10,35 +12,80 @@ const MedicalRecords = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [doctorId, setDoctorId] = useState(null);
+
+  // Lấy doctorId từ cookie
+  useEffect(() => {
+    const userId = Cookies.get("userId");
+    if (userId) {
+      doctorApi
+        .getDoctorByUserId(userId)
+        .then((res) => {
+          const data = res.data || res;
+          setDoctorId(data.doctorId);
+        })
+        .catch((err) => {
+          console.error("Error getting doctor info:", err);
+        });
+    }
+  }, []);
 
   // Lấy dữ liệu từ backend
   useEffect(() => {
-    loadMedicalRecords();
-  }, []);
+    if (doctorId) {
+      loadMedicalRecords();
+    }
+  }, [doctorId]);
 
   const loadMedicalRecords = async () => {
     try {
       setLoading(true);
-      // Lấy tất cả hồ sơ bệnh án từ backend
-      const response = await medicalRecordApi.getAllMedicalRecords();
+      console.log('🔍 Loading medical records for doctorId:', doctorId);
+      
+      // Lấy hồ sơ bệnh án theo doctor hoặc tất cả
+      let response;
+      if (doctorId) {
+        response = await medicalRecordApi.getMedicalRecordsByDoctor(doctorId);
+      } else {
+        response = await medicalRecordApi.getAllMedicalRecords();
+      }
+      
+      console.log('✅ Medical records loaded:', response.data);
       
       // Chuyển đổi dữ liệu từ backend format sang frontend format
-      const records = response.data.map(record => ({
-        id: record.recordId,
-        patientId: record.patient?.patientId || record.patientId,
-        patientName: record.patient?.user?.fullName || record.patientName,
-        age: record.patient?.age || record.age,
-        gender: record.patient?.gender || record.gender,
-        phone: record.patient?.user?.phone || record.phone,
-        diagnosis: record.diagnosis,
-        advice: record.advice, // Lời khuyên thay vì treatmentPlan
-        doctorName: record.doctor?.user?.fullName || record.doctorName || 'Chưa xác định',
-        appointmentDate: record.appointmentDate || record.createdAt,
-        createdDate: record.createdAt,
-        status: 'completed', // Medical record luôn completed khi đã tạo
-        notes: record.notes || "",
-        prescription: record.prescription // Thêm prescription data
-      }));
+      const records = (response.data || []).map(record => {
+        // Debug prescription data
+        if (record.prescription) {
+          console.log('🔍 Prescription found:', {
+            prescriptionId: record.prescription.prescriptionId,
+            notes: record.prescription.notes,
+            itemsCount: record.prescription.items?.length || 0,
+            items: record.prescription.items
+          });
+        }
+        
+        return {
+          id: record.recordId,
+          patientId: record.patientId || record.patient?.patientId,
+          patientName: record.patientName || record.patient?.user?.fullName || 'Chưa xác định',
+          age: record.patient?.age || record.age || 'N/A',
+          gender: record.patient?.gender || record.gender || 'N/A',
+          phone: record.patientPhone || record.patient?.user?.phone || record.phone || '',
+          diagnosis: record.diagnosis || '',
+          advice: record.advice || '',
+          doctorName: record.doctorName || record.doctor?.user?.fullName || 'Chưa xác định',
+          appointmentDate: record.appointmentDate || record.createdAt,
+          createdDate: record.createdAt,
+          status: 'completed', // Medical record luôn completed khi đã tạo
+          notes: record.notes || "",
+          prescription: record.prescription // Thêm prescription data
+        };
+      });
+      
+      console.log('📊 Mapped records:', records.length);
+      if (records.length > 0 && records[0].prescription) {
+        console.log('🔍 First record prescription:', records[0].prescription);
+      }
 
       setMedicalRecords(records);
     } catch (error) {
@@ -390,21 +437,34 @@ const MedicalRecords = () => {
                         <p className="ps-3">{selectedRecord.prescription.notes}</p>
                         
                         <p><strong>Thuốc kê đơn:</strong></p>
-                        {selectedRecord.prescription.items && selectedRecord.prescription.items.length > 0 ? (
-                          <div className="ps-3">
-                            {selectedRecord.prescription.items.map((item, index) => (
-                              <div key={index} className="mb-2 p-2 border rounded">
-                                <strong>{item.medicineName || `Thuốc ${index + 1}`}</strong>
-                                <br />
-                                <small className="text-muted">
-                                  Liều: {item.dosage} | Thời gian: {item.duration} | Hướng dẫn: {item.note}
-                                </small>
+                        {(() => {
+                          // Debug: Log prescription items
+                          console.log('🔍 Rendering prescription items:', {
+                            hasPrescription: !!selectedRecord.prescription,
+                            hasItems: !!selectedRecord.prescription.items,
+                            itemsLength: selectedRecord.prescription.items?.length || 0,
+                            items: selectedRecord.prescription.items
+                          });
+                          
+                          const items = selectedRecord.prescription.items || [];
+                          if (items.length > 0) {
+                            return (
+                              <div className="ps-3">
+                                {items.map((item, index) => (
+                                  <div key={index} className="mb-2 p-2 border rounded">
+                                    <strong>{item.medicineName || `Thuốc ${index + 1}`}</strong>
+                                    <br />
+                                    <small className="text-muted">
+                                      Liều: {item.dosage || 'N/A'} | Thời gian: {item.duration || 'N/A'} | Hướng dẫn: {item.note || 'N/A'}
+                                    </small>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="ps-3 text-muted">Không có thuốc nào được kê</p>
-                        )}
+                            );
+                          } else {
+                            return <p className="ps-3 text-muted">Không có thuốc nào được kê</p>;
+                          }
+                        })()}
                       </Col>
                     </Row>
                     

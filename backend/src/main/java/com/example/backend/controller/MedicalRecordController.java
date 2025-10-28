@@ -54,6 +54,12 @@ public class MedicalRecordController {
         return ResponseEntity.ok(records);
     }
 
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<List<MedicalRecordDto>> getMedicalRecordsByDoctor(@PathVariable Long doctorId) {
+        List<MedicalRecordDto> records = medicalRecordService.getMedicalRecordsByDoctor(doctorId);
+        return ResponseEntity.ok(records);
+    }
+
     @PostMapping
     public ResponseEntity<MedicalRecordDto> createMedicalRecord(@Valid @RequestBody MedicalRecordDto requestDto) {
         MedicalRecordDto createdRecord = medicalRecordService.createMedicalRecord(requestDto);

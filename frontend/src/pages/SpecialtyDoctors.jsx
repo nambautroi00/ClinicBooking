@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Calendar, Clock, User, Search, Filter, Users, Heart, Stethoscope, Baby, Shield, Brain, Eye, Bone, Activity, Zap, Pill } from 'lucide-react';
 import doctorApi from '../api/doctorApi';
+import reviewApi from '../api/reviewApi';
 import departmentApi from '../api/departmentApi';
 import { getFullAvatarUrl } from '../utils/avatarUtils';
 import useScrollToTop from '../hooks/useScrollToTop';
@@ -79,7 +80,33 @@ const SpecialtyDoctors = () => {
     try {
       setLoading(true);
       const response = await doctorApi.getDoctorsByDepartment(departmentId);
-      setDoctors(response.data || []);
+      const docs = response.data || [];
+      setDoctors(docs);
+
+      // Fetch average rating and review count for each doctor (best-effort)
+      try {
+        const ratingPromises = docs.map(async (d) => {
+          try {
+            const avg = await reviewApi.getAverageRatingByDoctor(d.doctorId);
+            const count = await reviewApi.getReviewCountByDoctor(d.doctorId);
+            return { doctorId: d.doctorId, avg: Number(avg || 0), count: Number(count || 0) };
+          } catch (e) {
+            return { doctorId: d.doctorId, avg: 0, count: 0 };
+          }
+        });
+
+        const ratings = await Promise.all(ratingPromises);
+        const ratingMap = {};
+        ratings.forEach(r => { ratingMap[r.doctorId] = r; });
+
+        // Merge into doctors state
+        setDoctors(prev => prev.map(doc => {
+          const r = ratingMap[doc.doctorId] || { avg: 0, count: 0 };
+          return { ...doc, rating: r.count > 0 ? r.avg : 0, reviewCount: r.count };
+        }));
+      } catch (e) {
+        console.error('Failed to load doctor ratings:', e);
+      }
     } catch (error) {
       console.error('Error fetching doctors:', error);
       setDoctors([]);

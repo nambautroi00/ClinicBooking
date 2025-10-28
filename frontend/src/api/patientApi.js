@@ -12,6 +12,9 @@ const patientApi = {
 
   // Tìm kiếm theo tên (nếu backend hỗ trợ)
   searchByName: (keyword) => axiosClient.get(`/patients/search`, { params: { keyword } }),
+
+  // Cập nhật thông tin bệnh nhân
+  updatePatient: (patientId, data) => axiosClient.put(`/patients/${patientId}`, data),
 };
 
 export default patientApi;

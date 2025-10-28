@@ -56,16 +56,40 @@ public class PrescriptionController {
         return ResponseEntity.ok(prescriptions);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<PrescriptionDto> getPrescriptionById(@PathVariable Integer id) {
-        PrescriptionDto prescription = prescriptionService.getPrescriptionById(id);
-        return ResponseEntity.ok(prescription);
+    // Specific endpoints must be declared BEFORE generic /{id} endpoint
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<List<PrescriptionDto>> getPrescriptionsByDoctor(@PathVariable Long doctorId) {
+        try {
+            System.out.println("🔍 Controller: Getting prescriptions for doctorId: " + doctorId);
+            List<PrescriptionDto> prescriptions = prescriptionService.getPrescriptionsByDoctor(doctorId);
+            System.out.println("✅ Controller: Returning " + prescriptions.size() + " prescriptions");
+            return ResponseEntity.ok(prescriptions);
+        } catch (Exception e) {
+            System.err.println("❌ Controller error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @GetMapping("/record/{recordId}")
     public ResponseEntity<List<PrescriptionDto>> getPrescriptionsByRecordId(@PathVariable Integer recordId) {
         List<PrescriptionDto> prescriptions = prescriptionService.getPrescriptionsByRecordId(recordId);
         return ResponseEntity.ok(prescriptions);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PrescriptionDto> getPrescriptionById(@PathVariable Integer id) {
+        try {
+            System.out.println("🔍 Controller: Getting prescription by ID: " + id);
+            PrescriptionDto prescription = prescriptionService.getPrescriptionById(id);
+            System.out.println("✅ Controller: Returning prescription: " + prescription.getPrescriptionId() + 
+                             ", Items count: " + (prescription.getItems() != null ? prescription.getItems().size() : 0));
+            return ResponseEntity.ok(prescription);
+        } catch (Exception e) {
+            System.err.println("❌ Controller error getting prescription by ID: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @PostMapping

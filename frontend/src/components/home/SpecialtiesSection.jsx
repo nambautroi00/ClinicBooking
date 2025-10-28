@@ -83,9 +83,16 @@ export default function SpecialtiesSection() {
   };
 
 
-  const handleSpecialtyClick = (departmentId, departmentName) => {
-    navigate(`/specialty/${departmentId}`, { 
-      state: { departmentName } 
+  const handleSpecialtyClick = (department) => {
+    // Check if department is under maintenance
+    if (department.status === 'INACTIVE' || department.status === 'MAINTENANCE') {
+      // Show maintenance message
+      alert('Khoa này đang trong quá trình bảo trì. Vui lòng quay lại sau!');
+      return;
+    }
+    
+    navigate(`/specialty/${department.id}`, { 
+      state: { departmentName: department.departmentName } 
     });
   };
 
@@ -128,12 +135,19 @@ export default function SpecialtiesSection() {
 
         <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
           {displayedDepartments.map((department) => {
-            const imageUrl = getImageByDepartmentName(department.departmentName);
+            // Use imageUrl from database first, fallback to hardcoded mapping
+            const imageUrl = department.imageUrl 
+              ? `http://localhost:8080${department.imageUrl}` 
+              : getImageByDepartmentName(department.departmentName);
             return (
               <div
                 key={department.id}
-                onClick={() => handleSpecialtyClick(department.id, department.departmentName)}
-                className="group relative overflow-hidden rounded-xl bg-white transition-all hover:shadow-lg cursor-pointer p-2 text-center"
+                onClick={() => handleSpecialtyClick(department)}
+                className={`group relative overflow-hidden rounded-xl bg-white transition-all hover:shadow-lg cursor-pointer p-2 text-center ${
+                  department.status === 'INACTIVE' || department.status === 'MAINTENANCE' 
+                    ? 'opacity-60 cursor-not-allowed' 
+                    : ''
+                }`}
               >
                 <div className="flex flex-col items-center space-y-2">
                   <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
@@ -158,6 +172,13 @@ export default function SpecialtiesSection() {
                       <h3 className="font-semibold text-sm text-gray-900 group-hover:text-blue-600 transition-colors">
                         {department.departmentName}
                       </h3>
+                      {(department.status === 'INACTIVE' || department.status === 'MAINTENANCE') && (
+                        <div className="mt-1">
+                          <span className="inline-block px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                            Đang bảo trì
+                          </span>
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>

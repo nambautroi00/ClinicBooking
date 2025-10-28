@@ -38,14 +38,18 @@ public class Department {
     @Column(name = "Description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
+    @Size(max = 500, message = "URL ảnh không được quá 500 ký tự")
+    @Column(name = "ImageUrl")
+    private String imageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "Status")
     private DepartmentStatus status = DepartmentStatus.ACTIVE;
 
     public enum DepartmentStatus {
         ACTIVE,      // Khoa đang hoạt động bình thường
-        INACTIVE,    // Khoa chưa sẵn sàng hoặc tạm dừng
-        MAINTENANCE, // Khoa đang bảo trì cơ sở vật chất
+        INACTIVE,    // Khoa đang bảo trì (sử dụng thay cho MAINTENANCE)
+        MAINTENANCE, // Khoa đang bảo trì (giữ để tương thích ngược)
         CLOSED       // Khoa đã ngừng hoạt động hoàn toàn
     }
 }

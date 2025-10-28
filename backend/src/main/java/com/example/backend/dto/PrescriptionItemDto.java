@@ -13,6 +13,8 @@ public class PrescriptionItemDto {
     private String dosage;
     private String duration;
     private String note;
+    private Double price; // Medicine unit price
+    private Integer quantity; // Quantity for display
 
     // Constructors
     public PrescriptionItemDto() {}
@@ -58,4 +60,10 @@ public class PrescriptionItemDto {
 
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
+
+    public Double getPrice() { return price; }
+    public void setPrice(Double price) { this.price = price; }
+
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
 }
