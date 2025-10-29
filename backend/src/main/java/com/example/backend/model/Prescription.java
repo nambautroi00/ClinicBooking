@@ -35,6 +35,6 @@ public class Prescription {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String notes;
 
-    @OneToMany(mappedBy = "prescription", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "prescription", cascade = CascadeType.ALL, fetch = jakarta.persistence.FetchType.LAZY)
     private List<PrescriptionItem> items;
 }

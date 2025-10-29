@@ -20,6 +20,8 @@ public class MedicalRecordDto {
     private Long patientId;
     private String patientName;
     private String patientPhone;
+    private Integer patientAge;
+    private String patientGender;
     private Long doctorId;
     private String doctorName;
     private LocalDateTime appointmentDate;
@@ -79,4 +81,10 @@ public class MedicalRecordDto {
 
     public LocalDateTime getAppointmentDate() { return appointmentDate; }
     public void setAppointmentDate(LocalDateTime appointmentDate) { this.appointmentDate = appointmentDate; }
+
+    public Integer getPatientAge() { return patientAge; }
+    public void setPatientAge(Integer patientAge) { this.patientAge = patientAge; }
+
+    public String getPatientGender() { return patientGender; }
+    public void setPatientGender(String patientGender) { this.patientGender = patientGender; }
 }
