@@ -14,7 +14,6 @@ import com.example.backend.exception.NotFoundException;
 import com.example.backend.mapper.MedicalRecordMapper;
 import com.example.backend.model.Appointment;
 import com.example.backend.model.MedicalRecord;
-import com.example.backend.model.Prescription;
 import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.MedicalRecordRepository;
 import com.example.backend.repository.PrescriptionItemRepository;
@@ -37,19 +36,7 @@ public class MedicalRecordService {
 
     public List<MedicalRecordDto> getAllMedicalRecords() {
         List<MedicalRecord> records = medicalRecordRepository.findAllWithDetails();
-        
-        // Load prescription items for each record
-        for (MedicalRecord mr : records) {
-            if (mr.getPrescription() != null) {
-                Prescription prescription = mr.getPrescription();
-                Integer prescriptionId = prescription.getPrescriptionId();
-                
-                // Load items separately to avoid lazy loading issues
-                var items = prescriptionItemRepository.findByPrescriptionPrescriptionId(prescriptionId);
-                prescription.setItems(items);
-            }
-        }
-        
+        // Items đã được load qua JOIN FETCH trong query
         return records.stream()
                 .map(medicalRecordMapper::toDto)
                 .collect(Collectors.toList());
@@ -59,22 +46,7 @@ public class MedicalRecordService {
         System.out.println("🔍 Getting medical records for doctorId: " + doctorId);
         List<MedicalRecord> records = medicalRecordRepository.findByDoctorId(doctorId);
         System.out.println("📊 Found " + records.size() + " medical records");
-        
-        // Load prescription items for each record
-        for (MedicalRecord mr : records) {
-            if (mr.getPrescription() != null) {
-                Prescription prescription = mr.getPrescription();
-                Integer prescriptionId = prescription.getPrescriptionId();
-                
-                // Load items separately to avoid lazy loading issues
-                var items = prescriptionItemRepository.findByPrescriptionPrescriptionId(prescriptionId);
-                prescription.setItems(items);
-                
-                System.out.println("📋 MedicalRecord " + mr.getRecordId() + " has prescription " + 
-                    prescriptionId + " with " + items.size() + " items");
-            }
-        }
-        
+        // Items đã được load qua JOIN FETCH trong query
         return records.stream()
                 .map(medicalRecordMapper::toDto)
                 .collect(Collectors.toList());
@@ -96,6 +68,16 @@ public class MedicalRecordService {
 
     public List<MedicalRecordDto> getMedicalRecordsByAppointmentId(Long appointmentId) {
         return medicalRecordRepository.findByAppointmentAppointmentId(appointmentId).stream()
+                .map(medicalRecordMapper::toDto)
+                .collect(Collectors.toList());
+    }
+    
+    public List<MedicalRecordDto> getMedicalRecordsByPatient(Long patientId) {
+        System.out.println("🔍 Getting medical records for patientId: " + patientId);
+        List<MedicalRecord> records = medicalRecordRepository.findByPatientId(patientId);
+        System.out.println("📊 Found " + records.size() + " medical records for patient");
+        // Items đã được load qua JOIN FETCH trong query
+        return records.stream()
                 .map(medicalRecordMapper::toDto)
                 .collect(Collectors.toList());
     }

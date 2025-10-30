@@ -56,7 +56,22 @@ public class MedicalRecordController {
 
     @GetMapping("/doctor/{doctorId}")
     public ResponseEntity<List<MedicalRecordDto>> getMedicalRecordsByDoctor(@PathVariable Long doctorId) {
-        List<MedicalRecordDto> records = medicalRecordService.getMedicalRecordsByDoctor(doctorId);
+        try {
+            if (doctorId == null) {
+                return ResponseEntity.badRequest().build();
+            }
+            List<MedicalRecordDto> records = medicalRecordService.getMedicalRecordsByDoctor(doctorId);
+            return ResponseEntity.ok(records);
+        } catch (Exception e) {
+            System.err.println("❌ Error getting medical records for doctorId " + doctorId + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @GetMapping("/patient/{patientId}")
+    public ResponseEntity<List<MedicalRecordDto>> getMedicalRecordsByPatient(@PathVariable Long patientId) {
+        List<MedicalRecordDto> records = medicalRecordService.getMedicalRecordsByPatient(patientId);
         return ResponseEntity.ok(records);
     }
 

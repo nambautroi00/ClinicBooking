@@ -131,7 +131,12 @@ public class DoctorController {
             request.getUserId(),
             request.getBio(),
             request.getSpecialty(),
-            request.getDepartmentId()
+            request.getDepartmentId(),
+            request.getDegree(),
+            request.getWorkExperience(),
+            request.getWorkingHours(),
+            request.getPracticeCertificateNumber(),
+            request.getCitizenId()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(doctor);
     }
@@ -147,7 +152,12 @@ public class DoctorController {
             request.getBio(),
             request.getSpecialty(),
             request.getDepartmentId(),
-            request.getStatus()
+            request.getStatus(),
+            request.getDegree(),
+            request.getWorkExperience(),
+            request.getWorkingHours(),
+            request.getPracticeCertificateNumber(),
+            request.getCitizenId()
         );
         return ResponseEntity.ok(doctor);
     }
@@ -202,6 +212,11 @@ public class DoctorController {
         private String bio;
         private String specialty;
         private Long departmentId;
+        private String degree;
+        private String workExperience;
+        private String workingHours;
+        private String practiceCertificateNumber;
+        private String citizenId;
 
         // Getters and Setters
         public Long getUserId() { return userId; }
@@ -215,6 +230,21 @@ public class DoctorController {
         
         public Long getDepartmentId() { return departmentId; }
         public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+
+        public String getDegree() { return degree; }
+        public void setDegree(String degree) { this.degree = degree; }
+
+        public String getWorkExperience() { return workExperience; }
+        public void setWorkExperience(String workExperience) { this.workExperience = workExperience; }
+
+        public String getWorkingHours() { return workingHours; }
+        public void setWorkingHours(String workingHours) { this.workingHours = workingHours; }
+
+        public String getPracticeCertificateNumber() { return practiceCertificateNumber; }
+        public void setPracticeCertificateNumber(String practiceCertificateNumber) { this.practiceCertificateNumber = practiceCertificateNumber; }
+
+        public String getCitizenId() { return citizenId; }
+        public void setCitizenId(String citizenId) { this.citizenId = citizenId; }
     }
 
     /**
@@ -225,6 +255,11 @@ public class DoctorController {
         private String specialty;
         private Long departmentId;
         private String status;
+        private String degree;
+        private String workExperience;
+        private String workingHours;
+        private String practiceCertificateNumber;
+        private String citizenId;
 
         // Getters and Setters
         public String getBio() { return bio; }
@@ -238,6 +273,21 @@ public class DoctorController {
         
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+
+        public String getDegree() { return degree; }
+        public void setDegree(String degree) { this.degree = degree; }
+
+        public String getWorkExperience() { return workExperience; }
+        public void setWorkExperience(String workExperience) { this.workExperience = workExperience; }
+
+        public String getWorkingHours() { return workingHours; }
+        public void setWorkingHours(String workingHours) { this.workingHours = workingHours; }
+
+        public String getPracticeCertificateNumber() { return practiceCertificateNumber; }
+        public void setPracticeCertificateNumber(String practiceCertificateNumber) { this.practiceCertificateNumber = practiceCertificateNumber; }
+
+        public String getCitizenId() { return citizenId; }
+        public void setCitizenId(String citizenId) { this.citizenId = citizenId; }
     }
 
     /**

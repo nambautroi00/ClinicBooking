@@ -1,6 +1,8 @@
 package com.example.backend.mapper;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -35,12 +37,25 @@ public class MedicalRecordMapper {
                 dto.setPatientId((long) appointment.getPatient().getPatientId());
                 
                 if (appointment.getPatient().getUser() != null) {
-                    String lastName = appointment.getPatient().getUser().getLastName() != null 
-                        ? appointment.getPatient().getUser().getLastName() : "";
-                    String firstName = appointment.getPatient().getUser().getFirstName() != null 
-                        ? appointment.getPatient().getUser().getFirstName() : "";
+                    var user = appointment.getPatient().getUser();
+                    
+                    String lastName = user.getLastName() != null ? user.getLastName() : "";
+                    String firstName = user.getFirstName() != null ? user.getFirstName() : "";
                     dto.setPatientName((lastName + " " + firstName).trim());
-                    dto.setPatientPhone(appointment.getPatient().getUser().getPhone());
+                    dto.setPatientPhone(user.getPhone());
+                    
+                    // Map gender
+                    if (user.getGender() != null) {
+                        dto.setPatientGender(user.getGender().toString());
+                    }
+                    
+                    // Calculate age from dateOfBirth
+                    if (user.getDateOfBirth() != null) {
+                        LocalDate birthDate = user.getDateOfBirth();
+                        LocalDate currentDate = LocalDate.now();
+                        int age = Period.between(birthDate, currentDate).getYears();
+                        dto.setPatientAge(age);
+                    }
                 }
             }
             

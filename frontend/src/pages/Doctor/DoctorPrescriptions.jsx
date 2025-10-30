@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Alert, Badge } from "react-bootstrap";
 import { Pill, Plus, Eye, Search, Calendar, User, RefreshCw } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { prescriptionApi } from "../../api/prescriptionApi";
+import prescriptionApi from "../../api/prescriptionApi";
 import Cookies from "js-cookie";
 import doctorApi from "../../api/doctorApi";
 

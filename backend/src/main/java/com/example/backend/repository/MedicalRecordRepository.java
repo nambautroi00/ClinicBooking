@@ -21,6 +21,7 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, In
            "LEFT JOIN FETCH a.doctor doc " +
            "LEFT JOIN FETCH doc.user " +
            "LEFT JOIN FETCH mr.prescription p " +
+           "LEFT JOIN FETCH p.items " +
            "WHERE a.doctor.doctorId = :doctorId")
     List<MedicalRecord> findByDoctorId(@Param("doctorId") Long doctorId);
     
@@ -30,6 +31,18 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, In
            "LEFT JOIN FETCH pat.user " +
            "LEFT JOIN FETCH a.doctor doc " +
            "LEFT JOIN FETCH doc.user " +
-           "LEFT JOIN FETCH mr.prescription p")
+           "LEFT JOIN FETCH mr.prescription p " +
+           "LEFT JOIN FETCH p.items")
     List<MedicalRecord> findAllWithDetails();
+    
+    @Query("SELECT DISTINCT mr FROM MedicalRecord mr " +
+           "JOIN FETCH mr.appointment a " +
+           "LEFT JOIN FETCH a.patient pat " +
+           "LEFT JOIN FETCH pat.user " +
+           "LEFT JOIN FETCH a.doctor doc " +
+           "LEFT JOIN FETCH doc.user " +
+           "LEFT JOIN FETCH mr.prescription p " +
+           "LEFT JOIN FETCH p.items " +
+           "WHERE a.patient.patientId = :patientId")
+    List<MedicalRecord> findByPatientId(@Param("patientId") Long patientId);
 }
