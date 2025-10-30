@@ -2,6 +2,7 @@
 // Usage: import { toast } from '../utils/toast'; toast.info('Message');
 
 const TOAST_CONTAINER_ID = 'app-toast-container';
+let TOAST_POSITION = 'bottom-right'; // 'top-right' | 'bottom-right' | 'bottom-left' | 'top-left'
 
 function ensureContainer() {
   let container = document.getElementById(TOAST_CONTAINER_ID);
@@ -9,13 +10,39 @@ function ensureContainer() {
     container = document.createElement('div');
     container.id = TOAST_CONTAINER_ID;
     container.style.position = 'fixed';
-    container.style.top = '16px';
-    container.style.right = '16px';
+    // position
+    const applyPosition = () => {
+      // reset first
+      container.style.top = '';
+      container.style.right = '';
+      container.style.bottom = '';
+      container.style.left = '';
+      switch (TOAST_POSITION) {
+        case 'top-left':
+          container.style.top = '16px';
+          container.style.left = '16px';
+          break;
+        case 'bottom-left':
+          container.style.bottom = '16px';
+          container.style.left = '16px';
+          break;
+        case 'bottom-right':
+          container.style.bottom = '16px';
+          container.style.right = '16px';
+          break;
+        default: // top-right
+          container.style.top = '16px';
+          container.style.right = '16px';
+      }
+    };
+    applyPosition();
     container.style.zIndex = '9999';
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.style.gap = '8px';
     document.body.appendChild(container);
+    // store function for later re-apply on position change
+    container.__applyPosition = applyPosition;
   }
   return container;
 }
@@ -124,6 +151,13 @@ export const toast = {
   success: (msg, ms) => show(msg, 'success', ms ?? 2500),
   warning: (msg, ms) => show(msg, 'warning', ms ?? 3000),
   error: (msg, ms) => show(msg, 'error', ms ?? 3500),
+  setPosition: (pos) => {
+    TOAST_POSITION = pos;
+    const container = document.getElementById(TOAST_CONTAINER_ID);
+    if (container && typeof container.__applyPosition === 'function') {
+      container.__applyPosition();
+    }
+  }
 };
 
 export default toast;

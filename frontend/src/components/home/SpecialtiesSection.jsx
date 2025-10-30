@@ -3,54 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import departmentApi from '../../api/departmentApi';
 
 
-
-// Image mapping for departments
-const departmentImages = {
-  "Nội tổng hợp": "/images/noitongquat.jpg",
-  "Tim mạch": "/images/timmach.jpg",
-  "Hô hấp": "/images/hohap.jpg",
-  "Tiêu hóa": "/images/tieuhoa.jpg",
-  "Nội thận": "/images/noithan.jpg",
-  "Nội tiết": "/images/noitiet.jpg",
-  "Nội thần kinh": "/images/noithankinh.jpg",
-  "Huyết học": "/images/huyethoc.jpg",
-  "Lao & Bệnh phổi": "/images/laobenhphoi.jpg",
-  "Truyền nhiễm": "/images/truyennhiem.jpg",
-  "Ngoại tổng hợp": "/images/ngoaitongquat.jpg",
-  "Ngoại thần kinh": "/images/ngoaithankinh.jpg",
-  "Ngoại niệu": "/images/ngoainieu.jpg",
-  "Ngoại tiết niệu": "/images/ngoaitietnieu.jpg",
-  "Chấn thương chỉnh hình": "/images/chanthuongchinhhinh.jpg",
-  "Phẫu thuật tạo hình": "/images/phauthuattaohinh.jpg",
-  "Cấp cứu": "/images/capcuu.jpg",
-  "Da liễu": "/images/dalieu.jpg",
-  "Nhi khoa": "/images/nhikhoa.jpg",
-  "Sản phụ khoa": "/images/sanphukhoa.jpg",
-  "Tai Mũi Họng": "/images/taimuihong.jpg",
-  "Nhãn khoa": "/images/nhankhoa.jpg",
-  "Răng Hàm Mặt": "/images/rang-ham-mat.jpg",
-  "Lão khoa": "/images/laokhoa.jpg",
-  "Nam khoa": "/images/namkhoa.jpg",
-  "Vô sinh - Hiếm muộn": "/images/vosinhhiemmuon.jpg",
-  "Cơ xương khớp": "/images/co-xuong-khop.jpg",
-  "Chẩn đoán hình ảnh": "/images/chuandoanhinhanh.jpg",
-  "Xét nghiệm": "/images/xetnguyen.jpg",
-  "Gây mê hồi sức": "/images/gaymehoisuc.jpg",
-  "Phục hồi chức năng - Vật lý trị liệu": "/images/phuchoichucnang-vatlytrilieu.jpg",
-  "Dinh dưỡng": "/images/dinhduong.jpg",
-  "Tâm lý": "/images/tamly.jpg",
-  "Tâm thần": "/images/tamthan.jpg",
-  "Ung bướu": "/images/ungbuou.jpg",
-  "Y học cổ truyền": "/images/yhoccotruyen.jpg",
-  "Y học dự phòng": "/images/yhocduphong.jpg",
-  "Đa khoa": "/images/dakhoa.jpg",
-  "Ngôn ngữ trị liệu": "/images/ngonngutrilieu.jpg"
-};
-
-const getImageByDepartmentName = (departmentName) => {
-  return departmentImages[departmentName] || null;
-};
-
 export default function SpecialtiesSection() {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +52,9 @@ export default function SpecialtiesSection() {
     setShowAll(!showAll);
   };
 
-  const displayedDepartments = showAll ? departments : departments.slice(0, 12);
+  // Filter out closed departments
+  const activeDepartments = departments.filter(dept => dept.status !== 'CLOSED');
+  const displayedDepartments = showAll ? activeDepartments : activeDepartments.slice(0, 12);
 
   if (loading) {
     return (
@@ -123,7 +77,7 @@ export default function SpecialtiesSection() {
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Đặt lịch theo chuyên khoa</h2>
             <p className="text-gray-600">Đặt lịch với bác sĩ chuyên khoa hàng đầu</p>
           </div>
-          {departments.length > 12 && (
+          {activeDepartments.length > 12 && (
             <button 
               onClick={handleViewMore}
               className="text-blue-600 font-medium hover:underline hidden md:block"
@@ -135,10 +89,10 @@ export default function SpecialtiesSection() {
 
         <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
           {displayedDepartments.map((department) => {
-            // Use imageUrl from database first, fallback to hardcoded mapping
+            // Use imageUrl from database
             const imageUrl = department.imageUrl 
               ? `http://localhost:8080${department.imageUrl}` 
-              : getImageByDepartmentName(department.departmentName);
+              : null;
             return (
               <div
                 key={department.id}
@@ -186,7 +140,7 @@ export default function SpecialtiesSection() {
           })}
         </div>
 
-        {departments.length > 12 && (
+        {activeDepartments.length > 12 && (
           <div className="text-center mt-6 md:hidden">
             <button 
               onClick={handleViewMore}

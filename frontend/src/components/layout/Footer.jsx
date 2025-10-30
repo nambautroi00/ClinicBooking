@@ -9,16 +9,16 @@ export default function Footer() {
           {/* About */}
           <div>
             <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl overflow-hidden border-2 border-[#0d6efd] shadow-lg bg-white p-1">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl overflow-hidden bg-white p-1">
                 <img 
-                  src="/images/logo.jpg" 
+                  src="/images/logo.png" 
                   alt="ClinicBooking Logo" 
                   className="h-full w-full object-cover rounded-lg"
                   onError={(e) => {
                     // Fallback to original design if logo fails to load
                     e.target.style.display = 'none';
                     e.target.parentElement.innerHTML = `
-                      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0d6efd] border-2 border-[#0d6efd] shadow-lg">
+                      <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0d6efd]">
                         <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                         </svg>

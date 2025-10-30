@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart, MessageCircle } from "lucide-react";
+import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart, MessageCircle, Bell } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
+import notificationApi from "../../api/notificationApi";
+import userApi from "../../api/userApi";
 import config from "../../config/config";
 
 export default function Header() {
@@ -9,6 +11,9 @@ export default function Header() {
   const [showMobileHeader, setShowMobileHeader] = useState(false);
   const [user, setUser] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
 
   // Function to navigate to messages based on user role
@@ -22,22 +27,144 @@ export default function Header() {
     navigate('/patient/messages');
   };
 
+  // Function to handle notifications click
+  const handleNotificationsClick = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    setShowNotifications(!showNotifications);
+    setShowUserDropdown(false); // Close user dropdown if open
+  };
+
+  // Function to fetch notifications
+  const fetchNotifications = async () => {
+    if (!user || !user.id) return;
+    
+    try {
+      console.log('🔔 Fetching notifications for user:', user.id);
+      const response = await notificationApi.getNotifications(user.id);
+      console.log('🔔 Notifications response:', response.data);
+      
+      const list = Array.isArray(response.data?.content) ? response.data.content : [];
+      const unread = typeof response.data?.unreadCount === 'number' ? response.data.unreadCount : (list.filter(n => !n.isRead).length);
+      setNotifications(list);
+      setUnreadCount(unread);
+    } catch (error) {
+      console.error('❌ Error fetching notifications:', error);
+      // Fallback to empty array if API fails
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
+
+  // Function to mark notification as read
+  const markAsRead = async (notificationId) => {
+    try {
+      // Update UI immediately for better UX
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === notificationId 
+            ? { ...notif, isRead: true }
+            : notif
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      // Call API to mark as read
+      await notificationApi.markAsRead(notificationId);
+      console.log('✅ Notification marked as read:', notificationId);
+    } catch (error) {
+      console.error('❌ Error marking notification as read:', error);
+      // Revert UI changes if API call fails
+      fetchNotifications();
+    }
+  };
+
+  // Function to mark all as read
+  const markAllAsRead = async () => {
+    if (!user || !user.id) return;
+    
+    try {
+      // Update UI immediately for better UX
+      setNotifications(prev => 
+        prev.map(notif => ({ ...notif, isRead: true }))
+      );
+      setUnreadCount(0);
+      
+      // Call API to mark all as read
+      await notificationApi.markAllAsRead(user.id);
+      console.log('✅ All notifications marked as read');
+    } catch (error) {
+      console.error('❌ Error marking all notifications as read:', error);
+      // Revert UI changes if API call fails
+      fetchNotifications();
+    }
+  };
+
+  // Fetch notifications when user changes
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    } else {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [user]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showNotifications && !event.target.closest('.notifications-dropdown')) {
+        setShowNotifications(false);
+      }
+      if (showUserDropdown && !event.target.closest('.user-dropdown')) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications, showUserDropdown]);
+
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Load user from localStorage
+        // Load user from localStorage first
         const raw = localStorage.getItem('user');
         if (raw) {
           const userData = JSON.parse(raw);
           console.log('🔍 Header - Loading user from localStorage:', userData);
           console.log('🔍 Header - User firstName:', userData?.firstName);
           console.log('🔍 Header - User lastName:', userData?.lastName);
+          console.log('🔍 Header - User avatar:', userData?.avatar);
+          console.log('🔍 Header - User avatarUrl:', userData?.avatarUrl);
           
           // Check for encoding issues
           if (userData?.firstName?.includes('Ă') || userData?.lastName?.includes('Ă')) {
             console.log('⚠️ Header - Detected encoding issues, forcing page reload');
             window.location.reload();
             return;
+          }
+          
+          // If avatar fields are missing, try to fetch from backend
+          if (!userData?.avatar && !userData?.avatarUrl) {
+            console.log('🔄 Header - Avatar fields missing, fetching from backend...');
+            try {
+              const response = await userApi.getCurrentUser();
+              console.log('✅ Header - Fetched user from backend:', response.data);
+              
+              // Update localStorage with fresh data
+              const updatedUser = { ...userData, ...response.data };
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              setUser(updatedUser);
+              return;
+            } catch (apiError) {
+              console.warn('⚠️ Header - Failed to fetch user from backend:', apiError);
+            }
           }
           
           setUser(userData);
@@ -129,16 +256,16 @@ export default function Header() {
         <div className="max-w-full mx-auto flex items-center gap-8 py-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl overflow-hidden border-2 border-[#0d6efd] shadow-lg bg-white p-1">
+            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl overflow-hidden bg-white p-1">
               <img 
-                src="/images/logo.jpg" 
+                src="/images/logo.png" 
                 alt="ClinicBooking Logo" 
                 className="h-full w-full object-cover rounded-lg"
                 onError={(e) => {
                   // Fallback to original design if logo fails to load
                   e.target.style.display = 'none';
                   e.target.parentElement.innerHTML = `
-                    <div class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-[#0d6efd] text-white border-2 border-[#0d6efd] shadow-lg">
+                    <div class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-[#0d6efd] text-white">
                       <svg class="h-6 w-6 sm:h-8 sm:w-8" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
                       </svg>
@@ -207,11 +334,95 @@ export default function Header() {
             >
               <MessageCircle className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
             </button>
+
+            {/* Notifications Button */}
+            <div className="relative notifications-dropdown">
+              <button
+                onClick={handleNotificationsClick}
+                className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
+                title="Thông báo"
+              >
+                <Bell className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notifications Dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Thông báo</h3>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllAsRead}
+                          className="text-sm text-[#0d6efd] hover:underline"
+                        >
+                          Đánh dấu tất cả đã đọc
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        Không có thông báo nào
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                            !notification.isRead ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => markAsRead(notification.id)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-2 h-2 rounded-full mt-2 ${
+                              notification.isRead ? 'bg-gray-300' : 'bg-[#0d6efd]'
+                            }`} />
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 text-sm">
+                                {notification.title}
+                              </h4>
+                              <p className="text-gray-600 text-sm mt-1">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-2">
+                                {new Date(notification.createdAt).toLocaleString('vi-VN')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {notifications.length > 0 && (
+                    <div className="p-4 border-t border-gray-200 text-center">
+                      <button
+                        className="text-sm text-[#0d6efd] hover:underline"
+                        onClick={() => {
+                          setShowNotifications(false);
+                          navigate('/notifications');
+                        }}
+                      >
+                        Xem tất cả thông báo
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             
             {/* If user is logged in show name + logout, otherwise show login button */}
             {user ? (
               <div className="hidden md:flex items-center gap-2 sm:gap-3">
-                <div className="relative">
+                <div className="relative user-dropdown">
                     <button
                       className="text-base font-medium hover:underline flex items-center gap-1"
                       onClick={() => setShowUserDropdown(!showUserDropdown)}

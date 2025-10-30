@@ -44,6 +44,8 @@ const PatientDashboard = () => {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
 
+  const defaultAvatarDataUrl = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23e5f0ff"/><circle cx="200" cy="140" r="80" fill="%239bbcff"/><rect x="60" y="240" width="280" height="120" rx="60" fill="%239bbcff"/></svg>';
+
   // Đọc tab từ URL params
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
@@ -54,28 +56,61 @@ const PatientDashboard = () => {
 
   // Lấy thông tin user và patientId từ localStorage
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        console.log('🔍 PatientDashboard - Loading user from localStorage:', parsedUser);
-        setUser(parsedUser);
-        const userId = parsedUser.id;
-        if (userId) {
-          patientApi
-            .getPatientByUserId(userId)
-            .then((res) => {
-              const data = res.data || res;
-              setPatientId(data.patientId);
-            })
-            .catch((err) => {
-              console.error("Error getting patient info:", err);
-            });
+    const loadUserData = async () => {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          console.log('🔍 PatientDashboard - Loading user from localStorage:', parsedUser);
+          
+          // Check if user data is complete (has avatarUrl or other required fields)
+          if (!parsedUser.avatarUrl && !parsedUser.avatar) {
+            console.log('⚠️ User data missing avatar info, fetching from backend...');
+            try {
+              const currentUserResponse = await userApi.getCurrentUser();
+              const freshUserData = currentUserResponse.data;
+              console.log('✅ Fetched fresh user data:', freshUserData);
+              
+              // Update localStorage with fresh data
+              localStorage.setItem('user', JSON.stringify(freshUserData));
+              setUser(freshUserData);
+              
+              // Set patientId
+              if (freshUserData.id) {
+                try {
+                  const res = await patientApi.getPatientByUserId(freshUserData.id);
+                  const data = res.data || res;
+                  setPatientId(data.patientId);
+                } catch (err) {
+                  console.error("Error getting patient info:", err);
+                }
+              }
+              return;
+            } catch (error) {
+              console.error('❌ Error fetching fresh user data:', error);
+            }
+          }
+          
+          setUser(parsedUser);
+          const userId = parsedUser.id;
+          if (userId) {
+            patientApi
+              .getPatientByUserId(userId)
+              .then((res) => {
+                const data = res.data || res;
+                setPatientId(data.patientId);
+              })
+              .catch((err) => {
+                console.error("Error getting patient info:", err);
+              });
+          }
+        } catch (error) {
+          console.error("Error parsing user data:", error);
         }
-      } catch (error) {
-        console.error("Error parsing user data:", error);
       }
-    }
+    };
+    
+    loadUserData();
   }, []);
 
   // Parse existing address and set dropdowns
@@ -274,9 +309,10 @@ const PatientDashboard = () => {
 
   const validateHealthInsurance = (insurance) => {
     if (!insurance) return '';
-    const pattern = /^[A-Z]{2}\s\d\s\d{2}\s\d{2}\s\d{3}\s\d{5}$/;
-    if (!pattern.test(insurance)) {
-      return 'Mã BHYT phải theo định dạng: XX X XX XX XXX XXXXX';
+    const cleanInsurance = insurance.replace(/\s/g, '');
+    const pattern = /^[A-Z]{2}\d{1}\d{2}\d{2}\d{3}\d{5}$/;
+    if (!pattern.test(cleanInsurance)) {
+      return 'Mã BHYT phải theo định dạng: XX X XX XX XXX XXXXX ';
     }
     return '';
   };
@@ -326,7 +362,17 @@ const PatientDashboard = () => {
 
   // Handle avatar click - show modal for preview
   const handleAvatarClick = () => {
-    setShowAvatarModal(true);
+    try {
+      console.log('🖱️ Avatar clicked, showing modal');
+      console.log('🔍 Current user data in modal:', user);
+      console.log('🔍 User avatarUrl:', user?.avatarUrl);
+      console.log('🔍 User firstName:', user?.firstName);
+      console.log('🔍 User lastName:', user?.lastName);
+      setShowAvatarModal(true);
+    } catch (error) {
+      console.error('❌ Error in handleAvatarClick:', error);
+      alert('Có lỗi khi mở modal avatar');
+    }
   };
 
   // Handle change avatar - open file picker directly
@@ -346,16 +392,16 @@ const PatientDashboard = () => {
           setUploading(true);
           console.log('🚀 Starting avatar upload...');
           
-          // Upload avatar using fileUploadApi
-          const uploadResponse = await fileUploadApi.uploadImage(file, user.id, 'user');
+          // Upload avatar using userApi.uploadAvatar
+          const uploadResponse = await userApi.uploadAvatar(user.id, file);
           console.log('📤 Upload response:', uploadResponse);
-          const avatarUrl = uploadResponse.data.url;
+          const avatarUrl = uploadResponse.data; // Backend returns string directly
           console.log('🔗 Avatar URL:', avatarUrl);
 
           // Update user data in database
           const updateData = {
             ...user,
-            avatar: avatarUrl
+            avatarUrl: avatarUrl
           };
           console.log('👤 Update data:', updateData);
 
@@ -382,14 +428,20 @@ const PatientDashboard = () => {
           setIsSuccess(true);
           setShowSuccessModal(true);
           
-          // Force component re-render
+          // Force component re-render with new avatar
           setTimeout(() => {
-            setUser(prev => ({ ...prev, avatar: avatarUrl }));
-            console.log('🔄 Force re-render with new avatar');
+            setUser(prev => ({ ...prev, avatarUrl: avatarUrl }));
+            console.log('🔄 Force re-render with new avatarUrl:', avatarUrl);
+            
+            // Force page refresh to clear cache
+            setTimeout(() => {
+              console.log('🔄 Forcing page refresh to clear cache...');
+              window.location.reload();
+            }, 1000);
           }, 100);
         } catch (error) {
           console.error('Error updating avatar:', error);
-          setSuccessMessage('Có lỗi xảy ra khi cập nhật ảnh đại diện');
+          setSuccessMessage('Có lỗi xảy ra khi cập nhật ảnh đại diện: ' + (error.response?.data?.message || error.message));
           setIsSuccess(false);
           setShowSuccessModal(true);
         } finally {
@@ -636,12 +688,22 @@ const PatientDashboard = () => {
                           {(() => {
                             console.log('🔍 PatientDashboard - User data:', user);
                             
-                            // Ưu tiên avatar đã upload
-                            if (user?.avatar) {
-                              const avatarUrl = user.avatar.startsWith('/uploads/') ? 
-                                `http://localhost:8080${user.avatar}` : 
-                                user.avatar;
-                              console.log('✅ PatientDashboard - Using uploaded avatar:', avatarUrl);
+                            // Check if user has avatar
+                            if (user?.avatarUrl) {
+                              let avatarUrl = user.avatarUrl.startsWith('/uploads/') ? 
+                                `http://localhost:8080${user.avatarUrl}` : 
+                                user.avatarUrl;
+                              
+                              // Add cache busting timestamp
+                              const separator = avatarUrl.includes('?') ? '&' : '?';
+                              avatarUrl += `${separator}t=${Date.now()}`;
+                              
+                              console.log('✅ PatientDashboard - Using avatar:', avatarUrl);
+                              console.log('🔍 PatientDashboard - Avatar URL details:', {
+                                original: user.avatarUrl,
+                                constructed: avatarUrl,
+                                hasTimestamp: avatarUrl.includes('?t=')
+                              });
                               return (
                                 <img 
                                   src={avatarUrl} 
@@ -653,81 +715,25 @@ const PatientDashboard = () => {
                                     objectFit: 'cover'
                                   }}
                                   onError={(e) => {
-                                    console.log('❌ PatientDashboard - Uploaded avatar failed to load, showing initials');
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) {
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }
+                                    console.log('❌ PatientDashboard - Avatar failed to load, showing default');
+                                    e.target.src = defaultAvatarDataUrl;
                                   }}
                                 />
                               );
                             }
-                            
-                            // Fallback to Google avatar
-                            if (user?.avatarUrl) {
-                              console.log('✅ PatientDashboard - Using avatarUrl from database:', user.avatarUrl);
-                              return (
-                                <img 
-                                  src={user.avatarUrl} 
-                                  alt="Avatar" 
-                                  className="rounded-circle shadow-lg border border-primary border-3"
-                          style={{ 
-                                    width: '90px', 
-                                    height: '90px', 
-                                    objectFit: 'cover'
-                                  }}
-                                  onError={(e) => {
-                                    console.log('❌ PatientDashboard - avatarUrl failed to load, showing initials');
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) {
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }
-                                  }}
-                                />
-                              );
-                            }
-                            
-                            // Chỉ hiển thị initials cho tài khoản thông thường (không có Google avatar)
+                            // Fallback default avatar
                             return (
-                              <div 
-                                className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-lg border border-primary border-3"
-                          style={{ 
-                                  width: '90px', 
-                                  height: '90px', 
-                                  background: 'linear-gradient(135deg, #9370DB 0%, #8A2BE2 100%)',
-                                  fontSize: '32px'
-                                }}
-                              >
-                                {(() => {
-                                  // Tạo initials từ tên
-                                  if (user?.firstName && user?.lastName) {
-                                    return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
-                                  } else if (user?.firstName) {
-                                    return user.firstName.charAt(0).toUpperCase();
-                                  } else if (user?.fullName) {
-                                    const names = user.fullName.split(' ');
-                                    if (names.length >= 2) {
-                                      return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                                    }
-                                    return user.fullName.charAt(0).toUpperCase();
-                                  } else if (user?.name) {
-                                    const names = user.name.split(' ');
-                                    if (names.length >= 2) {
-                                      return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                                    }
-                                    return user.name.charAt(0).toUpperCase();
-                                  } else if (user?.email) {
-                                    return user.email.charAt(0).toUpperCase();
-                                  } else {
-                                    return 'U';
-                                  }
-                                })()}
-                      </div>
+                              <img
+                                src={defaultAvatarDataUrl}
+                                alt="Avatar"
+                                className="rounded-circle shadow-lg border border-primary border-3"
+                                style={{ width: '90px', height: '90px', objectFit: 'cover' }}
+                              />
                             );
                           })()}
-                    </div>
-                  </div>
-                  
+                        </div>
+                      </div>
+                      
                       {/* User Info */}
                       <h5 className="fw-bold mb-2 text-white" style={{ fontSize: '20px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                         {(() => {
@@ -1739,62 +1745,49 @@ const PatientDashboard = () => {
       {showAvatarModal && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', maxWidth: '500px' }}>
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', maxWidth: '600px' }}>
               <div className="modal-body p-0 text-center">
                 {/* Large Avatar Display */}
                 <div className="p-4" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
-                  {user?.avatar ? (
+                  {user?.avatarUrl ? (
                     <img 
-                      src={user.avatar} 
+                      src={(() => {
+                        let avatarUrl = user.avatarUrl.startsWith('/uploads/') ? 
+                          `http://localhost:8080${user.avatarUrl}` : 
+                          user.avatarUrl;
+                        // Add cache busting timestamp
+                        const separator = avatarUrl.includes('?') ? '&' : '?';
+                        avatarUrl += `${separator}t=${Date.now()}`;
+                        console.log('🖼️ Modal avatar URL:', avatarUrl);
+                        return avatarUrl;
+                      })()} 
                       alt="Avatar" 
                       className="img-fluid rounded-circle shadow-lg"
                       style={{ 
-                        width: '300px', 
-                        height: '300px', 
+                        width: '400px', 
+                        height: '400px', 
+                        objectFit: 'cover',
+                        border: '4px solid white',
+                        boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
+                      }}
+                      onError={(e) => {
+                        console.error('❌ Error loading avatar image:', e);
+                        e.target.src = defaultAvatarDataUrl;
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={defaultAvatarDataUrl}
+                      alt="Avatar"
+                      className="img-fluid rounded-circle shadow-lg"
+                      style={{ 
+                        width: '400px', 
+                        height: '400px', 
                         objectFit: 'cover',
                         border: '4px solid white',
                         boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
                       }}
                     />
-                  ) : (
-                    <div 
-                      className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold mx-auto shadow-lg"
-                      style={{ 
-                        width: '300px', 
-                        height: '300px', 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        fontSize: '80px',
-                        border: '4px solid white',
-                        boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
-                      }}
-                    >
-                      {(() => {
-                        if (!user) return 'U';
-                        
-                        // Tạo initials từ tên
-                        if (user.firstName && user.lastName) {
-                          return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
-                        } else if (user.firstName) {
-                          return user.firstName.charAt(0).toUpperCase();
-                        } else if (user.fullName) {
-                          const names = user.fullName.split(' ');
-                          if (names.length >= 2) {
-                            return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                          }
-                          return user.fullName.charAt(0).toUpperCase();
-                        } else if (user.name) {
-                          const names = user.name.split(' ');
-                          if (names.length >= 2) {
-                            return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                          }
-                          return user.name.charAt(0).toUpperCase();
-                        } else if (user.email) {
-                          return user.email.charAt(0).toUpperCase();
-                        } else {
-                          return 'U';
-                        }
-                      })()}
-                    </div>
                   )}
                 </div>
 

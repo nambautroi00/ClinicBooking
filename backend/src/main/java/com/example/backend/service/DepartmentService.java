@@ -182,13 +182,13 @@ public class DepartmentService {
                 throw new RuntimeException("File phải là ảnh");
             }
             
-            // Generate unique filename
+            // Use the filename from frontend (already sanitized)
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.isEmpty()) {
                 throw new RuntimeException("Tên file không hợp lệ");
             }
-            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            String filename = "department_" + departmentId + extension;
+            
+            String filename = originalFilename;
             
             // Save file to uploads/departments directory
             String uploadDir = "uploads/departments/";
@@ -198,7 +198,7 @@ public class DepartmentService {
             }
             
             // Delete old images for this department
-            deleteOldDepartmentImages(departmentId, uploadPath);
+            deleteOldDepartmentImages(department, uploadPath, filename);
             
             Path filePath = uploadPath.resolve(filename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
@@ -224,13 +224,19 @@ public class DepartmentService {
     /**
      * Xóa tất cả ảnh cũ của department
      */
-    private void deleteOldDepartmentImages(Long departmentId, Path uploadPath) {
+    private void deleteOldDepartmentImages(Department department, Path uploadPath, String newFilename) {
         try {
-            // Tìm tất cả file bắt đầu bằng "department_{id}"
-            String prefix = "department_" + departmentId;
+            // Get filename without extension for matching
+            String newFilenameWithoutExt = newFilename.substring(0, newFilename.lastIndexOf("."));
             
+            // Tìm tất cả file có tên bắt đầu bằng tên file mới (không có extension)
             Files.list(uploadPath)
-                .filter(path -> path.getFileName().toString().startsWith(prefix))
+                .filter(path -> {
+                    String fileName = path.getFileName().toString();
+                    String fileNameWithoutExt = fileName.substring(0, fileName.lastIndexOf("."));
+                    // Check if file starts with new filename (but not the same file)
+                    return fileNameWithoutExt.equals(newFilenameWithoutExt) && !fileName.equals(newFilename);
+                })
                 .forEach(path -> {
                     try {
                         Files.deleteIfExists(path);
@@ -241,7 +247,7 @@ public class DepartmentService {
                 });
                 
         } catch (IOException e) {
-            System.err.println("Error listing files for department " + departmentId + ": " + e.getMessage());
+            System.err.println("Error listing files for department " + department.getId() + ": " + e.getMessage());
         }
     }
 }

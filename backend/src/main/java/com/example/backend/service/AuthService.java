@@ -22,6 +22,7 @@ import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.PatientRepository;
 import com.example.backend.repository.DepartmentRepository;
 import com.example.backend.service.EmailService;
+import com.example.backend.service.SystemNotificationService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,6 +40,7 @@ public class AuthService {
     private final DepartmentRepository departmentRepository;
     private final EmailOtpService emailOtpService;
     private final EmailService emailService;
+    private final SystemNotificationService systemNotificationService;
 
     public AuthDTO.LoginResponse login(AuthDTO.LoginRequest loginRequest) {
         try {
@@ -98,8 +100,11 @@ public class AuthService {
             newUser.setGender(registerRequest.getGender());
             newUser.setDateOfBirth(registerRequest.getDateOfBirth());
             newUser.setAddress(registerRequest.getAddress());
-            newUser.setStatus(User.UserStatus.ACTIVE);
             newUser.setRole(userRole);
+            // default avatar if none
+            if (newUser.getAvatarUrl() == null || newUser.getAvatarUrl().trim().isEmpty()) {
+                newUser.setAvatarUrl("/uploads/user_default.png");
+            }
 
             // Lưu user
             User savedUser = userRepository.save(newUser);
@@ -126,6 +131,9 @@ public class AuthService {
                 System.err.println("❌ LỖI: Không thể gửi email chào mừng: " + e.getMessage());
                 e.printStackTrace();
             }
+
+            // Create system notification
+            try { systemNotificationService.createRegisterSuccess(savedUser.getId()); } catch (Exception ignore) {}
 
             // Chuyển đổi sang DTO
             UserDTO.Response userResponse = userMapper.entityToResponseDTO(savedUser);
@@ -336,7 +344,13 @@ public class AuthService {
                     e.printStackTrace();
                 }
             } else {
-                System.out.println("DEBUG OAuth: Found existing user with ID = " + user.getId() + ", status = " + user.getStatus());
+                // Check if existing user is a regular user (not Google user)
+                if (!"oauth_google_user".equals(user.getPasswordHash())) {
+                    System.out.println("DEBUG OAuth: Email already exists as regular user: " + email);
+                    return new AuthDTO.LoginResponse("Email này đã được sử dụng để đăng ký tài khoản thường. Vui lòng đăng nhập bằng mật khẩu hoặc sử dụng email khác.", false, null, null);
+                }
+                
+                System.out.println("DEBUG OAuth: Found existing Google user with ID = " + user.getId() + ", status = " + user.getStatus());
                 System.out.println("DEBUG OAuth: Current FirstName = '" + user.getFirstName() + "'");
                 System.out.println("DEBUG OAuth: Current LastName = '" + user.getLastName() + "'");
                 System.out.println("DEBUG OAuth: New FirstName = '" + firstName + "'");

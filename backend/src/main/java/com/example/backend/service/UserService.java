@@ -472,13 +472,17 @@ public class UserService {
                 throw new RuntimeException("File phải là ảnh");
             }
             
-            // Generate unique filename
+            // Generate simple filename without timestamp
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.isEmpty()) {
                 throw new RuntimeException("Tên file không hợp lệ");
             }
             String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            String filename = "user_" + userId + "_" + System.currentTimeMillis() + extension;
+            String filename = "user_" + userId + extension;
+            
+            System.out.println("🖼️ Generated avatar filename: " + filename);
+            System.out.println("👤 User ID: " + userId);
+            System.out.println("📁 Extension: " + extension);
             
             // Save file to uploads directory
             String uploadDir = "uploads/";
@@ -487,16 +491,38 @@ public class UserService {
                 java.nio.file.Files.createDirectories(uploadPath);
             }
             
+            // Delete old avatar file if exists
+            String oldAvatarUrl = user.getAvatarUrl();
+            System.out.println("🔍 Checking old avatar: " + oldAvatarUrl);
+            if (oldAvatarUrl != null && oldAvatarUrl.startsWith("/uploads/user_")) {
+                try {
+                    java.nio.file.Path oldFilePath = java.nio.file.Paths.get("." + oldAvatarUrl);
+                    if (java.nio.file.Files.exists(oldFilePath)) {
+                        java.nio.file.Files.deleteIfExists(oldFilePath);
+                        System.out.println("🗑️ Deleted old avatar: " + oldAvatarUrl);
+                    } else {
+                        System.out.println("ℹ️ Old avatar file not found: " + oldFilePath);
+                    }
+                } catch (Exception e) {
+                    System.err.println("⚠️ Could not delete old avatar: " + e.getMessage());
+                }
+            } else {
+                System.out.println("ℹ️ No old avatar to delete or not user avatar format");
+            }
+            
             java.nio.file.Path filePath = uploadPath.resolve(filename);
             java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             
+            System.out.println("💾 Saved avatar file to: " + filePath);
+            
             // Update user avatar
             String avatarUrl = "/uploads/" + filename;
-            user.setAvatarUrl(avatarUrl);  // Set avatar field
-            user.setAvatarUrl(avatarUrl);  // Also set avatarUrl field for compatibility
+            System.out.println("🔗 Avatar URL: " + avatarUrl);
+            user.setAvatarUrl(avatarUrl);    // Set avatarUrl field for compatibility
             userRepository.save(user);
             
             System.out.println("✅ Avatar uploaded successfully: " + avatarUrl);
+            System.out.println("📊 Final filename format: " + filename);
             return avatarUrl;
             
         } catch (Exception e) {

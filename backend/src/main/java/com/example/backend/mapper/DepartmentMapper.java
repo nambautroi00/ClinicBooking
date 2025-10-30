@@ -13,7 +13,7 @@ public class DepartmentMapper {
         department.setDepartmentName(createDTO.getDepartmentName());
         department.setDescription(createDTO.getDescription());
         department.setImageUrl(createDTO.getImageUrl());
-        department.setStatus(Department.DepartmentStatus.ACTIVE);
+        department.setStatus(createDTO.getStatus() != null ? createDTO.getStatus() : Department.DepartmentStatus.ACTIVE);
         return department;
     }
 

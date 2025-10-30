@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 import java.util.HashMap;
+import org.springframework.web.bind.annotation.CookieValue;
 
 import com.example.backend.model.User;
 import com.example.backend.model.Patient;
@@ -47,9 +48,20 @@ public class UserController {
      * GET /api/users/me
      */
     @GetMapping("/me")
-    public ResponseEntity<User> getCurrentUser(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<User> getCurrentUser(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @CookieValue(value = "userId", required = false) String userIdCookie) {
         try {
-            // For testing, return the Google user directly
+            // 1) Prefer cookie userId when available (set on login)
+            if (userIdCookie != null && !userIdCookie.isBlank()) {
+                try {
+                    Long uid = Long.parseLong(userIdCookie.trim());
+                    User byCookie = userService.getUserByIdWithRole(uid);
+                    if (byCookie != null) return ResponseEntity.ok(byCookie);
+                } catch (NumberFormatException ignore) {}
+            }
+
+            // 2) Fallback to previous simplified logic (mainly for legacy Google-only sessions)
             User user = userService.getCurrentUserFromToken(authHeader);
             if (user != null) {
                 return ResponseEntity.ok(user);

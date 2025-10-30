@@ -394,12 +394,249 @@ INSERT INTO system_notifications(Title, Message, AppointmentID, created_at) VALU
 -- ===========================================================
 -- Uncomment these queries to verify the data insertion
 	select * from users
-	select * from doctors
+	--select * from doctors
 	select * from patients
 	select * from departments
 	delete from doctors
 
+UPDATE Departments 
+SET image_url = '/uploads/departments/noi_tong_hop.jpg'
+WHERE DepartmentID = 1;
+GO
 
+-- Khoa ID 2: Tim mạch
+UPDATE Departments 
+SET image_url = '/uploads/departments/tim_mach.jpg'
+WHERE DepartmentID = 2;
+GO
+
+-- Khoa ID 3: Hô hấp
+UPDATE Departments 
+SET image_url = '/uploads/departments/ho_hap.jpg'
+WHERE DepartmentID = 3;
+GO
+
+-- Khoa ID 4: Tiêu hóa
+UPDATE Departments 
+SET image_url = '/uploads/departments/tieu_hoa.jpg'
+WHERE DepartmentID = 4;
+GO
+
+-- Khoa ID 5: Nội thận
+UPDATE Departments 
+SET image_url = '/uploads/departments/noi_than.jpg'
+WHERE DepartmentID = 5;
+GO
+
+-- Khoa ID 6: Nội tiết
+UPDATE Departments 
+SET image_url = '/uploads/departments/noi_tiet.jpg'
+WHERE DepartmentID = 6;
+GO
+
+-- Khoa ID 7: Nội thần kinh
+UPDATE Departments 
+SET image_url = '/uploads/departments/noi_than_kinh.jpg'
+WHERE DepartmentID = 7;
+GO
+
+-- Khoa ID 8: Huyết học
+UPDATE Departments 
+SET image_url = '/uploads/departments/huyet_hoc.jpg'
+WHERE DepartmentID = 8;
+GO
+
+-- Khoa ID 9: Lao & Bệnh phổi
+UPDATE Departments 
+SET image_url = '/uploads/departments/lao_benh_phoi.jpg'
+WHERE DepartmentID = 9;
+GO
+
+-- Khoa ID 10: Truyền nhiễm
+UPDATE Departments 
+SET image_url = '/uploads/departments/truyen_nhiem.jpg'
+WHERE DepartmentID = 10;
+GO
+
+-- Khoa ID 11: Ngoại tổng hợp
+UPDATE Departments 
+SET image_url = '/uploads/departments/ngoai_tong_hop.jpg'
+WHERE DepartmentID = 11;
+GO
+
+-- Khoa ID 12: Ngoại thần kinh
+UPDATE Departments 
+SET image_url = '/uploads/departments/ngoai_than_kinh.jpg'
+WHERE DepartmentID = 12;
+GO
+
+-- Khoa ID 13: Ngoại niệu
+UPDATE Departments 
+SET image_url = '/uploads/departments/ngoai_nieu.jpg'
+WHERE DepartmentID = 13;
+GO
+
+-- Khoa ID 14: Ngoại tiết niệu
+UPDATE Departments 
+SET image_url = '/uploads/departments/ngoai_tiet_nieu.jpg'
+WHERE DepartmentID = 14;
+GO
+
+-- Khoa ID 15: Chấn thương chỉnh hình
+UPDATE Departments 
+SET image_url = '/uploads/departments/chan_thuong_chinh_hinh.jpg'
+WHERE DepartmentID = 15;
+GO
+
+-- Khoa ID 16: Phẫu thuật tạo hình
+UPDATE Departments 
+SET image_url = '/uploads/departments/phau_thuat_tao_hinh.jpg'
+WHERE DepartmentID = 16;
+GO
+
+-- Khoa ID 17: Cấp cứu
+UPDATE Departments 
+SET image_url = '/uploads/departments/cap_cuu.jpg'
+WHERE DepartmentID = 17;
+GO
+
+-- Khoa ID 18: Da liễu
+UPDATE Departments 
+SET image_url = '/uploads/departments/da_lieu.jpg'
+WHERE DepartmentID = 18;
+GO
+
+-- Khoa ID 19: Nhi khoa
+UPDATE Departments 
+SET image_url = '/uploads/departments/nhi_khoa.jpg'
+WHERE DepartmentID = 19;
+GO
+
+-- Khoa ID 20: Sản phụ khoa
+UPDATE Departments 
+SET image_url = '/uploads/departments/san_phu_khoa.jpg'
+WHERE DepartmentID = 20;
+GO
+
+-- Khoa ID 21: Tai Mũi Họng
+UPDATE Departments 
+SET image_url = '/uploads/departments/tai_mui_hong.jpg'
+WHERE DepartmentID = 21;
+GO
+
+-- Khoa ID 22: Nhãn khoa
+UPDATE Departments 
+SET image_url = '/uploads/departments/nhan_khoa.jpg'
+WHERE DepartmentID = 22;
+GO
+
+-- Khoa ID 23: Răng Hàm Mặt
+UPDATE Departments 
+SET image_url = '/uploads/departments/rang_ham_mat.jpg'
+WHERE DepartmentID = 23;
+GO
+
+-- Khoa ID 24: Lão khoa
+UPDATE Departments 
+SET image_url = '/uploads/departments/lao_khoa.jpg'
+WHERE DepartmentID = 24;
+GO
+
+-- Khoa ID 25: Nam khoa
+UPDATE Departments 
+SET image_url = '/uploads/departments/nam_khoa.jpg'
+WHERE DepartmentID = 25;
+GO
+
+-- Khoa ID 26: Vô sinh - Hiếm muộn
+UPDATE Departments 
+SET image_url = '/uploads/departments/vo_sinh_hiem_muon.jpg'
+WHERE DepartmentID = 26;
+GO
+
+-- Khoa ID 27: Cơ xương khớp
+UPDATE Departments 
+SET image_url = '/uploads/departments/co_xuong_khop.jpg'
+WHERE DepartmentID = 27;
+GO
+
+-- Khoa ID 28: Chẩn đoán hình ảnh
+UPDATE Departments 
+SET image_url = '/uploads/departments/chan_doan_hinh_anh.jpg'
+WHERE DepartmentID = 28;
+GO
+
+-- Khoa ID 29: Xét nghiệm
+UPDATE Departments 
+SET image_url = '/uploads/departments/xet_nghiem.jpg'
+WHERE DepartmentID = 29;
+GO
+
+-- Khoa ID 30: Gây mê hồi sức
+UPDATE Departments 
+SET image_url = '/uploads/departments/gay_me_hoi_suc.jpg'
+WHERE DepartmentID = 30;
+GO
+
+-- Khoa ID 31: Phục hồi chức năng - Vật lý trị liệu
+UPDATE Departments 
+SET image_url = '/uploads/departments/phuc_hoi_chuc_nang_vat_ly_tri_lieu.jpg'
+WHERE DepartmentID = 31;
+GO
+
+-- Khoa ID 32: Dinh dưỡng
+UPDATE Departments 
+SET image_url = '/uploads/departments/dinh_duong.jpg'
+WHERE DepartmentID = 32;
+GO
+
+-- Khoa ID 33: Tâm lý
+UPDATE Departments 
+SET image_url = '/uploads/departments/tam_ly.jpg'
+WHERE DepartmentID = 33;
+GO
+
+-- Khoa ID 34: Tâm thần
+UPDATE Departments 
+SET image_url = '/uploads/departments/tam_than.jpg'
+WHERE DepartmentID = 34;
+GO
+
+-- Khoa ID 35: Ung bướu
+UPDATE Departments 
+SET image_url = '/uploads/departments/ung_buou.jpg'
+WHERE DepartmentID = 35;
+GO
+
+-- Khoa ID 36: Y học cổ truyền
+UPDATE Departments 
+SET image_url = '/uploads/departments/y_hoc_co_truyen.jpg'
+WHERE DepartmentID = 36;
+GO
+
+-- Khoa ID 37: Y học dự phòng
+UPDATE Departments 
+SET image_url = '/uploads/departments/y_hoc_du_phong.jpg'
+WHERE DepartmentID = 37;
+GO
+
+-- Khoa ID 38: Đa khoa (đã có file .webp)
+UPDATE Departments 
+SET image_url = '/uploads/departments/da_khoa.webp'
+WHERE DepartmentID = 38;
+GO
+
+-- Khoa ID 39: Ngôn ngữ trị liệu
+UPDATE Departments 
+SET image_url = '/uploads/departments/ngon_ngu_tri_lieu.jpg'
+WHERE DepartmentID = 39;
+GO
+
+-- Khoa ID 40: Khoa đang phát triển (CLOSED)
+UPDATE Departments 
+SET image_url = '/uploads/departments/khoa_dang_phat_trien.jpg'
+WHERE DepartmentID = 40;
+GO
 --Thêm số lượng đơn thuốc
 ALTER TABLE prescription_items
 ADD quantity INT DEFAULT 1;

@@ -23,6 +23,8 @@ public class DepartmentDTO {
 
         @Size(max = 500, message = "URL ảnh không được quá 500 ký tự")
         private String imageUrl;
+
+        private Department.DepartmentStatus status;
     }
 
     @Data

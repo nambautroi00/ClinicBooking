@@ -17,6 +17,7 @@ import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.DoctorScheduleRepository;
 import com.example.backend.repository.PatientRepository;
+import com.example.backend.service.SystemNotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class AppointmentService {
     private final DoctorScheduleRepository doctorScheduleRepository;
     private final AppointmentMapper appointmentMapper;
     private final EmailService emailService;
+    private final SystemNotificationService systemNotificationService;
 
     public AppointmentDTO.Response create(AppointmentDTO.Create dto) {
         // Cho phép patient null khi bác sĩ tạo slot trống
@@ -207,7 +209,12 @@ public class AppointmentService {
             // ignore email failures
         }
         
-        return appointmentMapper.entityToResponseDTO(saved);
+        AppointmentDTO.Response response = appointmentMapper.entityToResponseDTO(saved);
+        try {
+            Long userId = saved.getPatient().getUser().getId();
+            systemNotificationService.createBookingCreated(userId, saved.getAppointmentId());
+        } catch (Exception ignore) {}
+        return response;
     }
 
     public AppointmentDTO.Response update(Long appointmentId, AppointmentDTO.Update dto) {
@@ -253,7 +260,12 @@ public class AppointmentService {
         } catch (Exception ex) {
             // ignore
         }
-        return appointmentMapper.entityToResponseDTO(saved);
+        AppointmentDTO.Response response = appointmentMapper.entityToResponseDTO(saved);
+        try {
+            Long userId = saved.getPatient().getUser().getId();
+            systemNotificationService.createBookingCancelled(userId, saved.getAppointmentId());
+        } catch (Exception ignore) {}
+        return response;
     }
 
     @Transactional(readOnly = true)

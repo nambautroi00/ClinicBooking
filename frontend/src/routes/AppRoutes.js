@@ -6,6 +6,7 @@ import Home from "../pages/Home/Home";
 import Articles from "../pages/Articles";
 import NotFound from "../pages/NotFound";
 import SpecialtyDoctors from "../pages/SpecialtyDoctors";
+import NotificationsPage from "../pages/Notifications";
 
 // Auth
 import Login from "../pages/Auth/Login";
@@ -67,6 +68,7 @@ const AppRoutes = () => {
       <Route path="/articles/:id" element={<PublicArticleDetail />} />
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/specialty/:departmentId" element={<SpecialtyDoctors />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
       <Route path="/test-auth" element={<TestAuth />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/cancel" element={<PaymentCancel />} />
