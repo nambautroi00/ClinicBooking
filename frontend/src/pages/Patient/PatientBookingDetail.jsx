@@ -47,6 +47,7 @@ export default function PatientBookingDetail() {
   const [paymentData, setPaymentData] = useState(null);
   const [payOSLink, setPayOSLink] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
     const raw = localStorage.getItem('user');
@@ -316,6 +317,19 @@ export default function PatientBookingDetail() {
 
           };
           setDoctor(transformedDoctor);
+
+          // Fetch active reviews for this doctor
+          try {
+            const reviewsResponse = await reviewApi.getActiveByDoctor(doctorData.doctorId || doctorData.id);
+            if (Array.isArray(reviewsResponse)) {
+              setReviews(reviewsResponse);
+            } else {
+              setReviews([]);
+            }
+          } catch (reviewError) {
+            console.error('Error loading reviews:', reviewError);
+            setReviews([]);
+          }
         }
         
         // Fetch doctor's appointments
@@ -1146,17 +1160,6 @@ export default function PatientBookingDetail() {
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Giới thiệu</h2>
             <p className="text-gray-700 leading-relaxed mb-4">{doctor.bio}</p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800 mb-2">
-                <strong>Đặt lịch khám với {doctor.name}</strong>
-              </p>
-              <p className="text-sm text-blue-700">
-                Khuyến khích bệnh nhân đặt lịch trước qua "ứng dụng Clinic Booking" để lấy số thứ tự sớm, hạn chế thời gian chờ đợi và giúp phòng khám phục vụ tốt hơn.
-              </p>
-              <a href="https://play.google.com/store/apps/details?id=com.clinicbooking.app" className="text-sm text-blue-600 hover:underline">
-                Tải ứng dụng Clinic Booking tại đây
-              </a>
-            </div>
           </div>
 
           {/* Specialties */}
@@ -1173,6 +1176,64 @@ export default function PatientBookingDetail() {
                 Miễn dịch - Dị ứng
               </span>
             </div>
+          </div>
+
+          {/* Reviews Section */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Star className="h-6 w-6 text-yellow-400 fill-current" />
+              Đánh giá từ bệnh nhân ({reviews.length})
+            </h2>
+            
+            {reviews.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Star className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Chưa có đánh giá nào cho bác sĩ này</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <div key={review.reviewId} className="border-b border-gray-200 pb-4 last:border-b-0 last:pb-0">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+                          {review.patientName ? review.patientName.charAt(0).toUpperCase() : 'A'}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {review.patientName || 'Bệnh nhân'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {review.createdAt ? new Date(review.createdAt).toLocaleDateString('vi-VN', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            }) : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-4 w-4 ${
+                              star <= (review.rating || 0)
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {review.comment && (
+                      <p className="text-gray-700 mt-2 pl-14">
+                        {review.comment}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

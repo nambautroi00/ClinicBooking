@@ -1,30 +1,37 @@
 package com.example.backend.controller;
 
-import com.example.backend.dto.PaymentDTO;
-import com.example.backend.model.Payment;
-import com.example.backend.service.PaymentService;
-import com.example.backend.service.PdfExportService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;              // <-- thêm
-
-import org.springframework.security.access.prepost.PreAuthorize;
-
-// Thêm toàn bộ annotation web của Spring:
-import org.springframework.web.bind.annotation.*;   // <-- thêm (RestController, RequestMapping, etc.)
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;              // <-- thêm
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;   // <-- thêm (RestController, RequestMapping, etc.)
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.backend.dto.PaymentDTO;
+import com.example.backend.model.Payment;
+import com.example.backend.service.PaymentService;
+import com.example.backend.service.PdfExportService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/payments")
