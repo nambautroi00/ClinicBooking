@@ -2,6 +2,7 @@
 // Usage: import { toast } from '../utils/toast'; toast.info('Message');
 
 const TOAST_CONTAINER_ID = 'app-toast-container';
+let TOAST_POSITION = 'bottom-right'; // 'top-right' | 'bottom-right' | 'bottom-left' | 'top-left'
 
 function ensureContainer() {
   let container = document.getElementById(TOAST_CONTAINER_ID);
@@ -9,13 +10,39 @@ function ensureContainer() {
     container = document.createElement('div');
     container.id = TOAST_CONTAINER_ID;
     container.style.position = 'fixed';
-    container.style.top = '16px';
-    container.style.right = '16px';
+    // position
+    const applyPosition = () => {
+      // reset first
+      container.style.top = '';
+      container.style.right = '';
+      container.style.bottom = '';
+      container.style.left = '';
+      switch (TOAST_POSITION) {
+        case 'top-left':
+          container.style.top = '16px';
+          container.style.left = '16px';
+          break;
+        case 'bottom-left':
+          container.style.bottom = '16px';
+          container.style.left = '16px';
+          break;
+        case 'bottom-right':
+          container.style.bottom = '16px';
+          container.style.right = '16px';
+          break;
+        default: // top-right
+          container.style.top = '16px';
+          container.style.right = '16px';
+      }
+    };
+    applyPosition();
     container.style.zIndex = '9999';
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     container.style.gap = '8px';
     document.body.appendChild(container);
+    // store function for later re-apply on position change
+    container.__applyPosition = applyPosition;
   }
   return container;
 }
@@ -31,19 +58,38 @@ function createToastElement(message, variant = 'info') {
   el.style.boxShadow = '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.1)';
   el.style.borderRadius = '10px';
   el.style.padding = '14px 16px';
-  el.style.color = variant === 'light' ? '#111827' : '#fff';
   el.style.display = 'flex';
   el.style.alignItems = 'center';
   el.style.gap = '12px';
 
-  const bgMap = {
-    info: '#2563eb',    // blue-600
-    success: '#16a34a', // green-600
-    warning: '#d97706', // amber-600
-    error: '#dc2626',   // red-600
-    light: '#f3f4f6'    // gray-100
-  };
-  el.style.background = bgMap[variant] || bgMap.info;
+  // Default colors
+  let background = '#2563eb'; // info
+  let textColor = '#fff';
+  let border = 'none';
+
+  if (variant === 'info') {
+    background = '#2563eb'; // blue-600
+    textColor = '#fff';
+  } else if (variant === 'success') {
+    background = '#16a34a'; // green-600
+    textColor = '#fff';
+  } else if (variant === 'warning') {
+    background = '#fef3c7'; // amber-100 (light)
+    textColor = '#92400e'; // amber-800
+    border = '1px solid #d97706'; // amber-600
+  } else if (variant === 'error') {
+    // Light red background with red border and dark red text
+    background = '#fee2e2'; // red-100
+    textColor = '#7f1d1d'; // red-800
+    border = '1px solid #ef4444'; // red-500
+  } else if (variant === 'light') {
+    background = '#f3f4f6'; // gray-100
+    textColor = '#111827';
+  }
+
+  el.style.background = background;
+  el.style.color = textColor;
+  el.style.border = border;
 
   const span = document.createElement('span');
   span.style.flex = '1 1 auto';
@@ -105,6 +151,13 @@ export const toast = {
   success: (msg, ms) => show(msg, 'success', ms ?? 2500),
   warning: (msg, ms) => show(msg, 'warning', ms ?? 3000),
   error: (msg, ms) => show(msg, 'error', ms ?? 3500),
+  setPosition: (pos) => {
+    TOAST_POSITION = pos;
+    const container = document.getElementById(TOAST_CONTAINER_ID);
+    if (container && typeof container.__applyPosition === 'function') {
+      container.__applyPosition();
+    }
+  }
 };
 
 export default toast;

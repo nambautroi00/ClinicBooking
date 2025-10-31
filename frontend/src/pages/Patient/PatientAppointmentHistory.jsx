@@ -17,9 +17,36 @@ import {
   MessageCircle,
   RefreshCw
 } from "lucide-react";
+import reviewApi from "../../api/reviewApi";
 import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import doctorApi from "../../api/doctorApi";
+import toast from "../../utils/toast";
+
+// Rating Stars Component
+const RatingStars = ({ value, onChange, readonly }) => {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => onChange && onChange(star)}
+          className={`${readonly ? 'cursor-default' : 'cursor-pointer'}`}
+        >
+          <Star
+            className={`h-6 w-6 ${
+              star <= value 
+                ? 'fill-yellow-400 text-yellow-400' 
+                : 'text-gray-300'
+            }`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+};
 
 export default function PatientAppointmentHistory() {
   const navigate = useNavigate();
@@ -28,13 +55,24 @@ export default function PatientAppointmentHistory() {
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [patientId, setPatientId] = useState(null);
-  const [doctors, setDoctors] = useState({}); // Lưu thông tin bác sĩ theo doctorId
+  const [doctors, setDoctors] = useState({});
+  
+  // Review states
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [appointmentToReview, setAppointmentToReview] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviews, setReviews] = useState({}); // Lưu thông tin đánh giá theo doctorId
+  const [isEditingReview, setIsEditingReview] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState(null);
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [doctorRatings, setDoctorRatings] = useState({});
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -128,20 +166,196 @@ export default function PatientAppointmentHistory() {
     return null;
   };
 
-  // Load thông tin bác sĩ
+  // Load thông tin bác sĩ và đánh giá
   const loadDoctorInfo = async (doctorId) => {
-    if (!doctorId || doctors[doctorId]) return; // Đã có thông tin hoặc không có doctorId
+    if (!doctorId) return;
 
     try {
-      const response = await doctorApi.getDoctorById(doctorId);
-      if (response.data) {
-        setDoctors(prev => ({
+      // Load doctor info if not already loaded
+      if (!doctors[doctorId]) {
+        const response = await doctorApi.getDoctorById(doctorId);
+        if (response.data) {
+          setDoctors(prev => ({
+            ...prev,
+            [doctorId]: response.data
+          }));
+        }
+      }
+
+      // Load average rating
+      if (!doctorRatings[doctorId]) {
+        const avgRating = await reviewApi.getAverageRatingByDoctor(doctorId);
+        const reviewCount = await reviewApi.getReviewCountByDoctor(doctorId);
+        
+        setDoctorRatings(prev => ({
           ...prev,
-          [doctorId]: response.data
+          [doctorId]: {
+            average: avgRating || 0,
+            count: reviewCount || 0
+          }
         }));
       }
     } catch (error) {
       console.error('Error loading doctor info:', error);
+    }
+  };
+
+  // Load reviews by patient and map by doctorId
+  useEffect(() => {
+    const loadPatientReviews = async () => {
+      if (!patientId) return;
+      try {
+        const list = await reviewApi.getByPatient(patientId);
+        if (Array.isArray(list)) {
+          const mapByDoctor = {};
+          list.forEach(r => {
+            if (r && r.doctorId != null) {
+              mapByDoctor[r.doctorId] = r;
+            }
+          });
+          setReviews(mapByDoctor);
+        } else {
+          setReviews({});
+        }
+      } catch (error) {
+        console.error('Error loading patient reviews:', error);
+      }
+    };
+
+    loadPatientReviews();
+  }, [patientId]);
+
+  // Open edit review modal (prefill with existing review)
+  const openEditReview = (appointment, review) => {
+    console.log('Opening edit review:', review);
+    const reviewId = review?.reviewId || review?.id;
+    if (!reviewId) {
+      console.error('No review ID found:', review);
+      toast.error('Không thể chỉnh sửa đánh giá này');
+      return;
+    }
+    setAppointmentToReview(appointment);
+    setIsEditingReview(true);
+    setEditingReviewId(reviewId);
+    setRating(review?.rating || 0);
+    setReviewComment(review?.comment || '');
+    setShowReviewModal(true);
+    console.log('Edit review state set:', {
+      appointmentId: appointment.appointmentId,
+      reviewId: reviewId,
+      rating: review?.rating,
+      comment: review?.comment
+    });
+  };
+
+  // Handle review submission
+  const handleSubmitReview = async () => {
+    if (!appointmentToReview || rating === 0) {
+      console.log('Invalid review data:', { appointmentToReview, rating });
+      toast.warning('Vui lòng chọn số sao đánh giá');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      if (isEditingReview && editingReviewId) {
+        console.log('Current review state:', {
+          isEditingReview,
+          editingReviewId,
+          rating,
+          comment: reviewComment
+        });
+
+        // Prepare update data according to ReviewDTO.Update format
+        const updateData = {
+          rating: rating,
+          comment: reviewComment
+        };
+        
+        console.log('Sending update request:', { 
+          url: `/reviews/${editingReviewId}`,
+          data: updateData 
+        });
+        
+        const resp = await reviewApi.update(editingReviewId, updateData);
+        console.log('Review update response:', resp);
+        
+        if (!resp) {
+          throw new Error('Không nhận được phản hồi từ server');
+        }
+
+        // Update reviews state (map by doctorId)
+        setReviews(prev => ({
+          ...prev,
+          [appointmentToReview.doctorId]: {
+            ...resp,
+            reviewId: resp.reviewId || resp.id || editingReviewId,
+            rating: resp.rating ?? rating,
+            comment: resp.comment ?? reviewComment,
+            createdAt: resp.createdAt || new Date().toISOString()
+          }
+        }));
+
+        // Reset states after successful update
+        setShowReviewModal(false);
+        setAppointmentToReview(null);
+        setIsEditingReview(false);
+        setEditingReviewId(null);
+        setRating(0);
+        setReviewComment('');
+        toast.success('Cập nhật đánh giá thành công!');
+      } else {
+        console.log('Creating review:', {
+          appointmentId: appointmentToReview.appointmentId,
+          doctorId: appointmentToReview.doctorId,
+          patientId: patientId,
+          rating,
+          comment: reviewComment
+        });
+
+        const response = await reviewApi.createReview({
+          appointmentId: appointmentToReview.appointmentId,
+          doctorId: appointmentToReview.doctorId,
+          patientId: patientId,
+          rating,
+          comment: reviewComment
+        });
+
+        console.log('Review submission response:', response);
+
+        // Update reviews state (map by doctorId)
+        setReviews(prev => {
+          const newReviews = {
+            ...prev,
+            [appointmentToReview.doctorId]: {
+              reviewId: response.reviewId || response.id,
+              rating,
+              comment: reviewComment,
+              createdAt: new Date().toISOString(),
+              doctorId: appointmentToReview.doctorId,
+              patientId: patientId
+            }
+          };
+          return newReviews;
+        });
+
+        setShowReviewModal(false);
+        setAppointmentToReview(null);
+        setRating(0);
+        setReviewComment('');
+        toast.success('Đánh giá của bạn đã được ghi nhận!');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        toast.error(`Không thể gửi đánh giá: ${error.response.data.message || 'Vui lòng thử lại sau'}`);
+      } else {
+        toast.error('Không thể gửi đánh giá. Vui lòng thử lại sau.');
+      }
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -178,6 +392,8 @@ export default function PatientAppointmentHistory() {
 
     loadAppointments();
   }, [patientId]);
+
+  // (Removed old by-appointment review loader)
 
   // Filter appointments
   const filteredAppointments = appointments.filter(appointment => {
@@ -471,114 +687,123 @@ export default function PatientAppointmentHistory() {
                   const doctor = doctors[appointment.doctorId] || {};
 
                   return (
-                    <div key={appointment.appointmentId} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-                                <img
-                                  alt={doctor.name || appointment.doctorName || 'Bác sĩ'}
-                                  className="w-full h-full object-cover"
-                                  src={doctor.user?.avatarUrl || doctor.avatarUrl || appointment.doctor?.avatarUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjQiIGZpbGw9IiNFM0Y0RjYiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyQzE0LjIwOTEgMTIgMTYgMTAuMjA5MSAxNiA4QzE2IDUuNzkwODYgMTQuMjA5MSA0IDEyIDRDOS43OTA4NiA0IDggNS43OTA4NiA4IDhDOCAxMC4yMDkxIDkuNzkwODYgMTIgMTIgMTJaIiBmaWxsPSIjNkI3MjgwIi8+CjxwYXRoIGQ9Ik0xMiAxNEM5LjM5NTQzIDE0IDcuMTU2NDMgMTUuMzQzMSA2IDcuMzQzMTVDNi4zNDMxNSAxNi4zNDMxIDguNjU2NDMgMTggMTIgMThDMTUuMzQzNiAxOCAxNy42NTY5IDE2LjM0MzEgMTggMTUuMzQzMUMxNi44NDM2IDE1LjM0MzEgMTQuNjA0NiAxNCAxMiAxNFoiIGZpbGw9IiM2QjcyODAiLz4KPC9zdmc+Cjwvc3ZnPgo='}
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                  }}
-                                />
-                                <div 
-                                  className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-blue-100 to-blue-200" 
-                                  style={{ display: 'none' }}
-                                >
-                                  👨‍⚕️
+                    <React.Fragment key={appointment.appointmentId}>
+                      <div className="p-4 hover:bg-gray-50 transition-colors">
+                        {/* Header: doctor + quick info */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                                  <img
+                                    alt={doctor.name || appointment.doctorName || 'Bác sĩ'}
+                                    className="w-full h-full object-cover"
+                                    src={doctor.user?.avatarUrl || doctor.avatarUrl || appointment.doctor?.avatarUrl || ''}
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
                                 </div>
-                              </div>
-                              <div>
-                                <h3 className="text-base font-semibold text-gray-900">
-                                  {doctor.user ? `${doctor.user.firstName} ${doctor.user.lastName}` : doctor.name || appointment.doctorName || 'Bác sĩ'}
-                                </h3>
-                                
-                                <div className="flex items-center gap-2 text-gray-500 text-sm mt-1">
-                                  <span className="font-medium">Mã lịch hẹn:</span>
-                                  <span className="font-mono">#{appointment.appointmentId}</span>
-                                </div>
-                              </div>
-                            </div>
+                                <div>
+                                  <h3 className="text-base font-semibold text-gray-900">
+                                    {doctor.user ? `${doctor.user.firstName} ${doctor.user.lastName}` : doctor.name || appointment.doctorName || 'Bác sĩ'}
+                                  </h3>
 
-                            <div className="flex items-center gap-3">
-                              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${statusConfig.class}`}>
-                                <StatusIcon className="h-4 w-4" />
-                                {statusConfig.text}
-                              </span>
-
-                              {/* Action buttons */}
-                              <div className="flex items-center gap-2">
-                                {appointment.status === 'Scheduled' && (
-                                  <button
-                                    className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
-                                    disabled={cancellingId === appointment.appointmentId}
-                                    onClick={() => openCancelModal(appointment)}
-                                  >
-                                    {cancellingId === appointment.appointmentId ? (
-                                      <RefreshCw className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-4 w-4" />
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    {doctorRatings[appointment.doctorId] && (
+                                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                        <span>
+                                          {doctorRatings[appointment.doctorId].average.toFixed(1)} ({doctorRatings[appointment.doctorId].count} đánh giá)
+                                        </span>
+                                      </div>
                                     )}
-                                    {cancellingId === appointment.appointmentId ? 'Đang hủy...' : 'Hủy lịch'}
-                                  </button>
-                                )}
 
+                                    {appointment.status === 'Completed' && (
+                                      <div className="flex items-center gap-2">
+                                        {reviews[appointment.doctorId] ? (
+                                          <div className="flex items-center justify-between w-full">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs text-gray-500">Đánh giá của bạn:</span>
+                                              <div className="flex items-center gap-1">
+                                                <RatingStars value={reviews[appointment.doctorId].rating} readonly={true} />
+                                                <span className="text-xs text-gray-500">({reviews[appointment.doctorId].comment || 'Chưa có nhận xét'})</span>
+                                              </div>
+                                            </div>
+                                            <button onClick={() => openEditReview(appointment, reviews[appointment.doctorId])} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                                              Chỉnh sửa
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <button onClick={() => { setAppointmentToReview(appointment); setShowReviewModal(true); }} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                                            <Star className="h-3 w-3" /> Thêm đánh giá của bạn
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2 text-gray-500 text-sm">
+                                      <span className="font-medium">Mã lịch hẹn:</span>
+                                      <span className="font-mono">#{appointment.appointmentId}</span>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
-                            <div className="md:col-span-4 flex items-center gap-2 text-gray-600">
-                              <Calendar className="h-4 w-4" />
-                              <span className="text-sm whitespace-nowrap">{formatDate(appointment.startTime)}</span>
-                            </div>
-                            <div className="md:col-span-3 flex items-center gap-2 text-gray-600">
-                              <Clock className="h-4 w-4" />
-                              <span className="text-sm">{formatTime(appointment.startTime)}{appointment.endTime ? ` - ${formatTime(appointment.endTime)}` : ''}</span>
-                            </div>
-                            {appointment.fee && (
-                              <div className="md:col-span-2 flex items-center gap-2 text-gray-600">
-                                <span className="font-medium text-green-600 text-sm">
-                                  {new Intl.NumberFormat('vi-VN', {
-                                    style: 'currency',
-                                    currency: 'VND'
-                                  }).format(appointment.fee)}
+                              <div className="flex items-center gap-3">
+                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${statusConfig.class}`}>
+                                  <StatusIcon className="h-4 w-4" />
+                                  {statusConfig.text}
                                 </span>
-                              </div>
-                            )}
-                            {appointment.notes && (
-                              <div className="md:col-span-3 flex items-start gap-2 text-gray-500">
-                                <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <span className="text-sm">
-                                    {expandedNotes[appointment.appointmentId] 
-                                      ? appointment.notes 
-                                      : appointment.notes.length > 50 
-                                        ? `${appointment.notes.substring(0, 50)}...` 
-                                        : appointment.notes
-                                    }
-                                  </span>
-                                  {appointment.notes.length > 50 && (
-                                    <button
-                                      onClick={() => toggleNotes(appointment.appointmentId)}
-                                      className="ml-2 text-blue-600 hover:text-blue-700 text-xs font-medium"
-                                    >
-                                      {expandedNotes[appointment.appointmentId] ? 'Thu gọn' : 'Xem thêm'}
+
+                                <div className="flex items-center gap-2">
+                                  {appointment.status === 'Scheduled' && (
+                                    <button className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium disabled:opacity-50" disabled={cancellingId === appointment.appointmentId} onClick={() => openCancelModal(appointment)}>
+                                      {cancellingId === appointment.appointmentId ? 'Đang hủy...' : 'Hủy lịch'}
                                     </button>
+                                  )}
+
+                                  {appointment.status === 'Completed' && (
+                                    <div className="flex items-center gap-2">
+                                      {reviews[appointment.doctorId] && <RatingStars value={reviews[appointment.doctorId].rating} readonly={true} />}
+                                      <button className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium" onClick={() => { if (reviews[appointment.doctorId]) openEditReview(appointment, reviews[appointment.doctorId]); else { setAppointmentToReview(appointment); setShowReviewModal(true); } }}>
+                                        {reviews[appointment.doctorId] ? 'Chỉnh sửa đánh giá' : 'Đánh giá'}
+                                      </button>
+                                      {reviews[appointment.doctorId] && (
+                                        <span className="text-sm text-gray-500">{new Date(reviews[appointment.doctorId].createdAt).toLocaleDateString('vi-VN')}</span>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               </div>
-                            )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
+                              <div className="md:col-span-4 flex items-center gap-2 text-gray-600">
+                                <Calendar className="h-4 w-4" />
+                                <span className="text-sm whitespace-nowrap">{formatDate(appointment.startTime)}</span>
+                              </div>
+                              <div className="md:col-span-3 flex items-center gap-2 text-gray-600">
+                                <Clock className="h-4 w-4" />
+                                <span className="text-sm">{formatTime(appointment.startTime)}{appointment.endTime ? ` - ${formatTime(appointment.endTime)}` : ''}</span>
+                              </div>
+                              {appointment.fee && (
+                                <div className="md:col-span-2 flex items-center gap-2 text-gray-600">
+                                  <span className="font-medium text-green-600 text-sm">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(appointment.fee)}</span>
+                                </div>
+                              )}
+                              {appointment.notes && (
+                                <div className="md:col-span-3 flex items-start gap-2 text-gray-500">
+                                  <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm">{expandedNotes[appointment.appointmentId] ? appointment.notes : (appointment.notes.length > 50 ? `${appointment.notes.substring(0,50)}...` : appointment.notes)}</span>
+                                    {appointment.notes.length > 50 && <button onClick={() => toggleNotes(appointment.appointmentId)} className="ml-2 text-blue-600 hover:text-blue-700 text-xs font-medium">{expandedNotes[appointment.appointmentId] ? 'Thu gọn' : 'Xem thêm'}</button>}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-
                       </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })}
               </div>
@@ -678,6 +903,66 @@ export default function PatientAppointmentHistory() {
           </div>
         </div>
       )}
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {isEditingReview ? 'Chỉnh sửa đánh giá' : 'Đánh giá bác sĩ'}
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Đánh giá của bạn
+                  </label>
+                  <RatingStars value={rating} onChange={setRating} />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nhận xét
+                  </label>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows="4"
+                    placeholder="Chia sẻ trải nghiệm của bạn..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 mt-6">
+                <button
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => {
+                    setShowReviewModal(false);
+                    setAppointmentToReview(null);
+                    setRating(0);
+                    setReviewComment('');
+                    setIsEditingReview(false);
+                    setEditingReviewId(null);
+                  }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  disabled={rating === 0 || submittingReview}
+                  onClick={handleSubmitReview}
+                >
+                  {submittingReview ? (isEditingReview ? 'Đang cập nhật...' : 'Đang gửi...') : (isEditingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* (Removed duplicate Review Modal) */}
     </div>
   );
 }

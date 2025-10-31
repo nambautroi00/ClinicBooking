@@ -84,7 +84,18 @@ const UsersManagement = () => {
     // Các trường đặc biệt cho bác sĩ
     specialty: '',
     departmentId: '',
-    bio: ''
+    bio: '',
+    // Các trường mới cho bác sĩ
+    degree: '',
+    workExperience: '',
+    workingHours: '',
+    practiceCertificateNumber: '',
+    citizenId: '',
+    position: '', // Chức vụ
+    // Các trường đặc biệt cho bệnh nhân
+    healthInsuranceNumber: '',
+    medicalHistory: '',
+    patientStatus: 'ACTIVE'
   });
 
   // Search and filter states
@@ -184,17 +195,50 @@ const UsersManagement = () => {
           departmentName: doctor.department?.departmentName,
           departmentId: doctor.department?.id,
           bio: doctor.bio,
-          doctorStatus: doctor.status
+          doctorStatus: doctor.status,
+          // New doctor fields
+          degree: doctor.degree,
+          workExperience: doctor.workExperience,
+          workingHours: doctor.workingHours,
+          practiceCertificateNumber: doctor.practiceCertificateNumber,
+          citizenId: doctor.citizenId,
+          // Include doctor object for edit modal
+          doctor: {
+            id: doctor.doctorId,
+            specialty: doctor.specialty,
+            department: doctor.department,
+            bio: doctor.bio,
+            degree: doctor.degree,
+            workExperience: doctor.workExperience,
+            workingHours: doctor.workingHours,
+            practiceCertificateNumber: doctor.practiceCertificateNumber,
+            citizenId: doctor.citizenId,
+            status: doctor.status
+          },
+          // Include patient object for edit modal (empty for doctors)
+          patient: null
         }));
         
         
         setUsers(convertedUsers);
       } else {
-        // Sử dụng API user cho các trường hợp khác
+        // Sử dụng API user cho các trường hợp khác (bao gồm bệnh nhân và admin)
         const response = await userApi.getAllUsersWithPatientInfo();
         
+        // Xử lý dữ liệu để bao gồm thông tin bệnh nhân
+        const processedUsers = (response.data || []).map(user => ({
+          ...user,
+          // Patient specific info
+          healthInsuranceNumber: user.patient?.healthInsuranceNumber || '',
+          medicalHistory: user.patient?.medicalHistory || '',
+          patientStatus: user.patient?.status || 'ACTIVE',
+          // Include patient object for edit modal
+          patient: user.patient || null,
+          // Include doctor object for edit modal (empty for non-doctors)
+          doctor: null
+        }));
         
-        setUsers(response.data || []);
+        setUsers(processedUsers);
       }
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -378,6 +422,11 @@ const UsersManagement = () => {
           specialty: formData.specialty,
           departmentId: parseInt(formData.departmentId),
           bio: formData.bio || '',
+          degree: formData.degree || '',
+          workExperience: formData.workExperience || '',
+          workingHours: formData.workingHours || '',
+          practiceCertificateNumber: formData.practiceCertificateNumber || '',
+          citizenId: formData.citizenId || '',
           status: 'ACTIVE'
         };
         
@@ -475,6 +524,36 @@ const UsersManagement = () => {
       
       await userApi.updateUser(selectedUser.id, userData);
       
+      // Nếu là bác sĩ, cập nhật thông tin bác sĩ
+      if (selectedUser.role?.name === 'DOCTOR' && selectedUser.doctor?.id) {
+        const doctorData = {
+          bio: formData.bio || '',
+          specialty: formData.specialty || '',
+          departmentId: formData.departmentId ? parseInt(formData.departmentId) : null,
+          degree: formData.degree || '',
+          workExperience: formData.workExperience || '',
+          workingHours: formData.workingHours || '',
+          practiceCertificateNumber: formData.practiceCertificateNumber || '',
+          citizenId: formData.citizenId || '',
+          status: formData.status || 'ACTIVE'
+        };
+        
+        await doctorApi.updateDoctor(selectedUser.doctor.id, doctorData);
+      }
+      
+      // Nếu là bệnh nhân, cập nhật thông tin bệnh nhân
+      if (selectedUser.role?.name === 'PATIENT' && selectedUser.patient?.id) {
+        const patientData = {
+          healthInsuranceNumber: formData.healthInsuranceNumber || '',
+          medicalHistory: formData.medicalHistory || '',
+          status: formData.patientStatus || 'ACTIVE'
+        };
+        
+        // Note: Cần có patientApi.updatePatient method
+        // await patientApi.updatePatient(selectedUser.patient.id, patientData);
+        console.log('Patient data to update:', patientData);
+      }
+      
       setSuccess('Cập nhật thông tin người dùng thành công!');
       setShowEditModal(false);
       resetForm();
@@ -520,7 +599,18 @@ const UsersManagement = () => {
       // Reset các trường đặc biệt cho bác sĩ
       specialty: '',
       departmentId: '',
-      bio: ''
+      bio: '',
+      // Reset các trường mới cho bác sĩ
+      degree: '',
+      workExperience: '',
+      workingHours: '',
+      practiceCertificateNumber: '',
+      citizenId: '',
+      position: '', // Chức vụ
+      // Reset các trường đặc biệt cho bệnh nhân
+      healthInsuranceNumber: '',
+      medicalHistory: '',
+      patientStatus: 'ACTIVE'
     });
     setSelectedUser(null);
   };
@@ -542,14 +632,26 @@ const UsersManagement = () => {
       // Reset các trường đặc biệt cho bác sĩ
       specialty: '',
       departmentId: '',
-      bio: ''
+      bio: '',
+      // Reset các trường mới cho bác sĩ
+      degree: '',
+      workExperience: '',
+      workingHours: '',
+      practiceCertificateNumber: '',
+      citizenId: '',
+      position: '', // Chức vụ
+      // Reset các trường đặc biệt cho bệnh nhân
+      healthInsuranceNumber: '',
+      medicalHistory: '',
+      patientStatus: 'ACTIVE'
     });
     setShowCreateModal(true);
   };
 
   const openEditModal = (user) => {
     setSelectedUser(user);
-    
+    const doctorInfo = user.doctor || {}; // Load doctor info if user is a doctor
+    const patientInfo = user.patient || {}; // Load patient info if user is a patient
     
     setFormData({
       email: user.email || '',
@@ -562,7 +664,21 @@ const UsersManagement = () => {
       address: user.address || '',
       avatarUrl: user.avatarUrl || '',
       status: user.status || 'ACTIVE',
-      roleId: user.role?.id || 1
+      roleId: user.role?.id || 1,
+      // Doctor specific fields
+      specialty: doctorInfo.specialty || '',
+      departmentId: doctorInfo.department?.id || '',
+      bio: doctorInfo.bio || '',
+      // New doctor fields
+      degree: doctorInfo.degree || '',
+      workExperience: doctorInfo.workExperience || '',
+      workingHours: doctorInfo.workingHours || '',
+      practiceCertificateNumber: doctorInfo.practiceCertificateNumber || '',
+      citizenId: doctorInfo.citizenId || '',
+      // Patient specific fields
+      healthInsuranceNumber: patientInfo.healthInsuranceNumber || '',
+      medicalHistory: patientInfo.medicalHistory || '',
+      patientStatus: patientInfo.status || 'ACTIVE'
     });
     setShowEditModal(true);
   };
@@ -1443,8 +1559,69 @@ const UsersManagement = () => {
                     placeholder="Nhập giới thiệu về bản thân và chuyên môn..."
                   />
                 </Form.Group>
+                
+                {/* Các trường mới cho bác sĩ */}
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Bằng cấp</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.degree || ''}
+                        onChange={(e) => setFormData({...formData, degree: e.target.value})}
+                        placeholder="Ví dụ: Tiến sĩ Y khoa, Thạc sĩ Y khoa..."
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Kinh nghiệm làm việc</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.workExperience || ''}
+                        onChange={(e) => setFormData({...formData, workExperience: e.target.value})}
+                        placeholder="Ví dụ: 10 năm kinh nghiệm..."
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Giờ làm việc</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.workingHours || ''}
+                        onChange={(e) => setFormData({...formData, workingHours: e.target.value})}
+                        placeholder="Ví dụ: Thứ 2-6: 8:00-17:00..."
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Số chứng chỉ hành nghề</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.practiceCertificateNumber || ''}
+                        onChange={(e) => setFormData({...formData, practiceCertificateNumber: e.target.value})}
+                        placeholder="Ví dụ: BS-TM-2023-001"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group className="mb-3">
+                  <Form.Label>Số CCCD/CMND</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={formData.citizenId || ''}
+                    onChange={(e) => setFormData({...formData, citizenId: e.target.value})}
+                    placeholder="Nhập số CCCD/CMND"
+                  />
+                </Form.Group>
               </>
             )}
+
+            
             <Form.Group className="mb-3">
               <Form.Label>Ảnh đại diện</Form.Label>
               <Form.Control
@@ -1600,6 +1777,212 @@ const UsersManagement = () => {
                 placeholder="Nhập địa chỉ"
               />
             </Form.Group>
+            
+            {/* Form chỉnh sửa riêng cho từng loại người dùng */}
+            {selectedUser?.role?.name === 'DOCTOR' && (
+              <>
+                <hr className="my-4" />
+                <h6 className="text-primary mb-3">
+                  <i className="bi bi-person-badge me-2"></i>Thông tin Bác sĩ
+                </h6>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Chuyên khoa</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.specialty || ''}
+                        onChange={(e) => setFormData({...formData, specialty: e.target.value})}
+                        placeholder="Nhập chuyên khoa"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Khoa</Form.Label>
+                      <Form.Select
+                        value={formData.departmentId || ''}
+                        onChange={(e) => setFormData({...formData, departmentId: e.target.value})}
+                      >
+                        <option value="">Chọn khoa</option>
+                        <option value="1">Khoa Nội</option>
+                        <option value="2">Khoa Ngoại</option>
+                        <option value="3">Khoa Sản</option>
+                        <option value="4">Khoa Nhi</option>
+                        <option value="5">Khoa Tim mạch</option>
+                        <option value="6">Khoa Thần kinh</option>
+                        <option value="7">Khoa Da liễu</option>
+                        <option value="8">Khoa Mắt</option>
+                        <option value="9">Khoa Tai mũi họng</option>
+                        <option value="10">Khoa Xương khớp</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group className="mb-3">
+                  <Form.Label>Giới thiệu bản thân</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={formData.bio || ''}
+                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                    placeholder="Nhập giới thiệu về bản thân và chuyên môn..."
+                  />
+                </Form.Group>
+                
+                {/* Các trường mới cho bác sĩ */}
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Bằng cấp</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.degree || ''}
+                        onChange={(e) => setFormData({...formData, degree: e.target.value})}
+                        placeholder="Ví dụ: Tiến sĩ Y khoa, Thạc sĩ Y khoa..."
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Kinh nghiệm làm việc</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.workExperience || ''}
+                        onChange={(e) => setFormData({...formData, workExperience: e.target.value})}
+                        placeholder="Ví dụ: 10 năm kinh nghiệm..."
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Giờ làm việc</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.workingHours || ''}
+                        onChange={(e) => setFormData({...formData, workingHours: e.target.value})}
+                        placeholder="Ví dụ: Thứ 2-6: 8:00-17:00..."
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Số chứng chỉ hành nghề</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.practiceCertificateNumber || ''}
+                        onChange={(e) => setFormData({...formData, practiceCertificateNumber: e.target.value})}
+                        placeholder="Ví dụ: BS-TM-2023-001"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group className="mb-3">
+                  <Form.Label>Số CCCD/CMND</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={formData.citizenId || ''}
+                    onChange={(e) => setFormData({...formData, citizenId: e.target.value})}
+                    placeholder="Nhập số CCCD/CMND"
+                  />
+                </Form.Group>
+              </>
+            )}
+
+            {/* Form chỉnh sửa riêng cho bệnh nhân */}
+            {selectedUser?.role?.name === 'PATIENT' && (
+              <>
+                <hr className="my-4" />
+                <h6 className="text-success mb-3">
+                  <i className="bi bi-person-heart me-2"></i>Thông tin Bệnh nhân
+                </h6>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Số bảo hiểm y tế</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={formData.healthInsuranceNumber || ''}
+                        onChange={(e) => setFormData({...formData, healthInsuranceNumber: e.target.value})}
+                        placeholder="Nhập số bảo hiểm y tế"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Trạng thái hồ sơ</Form.Label>
+                      <Form.Select
+                        value={formData.patientStatus || 'ACTIVE'}
+                        onChange={(e) => setFormData({...formData, patientStatus: e.target.value})}
+                      >
+                        <option value="ACTIVE">Hoạt động</option>
+                        <option value="INACTIVE">Không hoạt động</option>
+                        <option value="SUSPENDED">Tạm ngưng</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group className="mb-3">
+                  <Form.Label>Tiền sử bệnh án</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={4}
+                    value={formData.medicalHistory || ''}
+                    onChange={(e) => setFormData({...formData, medicalHistory: e.target.value})}
+                    placeholder="Nhập tiền sử bệnh án, dị ứng thuốc, các bệnh mãn tính..."
+                  />
+                </Form.Group>
+              </>
+            )}
+
+            {/* Form chỉnh sửa riêng cho admin */}
+            {selectedUser?.role?.name === 'ADMIN' && (
+              <>
+                <hr className="my-4" />
+                <h6 className="text-danger mb-3">
+                  <i className="bi bi-shield-check me-2"></i>Thông tin Quản trị viên
+                </h6>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Quyền truy cập</Form.Label>
+                      <Form.Select
+                        value={formData.roleId || 1}
+                        onChange={(e) => setFormData({...formData, roleId: parseInt(e.target.value)})}
+                        disabled
+                      >
+                        <option value="1">Quản trị viên</option>
+                        <option value="2">Bác sĩ</option>
+                        <option value="3">Bệnh nhân</option>
+                      </Form.Select>
+                      <Form.Text className="text-muted">
+                        Quyền của quản trị viên không thể thay đổi
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Trạng thái tài khoản</Form.Label>
+                      <Form.Select
+                        value={formData.status || 'ACTIVE'}
+                        onChange={(e) => setFormData({...formData, status: e.target.value})}
+                      >
+                        <option value="ACTIVE">Hoạt động</option>
+                        <option value="INACTIVE">Không hoạt động</option>
+                        <option value="SUSPENDED">Tạm ngưng</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <div className="alert alert-info">
+                  <i className="bi bi-info-circle me-2"></i>
+                  <strong>Lưu ý:</strong> Quản trị viên có quyền truy cập đầy đủ vào hệ thống quản lý.
+                </div>
+              </>
+            )}
+            
             <Form.Group className="mb-3">
               <Form.Label>Ảnh đại diện</Form.Label>
               <Form.Control

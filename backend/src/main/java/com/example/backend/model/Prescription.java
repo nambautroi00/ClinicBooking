@@ -3,6 +3,7 @@ package com.example.backend.model;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -34,6 +35,6 @@ public class Prescription {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String notes;
 
-    @OneToMany(mappedBy = "prescription")
+    @OneToMany(mappedBy = "prescription", cascade = CascadeType.ALL, fetch = jakarta.persistence.FetchType.LAZY)
     private List<PrescriptionItem> items;
 }

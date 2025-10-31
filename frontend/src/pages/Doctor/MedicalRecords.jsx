@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Badge, Alert } from "react-bootstrap";
 import { Search, Plus, Eye, Edit, FileText, User, Calendar, Clock, Pill } from "lucide-react";
 import medicalRecordApi from "../../api/medicalRecordApi";
+import doctorApi from "../../api/doctorApi";
+import Cookies from "js-cookie";
 
 const MedicalRecords = () => {
   const [medicalRecords, setMedicalRecords] = useState([]);
@@ -10,42 +12,154 @@ const MedicalRecords = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [doctorId, setDoctorId] = useState(null);
+
+  // Lấy doctorId từ cookie
+  useEffect(() => {
+    const userId = Cookies.get("userId");
+    console.log('🔍 Getting doctorId for userId:', userId);
+    if (userId) {
+      doctorApi
+        .getDoctorByUserId(userId)
+        .then((res) => {
+          console.log('✅ Doctor API response:', res);
+          const data = res.data || res;
+          console.log('📋 Doctor data:', data);
+          // Có thể doctorId nằm ở data.doctorId hoặc data.doctor?.doctorId
+          const id = data.doctorId || data.doctor?.doctorId || data.id;
+          console.log('👨‍⚕️ Extracted doctorId:', id);
+          if (id) {
+            setDoctorId(id);
+          } else {
+            console.error('❌ Could not find doctorId in response:', data);
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Error getting doctor info:", err);
+          console.error("❌ Error details:", err.response?.data);
+        });
+    } else {
+      console.warn('⚠️ No userId found in cookies');
+    }
+  }, []);
 
   // Lấy dữ liệu từ backend
   useEffect(() => {
-    loadMedicalRecords();
-  }, []);
+    if (doctorId) {
+      loadMedicalRecords();
+    }
+  }, [doctorId]);
 
   const loadMedicalRecords = async () => {
     try {
       setLoading(true);
-      // Lấy tất cả hồ sơ bệnh án từ backend
-      const response = await medicalRecordApi.getAllMedicalRecords();
+      console.log('🔍 Loading medical records for doctorId:', doctorId, 'Type:', typeof doctorId);
+      
+      // Lấy hồ sơ bệnh án theo doctor hoặc tất cả
+      let response;
+      if (doctorId && doctorId !== 'null' && doctorId !== 'undefined') {
+        // Đảm bảo doctorId là số
+        const id = typeof doctorId === 'string' ? parseInt(doctorId, 10) : doctorId;
+        if (isNaN(id)) {
+          console.error('❌ Invalid doctorId:', doctorId);
+          setMedicalRecords([]);
+          return;
+        }
+        console.log('📞 Calling API with doctorId:', id);
+        response = await medicalRecordApi.getMedicalRecordsByDoctor(id);
+      } else {
+        console.log('📞 Calling getAllMedicalRecords (no doctorId)');
+        response = await medicalRecordApi.getAllMedicalRecords();
+      }
+      
+      console.log('✅ Medical records loaded:', response);
+      console.log('✅ Response data:', response.data);
+      console.log('✅ Response status:', response.status);
       
       // Chuyển đổi dữ liệu từ backend format sang frontend format
-      const records = response.data.map(record => ({
-        id: record.recordId,
-        patientId: record.patient?.patientId || record.patientId,
-        patientName: record.patient?.user?.fullName || record.patientName,
-        age: record.patient?.age || record.age,
-        gender: record.patient?.gender || record.gender,
-        phone: record.patient?.user?.phone || record.phone,
-        diagnosis: record.diagnosis,
-        advice: record.advice, // Lời khuyên thay vì treatmentPlan
-        doctorName: record.doctor?.user?.fullName || record.doctorName || 'Chưa xác định',
-        appointmentDate: record.appointmentDate || record.createdAt,
-        createdDate: record.createdAt,
-        status: 'completed', // Medical record luôn completed khi đã tạo
-        notes: record.notes || "",
-        prescription: record.prescription // Thêm prescription data
-      }));
+      const records = (response.data || []).map(record => {
+        // Debug prescription data
+        if (record.prescription) {
+          console.log('🔍 Prescription found:', {
+            prescriptionId: record.prescription.prescriptionId,
+            notes: record.prescription.notes,
+            itemsCount: record.prescription.items?.length || 0,
+            items: record.prescription.items
+          });
+        }
+        
+        return {
+          id: record.recordId,
+          patientId: record.patientId,
+          patientName: record.patientName || 'Chưa xác định',
+          age: record.patientAge || 'N/A',
+          gender: record.patientGender || 'N/A',
+          phone: record.patientPhone || '',
+          diagnosis: record.diagnosis || '',
+          advice: record.advice || '',
+          doctorName: record.doctorName || 'Chưa xác định',
+          appointmentDate: record.appointmentDate || record.createdAt,
+          createdDate: record.createdAt,
+          status: 'completed', // Medical record luôn completed khi đã tạo
+          notes: record.notes || "",
+          prescription: record.prescription // Thêm prescription data
+        };
+      });
+      
+      console.log('📊 Mapped records:', records.length);
+      if (records.length > 0) {
+        console.log('🔍 First record:', {
+          id: records[0].id,
+          patientName: records[0].patientName,
+          patientId: records[0].patientId,
+          age: records[0].age,
+          gender: records[0].gender,
+          diagnosis: records[0].diagnosis,
+          hasPrescription: !!records[0].prescription
+        });
+      }
 
       setMedicalRecords(records);
     } catch (error) {
       console.error('❌ Lỗi khi tải hồ sơ bệnh án từ backend:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       
       // Show error message instead of mock data
-      if (error.response?.status === 404) {
+      if (error.response?.status === 400) {
+        console.error('❌ Bad Request - Có thể doctorId không hợp lệ:', doctorId);
+        console.error('❌ Error response:', error.response?.data);
+        // Thử gọi getAllMedicalRecords nếu doctorId có vấn đề
+        try {
+          console.log('🔄 Retrying with getAllMedicalRecords...');
+          const fallbackResponse = await medicalRecordApi.getAllMedicalRecords();
+          const records = (fallbackResponse.data || []).map(record => ({
+            id: record.recordId,
+            patientId: record.patientId,
+            patientName: record.patientName || 'Chưa xác định',
+            age: record.patientAge || 'N/A',
+            gender: record.patientGender || 'N/A',
+            phone: record.patientPhone || '',
+            diagnosis: record.diagnosis || '',
+            advice: record.advice || '',
+            doctorName: record.doctorName || 'Chưa xác định',
+            appointmentDate: record.appointmentDate || record.createdAt,
+            createdDate: record.createdAt,
+            status: 'completed',
+            notes: record.notes || "",
+            prescription: record.prescription
+          }));
+          setMedicalRecords(records);
+          return;
+        } catch (fallbackError) {
+          console.error('❌ Fallback also failed:', fallbackError);
+        }
+        setMedicalRecords([]);
+      } else if (error.response?.status === 404) {
         console.log('ℹ️ Không tìm thấy hồ sơ bệnh án');
         setMedicalRecords([]);
       } else if (error.response?.status === 401) {
@@ -390,21 +504,39 @@ const MedicalRecords = () => {
                         <p className="ps-3">{selectedRecord.prescription.notes}</p>
                         
                         <p><strong>Thuốc kê đơn:</strong></p>
-                        {selectedRecord.prescription.items && selectedRecord.prescription.items.length > 0 ? (
-                          <div className="ps-3">
-                            {selectedRecord.prescription.items.map((item, index) => (
-                              <div key={index} className="mb-2 p-2 border rounded">
-                                <strong>{item.medicineName || `Thuốc ${index + 1}`}</strong>
-                                <br />
-                                <small className="text-muted">
-                                  Liều: {item.dosage} | Thời gian: {item.duration} | Hướng dẫn: {item.note}
-                                </small>
+                        {(() => {
+                          const items = selectedRecord.prescription.items || [];
+                          if (items.length > 0) {
+                            return (
+                              <div className="ps-3">
+                                <Table bordered size="sm" className="mt-2">
+                                  <thead className="table-light">
+                                    <tr>
+                                      <th>STT</th>
+                                      <th>Tên thuốc</th>
+                                      <th>Liều dùng</th>
+                                      <th>Thời gian</th>
+                                      <th>Số lượng</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {items.map((item, index) => (
+                                      <tr key={index}>
+                                        <td>{index + 1}</td>
+                                        <td><strong>{item.medicineName || `Thuốc ${index + 1}`}</strong></td>
+                                        <td>{item.dosage || 'N/A'}</td>
+                                        <td>{item.duration || 'N/A'}</td>
+                                        <td>{item.quantity || 1}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </Table>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="ps-3 text-muted">Không có thuốc nào được kê</p>
-                        )}
+                            );
+                          } else {
+                            return <p className="ps-3 text-muted">Không có thuốc nào được kê</p>;
+                          }
+                        })()}
                       </Col>
                     </Row>
                     

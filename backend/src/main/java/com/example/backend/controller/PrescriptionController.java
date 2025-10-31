@@ -1,12 +1,17 @@
 package com.example.backend.controller;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.backend.dto.PrescriptionDto;
+import com.example.backend.service.PdfExportService;
 import com.example.backend.service.PrescriptionService;
 
 import jakarta.validation.Valid;
@@ -27,8 +33,16 @@ import jakarta.validation.Valid;
 @CrossOrigin(origins = "*")
 public class PrescriptionController {
 
-    @Autowired
-    private PrescriptionService prescriptionService;
+    private final PrescriptionService prescriptionService;
+    private final PdfExportService pdfExportService;
+
+    public PrescriptionController(
+        PrescriptionService prescriptionService,
+        PdfExportService pdfExportService
+    ) {
+        this.prescriptionService = prescriptionService;
+        this.pdfExportService = pdfExportService;
+    }
 
     @GetMapping
     public ResponseEntity<List<PrescriptionDto>> getAllPrescriptions() {
@@ -42,16 +56,40 @@ public class PrescriptionController {
         return ResponseEntity.ok(prescriptions);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<PrescriptionDto> getPrescriptionById(@PathVariable Integer id) {
-        PrescriptionDto prescription = prescriptionService.getPrescriptionById(id);
-        return ResponseEntity.ok(prescription);
+    // Specific endpoints must be declared BEFORE generic /{id} endpoint
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<List<PrescriptionDto>> getPrescriptionsByDoctor(@PathVariable Long doctorId) {
+        try {
+            System.out.println("🔍 Controller: Getting prescriptions for doctorId: " + doctorId);
+            List<PrescriptionDto> prescriptions = prescriptionService.getPrescriptionsByDoctor(doctorId);
+            System.out.println("✅ Controller: Returning " + prescriptions.size() + " prescriptions");
+            return ResponseEntity.ok(prescriptions);
+        } catch (Exception e) {
+            System.err.println("❌ Controller error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @GetMapping("/record/{recordId}")
     public ResponseEntity<List<PrescriptionDto>> getPrescriptionsByRecordId(@PathVariable Integer recordId) {
         List<PrescriptionDto> prescriptions = prescriptionService.getPrescriptionsByRecordId(recordId);
         return ResponseEntity.ok(prescriptions);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PrescriptionDto> getPrescriptionById(@PathVariable Integer id) {
+        try {
+            System.out.println("🔍 Controller: Getting prescription by ID: " + id);
+            PrescriptionDto prescription = prescriptionService.getPrescriptionById(id);
+            System.out.println("✅ Controller: Returning prescription: " + prescription.getPrescriptionId() + 
+                             ", Items count: " + (prescription.getItems() != null ? prescription.getItems().size() : 0));
+            return ResponseEntity.ok(prescription);
+        } catch (Exception e) {
+            System.err.println("❌ Controller error getting prescription by ID: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @PostMapping
@@ -71,5 +109,28 @@ public class PrescriptionController {
     public ResponseEntity<Void> deletePrescription(@PathVariable Integer id) {
         prescriptionService.deletePrescription(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{id}/export-pdf")
+    public ResponseEntity<byte[]> exportPrescriptionPdf(@PathVariable Integer id) {
+        List<String> lines = new ArrayList<>();
+        lines.add("Mã đơn thuốc: #" + id);
+        lines.add("Ngày lập: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        lines.add("Bệnh nhân: [Tên bệnh nhân]");
+        lines.add("Bác sĩ: [Tên bác sĩ]");
+        lines.add("Chẩn đoán: [Chẩn đoán]");
+        lines.add("--------------------------------");
+        lines.add("Thuốc 1 - Liều dùng - Số lượng");
+        lines.add("Thuốc 2 - Liều dùng - Số lượng");
+        lines.add("--------------------------------");
+        lines.add("Lưu ý: [Ghi chú]");
+
+        byte[] pdf = pdfExportService.generateSimplePdf("ĐƠN THUỐC", lines);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=prescription-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

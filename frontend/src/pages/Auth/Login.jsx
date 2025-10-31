@@ -176,7 +176,18 @@ export default function Login() {
         else navigate('/');
       }
     } catch (err) {
-      setError('Google sign-in failed');
+      console.error('❌ Google sign-in error:', err);
+      console.error('❌ Error response:', err.response?.data);
+      
+      // Extract error message from backend response
+      let errorMessage = 'Google sign-in failed';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data) {
+        errorMessage = typeof err.response.data === 'string' ? err.response.data : 'Google sign-in failed';
+      }
+      
+      setError(errorMessage);
     }
   };
 

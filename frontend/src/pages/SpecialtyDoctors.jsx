@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Calendar, Clock, User, Search, Filter, Users, Heart, Stethoscope, Baby, Shield, Brain, Eye, Bone, Activity, Zap, Pill } from 'lucide-react';
 import doctorApi from '../api/doctorApi';
+import reviewApi from '../api/reviewApi';
 import departmentApi from '../api/departmentApi';
 import { getFullAvatarUrl } from '../utils/avatarUtils';
 import useScrollToTop from '../hooks/useScrollToTop';
@@ -14,56 +15,15 @@ const SpecialtyDoctors = () => {
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [department, setDepartment] = useState(null);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
 
-  // Mock data for specialties with images - matching database department names
-  const specialties = [
-    { name: "Nội tổng hợp", image: "/images/noitongquat.jpg", color: "bg-blue-100 text-blue-600" },
-    { name: "Tim mạch", image: "/images/timmach.jpg", color: "bg-pink-100 text-pink-600" },
-    { name: "Hô hấp", image: "/images/hohap.jpg", color: "bg-cyan-100 text-cyan-600" },
-    { name: "Tiêu hóa", image: "/images/tieuhoa.jpg", color: "bg-green-100 text-green-600" },
-    { name: "Nội thận", image: "/images/noithan.jpg", color: "bg-purple-100 text-purple-600" },
-    { name: "Nội tiết", image: "/images/noitiet.jpg", color: "bg-yellow-100 text-yellow-600" },
-    { name: "Nội thần kinh", image: "/images/noithankinh.jpg", color: "bg-indigo-100 text-indigo-600" },
-    { name: "Huyết học", image: "/images/huyethoc.jpg", color: "bg-red-100 text-red-600" },
-    { name: "Lao & Bệnh phổi", image: "/images/laobenhphoi.jpg", color: "bg-orange-100 text-orange-600" },
-    { name: "Truyền nhiễm", image: "/images/truyennhiem.jpg", color: "bg-red-100 text-red-600" },
-    { name: "Ngoại tổng hợp", image: "/images/ngoaitongquat.jpg", color: "bg-cyan-100 text-cyan-600" },
-    { name: "Ngoại thần kinh", image: "/images/ngoaithankinh.jpg", color: "bg-indigo-100 text-indigo-600" },
-    { name: "Ngoại niệu", image: "/images/ngoainieu.jpg", color: "bg-blue-100 text-blue-600" },
-    { name: "Ngoại tiết niệu", image: "/images/ngoaitietnieu.jpg", color: "bg-blue-100 text-blue-600" },
-    { name: "Chấn thương chỉnh hình", image: "/images/chanthuongchinhhinh.jpg", color: "bg-purple-100 text-purple-600" },
-    { name: "Phẫu thuật tạo hình", image: "/images/phauthuattaohinh.jpg", color: "bg-pink-100 text-pink-600" },
-    { name: "Cấp cứu", image: "/images/capcuu.jpg", color: "bg-red-100 text-red-600" },
-    { name: "Da liễu", image: "/images/dalieu.jpg", color: "bg-green-100 text-green-600" },
-    { name: "Nhi khoa", image: "/images/nhikhoa.jpg", color: "bg-blue-100 text-blue-600" },
-    { name: "Sản phụ khoa", image: "/images/sanphukhoa.jpg", color: "bg-pink-100 text-pink-600" },
-    { name: "Tai Mũi Họng", image: "/images/taimuihong.jpg", color: "bg-orange-100 text-orange-600" },
-    { name: "Nhãn khoa", image: "/images/nhankhoa.jpg", color: "bg-indigo-100 text-indigo-600" },
-    { name: "Răng Hàm Mặt", image: "/images/rang-ham-mat.jpg", color: "bg-white-100 text-gray-600" },
-    { name: "Lão khoa", image: "/images/laokhoa.jpg", color: "bg-gray-100 text-gray-600" },
-    { name: "Nam khoa", image: "/images/namkhoa.jpg", color: "bg-blue-100 text-blue-600" },
-    { name: "Vô sinh - Hiếm muộn", image: "/images/vosinhhiemmuon.jpg", color: "bg-pink-100 text-pink-600" },
-    { name: "Cơ xương khớp", image: "/images/co-xuong-khop.jpg", color: "bg-purple-100 text-purple-600" },
-    { name: "Chẩn đoán hình ảnh", image: "/images/chuandoanhinhanh.jpg", color: "bg-indigo-100 text-indigo-600" },
-    { name: "Xét nghiệm", image: "/images/xetnguyen.jpg", color: "bg-green-100 text-green-600" },
-    { name: "Gây mê hồi sức", image: "/images/gaymehoisuc.jpg", color: "bg-cyan-100 text-cyan-600" },
-    { name: "Phục hồi chức năng - Vật lý trị liệu", image: "/images/phuchoichucnang-vatlytrilieu.jpg", color: "bg-blue-100 text-blue-600" },
-    { name: "Dinh dưỡng", image: "/images/dinhuong.jpg", color: "bg-yellow-100 text-yellow-600" },
-    { name: "Tâm lý", image: "/images/tamly.jpg", color: "bg-purple-100 text-purple-600" },
-    { name: "Tâm thần", image: "/images/tamthan.jpg", color: "bg-indigo-100 text-indigo-600" },
-    { name: "Ung bướu", image: "/images/ungbuou.jpg", color: "bg-red-100 text-red-600" },
-    { name: "Y học cổ truyền", image: "/images/yhoccotruyen.jpg", color: "bg-orange-100 text-orange-600" },
-    { name: "Y học dự phòng", image: "/images/yhocduphong.jpg", color: "bg-green-100 text-green-600" },
-    { name: "Đa khoa", image: "/images/dakhoa.jpg", color: "bg-blue-100 text-blue-600" },
-    { name: "Ngôn ngữ trị liệu", image: "/images/ngonngutrilieu.jpg", color: "bg-cyan-100 text-cyan-600" }
-  ];
-
   useEffect(() => {
     fetchDepartmentDetails();
     fetchDoctorsByDepartment();
+    fetchAllDepartments();
   }, [departmentId]);
 
   const fetchDepartmentDetails = async () => {
@@ -75,11 +35,46 @@ const SpecialtyDoctors = () => {
     }
   };
 
+  const fetchAllDepartments = async () => {
+    try {
+      const response = await departmentApi.getAllDepartments();
+      setDepartments(response.data || []);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
+
   const fetchDoctorsByDepartment = async () => {
     try {
       setLoading(true);
       const response = await doctorApi.getDoctorsByDepartment(departmentId);
-      setDoctors(response.data || []);
+      const docs = response.data || [];
+      setDoctors(docs);
+
+      // Fetch average rating and review count for each doctor (best-effort)
+      try {
+        const ratingPromises = docs.map(async (d) => {
+          try {
+            const avg = await reviewApi.getAverageRatingByDoctor(d.doctorId);
+            const count = await reviewApi.getReviewCountByDoctor(d.doctorId);
+            return { doctorId: d.doctorId, avg: Number(avg || 0), count: Number(count || 0) };
+          } catch (e) {
+            return { doctorId: d.doctorId, avg: 0, count: 0 };
+          }
+        });
+
+        const ratings = await Promise.all(ratingPromises);
+        const ratingMap = {};
+        ratings.forEach(r => { ratingMap[r.doctorId] = r; });
+
+        // Merge into doctors state
+        setDoctors(prev => prev.map(doc => {
+          const r = ratingMap[doc.doctorId] || { avg: 0, count: 0 };
+          return { ...doc, rating: r.count > 0 ? r.avg : 0, reviewCount: r.count };
+        }));
+      } catch (e) {
+        console.error('Failed to load doctor ratings:', e);
+      }
     } catch (error) {
       console.error('Error fetching doctors:', error);
       setDoctors([]);
@@ -113,7 +108,7 @@ const SpecialtyDoctors = () => {
   });
 
   const handleBookAppointment = (doctorId) => {
-    navigate(`/doctor/${doctorId}`);
+    navigate(`/patient/booking/${doctorId}`);
   };
 
   const departmentName = department?.departmentName || location.state?.departmentName || 'Chuyên khoa';
@@ -171,43 +166,72 @@ const SpecialtyDoctors = () => {
                   <h2 className="text-3xl font-bold text-gray-900 mb-2">Chuyên khoa</h2>
                   <p className="text-gray-600 text-lg">Đặt lịch với bác sĩ chuyên khoa hàng đầu</p>
                 </div>
-                <a href="#" className="text-blue-600 hover:text-blue-800 font-medium">Xem thêm →</a>
+                <span className="text-blue-600 font-medium">{departments.filter(dept => dept.status !== 'CLOSED').length} chuyên khoa</span>
               </div>
 
               {/* Specialties Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-                {specialties.map((specialty, index) => {
+                {departments.filter(dept => dept.status !== 'CLOSED').slice(0, 12).map((dept) => {
+                  const imageUrl = dept.imageUrl 
+                    ? `http://localhost:8080${dept.imageUrl}` 
+                    : null;
+                  
                   return (
                     <div
-                      key={index}
-                      className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-100"
-                      onClick={() => navigate(`/specialty/${specialty.name.toLowerCase().replace(/\s+/g, '-')}`)}
+                      key={dept.id}
+                      className={`bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-100 ${
+                        dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE' 
+                          ? 'opacity-60 cursor-not-allowed' 
+                          : ''
+                      }`}
+                      onClick={() => {
+                        if (dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE') {
+                          alert('Khoa này đang trong quá trình bảo trì. Vui lòng quay lại sau!');
+                          return;
+                        }
+                        navigate(`/specialty/${dept.id}`);
+                      }}
                     >
                       {/* Image */}
                       <div className="relative w-16 h-16 rounded-full overflow-hidden mx-auto mb-4 bg-gray-100">
-                        <img 
-                          src={specialty.image} 
-                          alt={specialty.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                        {imageUrl ? (
+                          <img 
+                            src={imageUrl} 
+                            alt={dept.departmentName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className="absolute inset-0 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center"
+                          style={{display: imageUrl ? 'none' : 'flex'}}
+                        >
                           <span className="text-blue-600 font-bold text-xs">
-                            {specialty.name.charAt(0)}
+                            {dept.departmentName.charAt(0)}
                           </span>
                         </div>
                       </div>
                       
                       {/* Name */}
                       <h3 className="font-semibold text-gray-900 text-center mb-2 text-sm">
-                        {specialty.name}
+                        {dept.departmentName}
                       </h3>
+                      
+                      {/* Status Badge */}
+                      {(dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE') && (
+                        <div className="text-center mb-2">
+                          <span className="inline-block px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                            Đang bảo trì
+                          </span>
+                        </div>
+                      )}
                       
                       {/* Description */}
                       <p className="text-gray-500 text-xs text-center leading-relaxed">
-                        Khoa {specialty.name} - Chuyên điều trị...
+                        {dept.description || `Khoa ${dept.departmentName} - Chuyên điều trị...`}
                       </p>
                     </div>
                   );

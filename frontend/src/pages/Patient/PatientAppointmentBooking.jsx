@@ -3,6 +3,7 @@ import { Search, ArrowRight, Star, MapPin, Clock, Users, Heart, Stethoscope, Bab
 import { Link } from "react-router-dom";
 import doctorApi from "../../api/doctorApi";
 import departmentApi from "../../api/departmentApi";
+import reviewApi from "../../api/reviewApi";
 
 export default function PatientAppointmentBooking() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,22 +64,45 @@ export default function PatientAppointmentBooking() {
         // Fetch doctors from API
         const doctorsResponse = await doctorApi.getAllDoctors();
         if (doctorsResponse.data) {
-          // Transform API data to match our component structure
-          const transformedDoctors = doctorsResponse.data.map(doctor => ({
-            id: doctor.doctorId || doctor.id,
-            name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
-            specialty: doctor.specialty || 'Chưa cập nhật',
-            rating: 4.5, // Default rating, you can add this to your API
-            avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
-            experience: `${doctor.experience || 'Nhiều'} năm kinh nghiệm`,
-            department: doctor.department?.departmentName || 'Chưa phân khoa'
-          }));
+          const rawDocs = doctorsResponse.data;
+
+          // Fetch avg rating and review count for each doctor (best-effort)
+          const ratingPromises = rawDocs.map(async (d) => {
+            try {
+              const avg = await reviewApi.getAverageRatingByDoctor(d.doctorId || d.id);
+              const count = await reviewApi.getReviewCountByDoctor(d.doctorId || d.id);
+              return { doctorId: d.doctorId || d.id, avg: Number(avg || 0), count: Number(count || 0) };
+            } catch (e) {
+              return { doctorId: d.doctorId || d.id, avg: 0, count: 0 };
+            }
+          });
+
+          const ratings = await Promise.all(ratingPromises);
+          const ratingMap = {};
+          ratings.forEach(r => { ratingMap[r.doctorId] = r; });
+
+          // Transform API data to match our component structure and include ratings
+          const transformedDoctors = rawDocs.map(doctor => {
+            const id = doctor.doctorId || doctor.id;
+            const r = ratingMap[id] || { avg: 0, count: 0 };
+            return {
+              id,
+              name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim(),
+              specialty: doctor.specialty || 'Chưa cập nhật',
+              rating: r.count > 0 ? r.avg : 0,
+              reviewCount: r.count || 0,
+              avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
+              experience: `${doctor.experience || 'Nhiều'} năm kinh nghiệm`,
+              department: doctor.department?.departmentName || 'Chưa phân khoa'
+            };
+          });
+
           setAllDoctors(transformedDoctors); // Store all doctors
-          
+
           // Select featured doctors
           const featured = selectFeaturedDoctors(transformedDoctors);
           setFeaturedDoctors(featured);
-          
+
           // Display featured doctors initially
           setDoctors(featured);
         }
@@ -106,7 +130,7 @@ export default function PatientAppointmentBooking() {
       if (searchResponse.data) {
         const transformedDoctors = searchResponse.data.map(doctor => ({
           id: doctor.doctorId || doctor.id,
-          name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
+          name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim(),
           specialty: doctor.specialty || 'Chưa cập nhật',
           rating: 4.5,
           avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',

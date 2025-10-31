@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Badge, Alert } from "react-bootstrap";
-import { FileText, Eye, User, Calendar, Search } from "lucide-react";
-import prescriptionApi from "../../api/prescriptionApi";
+import { FileText, Eye, User, Calendar, Search, Trash2 } from "lucide-react";
+import prescriptionApi, { exportPrescriptionPdf } from "../../api/prescriptionApi";
+import { toast } from "../../utils/toast";
 
 const PrescriptionsManagement = () => {
   const [prescriptions, setPrescriptions] = useState([]);
@@ -9,6 +10,13 @@ const PrescriptionsManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [exportId, setExportId] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [prescriptionToDelete, setPrescriptionToDelete] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ id: null, diagnosis: "", status: "new" });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ patientId: "", appointmentId: "", diagnosis: "", items: [{ medicineId: "", quantity: 1, dosage: "" }] });
 
   useEffect(() => {
     loadPrescriptions();
@@ -72,6 +80,98 @@ const PrescriptionsManagement = () => {
     setShowModal(true);
   };
 
+  const handleDeleteClick = (prescription) => {
+    setPrescriptionToDelete(prescription);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await prescriptionApi.deletePrescription(prescriptionToDelete.id);
+      setShowDeleteConfirm(false);
+      setPrescriptionToDelete(null);
+      loadPrescriptions();
+      toast.success("Đã xóa đơn thuốc thành công");
+    } catch (error) {
+      console.error('Lỗi khi xóa đơn thuốc:', error);
+      toast.error('Không thể xóa đơn thuốc. Vui lòng thử lại.');
+    }
+  };
+
+  const openEdit = (prescription) => {
+    setEditForm({ id: prescription.id, diagnosis: prescription.diagnosis || "", status: prescription.status || "new" });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.id) return;
+    try {
+      await prescriptionApi.updatePrescription(editForm.id, { diagnosis: editForm.diagnosis, status: editForm.status });
+      setShowEditModal(false);
+      toast.success("Cập nhật đơn thuốc thành công");
+      loadPrescriptions();
+    } catch (err) {
+      console.error('Lỗi cập nhật đơn thuốc:', err);
+      toast.error('Không thể cập nhật đơn thuốc');
+    }
+  };
+
+  const addCreateItem = () => {
+    setCreateForm(prev => ({ ...prev, items: [...prev.items, { medicineId: "", quantity: 1, dosage: "" }] }));
+  };
+
+  const removeCreateItem = (idx) => {
+    setCreateForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
+  };
+
+  const handleSaveCreate = async () => {
+    // Basic validation similar to doctor flow
+    if (!createForm.diagnosis || createForm.items.length === 0) {
+      toast.warning('Vui lòng nhập chẩn đoán và ít nhất 1 thuốc');
+      return;
+    }
+    const invalid = createForm.items.some(it => !it.medicineId || !it.dosage || !it.quantity || Number(it.quantity) <= 0);
+    if (invalid) {
+      toast.warning('Thông tin thuốc không hợp lệ');
+      return;
+    }
+    try {
+      const payload = {
+        ...(createForm.appointmentId && { appointmentId: parseInt(createForm.appointmentId) }),
+        // backend uses notes in create (the doctor flow maps diagnosis -> notes)
+        notes: createForm.diagnosis,
+        items: createForm.items.map(it => ({
+          medicineId: parseInt(it.medicineId),
+          quantity: parseInt(it.quantity) || 1,
+          dosage: it.dosage,
+          duration: it.duration || "",
+          note: it.note || "",
+        }))
+      };
+      await prescriptionApi.createPrescription(payload);
+      setShowCreateModal(false);
+      setCreateForm({ patientId: "", appointmentId: "", diagnosis: "", items: [{ medicineId: "", quantity: 1, dosage: "" }] });
+      toast.success('Tạo đơn thuốc thành công');
+      loadPrescriptions();
+    } catch (err) {
+      console.error('Lỗi tạo đơn thuốc:', err);
+      toast.error('Không thể tạo đơn thuốc');
+    }
+  };
+
+  const downloadBlob = (data, filename) => {
+    const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPrescription = async (id) => {
+    if (!id) return;
+    const res = await exportPrescriptionPdf(id);
+    downloadBlob(res.data, `prescription-${id}.pdf`);
+  };
+
   return (
     <Container fluid className="py-4">
       {/* Header */}
@@ -86,6 +186,11 @@ const PrescriptionsManagement = () => {
                     Quản Lý Đơn Thuốc
                   </h2>
                   <p className="text-muted mb-0">Xem và quản lý các đơn thuốc đã được kê</p>
+                </div>
+                <div>
+                  <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+                    Tạo đơn thuốc
+                  </Button>
                 </div>
               </div>
             </Card.Body>
@@ -213,14 +318,40 @@ const PrescriptionsManagement = () => {
                         </Badge>
                       </td>
                       <td>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => handleViewPrescription(prescription)}
-                        >
-                          <Eye size={14} className="me-1" />
-                          Xem
-                        </Button>
+                        <div className="d-flex gap-2">
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleViewPrescription(prescription)}
+                            title="Xem chi tiết"
+                          >
+                            <Eye size={14} />
+                          </Button>
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() => openEdit(prescription)}
+                            title="Chỉnh sửa"
+                          >
+                            Sửa
+                          </Button>
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => handleExportPrescription(prescription.id)}
+                            title="Xuất PDF"
+                          >
+                            PDF
+                          </Button>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleDeleteClick(prescription)}
+                            title="Xóa đơn thuốc"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -308,6 +439,151 @@ const PrescriptionsManagement = () => {
           <Button variant="secondary" onClick={() => setShowModal(false)}>
             Đóng
           </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteConfirm} onHide={() => setShowDeleteConfirm(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Xác Nhận Xóa Đơn Thuốc</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Bạn có chắc chắn muốn xóa đơn thuốc <strong>{prescriptionToDelete?.prescriptionId}</strong>?</p>
+          <p className="text-muted">Thao tác này không thể hoàn tác.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+            Hủy
+          </Button>
+          <Button variant="danger" onClick={handleConfirmDelete}>
+            <Trash2 size={14} className="me-1" />
+            Xóa
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Chỉnh Sửa Đơn Thuốc</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Chẩn đoán</Form.Label>
+              <Form.Control
+                type="text"
+                value={editForm.diagnosis}
+                onChange={(e) => setEditForm(prev => ({ ...prev, diagnosis: e.target.value }))}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Trạng thái</Form.Label>
+              <Form.Select
+                value={editForm.status}
+                onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
+              >
+                <option value="new">Mới</option>
+                <option value="pending">Chờ xử lý</option>
+                <option value="completed">Hoàn thành</option>
+                <option value="cancelled">Hủy</option>
+              </Form.Select>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)}>Hủy</Button>
+          <Button variant="success" onClick={handleSaveEdit}>Lưu</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Create Modal */}
+      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Tạo Đơn Thuốc</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Mã lịch hẹn (tùy chọn)</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={createForm.appointmentId}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, appointmentId: e.target.value }))}
+                    placeholder="Nhập appointmentId nếu có"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Chẩn đoán</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={createForm.diagnosis}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, diagnosis: e.target.value }))}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <h6 className="mt-2">Thuốc trong đơn</h6>
+            {createForm.items.map((it, idx) => (
+              <Row key={idx} className="g-2 align-items-end mb-2">
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>Mã thuốc</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={it.medicineId}
+                      onChange={(e) => setCreateForm(prev => ({
+                        ...prev,
+                        items: prev.items.map((x, i) => i === idx ? { ...x, medicineId: e.target.value } : x)
+                      }))}
+                      placeholder="VD: 101"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Số lượng</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min={1}
+                      value={it.quantity}
+                      onChange={(e) => setCreateForm(prev => ({
+                        ...prev,
+                        items: prev.items.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x)
+                      }))}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>Liều dùng</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={it.dosage}
+                      onChange={(e) => setCreateForm(prev => ({
+                        ...prev,
+                        items: prev.items.map((x, i) => i === idx ? { ...x, dosage: e.target.value } : x)
+                      }))}
+                      placeholder="VD: 1 viên x 3 lần/ngày"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={1} className="text-end">
+                  <Button variant="outline-danger" size="sm" onClick={() => removeCreateItem(idx)}>×</Button>
+                </Col>
+              </Row>
+            ))}
+            <Button variant="outline-primary" size="sm" onClick={addCreateItem} className="mt-1">Thêm thuốc</Button>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Hủy</Button>
+          <Button variant="primary" onClick={handleSaveCreate}>Tạo</Button>
         </Modal.Footer>
       </Modal>
     </Container>

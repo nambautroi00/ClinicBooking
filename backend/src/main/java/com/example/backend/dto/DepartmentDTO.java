@@ -20,6 +20,11 @@ public class DepartmentDTO {
 
         @Size(max = 255, message = "Mô tả không được quá 255 ký tự")
         private String description;
+
+        @Size(max = 500, message = "URL ảnh không được quá 500 ký tự")
+        private String imageUrl;
+
+        private Department.DepartmentStatus status;
     }
 
     @Data
@@ -32,6 +37,9 @@ public class DepartmentDTO {
         @Size(max = 255, message = "Mô tả không được quá 255 ký tự")
         private String description;
 
+        @Size(max = 500, message = "URL ảnh không được quá 500 ký tự")
+        private String imageUrl;
+
         private Department.DepartmentStatus status;
     }
 
@@ -42,6 +50,7 @@ public class DepartmentDTO {
         private Long id;
         private String departmentName;
         private String description;
+        private String imageUrl;
         private Department.DepartmentStatus status;
     }
 

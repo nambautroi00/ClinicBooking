@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -206,5 +207,91 @@ public class SystemNotificationService {
         dto.setAppointmentId(null); // System notification
         
         return createNotification(dto);
+    }
+
+    public SystemNotification create(Long userId, String title, String message, String type) {
+        SystemNotification n = new SystemNotification();
+        n.setUserId(userId);
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setType(type);
+        n.setIsRead(false);
+        n.setCreatedAt(LocalDateTime.now());
+        return systemNotificationRepository.save(n);
+    }
+
+    public Page<SystemNotification> listByUser(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1));
+        return systemNotificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+    }
+
+    public long unreadCount(Long userId) {
+        return systemNotificationRepository.countByUserIdAndIsReadFalse(userId);
+    }
+
+    public SystemNotification markRead(Long id) {
+        return systemNotificationRepository.findById(id).map(n -> {
+            if (Boolean.FALSE.equals(n.getIsRead())) {
+                n.setIsRead(true);
+                n.setReadAt(LocalDateTime.now());
+                return systemNotificationRepository.save(n);
+            }
+            return n;
+        }).orElseThrow(() -> new IllegalArgumentException("Notification not found: " + id));
+    }
+
+    public int markAllRead(Long userId) {
+        Page<SystemNotification> page = listByUser(userId, 0, 1000);
+        int updated = 0;
+        for (SystemNotification n : page.getContent()) {
+            if (Boolean.FALSE.equals(n.getIsRead())) {
+                n.setIsRead(true);
+                n.setReadAt(LocalDateTime.now());
+                systemNotificationRepository.save(n);
+                updated++;
+            }
+        }
+        return updated;
+    }
+
+    /**
+     * Helpers: typed notifications
+     */
+    public SystemNotification createRegisterSuccess(Long userId) {
+        return create(userId,
+                "Đăng ký tài khoản thành công",
+                "Chào mừng bạn đã tạo tài khoản thành công.",
+                SystemNotification.NotificationType.SYSTEM.getValue());
+    }
+
+    public SystemNotification createBookingCreated(Long userId, Long appointmentId) {
+        SystemNotification n = create(userId,
+                "Đặt lịch thành công",
+                "Lịch khám của bạn đã được tạo thành công.",
+                SystemNotification.NotificationType.APPOINTMENT.getValue());
+        n.setAppointment(new Appointment());
+        n.getAppointment().setAppointmentId(appointmentId);
+        return systemNotificationRepository.save(n);
+    }
+
+    public SystemNotification createBookingCancelled(Long userId, Long appointmentId) {
+        SystemNotification n = create(userId,
+                "Huỷ lịch khám",
+                "Lịch khám của bạn đã được huỷ.",
+                SystemNotification.NotificationType.CANCELLATION.getValue());
+        n.setAppointment(new Appointment());
+        n.getAppointment().setAppointmentId(appointmentId);
+        return systemNotificationRepository.save(n);
+    }
+
+    public SystemNotification createReminder(Long userId, Long appointmentId, String whenText) {
+        String msg = "Nhắc lịch khám: " + (whenText != null ? whenText : "Sắp đến giờ khám");
+        SystemNotification n = create(userId,
+                "Nhắc nhở khám bệnh",
+                msg,
+                SystemNotification.NotificationType.REMINDER.getValue());
+        n.setAppointment(new Appointment());
+        n.getAppointment().setAppointmentId(appointmentId);
+        return systemNotificationRepository.save(n);
     }
 }

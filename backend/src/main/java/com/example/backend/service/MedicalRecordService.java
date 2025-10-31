@@ -16,6 +16,7 @@ import com.example.backend.model.Appointment;
 import com.example.backend.model.MedicalRecord;
 import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.MedicalRecordRepository;
+import com.example.backend.repository.PrescriptionItemRepository;
 
 @Service
 @Transactional
@@ -29,9 +30,24 @@ public class MedicalRecordService {
 
     @Autowired
     private MedicalRecordMapper medicalRecordMapper;
+    
+    @Autowired
+    private PrescriptionItemRepository prescriptionItemRepository;
 
     public List<MedicalRecordDto> getAllMedicalRecords() {
-        return medicalRecordRepository.findAll().stream()
+        List<MedicalRecord> records = medicalRecordRepository.findAllWithDetails();
+        // Items đã được load qua JOIN FETCH trong query
+        return records.stream()
+                .map(medicalRecordMapper::toDto)
+                .collect(Collectors.toList());
+    }
+    
+    public List<MedicalRecordDto> getMedicalRecordsByDoctor(Long doctorId) {
+        System.out.println("🔍 Getting medical records for doctorId: " + doctorId);
+        List<MedicalRecord> records = medicalRecordRepository.findByDoctorId(doctorId);
+        System.out.println("📊 Found " + records.size() + " medical records");
+        // Items đã được load qua JOIN FETCH trong query
+        return records.stream()
                 .map(medicalRecordMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -42,13 +58,26 @@ public class MedicalRecordService {
     }
 
     public MedicalRecordDto getMedicalRecordById(Integer id) {
-        MedicalRecord medicalRecord = medicalRecordRepository.findById(id)
+        // Use query with JOIN FETCH to load all relationships
+        var medicalRecord = medicalRecordRepository.findAllWithDetails().stream()
+                .filter(mr -> mr.getRecordId().equals(id))
+                .findFirst()
                 .orElseThrow(() -> new NotFoundException("Medical Record not found with id: " + id));
         return medicalRecordMapper.toDto(medicalRecord);
     }
 
     public List<MedicalRecordDto> getMedicalRecordsByAppointmentId(Long appointmentId) {
         return medicalRecordRepository.findByAppointmentAppointmentId(appointmentId).stream()
+                .map(medicalRecordMapper::toDto)
+                .collect(Collectors.toList());
+    }
+    
+    public List<MedicalRecordDto> getMedicalRecordsByPatient(Long patientId) {
+        System.out.println("🔍 Getting medical records for patientId: " + patientId);
+        List<MedicalRecord> records = medicalRecordRepository.findByPatientId(patientId);
+        System.out.println("📊 Found " + records.size() + " medical records for patient");
+        // Items đã được load qua JOIN FETCH trong query
+        return records.stream()
                 .map(medicalRecordMapper::toDto)
                 .collect(Collectors.toList());
     }

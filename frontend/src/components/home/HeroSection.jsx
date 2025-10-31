@@ -15,9 +15,9 @@ export default function HeroSection() {
     const user = localStorage.getItem('user');
     if (user) {
       if (navigate) {
-        navigate('/patient/booking');
+        navigate('/patient/book-appointment');
       } else {
-        window.location.href = '/patient/booking';
+        window.location.href = '/patient/book-appointment';
       }
     } else {
       if (navigate) {

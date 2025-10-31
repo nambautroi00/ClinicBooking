@@ -93,4 +93,7 @@ public interface SystemNotificationRepository extends JpaRepository<SystemNotifi
      * Xóa notifications cũ hơn một thời gian nhất định
      */
     void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
+
+    Page<SystemNotification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    long countByUserIdAndIsReadFalse(Long userId);
 }

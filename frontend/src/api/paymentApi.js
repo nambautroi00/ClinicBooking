@@ -1,7 +1,7 @@
-import axiosClient from './axiosClient';
+import axiosClient from "./axiosClient";
 
 const paymentApi = {
-  // Tạo payment cho appointment
+   // Tạo payment cho appointment
   createPayment: (paymentData) => {
     return axiosClient.post('/payments', paymentData);
   },
@@ -65,7 +65,9 @@ const paymentApi = {
   // Xóa payment
   deletePayment: (paymentId) => {
     return axiosClient.delete(`/payments/${paymentId}`);
-  }
+  },
+  exportInvoicePdf: (id) =>
+    axiosClient.get(`/payments/${id}/invoice-pdf`, { responseType: "blob" }),
 };
 
 export default paymentApi;

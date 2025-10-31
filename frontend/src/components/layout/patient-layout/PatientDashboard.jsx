@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, FileText, User, Clock, MapPin, Phone, Mail, Calendar as CalendarIcon, CreditCard, DollarSign, Edit, Save, X, Camera } from 'lucide-react';
+import { Calendar, FileText, User, Clock, MapPin, Phone, Mail, Calendar as CalendarIcon, CreditCard, DollarSign, Edit, Save, X, Camera, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import paymentApi from '../../../api/paymentApi';
 import patientApi from '../../../api/patientApi';
@@ -33,6 +33,8 @@ const PatientDashboard = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [passwordErrors, setPasswordErrors] = useState({});
   const [isSuccess, setIsSuccess] = useState(true);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   
   // Address states
   const [provinces, setProvinces] = useState([]);
@@ -41,6 +43,8 @@ const PatientDashboard = () => {
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
+
+  const defaultAvatarDataUrl = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23e5f0ff"/><circle cx="200" cy="140" r="80" fill="%239bbcff"/><rect x="60" y="240" width="280" height="120" rx="60" fill="%239bbcff"/></svg>';
 
   // Đọc tab từ URL params
   useEffect(() => {
@@ -52,42 +56,70 @@ const PatientDashboard = () => {
 
   // Lấy thông tin user và patientId từ localStorage
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        console.log('🔍 PatientDashboard - Loading user from localStorage:', parsedUser);
-        console.log('🔍 PatientDashboard - User picture field:', parsedUser?.picture);
-        console.log('🔍 PatientDashboard - User avatar field:', parsedUser?.avatar);
-        setUser(parsedUser);
-        const userId = parsedUser.id;
-        if (userId) {
-          patientApi
-            .getPatientByUserId(userId)
-            .then((res) => {
-              const data = res.data || res;
-              setPatientId(data.patientId);
-            })
-            .catch((err) => {
-              console.error("Error getting patient info:", err);
-            });
+    const loadUserData = async () => {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          console.log('🔍 PatientDashboard - Loading user from localStorage:', parsedUser);
+          
+          // Check if user data is complete (has avatarUrl or other required fields)
+          if (!parsedUser.avatarUrl && !parsedUser.avatar) {
+            console.log('⚠️ User data missing avatar info, fetching from backend...');
+            try {
+              const currentUserResponse = await userApi.getCurrentUser();
+              const freshUserData = currentUserResponse.data;
+              console.log('✅ Fetched fresh user data:', freshUserData);
+              
+              // Update localStorage with fresh data
+              localStorage.setItem('user', JSON.stringify(freshUserData));
+              setUser(freshUserData);
+              
+              // Set patientId
+              if (freshUserData.id) {
+                try {
+                  const res = await patientApi.getPatientByUserId(freshUserData.id);
+                  const data = res.data || res;
+                  setPatientId(data.patientId);
+                } catch (err) {
+                  console.error("Error getting patient info:", err);
+                }
+              }
+              return;
+            } catch (error) {
+              console.error('❌ Error fetching fresh user data:', error);
+            }
+          }
+          
+          setUser(parsedUser);
+          const userId = parsedUser.id;
+          if (userId) {
+            patientApi
+              .getPatientByUserId(userId)
+              .then((res) => {
+                const data = res.data || res;
+                setPatientId(data.patientId);
+              })
+              .catch((err) => {
+                console.error("Error getting patient info:", err);
+              });
+          }
+        } catch (error) {
+          console.error("Error parsing user data:", error);
         }
-      } catch (error) {
-        console.error("Error parsing user data:", error);
       }
-    }
+    };
+    
+    loadUserData();
   }, []);
 
   // Parse existing address and set dropdowns
   useEffect(() => {
     if (user?.address && provinces.length > 0) {
-      console.log('🔍 Parsing address:', user.address);
       const parsedAddress = addressApi.parseAddressFlexible(user.address);
-      console.log('🔍 Parsed address:', parsedAddress);
       if (parsedAddress) {
         // Find province
         const province = addressApi.findProvinceByName(provinces, parsedAddress.province);
-        console.log('🔍 Found province:', province);
         if (province) {
           setSelectedProvince(province.code);
         }
@@ -98,14 +130,10 @@ const PatientDashboard = () => {
   // Load districts when province is set from existing address
   useEffect(() => {
     if (selectedProvince && user?.address && districts.length > 0) {
-      console.log('🔍 Loading districts for province:', selectedProvince);
-      console.log('🔍 Available districts:', districts.length);
       const parsedAddress = addressApi.parseAddressFlexible(user.address);
-      console.log('🔍 Parsed address for district:', parsedAddress);
       if (parsedAddress) {
         // Find district
         const district = addressApi.findDistrictByName(districts, parsedAddress.district);
-        console.log('🔍 Found district:', district);
         if (district) {
           setSelectedDistrict(district.code);
         }
@@ -116,14 +144,10 @@ const PatientDashboard = () => {
   // Load wards when district is set from existing address
   useEffect(() => {
     if (selectedDistrict && user?.address && wards.length > 0) {
-      console.log('🔍 Loading wards for district:', selectedDistrict);
-      console.log('🔍 Available wards:', wards.length);
       const parsedAddress = addressApi.parseAddressFlexible(user.address);
-      console.log('🔍 Parsed address for ward:', parsedAddress);
       if (parsedAddress) {
         // Find ward
         const ward = addressApi.findWardByName(wards, parsedAddress.ward);
-        console.log('🔍 Found ward:', ward);
         if (ward) {
           setSelectedWard(ward.code);
         }
@@ -194,10 +218,11 @@ const PatientDashboard = () => {
         lastName: user.lastName || '',
         phone: user.phone || '',
         dateOfBirth: user.dateOfBirth || '',
-        gender: user.gender || '',
+        gender: mapGenderFromBackend(user.gender) || '',
         address: user.address || '',
         email: user.email || '',
-        healthInsurance: user.healthInsurance || ''
+        healthInsurance: user.healthInsurance || '',
+        medicalHistory: user.medicalHistory || ''
       });
     }
   }, [user]);
@@ -238,9 +263,17 @@ const PatientDashboard = () => {
     }).format(amount);
   };
 
-  // Validation functions
+  // Map gender from backend to frontend display
+  const mapGenderFromBackend = (backendGender) => {
+    const genderMap = {
+      'MALE': 'Nam',
+      'FEMALE': 'Nữ',
+      'OTHER': 'Khác'
+    };
+    return genderMap[backendGender] || backendGender;
+  };
   const validatePhone = (phone) => {
-    if (!phone) return 'Số điện thoại không được để trống';
+    if (!phone) return ''; // Cho phép trống
     if (!phone.startsWith('0')) return 'Số điện thoại phải bắt đầu bằng số 0';
     if (phone.length !== 10) return 'Số điện thoại phải có đúng 10 số';
     if (!/^[0-9]+$/.test(phone)) return 'Số điện thoại chỉ được chứa số';
@@ -248,7 +281,7 @@ const PatientDashboard = () => {
   };
 
   const validateAge = (dateOfBirth) => {
-    if (!dateOfBirth) return 'Ngày sinh không được để trống';
+    if (!dateOfBirth) return ''; // Cho phép trống
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
     const age = today.getFullYear() - birthDate.getFullYear();
@@ -274,6 +307,16 @@ const PatientDashboard = () => {
     return '';
   };
 
+  const validateHealthInsurance = (insurance) => {
+    if (!insurance) return '';
+    const cleanInsurance = insurance.replace(/\s/g, '');
+    const pattern = /^[A-Z]{2}\d{1}\d{2}\d{2}\d{3}\d{5}$/;
+    if (!pattern.test(cleanInsurance)) {
+      return 'Mã BHYT phải theo định dạng: XX X XX XX XXX XXXXX ';
+    }
+    return '';
+  };
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -290,6 +333,8 @@ const PatientDashboard = () => {
       error = validateAge(value);
     } else if (name === 'email') {
       error = validateEmail(value);
+    } else if (name === 'healthInsurance') {
+      error = validateHealthInsurance(value);
     }
     
     setErrors(prev => ({
@@ -317,7 +362,17 @@ const PatientDashboard = () => {
 
   // Handle avatar click - show modal for preview
   const handleAvatarClick = () => {
-    setShowAvatarModal(true);
+    try {
+      console.log('🖱️ Avatar clicked, showing modal');
+      console.log('🔍 Current user data in modal:', user);
+      console.log('🔍 User avatarUrl:', user?.avatarUrl);
+      console.log('🔍 User firstName:', user?.firstName);
+      console.log('🔍 User lastName:', user?.lastName);
+      setShowAvatarModal(true);
+    } catch (error) {
+      console.error('❌ Error in handleAvatarClick:', error);
+      alert('Có lỗi khi mở modal avatar');
+    }
   };
 
   // Handle change avatar - open file picker directly
@@ -337,37 +392,56 @@ const PatientDashboard = () => {
           setUploading(true);
           console.log('🚀 Starting avatar upload...');
           
-          // Upload new avatar
-          const uploadResponse = await fileUploadApi.uploadImage(file, user.id, 'user');
+          // Upload avatar using userApi.uploadAvatar
+          const uploadResponse = await userApi.uploadAvatar(user.id, file);
           console.log('📤 Upload response:', uploadResponse);
-          const avatarUrl = uploadResponse.data.url;
+          const avatarUrl = uploadResponse.data; // Backend returns string directly
           console.log('🔗 Avatar URL:', avatarUrl);
 
-          // Update user data
+          // Update user data in database
           const updateData = {
             ...user,
-            avatar: avatarUrl
+            avatarUrl: avatarUrl
           };
           console.log('👤 Update data:', updateData);
 
           await userApi.updateUser(user.id, updateData);
           console.log('✅ User updated in database');
-          
+
           // Update local user data
           setUser(updateData);
           localStorage.setItem('user', JSON.stringify(updateData));
           console.log('💾 Local storage updated');
+          console.log('🔄 Updated user in state:', updateData);
           
           // Dispatch event to update header
           window.dispatchEvent(new Event('userChanged'));
           console.log('📡 Event dispatched');
           
+          // Force refresh after a short delay
+          setTimeout(() => {
+            window.dispatchEvent(new Event('userChanged'));
+            console.log('🔄 Second event dispatched');
+          }, 500);
+          
           setSuccessMessage('Cập nhật ảnh đại diện thành công!');
           setIsSuccess(true);
           setShowSuccessModal(true);
+          
+          // Force component re-render with new avatar
+          setTimeout(() => {
+            setUser(prev => ({ ...prev, avatarUrl: avatarUrl }));
+            console.log('🔄 Force re-render with new avatarUrl:', avatarUrl);
+            
+            // Force page refresh to clear cache
+            setTimeout(() => {
+              console.log('🔄 Forcing page refresh to clear cache...');
+              window.location.reload();
+            }, 1000);
+          }, 100);
         } catch (error) {
           console.error('Error updating avatar:', error);
-          setSuccessMessage('Có lỗi xảy ra khi cập nhật ảnh đại diện');
+          setSuccessMessage('Có lỗi xảy ra khi cập nhật ảnh đại diện: ' + (error.response?.data?.message || error.message));
           setIsSuccess(false);
           setShowSuccessModal(true);
         } finally {
@@ -385,8 +459,11 @@ const PatientDashboard = () => {
 
   // Save profile changes
   const handleSaveProfile = async () => {
+    console.log('🚀 Starting handleSaveProfile...');
+    console.log('📝 Form data:', formData);
     try {
       setUploading(true);
+      console.log('⏳ Set uploading to true');
       setErrors({});
 
       // Validate all fields
@@ -407,23 +484,49 @@ const PatientDashboard = () => {
       // Age validation
       const ageError = validateAge(formData.dateOfBirth);
       if (ageError) newErrors.dateOfBirth = ageError;
+      
+      // Health insurance validation
+      const insuranceError = validateHealthInsurance(formData.healthInsurance);
+      if (insuranceError) newErrors.healthInsurance = insuranceError;
 
       if (Object.keys(newErrors).length > 0) {
+        console.log('❌ Validation errors:', newErrors);
         setErrors(newErrors);
         setUploading(false);
         return;
       }
+      
+      console.log('✅ All validations passed, proceeding with save...');
 
       // Create address from dropdowns
       let address = '';
+      
       if (selectedWard && selectedDistrict && selectedProvince) {
-        const wardName = wards.find(w => w.code === selectedWard)?.name;
-        const districtName = districts.find(d => d.code === selectedDistrict)?.name;
-        const provinceName = provinces.find(p => p.code === selectedProvince)?.name;
         
-        if (wardName && districtName && provinceName) {
-          address = `${wardName}, ${districtName}, ${provinceName}`;
+        // Check if arrays are loaded
+        if (wards.length === 0 || districts.length === 0 || provinces.length === 0) {
+          address = user?.address || '';
+        } else {
+          const wardName = wards.find(w => w.code === selectedWard)?.name;
+          const districtName = districts.find(d => d.code === selectedDistrict)?.name;
+          const provinceName = provinces.find(p => p.code === selectedProvince)?.name;
+          
+          if (wardName && districtName && provinceName) {
+            address = `${wardName}, ${districtName}, ${provinceName}`;
+          } else {
+            // Fallback: try to create address from codes if names not found
+            const wardFallback = wards.find(w => String(w.code) === String(selectedWard))?.name;
+            const districtFallback = districts.find(d => String(d.code) === String(selectedDistrict))?.name;
+            const provinceFallback = provinces.find(p => String(p.code) === String(selectedProvince))?.name;
+            
+            if (wardFallback && districtFallback && provinceFallback) {
+              address = `${wardFallback}, ${districtFallback}, ${provinceFallback}`;
+            }
+          }
         }
+      } else {
+        // Fallback to existing address if no new selections
+        address = user?.address || '';
       }
 
       // Update user data (without avatar)
@@ -431,8 +534,38 @@ const PatientDashboard = () => {
         ...formData,
         address: address
       };
+      
+      
+      // Map gender values to backend format
+      if (updateData.gender) {
+        const genderMap = {
+          'Nam': 'MALE',
+          'Nữ': 'FEMALE', 
+          'Khác': 'OTHER'
+        };
+        updateData.gender = genderMap[updateData.gender] || updateData.gender;
+      }
 
       await userApi.updateUser(user.id, updateData);
+      
+      // Update patient record if healthInsurance or medicalHistory is provided
+      if ((updateData.healthInsurance || updateData.medicalHistory) && patientId) {
+        try {
+          const patientUpdateData = {};
+          if (updateData.healthInsurance) {
+            patientUpdateData.healthInsuranceNumber = updateData.healthInsurance;
+          }
+          if (updateData.medicalHistory) {
+            patientUpdateData.medicalHistory = updateData.medicalHistory;
+          }
+          
+          await patientApi.updatePatient(patientId, patientUpdateData);
+          console.log('✅ Patient information updated successfully');
+        } catch (error) {
+          console.error('❌ Error updating patient information:', error);
+          // Don't throw error, just log it as these fields are optional
+        }
+      }
       
       // Update local user data
       const updatedUser = { ...user, ...updateData };
@@ -452,6 +585,7 @@ const PatientDashboard = () => {
       setIsSuccess(false);
       setShowSuccessModal(true);
     } finally {
+      console.log('🏁 Finally block - setting uploading to false');
       setUploading(false);
     }
   };
@@ -541,7 +675,7 @@ const PatientDashboard = () => {
               <div className="col-md-4 border-end" style={{ height: 'calc(100vh - 250px)', overflow: 'auto' }}>
                 <div className="p-4">
                   {/* Profile Card */}
-                  <div className="card border-0 shadow-lg" style={{ borderRadius: '25px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', overflow: 'hidden' }}>
+                  <div className="card border-0 shadow-lg" style={{ borderRadius: '25px', background: 'linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%)', overflow: 'hidden' }}>
                     <div className="card-body text-center p-4">
                       {/* Avatar Section */}
                       <div className="position-relative d-inline-block mb-3">
@@ -553,88 +687,53 @@ const PatientDashboard = () => {
                         >
                           {(() => {
                             console.log('🔍 PatientDashboard - User data:', user);
-                            console.log('🔍 PatientDashboard - User avatarUrl:', user?.avatarUrl);
-                            console.log('🔍 PatientDashboard - User avatar:', user?.avatar);
                             
-                            // Ưu tiên avatarUrl từ database (đã lưu ảnh Google)
+                            // Check if user has avatar
                             if (user?.avatarUrl) {
-                              console.log('✅ PatientDashboard - Using avatarUrl from database:', user.avatarUrl);
+                              let avatarUrl = user.avatarUrl.startsWith('/uploads/') ? 
+                                `http://localhost:8080${user.avatarUrl}` : 
+                                user.avatarUrl;
+                              
+                              // Add cache busting timestamp
+                              const separator = avatarUrl.includes('?') ? '&' : '?';
+                              avatarUrl += `${separator}t=${Date.now()}`;
+                              
+                              console.log('✅ PatientDashboard - Using avatar:', avatarUrl);
+                              console.log('🔍 PatientDashboard - Avatar URL details:', {
+                                original: user.avatarUrl,
+                                constructed: avatarUrl,
+                                hasTimestamp: avatarUrl.includes('?t=')
+                              });
                               return (
                                 <img 
-                                  src={user.avatarUrl} 
+                                  src={avatarUrl} 
                                   alt="Avatar" 
-                                  className="rounded-circle border border-white border-3 shadow-lg"
-                                  style={{ width: '90px', height: '90px', objectFit: 'cover' }}
+                                  className="rounded-circle shadow-lg border border-primary border-3"
+                                  style={{ 
+                                    width: '90px', 
+                                    height: '90px', 
+                                    objectFit: 'cover'
+                                  }}
                                   onError={(e) => {
-                                    console.log('❌ PatientDashboard - avatarUrl failed to load');
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
+                                    console.log('❌ PatientDashboard - Avatar failed to load, showing default');
+                                    e.target.src = defaultAvatarDataUrl;
                                   }}
                                 />
                               );
                             }
-                            
-                            // Fallback to uploaded avatar
-                            const avatarUrl = user?.avatar ? 
-                              (user.avatar.startsWith('/uploads/') ? `http://localhost:8080${user.avatar}` : user.avatar) : 
-                              null;
-                            
-                            return avatarUrl ? (
-                              <img 
-                                src={avatarUrl} 
-                                alt="Avatar" 
-                                className="rounded-circle border border-white border-3 shadow-lg"
+                            // Fallback default avatar
+                            return (
+                              <img
+                                src={defaultAvatarDataUrl}
+                                alt="Avatar"
+                                className="rounded-circle shadow-lg border border-primary border-3"
                                 style={{ width: '90px', height: '90px', objectFit: 'cover' }}
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }}
                               />
-                            ) : null;
+                            );
                           })()}
-                          <div 
-                            className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold border border-white border-3 shadow-lg"
-                      style={{ 
-                              width: '90px', 
-                              height: '90px', 
-                              background: 'linear-gradient(135deg, #9370DB 0%, #8A2BE2 100%)',
-                              fontSize: '32px',
-                              display: (user?.avatarUrl || user?.avatar) ? 'none' : 'flex'
-                            }}
-                          >
-                            {(() => {
-                              // Kiểm tra nếu có avatar từ database hoặc đã upload
-                              if (user?.avatarUrl || user?.avatar) {
-                                return null; // Không hiển thị initials nếu có avatar
-                              }
-                              
-                              // Tạo initials từ tên
-                              if (user?.firstName && user?.lastName) {
-                                return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
-                              } else if (user?.firstName) {
-                                return user.firstName.charAt(0).toUpperCase();
-                              } else if (user?.fullName) {
-                                const names = user.fullName.split(' ');
-                                if (names.length >= 2) {
-                                  return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                                }
-                                return user.fullName.charAt(0).toUpperCase();
-                              } else if (user?.name) {
-                                const names = user.name.split(' ');
-                                if (names.length >= 2) {
-                                  return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                                }
-                                return user.name.charAt(0).toUpperCase();
-                              } else if (user?.email) {
-                                return user.email.charAt(0).toUpperCase();
-                              } else {
-                                return 'U';
-                              }
-                            })()}
-                    </div>
-                    </div>
-                  </div>
-                  
+                        </div>
+                      </div>
+                      
                       {/* User Info */}
                       <h5 className="fw-bold mb-2 text-white" style={{ fontSize: '20px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                         {(() => {
@@ -647,7 +746,33 @@ const PatientDashboard = () => {
                           
                           // Kiểm tra firstName và lastName
                           if (user.firstName && user.lastName) {
-                            return `${user.firstName} ${user.lastName}`;
+                            // Fix encoding issues
+                            const fixEncoding = (text) => {
+                              if (!text) return text;
+                              return text
+                                .replace(/Ă¹/g, 'ù')
+                                .replace(/Ă/g, 'à')
+                                .replace(/áº/g, 'ạ')
+                                .replace(/Ä/g, 'à')
+                                .replace(/á»/g, 'ộ')
+                                .replace(/á»‡/g, 'ệ')
+                                .replace(/á»‹/g, 'ị')
+                                .replace(/á»/g, 'ồ')
+                                .replace(/á»/g, 'ô')
+                                .replace(/á»/g, 'ơ')
+                                .replace(/á»/g, 'ư')
+                                .replace(/á»/g, 'ứ')
+                                .replace(/á»/g, 'ừ')
+                                .replace(/á»/g, 'ử')
+                                .replace(/á»/g, 'ữ')
+                                .replace(/á»/g, 'ự')
+                                .replace(/á»/g, 'ỳ')
+                                .replace(/á»/g, 'ỵ')
+                                .replace(/á»/g, 'ỷ')
+                                .replace(/á»/g, 'ỹ')
+                                .replace(/á»/g, 'ỵ');
+                            };
+                            return `${fixEncoding(user.firstName)} ${fixEncoding(user.lastName)}`;
                           }
                           
                           // Kiểm tra name từ Google
@@ -674,24 +799,24 @@ const PatientDashboard = () => {
                           fontSize: '14px',
                           borderRadius: '20px',
                           fontWeight: '600',
-                          background: 'linear-gradient(45deg, #f093fb 0%, #f5576c 100%)',
+                          background: 'linear-gradient(45deg, #0d6efd 0%, #0056b3 100%)',
                           border: 'none',
                           color: 'white',
                           transition: 'all 0.3s ease',
                           padding: '8px 16px',
-                          boxShadow: '0 4px 12px rgba(240,147,251,0.4)'
+                          boxShadow: '0 4px 12px rgba(13,110,253,0.4)'
                         }}
                         onClick={handleChangeAvatar}
                         disabled={uploading}
                         onMouseEnter={(e) => {
                           if (!uploading) {
                             e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 16px rgba(240,147,251,0.6)';
+                            e.target.style.boxShadow = '0 6px 16px rgba(13,110,253,0.6)';
                           }
                         }}
                         onMouseLeave={(e) => {
                           e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(240,147,251,0.4)';
+                          e.target.style.boxShadow = '0 4px 12px rgba(13,110,253,0.4)';
                         }}
                       >
                         {uploading ? (
@@ -741,13 +866,14 @@ const PatientDashboard = () => {
                       <h6 className="fw-bold mb-0" style={{ fontSize: '16px', color: '#2d3436' }}>Thông tin cơ bản</h6>
                       {!isEditing && (
                         <button 
-                          className="btn btn-primary btn-sm shadow-sm" 
+                          className="btn btn-light btn-sm shadow-sm border" 
                           style={{ 
                             fontSize: '12px', 
                             padding: '6px 16px',
                             borderRadius: '20px',
-                            background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
-                            border: 'none',
+                            backgroundColor: 'white',
+                            color: '#333',
+                            border: '1px solid #dee2e6',
                             transition: 'all 0.3s ease'
                           }}
                           onClick={() => setIsEditing(true)}
@@ -780,6 +906,8 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
+                              backgroundColor: '#f8f9fa',
+                                backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
                               }}
@@ -825,6 +953,8 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
+                              backgroundColor: '#f8f9fa',
+                                backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
                               }}
@@ -870,6 +1000,8 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
+                              backgroundColor: '#f8f9fa',
+                                backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
                               }}
@@ -901,6 +1033,7 @@ const PatientDashboard = () => {
                               fontSize: '13px',
                               borderRadius: '10px',
                               border: '2px solid #e9ecef',
+                              backgroundColor: '#f8f9fa',
                               transition: 'all 0.3s ease',
                               padding: '8px 12px'
                             }}
@@ -929,6 +1062,7 @@ const PatientDashboard = () => {
                               fontSize: '13px',
                               borderRadius: '10px',
                               border: '2px solid #e9ecef',
+                              backgroundColor: '#f8f9fa',
                               transition: 'all 0.3s ease',
                               padding: '8px 12px'
                             }}
@@ -947,7 +1081,7 @@ const PatientDashboard = () => {
                             <option value="Khác">Khác</option>
                           </select>
                         ) : (
-                          <p className="mb-0 fw-medium" style={{ fontSize: '13px', color: '#2d3436' }}>{user?.gender || 'Chưa cập nhật'}</p>
+                          <p className="mb-0 fw-medium" style={{ fontSize: '13px', color: '#2d3436' }}>{mapGenderFromBackend(user?.gender) || 'Chưa cập nhật'}</p>
                         )}
                       </div>
                       {/* Address Section - All on one row */}
@@ -965,6 +1099,9 @@ const PatientDashboard = () => {
                                   fontSize: '13px',
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
+                                  backgroundColor: '#f8f9fa',
+                              backgroundColor: '#f8f9fa',
+                                backgroundColor: '#f8f9fa',
                                   transition: 'all 0.3s ease',
                                   padding: '8px 12px'
                                 }}
@@ -1003,6 +1140,9 @@ const PatientDashboard = () => {
                                   fontSize: '13px',
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
+                                  backgroundColor: '#f8f9fa',
+                              backgroundColor: '#f8f9fa',
+                                backgroundColor: '#f8f9fa',
                                   transition: 'all 0.3s ease',
                                   padding: '8px 12px'
                                 }}
@@ -1042,6 +1182,9 @@ const PatientDashboard = () => {
                                   fontSize: '13px',
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
+                                  backgroundColor: '#f8f9fa',
+                              backgroundColor: '#f8f9fa',
+                                backgroundColor: '#f8f9fa',
                                   transition: 'all 0.3s ease',
                                   padding: '8px 12px'
                                 }}
@@ -1071,6 +1214,34 @@ const PatientDashboard = () => {
                       </div>
                       </div>
                       </div>
+                      
+                      <div className="col-12">
+                        <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Lịch sử bệnh án</label>
+                        {isEditing ? (
+                          <div>
+                            <textarea 
+                              name="medicalHistory" 
+                              value={formData.medicalHistory || ''} 
+                              onChange={handleInputChange}
+                              className={`form-control ${errors.medicalHistory ? 'is-invalid' : ''}`}
+                              placeholder="Nhập lịch sử bệnh án (nếu có)"
+                              rows={3}
+                              style={{ 
+                                fontSize: '13px',
+                                borderRadius: '10px',
+                                border: '2px solid #e9ecef',
+                                backgroundColor: '#f8f9fa',
+                                transition: 'all 0.3s ease',
+                                padding: '8px 12px',
+                                resize: 'vertical'
+                              }}
+                            />
+                            {errors.medicalHistory && <div className="invalid-feedback" style={{ fontSize: '10px' }}>{errors.medicalHistory}</div>}
+                          </div>
+                        ) : (
+                          <p className="mb-0 fw-medium text-muted" style={{ fontSize: '13px' }}>{user?.medicalHistory || 'Chưa cập nhật'}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -1081,28 +1252,33 @@ const PatientDashboard = () => {
                       <div className="col-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Mã BHYT</label>
                         {isEditing ? (
-                          <input 
-                            type="text" 
-                            name="healthInsurance" 
-                            value={formData.healthInsurance || ''} 
-                            onChange={handleInputChange}
-                            className="form-control"
-                            style={{ 
-                              fontSize: '13px',
-                              borderRadius: '10px',
-                              border: '2px solid #e9ecef',
-                              transition: 'all 0.3s ease',
-                              padding: '8px 12px'
-                            }}
-                            onFocus={(e) => {
-                              e.target.style.borderColor = '#667eea';
-                              e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
-                            }}
-                            onBlur={(e) => {
-                              e.target.style.borderColor = '#e9ecef';
-                              e.target.style.boxShadow = 'none';
-                            }}
-                          />
+                          <div>
+                            <input 
+                              type="text" 
+                              name="healthInsurance" 
+                              value={formData.healthInsurance || ''} 
+                              onChange={handleInputChange}
+                              className={`form-control ${errors.healthInsurance ? 'is-invalid' : ''}`}
+                              placeholder="Nhập mã BHYT"
+                              style={{ 
+                                fontSize: '13px',
+                                borderRadius: '10px',
+                                border: '2px solid #e9ecef',
+                                backgroundColor: '#f8f9fa',
+                                transition: 'all 0.3s ease',
+                                padding: '8px 12px'
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor = '#667eea';
+                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor = '#e9ecef';
+                                e.target.style.boxShadow = 'none';
+                              }}
+                            />
+                            {errors.healthInsurance && <div className="invalid-feedback" style={{ fontSize: '10px' }}>{errors.healthInsurance}</div>}
+                      </div>
                         ) : (
                           <p className="mb-0 fw-medium text-muted" style={{ fontSize: '13px' }}>{user?.healthInsurance || 'Chưa cập nhật'}</p>
                         )}
@@ -1121,6 +1297,8 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
+                              backgroundColor: '#f8f9fa',
+                                backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
                               }}
@@ -1140,7 +1318,7 @@ const PatientDashboard = () => {
                         )}
                       </div>
                       </div>
-                      </div>
+                    </div>
                   
                   {/* Action Buttons */}
                   {isEditing && (
@@ -1205,7 +1383,7 @@ const PatientDashboard = () => {
                         <X size={14} className="me-2" />
                         Hủy
                       </button>
-                    </div>
+                  </div>
                   )}
                   
                   {/* Change Password Section */}
@@ -1215,14 +1393,15 @@ const PatientDashboard = () => {
                         <h6 className="card-title mb-0 fw-bold" style={{ fontSize: '16px', color: '#2d3436' }}>Thay đổi mật khẩu</h6>
                         {!isEditingPassword && (
                           <button 
-                            className="btn btn-primary btn-sm shadow-sm" 
+                            className="btn btn-light btn-sm shadow-sm border" 
                             onClick={() => setIsEditingPassword(true)}
                             style={{ 
                               fontSize: '12px', 
                               padding: '6px 16px',
                               borderRadius: '20px',
-                              background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
-                              border: 'none',
+                              backgroundColor: 'white',
+                              color: '#333',
+                              border: '1px solid #dee2e6',
                               transition: 'all 0.3s ease'
                             }}
                             onMouseEnter={(e) => {
@@ -1243,60 +1422,82 @@ const PatientDashboard = () => {
                         <div>
                           <div className="mb-3">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Mật khẩu hiện tại *</label>
-                            <input 
-                              type="password" 
-                              name="currentPassword"
-                              value={passwordData.currentPassword}
-                              onChange={handlePasswordChange}
-                              className={`form-control ${passwordErrors.currentPassword ? 'is-invalid' : ''}`}
-                              placeholder="Mật khẩu hiện tại của bạn"
-                              style={{ 
-                                fontSize: '13px',
-                                borderRadius: '10px',
-                                border: '2px solid #e9ecef',
-                                transition: 'all 0.3s ease',
-                                padding: '8px 12px'
-                              }}
-                              onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
-                              }}
-                              onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
-                              }}
-                            />
+                            <div className="position-relative">
+                              <input 
+                                type={showCurrentPassword ? "text" : "password"} 
+                                name="currentPassword"
+                                value={passwordData.currentPassword}
+                                onChange={handlePasswordChange}
+                                className={`form-control ${passwordErrors.currentPassword ? 'is-invalid' : ''}`}
+                                placeholder="Mật khẩu hiện tại của bạn"
+                                style={{ 
+                                  fontSize: '13px',
+                                  borderRadius: '10px',
+                                  border: '2px solid #e9ecef',
+                                  backgroundColor: '#f8f9fa',
+                                  transition: 'all 0.3s ease',
+                                  padding: '8px 40px 8px 12px'
+                                }}
+                                onFocus={(e) => {
+                                  e.target.style.borderColor = '#667eea';
+                                  e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
+                                }}
+                                onBlur={(e) => {
+                                  e.target.style.borderColor = '#e9ecef';
+                                  e.target.style.boxShadow = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-link position-absolute top-50 end-0 translate-middle-y pe-3"
+                                style={{ border: 'none', background: 'none', padding: '0', color: '#0d6efd !important' }}
+                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                              >
+                                {showCurrentPassword ? <EyeOff size={16} style={{ color: '#0d6efd !important' }} /> : <Eye size={16} style={{ color: '#0d6efd !important' }} />}
+                              </button>
+                </div>
                             {passwordErrors.currentPassword && (
                               <div className="invalid-feedback" style={{ fontSize: '10px' }}>
                                 {passwordErrors.currentPassword}
-                </div>
-                            )}
               </div>
+                            )}
+                          </div>
                           <div className="mb-3">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Mật khẩu mới *</label>
-                            <input 
-                              type="password" 
-                              name="newPassword"
-                              value={passwordData.newPassword}
-                              onChange={handlePasswordChange}
-                              className={`form-control ${passwordErrors.newPassword ? 'is-invalid' : ''}`}
-                              placeholder="Nhập mật khẩu mới"
-                              style={{ 
-                                fontSize: '13px',
-                                borderRadius: '10px',
-                                border: '2px solid #e9ecef',
-                                transition: 'all 0.3s ease',
-                                padding: '8px 12px'
-                              }}
-                              onFocus={(e) => {
-                                e.target.style.borderColor = '#667eea';
-                                e.target.style.boxShadow = '0 0 0 0.2rem rgba(102,126,234,0.25)';
-                              }}
-                              onBlur={(e) => {
-                                e.target.style.borderColor = '#e9ecef';
-                                e.target.style.boxShadow = 'none';
-                              }}
-                            />
+                            <div className="position-relative">
+                              <input 
+                                type={showNewPassword ? "text" : "password"} 
+                                name="newPassword"
+                                value={passwordData.newPassword}
+                                onChange={handlePasswordChange}
+                                className={`form-control ${passwordErrors.newPassword ? 'is-invalid' : ''}`}
+                                placeholder="Nhập mật khẩu mới"
+                                style={{ 
+                                  fontSize: '13px',
+                                  borderRadius: '10px',
+                                  border: '2px solid #e9ecef',
+                                  backgroundColor: '#f8f9fa',
+                                  transition: 'all 0.3s ease',
+                                  padding: '8px 40px 8px 12px'
+                                }}
+                                onFocus={(e) => {
+                                  e.target.style.borderColor = '#667eea';
+                                  e.target.style.boxShadow = '0 0 0 0.2rem rgba(27, 184, 241, 0.25)';
+                                }}
+                                onBlur={(e) => {
+                                  e.target.style.borderColor = '#e9ecef';
+                                  e.target.style.boxShadow = 'none';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-link position-absolute top-50 end-0 translate-middle-y pe-3"
+                                style={{ border: 'none', background: 'none', padding: '0', color: '#0d6efd !important' }}
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                              >
+                                {showNewPassword ? <EyeOff size={16} style={{ color: '#0d6efd !important' }} /> : <Eye size={16} style={{ color: '#0d6efd !important' }} />}
+                              </button>
+                            </div>
                             {passwordErrors.newPassword && (
                               <div className="invalid-feedback" style={{ fontSize: '10px' }}>
                                 {passwordErrors.newPassword}
@@ -1327,7 +1528,17 @@ const PatientDashboard = () => {
                                 e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
                               }}
                             >
-                              {uploading ? 'Đang lưu...' : 'Lưu'}
+                              {uploading ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                  Đang lưu...
+                                </>
+                              ) : (
+                                <>
+                                  <Save size={14} className="me-2" />
+                                  Lưu thay đổi
+                                </>
+                              )}
                             </button>
                             <button 
                               className="btn btn-outline-danger btn-sm shadow-sm" 
@@ -1534,62 +1745,49 @@ const PatientDashboard = () => {
       {showAvatarModal && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', maxWidth: '400px' }}>
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', maxWidth: '600px' }}>
               <div className="modal-body p-0 text-center">
                 {/* Large Avatar Display */}
                 <div className="p-4" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
-                  {user?.avatar ? (
+                  {user?.avatarUrl ? (
                     <img 
-                      src={user.avatar} 
+                      src={(() => {
+                        let avatarUrl = user.avatarUrl.startsWith('/uploads/') ? 
+                          `http://localhost:8080${user.avatarUrl}` : 
+                          user.avatarUrl;
+                        // Add cache busting timestamp
+                        const separator = avatarUrl.includes('?') ? '&' : '?';
+                        avatarUrl += `${separator}t=${Date.now()}`;
+                        console.log('🖼️ Modal avatar URL:', avatarUrl);
+                        return avatarUrl;
+                      })()} 
                       alt="Avatar" 
                       className="img-fluid rounded-circle shadow-lg"
                       style={{ 
-                        width: '200px', 
-                        height: '200px', 
+                        width: '400px', 
+                        height: '400px', 
+                        objectFit: 'cover',
+                        border: '4px solid white',
+                        boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
+                      }}
+                      onError={(e) => {
+                        console.error('❌ Error loading avatar image:', e);
+                        e.target.src = defaultAvatarDataUrl;
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={defaultAvatarDataUrl}
+                      alt="Avatar"
+                      className="img-fluid rounded-circle shadow-lg"
+                      style={{ 
+                        width: '400px', 
+                        height: '400px', 
                         objectFit: 'cover',
                         border: '4px solid white',
                         boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
                       }}
                     />
-                  ) : (
-                    <div 
-                      className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold mx-auto shadow-lg"
-                      style={{ 
-                        width: '200px', 
-                        height: '200px', 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        fontSize: '60px',
-                        border: '4px solid white',
-                        boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
-                      }}
-                    >
-                      {(() => {
-                        if (!user) return 'U';
-                        
-                        // Tạo initials từ tên
-                        if (user.firstName && user.lastName) {
-                          return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
-                        } else if (user.firstName) {
-                          return user.firstName.charAt(0).toUpperCase();
-                        } else if (user.fullName) {
-                          const names = user.fullName.split(' ');
-                          if (names.length >= 2) {
-                            return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                          }
-                          return user.fullName.charAt(0).toUpperCase();
-                        } else if (user.name) {
-                          const names = user.name.split(' ');
-                          if (names.length >= 2) {
-                            return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-                          }
-                          return user.name.charAt(0).toUpperCase();
-                        } else if (user.email) {
-                          return user.email.charAt(0).toUpperCase();
-                        } else {
-                          return 'U';
-                        }
-                      })()}
-                    </div>
                   )}
                 </div>
 

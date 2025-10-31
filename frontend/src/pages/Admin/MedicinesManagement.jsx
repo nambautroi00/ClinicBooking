@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, Container, Row, Col, Button, Table, Modal, Form, Alert } from "react-bootstrap";
 import { Package, Plus, Edit, Search, Trash2 } from "lucide-react";
 import medicineApi from "../../api/medicineApi";
+import { toast } from "../../utils/toast";
 
 const MedicinesManagement = () => {
   const [medicines, setMedicines] = useState([]);
@@ -15,11 +16,23 @@ const MedicinesManagement = () => {
     strength: '',
     category: '',
     price: '',
-    unit: 'viên',
-    stock: '',
-    expiryDate: '',
-    description: ''
+    unit: 'viên'
   });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [medicineToDelete, setMedicineToDelete] = useState(null);
+
+  // Build unique category suggestions from current list
+  const categoryOptions = React.useMemo(() => {
+    try {
+      const set = new Set();
+      (medicines || []).forEach(m => {
+        if (m && m.category && String(m.category).trim()) set.add(String(m.category).trim());
+      });
+      return Array.from(set);
+    } catch (e) {
+      return [];
+    }
+  }, [medicines]);
 
   useEffect(() => {
     loadMedicines();
@@ -39,7 +52,6 @@ const MedicinesManagement = () => {
         manufacturer: medicine.manufacturer || 'Chưa cập nhật',
         price: medicine.unitPrice || 0,
         unit: medicine.unit || 'Viên',
-        stock: medicine.stock || Math.floor(Math.random() * 500) + 10, // random stock nếu không có
         expiryDate: medicine.expiryDate || '2025-12-31',
         description: medicine.note || medicine.description || ''
       }));
@@ -59,7 +71,6 @@ const MedicinesManagement = () => {
           manufacturer: 'Traphaco',
           price: 15000,
           unit: 'Viên',
-          stock: 500,
           expiryDate: '2025-12-31',
           description: 'Thuốc giảm đau, hạ sốt'
         },
@@ -72,7 +83,6 @@ const MedicinesManagement = () => {
           manufacturer: 'Imexpharm',
           price: 25000,
           unit: 'Viên',
-          stock: 300,
           expiryDate: '2026-06-30',
           description: 'Kháng sinh điều trị nhiễm khuẩn'
         },
@@ -85,7 +95,6 @@ const MedicinesManagement = () => {
           manufacturer: 'DHG Pharma',
           price: 120000,
           unit: 'Viên',
-          stock: 150,
           expiryDate: '2025-09-15',
           description: 'Bổ sung vitamin C'
         },
@@ -98,7 +107,6 @@ const MedicinesManagement = () => {
           manufacturer: 'Pymepharco',
           price: 35000,
           unit: 'Viên',
-          stock: 8,
           expiryDate: '2025-11-20',
           description: 'Thuốc chống đông máu'
         },
@@ -111,7 +119,6 @@ const MedicinesManagement = () => {
           manufacturer: 'Boston',
           price: 45000,
           unit: 'Viên',
-          stock: 0,
           expiryDate: '2025-08-10',
           description: 'Thuốc điều trị loét dạ dày'
         },
@@ -124,7 +131,6 @@ const MedicinesManagement = () => {
           manufacturer: 'Mediplantex',
           price: 55000,
           unit: 'Viên',
-          stock: 200,
           expiryDate: '2026-03-25',
           description: 'Kháng sinh nhóm Cephalosporin'
         }
@@ -145,7 +151,7 @@ const MedicinesManagement = () => {
   const handleAddNew = () => {
     setSelectedMedicine(null);
     setModalData({
-      medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên', stock: '', expiryDate: '', description: ''
+      medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên'
     });
     setShowModal(true);
   };
@@ -159,60 +165,79 @@ const MedicinesManagement = () => {
       category: medicine.category || '',
       price: medicine.price || '',
       unit: medicine.unit || 'viên',
-      stock: medicine.stock || '',
-      expiryDate: medicine.expiryDate ? (medicine.expiryDate.split && medicine.expiryDate.split('T')[0]) : '',
-      description: medicine.description || ''
     });
     setShowModal(true);
   };
 
-  const handleDelete = async (medicineId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa thuốc này?')) {
-      try {
-        await medicineApi.delete(medicineId);
-        loadMedicines();
-      } catch (error) {
-        console.error('Lỗi khi xóa thuốc:', error);
-        alert('Có lỗi khi xóa thuốc. Vui lòng thử lại.');
-      }
+  const handleDeleteClick = (medicine) => {
+    setMedicineToDelete(medicine);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!medicineToDelete) return;
+    try {
+      await medicineApi.delete(medicineToDelete.id);
+      setShowDeleteConfirm(false);
+      setMedicineToDelete(null);
+      loadMedicines();
+      toast.success('Đã xóa thuốc thành công');
+    } catch (error) {
+      console.error('Lỗi khi xóa thuốc:', error);
+      toast.error('Có lỗi khi xóa thuốc. Vui lòng thử lại.');
     }
   };
 
   const handleSave = async () => {
     // Minimal validation: medicineId, name, price required
-    if (!modalData.medicineId || !modalData.name || modalData.price === '' || modalData.price === null) {
-      alert('Vui lòng nhập đầy đủ: Mã thuốc, Tên thuốc và Đơn giá.');
+    const trimmedId = String(modalData.medicineId || '').trim();
+    const trimmedName = String(modalData.name || '').trim();
+    const priceNumber = Number(modalData.price);
+
+    if (!trimmedId || !trimmedName || modalData.price === '' || modalData.price === null || Number.isNaN(priceNumber)) {
+      toast.warning('Vui lòng nhập đầy đủ và hợp lệ: Mã thuốc, Tên thuốc và Đơn giá.');
+      return;
+    }
+
+    if (priceNumber <= 0) {
+      toast.warning('Đơn giá phải lớn hơn 0');
+      return;
+    }
+
+    // Duplicate ID check (exclude the item being edited)
+    const duplicateId = medicines.some(m => String(m.medicineId).trim() === trimmedId && (!selectedMedicine || m.id !== selectedMedicine.id));
+    if (duplicateId) {
+      toast.error('Mã thuốc đã tồn tại. Vui lòng chọn mã khác.');
       return;
     }
 
     const payload = {
-      medicineId: modalData.medicineId,
-      name: modalData.name,
+      medicineId: trimmedId,
+      name: trimmedName,
       strength: modalData.strength || undefined,
-      category: modalData.category || undefined,
+      category: (modalData.category || '').trim() || undefined,
       // backend expects category in `note` field in current mapping, include it so updates persist
-      note: modalData.category || undefined,
-      unitPrice: Number(modalData.price) || 0,
+      note: (modalData.category || '').trim() || undefined,
+      unitPrice: priceNumber || 0,
       unit: modalData.unit || 'viên',
-      stock: modalData.stock !== '' ? Number(modalData.stock) : undefined,
-      expiryDate: modalData.expiryDate || undefined,
-      description: modalData.description || undefined
     };
 
     try {
       if (selectedMedicine) {
         await medicineApi.update(selectedMedicine.id, payload);
+        toast.success('Cập nhật thuốc thành công');
       } else {
         await medicineApi.create(payload);
+        toast.success('Thêm thuốc thành công');
       }
       setShowModal(false);
       // reset
   setSelectedMedicine(null);
-  setModalData({ medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên', stock: '', expiryDate: '', description: '' });
+      setModalData({ medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên' });
       loadMedicines();
     } catch (error) {
       console.error('Lỗi khi lưu thuốc:', error);
-      alert('Có lỗi khi lưu thuốc. Vui lòng thử lại.');
+      toast.error('Có lỗi khi lưu thuốc. Vui lòng thử lại.');
     }
   };
 
@@ -241,37 +266,13 @@ const MedicinesManagement = () => {
         </Col>
       </Row>
 
-      {/* Stats Cards */}
+      {/* Stats Cards (only showing total) */}
       <Row className="mb-4">
         <Col md={3}>
           <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #0d6efd"}}>
             <Card.Body>
               <h3 className="text-primary">{medicines.length}</h3>
               <p className="text-muted mb-0">Tổng Loại Thuốc</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #198754"}}>
-            <Card.Body>
-              <h3 className="text-success">{medicines.filter(m => (m.stock || 0) > 0).length}</h3>
-              <p className="text-muted mb-0">Còn Hàng</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #ffc107"}}>
-            <Card.Body>
-              <h3 className="text-warning">{medicines.filter(m => (m.stock || 0) <= 10 && (m.stock || 0) > 0).length}</h3>
-              <p className="text-muted mb-0">Sắp Hết</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #dc3545"}}>
-            <Card.Body>
-              <h3 className="text-danger">{medicines.filter(m => (m.stock || 0) === 0).length}</h3>
-              <p className="text-muted mb-0">Hết Hàng</p>
             </Card.Body>
           </Card>
         </Col>
@@ -318,7 +319,7 @@ const MedicinesManagement = () => {
                   <th>Hàm lượng</th>
                   <th>Loại</th>
                   <th>Đơn Giá</th>
-                  <th>Tồn Kho</th>
+                  {/* Bỏ cột tồn kho */}
                   <th>Thao Tác</th>
                 </tr>
               </thead>
@@ -344,14 +345,7 @@ const MedicinesManagement = () => {
                       <br />
                       <small className="text-muted">/{medicine.unit || 'đơn vị'}</small>
                     </td>
-                    <td>
-                      <span className={`badge ${
-                        (medicine.stock || 0) === 0 ? 'bg-danger' :
-                        (medicine.stock || 0) <= 10 ? 'bg-warning' : 'bg-success'
-                      }`}>
-                        {medicine.stock || 0}
-                      </span>
-                    </td>
+                    {/* Bỏ hiển thị tồn kho */}
                     <td>
                       <Button 
                         variant="outline-primary" 
@@ -364,7 +358,7 @@ const MedicinesManagement = () => {
                       <Button 
                         variant="outline-danger" 
                         size="sm"
-                        onClick={() => handleDelete(medicine.id)}
+                        onClick={() => handleDeleteClick(medicine)}
                       >
                         <Trash2 size={14} />
                       </Button>
@@ -425,23 +419,23 @@ const MedicinesManagement = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Loại thuốc</Form.Label>
-                  <Form.Select value={modalData.category} onChange={(e) => setModalData(prev => ({...prev, category: e.target.value}))}>
-                    <option value="">Chọn loại</option>
-                    {/* If current category is non-empty and not in the list, show it as the first selectable option */}
-                    {modalData.category && !["Kháng sinh","Giảm đau, hạ sốt","Tiêu hóa","Tim mạch","Hô hấp"].includes(modalData.category) && (
-                      <option value={modalData.category}>{modalData.category}</option>
-                    )}
-                    <option value="Kháng sinh">Kháng sinh</option>
-                    <option value="Giảm đau, hạ sốt">Giảm đau, hạ sốt</option>
-                    <option value="Tiêu hóa">Tiêu hóa</option>
-                    <option value="Tim mạch">Tim mạch</option>
-                    <option value="Hô hấp">Hô hấp</option>
-                  </Form.Select>
+                  <Form.Control
+                    type="text"
+                    list="categoryOptions"
+                    placeholder="Nhập hoặc chọn loại thuốc"
+                    value={modalData.category}
+                    onChange={(e) => setModalData(prev => ({...prev, category: e.target.value}))}
+                  />
+                  <datalist id="categoryOptions">
+                    {categoryOptions.map(c => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
                 </Form.Group>
               </Col>
             </Row>
             <Row>
-              <Col md={4}>
+              <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Đơn giá *</Form.Label>
                   <Form.Control 
@@ -452,7 +446,7 @@ const MedicinesManagement = () => {
                   />
                 </Form.Group>
               </Col>
-              <Col md={4}>
+              <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Đơn vị</Form.Label>
                   <Form.Select value={modalData.unit} onChange={(e) => setModalData(prev => ({...prev, unit: e.target.value}))}>
@@ -464,37 +458,8 @@ const MedicinesManagement = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Tồn kho</Form.Label>
-                  <Form.Control 
-                    type="number" 
-                    placeholder="Số lượng"
-                    value={modalData.stock}
-                    onChange={(e) => setModalData(prev => ({...prev, stock: e.target.value}))}
-                  />
-                </Form.Group>
-              </Col>
             </Row>
             {/* manufacturer removed - not required */}
-            <Form.Group className="mb-3">
-              <Form.Label>Hạn sử dụng</Form.Label>
-              <Form.Control 
-                type="date"
-                value={modalData.expiryDate}
-                onChange={(e) => setModalData(prev => ({...prev, expiryDate: e.target.value}))}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Mô tả</Form.Label>
-              <Form.Control 
-                as="textarea" 
-                rows={3} 
-                placeholder="Mô tả thuốc..."
-                value={modalData.description}
-                onChange={(e) => setModalData(prev => ({...prev, description: e.target.value}))}
-              />
-            </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -504,6 +469,20 @@ const MedicinesManagement = () => {
           <Button variant="primary" onClick={() => handleSave()}>
             {selectedMedicine ? 'Cập Nhật' : 'Thêm Thuốc'}
           </Button>
+        </Modal.Footer>
+      </Modal>
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteConfirm} onHide={() => setShowDeleteConfirm(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Xác Nhận Xóa Thuốc</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Bạn có chắc chắn muốn xóa thuốc <strong>{medicineToDelete?.name}</strong> ({medicineToDelete?.medicineId})?</p>
+          <p className="text-muted">Thao tác này không thể hoàn tác.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Hủy</Button>
+          <Button variant="danger" onClick={handleConfirmDelete}>Xóa</Button>
         </Modal.Footer>
       </Modal>
     </Container>

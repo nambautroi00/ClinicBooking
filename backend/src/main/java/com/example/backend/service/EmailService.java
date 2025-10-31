@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.example.backend.model.User;
 
 @Service
 @RequiredArgsConstructor
@@ -43,5 +44,19 @@ public class EmailService {
             // if mail is not configured or fails, still log
             log.error("Failed to send email to {} subject={} error={}", to, subject, ex.getMessage());
         }
+    }
+
+    // Convenience helper for welcome emails
+    public void sendWelcomeEmail(User user) {
+        if (user == null) return;
+        String to = user.getEmail();
+        String fullName = (user.getFirstName() != null ? user.getFirstName() : "")
+                + (user.getLastName() != null ? (" " + user.getLastName()) : "");
+        String subject = "Chào mừng bạn đến với ClinicBooking";
+        String body = "Xin chào " + (fullName.trim().isEmpty() ? "bạn" : fullName.trim()) + ",\n\n" +
+                "Tài khoản của bạn đã được tạo thành công.\n" +
+                "Bạn có thể đăng nhập và quản lý hồ sơ khám bệnh, đặt lịch hẹn nhanh chóng.\n\n" +
+                "Trân trọng,\nClinicBooking";
+        sendSimpleEmail(to, subject, body);
     }
 }

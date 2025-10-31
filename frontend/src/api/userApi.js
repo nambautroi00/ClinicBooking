@@ -28,6 +28,11 @@ const userApi = {
     return axiosClient.get(`/users/email/${email}`);
   },
 
+  // Lấy thông tin user hiện tại
+  getCurrentUser: () => {
+    return axiosClient.get('/users/me');
+  },
+
   // Tìm kiếm users với bộ lọc
   searchUsers: (filters = {}) => {
     const params = new URLSearchParams();

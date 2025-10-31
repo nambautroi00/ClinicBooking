@@ -50,21 +50,35 @@ const PatientMedicalRecords = () => {
       const response = await medicalRecordApi.getMedicalRecordsByPatient(patientId);
       console.log('✅ Response từ backend:', response);
       
-      // Transform data from backend format to frontend format if needed
-      const records = Array.isArray(response.data) ? response.data.map(record => ({
-        id: record.id || record.recordId,
-        recordId: record.recordId || `HS${record.id}`,
-        doctorName: record.doctorName || record.doctor?.user?.fullName || record.doctor?.fullName || "Chưa cập nhật",
-        visitDate: record.visitDate || record.appointmentDate || record.createdDate,
-        chiefComplaint: record.chiefComplaint || record.symptoms || "Chưa cập nhật",
-        diagnosis: record.diagnosis || "Chưa cập nhật",
-        treatment: record.treatment || record.treatmentPlan || "Chưa cập nhật",
-        status: record.status || "active",
-        vitalSigns: record.vitalSigns || {},
-        testResults: record.testResults || [],
-        prescription: record.prescription || record.prescriptions || "Chưa có đơn thuốc",
-        notes: record.notes || ""
-      })) : [];
+      // Transform data from backend format to frontend format
+      const records = Array.isArray(response.data) ? response.data.map(record => {
+        console.log('🔍 Processing record:', {
+          recordId: record.recordId,
+          diagnosis: record.diagnosis,
+          advice: record.advice,
+          prescription: record.prescription,
+          appointmentDate: record.appointmentDate
+        });
+        
+        return {
+          id: record.recordId,
+          recordId: record.recordId,
+          doctorName: record.doctorName || "Chưa cập nhật",
+          visitDate: record.appointmentDate || record.createdAt,
+          chiefComplaint: record.advice || "Chưa cập nhật",
+          diagnosis: record.diagnosis || "Chưa cập nhật",
+          treatment: record.advice || "Chưa cập nhật",
+          status: "completed",
+          vitalSigns: {},
+          testResults: [],
+          prescription: record.prescription,
+          advice: record.advice || "",
+          createdAt: record.createdAt,
+          appointmentId: record.appointmentId,
+          patientId: record.patientId,
+          patientName: record.patientName
+        };
+      }) : [];
       
       console.log('📋 Đã xử lý', records.length, 'hồ sơ bệnh án');
       setMedicalRecords(records);
@@ -188,8 +202,8 @@ const PatientMedicalRecords = () => {
                       <th>Mã hồ sơ</th>
                       <th>Bác sĩ khám</th>
                       <th>Ngày khám</th>
-                      <th>Triệu chứng</th>
                       <th>Chẩn đoán</th>
+                      <th>Đơn thuốc</th>
                       <th>Trạng thái</th>
                       <th className="text-center">Thao tác</th>
                     </tr>
@@ -207,10 +221,16 @@ const PatientMedicalRecords = () => {
                         </td>
                         <td>
                           <Calendar size={14} className="me-1" />
-                          {new Date(record.visitDate).toLocaleDateString('vi-VN')}
+                          {record.visitDate ? new Date(record.visitDate).toLocaleDateString('vi-VN') : 'N/A'}
                         </td>
-                        <td>{record.chiefComplaint}</td>
-                        <td>{record.diagnosis}</td>
+                        <td>{record.diagnosis || "Chưa cập nhật"}</td>
+                        <td>
+                          {record.prescription ? (
+                            <Badge bg="success">Có đơn thuốc</Badge>
+                          ) : (
+                            <Badge bg="secondary">Chưa kê đơn</Badge>
+                          )}
+                        </td>
                         <td>{getStatusBadge(record.status)}</td>
                         <td className="text-center">
                           <div className="btn-group" role="group">
@@ -276,20 +296,43 @@ const PatientMedicalRecords = () => {
                 <hr />
                 <Row>
                   <Col>
-                    <h6>Triệu chứng</h6>
-                    <p>{selectedRecord.chiefComplaint}</p>
-                    
                     <h6>Chẩn đoán</h6>
-                    <p>{selectedRecord.diagnosis}</p>
+                    <p>{selectedRecord.diagnosis || "Chưa cập nhật"}</p>
                     
-                    <h6>Điều trị</h6>
-                    <p>{selectedRecord.treatment}</p>
+                    {selectedRecord.advice && (
+                      <>
+                        <h6>Lời khuyên</h6>
+                        <p>{selectedRecord.advice}</p>
+                      </>
+                    )}
                     
                     {selectedRecord.prescription && (
                       <>
                         <h6>Đơn thuốc</h6>
                         <div className="bg-light p-3 rounded">
-                          <pre style={{margin: 0, fontFamily: 'inherit'}}>{selectedRecord.prescription}</pre>
+                          {selectedRecord.prescription.notes && (
+                            <p><strong>Ghi chú:</strong> {selectedRecord.prescription.notes}</p>
+                          )}
+                          {selectedRecord.prescription.items && selectedRecord.prescription.items.length > 0 ? (
+                            <div className="mt-2">
+                              <strong>Thuốc kê đơn:</strong>
+                              <ul className="mt-2">
+                                {selectedRecord.prescription.items.map((item, index) => (
+                                  <li key={index} className="mb-2">
+                                    <strong>{item.medicineName || `Thuốc ${index + 1}`}</strong>
+                                    <br />
+                                    <small className="text-muted">
+                                      Liều: {item.dosage || 'N/A'} | 
+                                      Thời gian: {item.duration || 'N/A'} | 
+                                      Số lượng: {item.quantity || 1}
+                                    </small>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : (
+                            <p className="text-muted">Không có thuốc nào được kê</p>
+                          )}
                         </div>
                       </>
                     )}

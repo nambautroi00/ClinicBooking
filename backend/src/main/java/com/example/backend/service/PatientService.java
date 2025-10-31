@@ -16,6 +16,8 @@ import com.example.backend.model.User;
 import com.example.backend.repository.PatientRepository;
 import com.example.backend.repository.RoleRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.service.SystemNotificationService;
+import com.example.backend.service.EmailService;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -35,6 +37,8 @@ public class PatientService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SystemNotificationService systemNotificationService;
+    private final EmailService emailService;
     
     @PersistenceContext
     private EntityManager entityManager;
@@ -246,6 +250,10 @@ public class PatientService {
         user.setAddress(request.getAddress());
         user.setRole(patientRole);
         user.setStatus(User.UserStatus.ACTIVE);
+        // Avatar mặc định nếu chưa có
+        if (user.getAvatarUrl() == null || user.getAvatarUrl().trim().isEmpty()) {
+            user.setAvatarUrl("/uploads/user_default.png");
+        }
 
         // Save User first
         User savedUser = userRepository.save(user);
@@ -256,6 +264,10 @@ public class PatientService {
 
         // 4️⃣ Tạo Patient với User ID đã tồn tại
         createPatientWithExistingUser(userId, request);
+
+        // 5️⃣ Tạo thông báo & gửi email chào mừng
+        try { systemNotificationService.createRegisterSuccess(userId); } catch (Exception ignore) {}
+        try { emailService.sendWelcomeEmail(savedUser); } catch (Exception ignore) {}
     }
 
     // Check if email already exists in users (helper used before creating pending registration)

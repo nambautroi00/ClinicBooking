@@ -6,7 +6,6 @@ import prescriptionApi from "../../api/prescriptionApi";
 import medicineApi from "../../api/medicineApi";
 import patientApi from "../../api/patientApi";
 import appointmentApi from "../../api/appointmentApi";
-import medicalRecordApi from "../../api/medicalRecordApi";
 import Cookies from 'js-cookie';
 
 const PrescriptionForm = () => {
@@ -48,6 +47,26 @@ const PrescriptionForm = () => {
     loadPatients();
     loadAppointments();
   }, []);
+
+  // Debug: Log why save button is disabled
+  useEffect(() => {
+    const isDisabled = 
+      formData.medicines.length === 0 || 
+      !formData.patientId || 
+      !formData.diagnosis.trim() ||
+      formData.medicines.some(med => !med.medicineId || !med.dosage || med.quantity === undefined || med.quantity === null || med.quantity <= 0);
+    
+    if (isDisabled) {
+      console.log('🔍 Save button disabled because:');
+      if (formData.medicines.length === 0) console.log('  - No medicines');
+      if (!formData.patientId) console.log('  - No patientId');
+      if (!formData.diagnosis.trim()) console.log('  - No diagnosis');
+      const invalidMeds = formData.medicines.filter(med => !med.medicineId || !med.dosage || med.quantity === undefined || med.quantity === null || med.quantity <= 0);
+      if (invalidMeds.length > 0) {
+        console.log('  - Invalid medicines:', invalidMeds);
+      }
+    }
+  }, [formData]);
 
   // Auto-fill patient info if coming from appointment
   useEffect(() => {
@@ -330,20 +349,43 @@ const PrescriptionForm = () => {
       return;
     }
 
+    // Ensure quantity is a valid number
+    const quantity = parseInt(currentMedicine.quantity) || 1;
+    
     const newMedicine = {
       ...currentMedicine,
       id: Date.now(),
-      medicineId: selectedMedicine.medicineId,
+      medicineId: selectedMedicine.medicineId || selectedMedicine.id,
       medicineName: selectedMedicine.name,
-      price: selectedMedicine.price * currentMedicine.quantity,
-      unitPrice: selectedMedicine.price,
-      unit: selectedMedicine.unit
+      quantity: quantity,
+      price: (selectedMedicine.price || 0) * quantity,
+      unitPrice: selectedMedicine.price || 0,
+      unit: selectedMedicine.unit || 'đơn vị'
     };
+    
+    // Ensure medicineId is set
+    if (!newMedicine.medicineId) {
+      console.error('❌ medicineId is missing after adding medicine:', newMedicine);
+      alert('Lỗi: Không thể xác định ID thuốc. Vui lòng thử lại.');
+      return;
+    }
+    
+    // Ensure dosage is set
+    if (!newMedicine.dosage || !newMedicine.dosage.trim()) {
+      console.error('❌ dosage is missing after adding medicine:', newMedicine);
+      alert('Lỗi: Liều dùng không được để trống. Vui lòng thử lại.');
+      return;
+    }
 
-    setFormData(prev => ({
-      ...prev,
-      medicines: [...prev.medicines, newMedicine]
-    }));
+    setFormData(prev => {
+      const updatedMedicines = [...prev.medicines, newMedicine];
+      console.log('✅ Added medicine:', newMedicine);
+      console.log('📋 Updated medicines list:', updatedMedicines);
+      return {
+        ...prev,
+        medicines: updatedMedicines
+      };
+    });
 
     // Reset current medicine
     setCurrentMedicine({
@@ -361,70 +403,6 @@ const PrescriptionForm = () => {
       medicines: prev.medicines.filter((_, index) => index !== medicineIndex)
     }));
   };
-  // đảm bảo có medical record, nếu chưa thì tạo rồi mới tạo prescription
-  async function ensureMedicalRecordAndSave(prescriptionData) {
-    // If recordId already present, nothing to do
-    if (prescriptionData.recordId) return prescriptionData;
-
-    // Try to resolve appointmentId from available sources
-    const resolvedAppointmentId = prescriptionData.appointmentId || 
-                                  formData.selectedAppointmentId || 
-                                  appointmentId || 
-                                  appointmentInfo?.appointmentId || 
-                                  location.state?.appointment?.id || 
-                                  null;
-
-    console.log('🔍 resolvedAppointmentId:', resolvedAppointmentId, 'type:', typeof resolvedAppointmentId);
-
-    if (!resolvedAppointmentId) {
-      // If no appointmentId, but we have recordId, use it
-      if (prescriptionData.recordId) {
-        return prescriptionData;
-      }
-      // Database requires appointmentid non-null; fail fast with clear message
-      throw new Error('Không thể tạo hồ sơ bệnh án tự động vì thiếu appointmentId. Vui lòng chọn lịch hẹn từ danh sách hoặc mở kê đơn từ trang lịch hẹn.');
-    }
-
-    // Try to find existing medical record for this appointment
-    try {
-      const existingRecords = await medicalRecordApi.getMedicalRecordsByAppointment(resolvedAppointmentId);
-      if (existingRecords.data && existingRecords.data.length > 0) {
-        const existingRecord = existingRecords.data[0];
-        const newRecordId = existingRecord.recordId || existingRecord.id;
-        console.log('🔍 Found existing medical record:', newRecordId);
-        prescriptionData.recordId = newRecordId;
-        return prescriptionData;
-      }
-    } catch (err) {
-      console.warn('⚠️ Could not check existing medical records:', err);
-    }
-
-    const parsedAppointmentId = parseInt(resolvedAppointmentId);
-    if (isNaN(parsedAppointmentId)) {
-      throw new Error('appointmentId không hợp lệ: ' + resolvedAppointmentId);
-    }
-
-    const medicalRecordPayload = {
-      appointmentId: parsedAppointmentId,
-      diagnosis: prescriptionData.diagnosis || '',
-      advice: '' // nếu form có trường advice thì thay bằng giá trị đó
-    };
-
-    console.log('💾 Creating medical record with payload:', JSON.stringify(medicalRecordPayload, null, 2));
-
-    // Gọi API tạo MedicalRecord (tùy theo api wrapper của bạn trả về resp.data hay direct)
-    const createdRecordResp = await medicalRecordApi.createMedicalRecord(medicalRecordPayload);
-    const createdRecord = createdRecordResp?.data || createdRecordResp;
-    // Backend có thể trả về id với tên id, recordId, medicalRecordId hoặc _id; thử nhiều key
-    const newRecordId = createdRecord?.recordId || createdRecord?.id || createdRecord?._id || createdRecord?.medicalRecordId;
-
-    if (!newRecordId) {
-      throw new Error('Không nhận được recordId từ server khi tạo MedicalRecord');
-    }
-
-    prescriptionData.recordId = newRecordId;
-    return prescriptionData;
-  }
 
   const handleSavePrescription = async () => {
     console.log('🔍 Checking form data before save:', formData);
@@ -447,63 +425,75 @@ const PrescriptionForm = () => {
         return;
       }
 
-      // Try to include doctorId (if available) and ensure patientId is normalized
+      // Prepare prescription data for backend
       const initialRecordId = location.state?.recordId || appointmentInfo?.recordId || '';
       const parsedRecordId = initialRecordId ? parseInt(initialRecordId) : null;
 
+      // Resolve appointmentId from various sources
+      const resolvedAppointmentId = formData.selectedAppointmentId || appointmentId || appointmentInfo?.appointmentId || location.state?.appointment?.appointmentId || null;
+      
+      // Build prescription payload
       const prescriptionData = {
-        recordId: parsedRecordId,
+        // Include recordId if available (backend will use it if present)
+        ...(parsedRecordId && { recordId: parsedRecordId }),
+        // Include appointmentId so backend can create MedicalRecord if recordId is missing
+        ...(resolvedAppointmentId && { appointmentId: parseInt(resolvedAppointmentId) }),
         notes: formData.diagnosis,
-        items: formData.medicines.map(med => ({
-          medicineId: med.medicineId,
-          dosage: med.dosage || '',
-          duration: med.duration || '',
-          note: med.instructions || ''
-        }))
+        items: formData.medicines.map(med => {
+          // Ensure medicineId is a number
+          const medicineId = parseInt(med.medicineId);
+          if (isNaN(medicineId)) {
+            throw new Error(`Medicine ID không hợp lệ: ${med.medicineId}`);
+          }
+          return {
+            medicineId: medicineId,
+            quantity: med.quantity || 1,
+            dosage: med.dosage || '',
+            duration: med.duration || '',
+            note: med.instructions || ''
+          };
+        })
       };
 
-      // Remove appointmentId and doctorId from prescriptionData as backend doesn't expect them
-      // appointmentId and doctorId are handled separately in the medical record creation
-
-      console.log('💾 Đang lưu đơn thuốc (trước khi đảm bảo medicalRecord):', JSON.stringify(prescriptionData, null, 2));
-
-      // Validate prescriptionData before sending
-      console.log('🔍 Validating prescriptionData:');
-      console.log('- recordId:', prescriptionData.recordId, 'type:', typeof prescriptionData.recordId);
-      console.log('- notes:', prescriptionData.notes, 'type:', typeof prescriptionData.notes);
-      console.log('- items length:', prescriptionData.items?.length);
-
-      prescriptionData.items?.forEach((item, index) => {
-        console.log(`- Item ${index}:`, {
-          medicineId: item.medicineId,
-          medicineIdType: typeof item.medicineId,
-          dosage: item.dosage,
-          duration: item.duration,
-          note: item.note
-        });
-      });
-
-      // ensure medical record exists and get recordId if needed
-      await ensureMedicalRecordAndSave(prescriptionData);
-      console.log('💾 prescriptionData after ensuring medical record:', JSON.stringify(prescriptionData, null, 2));
-
-      // Compute and attach totalAmount to the payload (so backend receives it if needed)
-      try {
-        const totalAmount = formData.medicines.reduce((sum, med) => sum + (Number(med.price) || 0), 0);
-        prescriptionData.totalAmount = totalAmount;
-        console.log('💰 Computed totalAmount:', totalAmount);
-      } catch (e) {
-        console.warn('⚠️ Could not compute totalAmount:', e);
-        prescriptionData.totalAmount = 0;
+      // Validate: Must have either recordId or appointmentId
+      if (!prescriptionData.recordId && !prescriptionData.appointmentId) {
+        alert('Vui lòng chọn hoặc mở từ một lịch hẹn để hệ thống tự động tạo hồ sơ bệnh án.');
+        return;
       }
+
+      // Validate appointmentId if provided
+      if (prescriptionData.appointmentId && isNaN(prescriptionData.appointmentId)) {
+        alert(`Appointment ID không hợp lệ: ${resolvedAppointmentId}`);
+        return;
+      }
+
+      console.log('💾 prescriptionData to send:', JSON.stringify(prescriptionData, null, 2));
+      console.log('🔍 Backend will:', 
+        prescriptionData.recordId 
+          ? 'use existing MedicalRecord' 
+          : 'create MedicalRecord from appointmentId');
 
       try {
         const result = await prescriptionApi.createPrescription(prescriptionData);
         console.log('✅ API response:', result);
 
-        // Show success message with more details (guard against missing totalAmount)
-        const formattedTotal = typeof prescriptionData.totalAmount === 'number' ? prescriptionData.totalAmount.toLocaleString('vi-VN') : (prescriptionData.totalAmount || 0);
+        // Calculate total amount for display
+        const totalAmount = formData.medicines.reduce((sum, med) => sum + (Number(med.price) || 0), 0);
+        const formattedTotal = totalAmount.toLocaleString('vi-VN');
+
+        // Show success message
         alert(`✅ Đã lưu đơn thuốc thành công!\n\n📋 Bệnh nhân: ${formData.patientName}\n💊 Số loại thuốc: ${formData.medicines.length}\n💰 Tổng tiền: ${formattedTotal} ₫`);
+
+        // Update appointment status to Completed (if appointmentId available)
+        if (prescriptionData.appointmentId) {
+          try {
+            await appointmentApi.updateAppointment(prescriptionData.appointmentId, { status: 'Completed' });
+            console.log('✅ Appointment status updated to Completed for', prescriptionData.appointmentId);
+          } catch (e) {
+            console.warn('⚠️ Không thể cập nhật trạng thái appointment sau khi kê đơn:', e);
+            // Don't block navigation if appointment update fails
+          }
+        }
 
         // Navigate back to prescriptions list
         console.log('🚀 Navigating to /doctor/prescriptions...');
@@ -515,6 +505,9 @@ const PrescriptionForm = () => {
         });
       } catch (apiError) {
         console.error('❌ Lỗi khi lưu đơn thuốc vào database:', apiError);
+        console.error('❌ Error response:', apiError.response);
+        console.error('❌ Error response data:', apiError.response?.data);
+        console.error('❌ Prescription data sent:', JSON.stringify(prescriptionData, null, 2));
 
         // Build a detailed message including backend response body when available
         let errorMessage = '❌ Không thể lưu đơn thuốc vào hệ thống.\n\n';
@@ -599,7 +592,7 @@ const PrescriptionForm = () => {
                     formData.medicines.length === 0 || 
                     !formData.patientId || 
                     !formData.diagnosis.trim() ||
-                    formData.medicines.some(med => !med.medicineId || !med.quantity || !med.dosage)
+                    formData.medicines.some(med => !med.medicineId || !med.dosage || med.quantity === undefined || med.quantity === null || med.quantity <= 0)
                   }
                 >
                   <Save className="me-2" size={18} />

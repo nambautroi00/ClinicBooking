@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import paymentApi from "../../api/paymentApi";
+import paymentApi from "../../api/paymentApi"; // <-- thêm dòng này
+
+// helper tải blob
+const downloadBlob = (data, filename) => {
+  const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+};
 
 const PaymentsManagement = () => {
   const [patientId, setPatientId] = useState("");
@@ -9,6 +17,7 @@ const PaymentsManagement = () => {
   const [appointmentFilter, setAppointmentFilter] = useState("");
   const [sortField, setSortField] = useState("id");
   const [sortOrder, setSortOrder] = useState("desc"); // asc | desc
+  const [exportId, setExportId] = useState("");
 
   const fetchPayments = async () => {
     if (!patientId) {
@@ -60,6 +69,16 @@ const PaymentsManagement = () => {
     });
     return rows;
   }, [payments, appointmentFilter, sortField, sortOrder]);
+
+  const handleExportInvoice = async (id) => {
+    if (!id) return;
+    const res = await paymentApi.exportInvoicePdf(id); // <-- dùng paymentApi
+    const blob = new Blob([res.data], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `invoice-${id}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="container-fluid">
@@ -164,12 +183,13 @@ const PaymentsManagement = () => {
                         <th>Mã giao dịch</th>
                         <th>Tạo lúc</th>
                         <th>Thanh toán lúc</th>
+                        <th className="text-end">Hành động</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(displayedPayments || []).length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="text-center text-muted py-4">Không có dữ liệu</td>
+                          <td colSpan="9" className="text-center text-muted py-4">Không có dữ liệu</td>
                         </tr>
                       ) : (
                         displayedPayments.map((p) => (
@@ -184,6 +204,14 @@ const PaymentsManagement = () => {
                             <td>{p.transactionId || '-'}</td>
                             <td>{p.createdAt ? new Date(p.createdAt).toLocaleString() : ''}</td>
                             <td>{p.paidAt ? new Date(p.paidAt).toLocaleString() : ''}</td>
+                            <td className="text-end">
+                              <button
+                                className="px-3 py-1 border rounded text-sm"
+                                onClick={() => handleExportInvoice(p.paymentId)}
+                              >
+                                Xuất hóa đơn
+                              </button>
+                            </td>
                           </tr>
                         ))
                       )}
@@ -192,6 +220,22 @@ const PaymentsManagement = () => {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Thanh công cụ xuất PDF cho ADMIN */}
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              className="border px-3 py-2 rounded w-64"
+              placeholder="Nhập ID thanh toán để xuất PDF"
+              value={exportId}
+              onChange={(e) => setExportId(e.target.value)}
+            />
+            <button
+              className="px-3 py-2 border rounded bg-white"
+              onClick={() => handleExportInvoice(exportId)}
+            >
+              Xuất hóa đơn (PDF)
+            </button>
           </div>
         </div>
       </div>

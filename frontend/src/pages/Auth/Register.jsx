@@ -76,6 +76,10 @@ export default function Register() {
 
     setLoading(true);
     try {
+      // Wait a bit to ensure address data is loaded
+      if (selectedWard && selectedDistrict && selectedProvince) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       const payload = {
         email: form.email,
         password: form.password,
@@ -84,16 +88,54 @@ export default function Register() {
         phone: form.phone.replace(/\D/g, ''), // chỉ lấy ký tự số
         gender: form.gender || null,
         dob: form.dateOfBirth || null,
-        address: (selectedProvince && selectedDistrict && selectedWard)
-          ? [
-              wards.find(w => w.code === selectedWard)?.name,
-              districts.find(d => d.code === selectedDistrict)?.name,
-              provinces.find(p => p.code === selectedProvince)?.name
-            ].filter(Boolean).join(", ")
-          : null,
+        address: (() => {
+          console.log('🔍 Register - selectedWard:', selectedWard);
+          console.log('🔍 Register - selectedDistrict:', selectedDistrict);
+          console.log('🔍 Register - selectedProvince:', selectedProvince);
+          console.log('🔍 Register - wards length:', wards.length);
+          console.log('🔍 Register - districts length:', districts.length);
+          console.log('🔍 Register - provinces length:', provinces.length);
+          
+          if (selectedWard && selectedDistrict && selectedProvince && 
+              wards.length > 0 && districts.length > 0 && provinces.length > 0) {
+            const wardName = wards.find(w => String(w.code) === String(selectedWard))?.name;
+            const districtName = districts.find(d => String(d.code) === String(selectedDistrict))?.name;
+            const provinceName = provinces.find(p => String(p.code) === String(selectedProvince))?.name;
+            
+            console.log('🔍 Register - wardName:', wardName);
+            console.log('🔍 Register - districtName:', districtName);
+            console.log('🔍 Register - provinceName:', provinceName);
+            
+            if (wardName && districtName && provinceName) {
+              const address = `${wardName}, ${districtName}, ${provinceName}`;
+              console.log('✅ Register - Address created:', address);
+              return address;
+            } else {
+              console.log('❌ Register - Missing names, trying fallback...');
+              // Fallback: try different approach
+              const wardFallback = wards.find(w => w.code === selectedWard)?.name;
+              const districtFallback = districts.find(d => d.code === selectedDistrict)?.name;
+              const provinceFallback = provinces.find(p => p.code === selectedProvince)?.name;
+              
+              if (wardFallback && districtFallback && provinceFallback) {
+                const address = `${wardFallback}, ${districtFallback}, ${provinceFallback}`;
+                console.log('✅ Register - Fallback address created:', address);
+                return address;
+              }
+            }
+          } else {
+            console.log('❌ Register - Missing selections or empty arrays');
+          }
+          console.log('❌ Register - No address created');
+          return null;
+        })(),
         healthInsuranceNumber: null,
         medicalHistory: null,
       };
+      
+      console.log('🔍 Register - Final payload:', payload);
+      console.log('🔍 Register - Address in payload:', payload.address);
+      
       const res = await axiosClient.post('/patients/register', payload);
       if (res.status === 201 || res.status === 202) {
         localStorage.setItem('pendingOtpEmail', form.email);

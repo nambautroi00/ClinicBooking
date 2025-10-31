@@ -1,18 +1,37 @@
 package com.example.backend.controller;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;              // <-- thêm
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;   // <-- thêm (RestController, RequestMapping, etc.)
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.backend.dto.PaymentDTO;
 import com.example.backend.model.Payment;
 import com.example.backend.service.PaymentService;
+import com.example.backend.service.PdfExportService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -22,7 +41,8 @@ import java.util.List;
 public class PaymentController {
     
     private final PaymentService paymentService;
-    
+    private final PdfExportService pdfExportService;
+
     @PostMapping
     public ResponseEntity<PaymentDTO.Response> createPayment(@Valid @RequestBody PaymentDTO.Create paymentCreateDTO) {
         try {
@@ -171,5 +191,30 @@ public class PaymentController {
             log.error("Error updating payment status from PayOS: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/{id}/invoice-pdf")
+    public ResponseEntity<byte[]> exportInvoicePdf(@PathVariable Long id) {
+        List<String> lines = new ArrayList<>();
+        lines.add("Mã hóa đơn: INV-" + id);
+        lines.add("Ngày: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        lines.add("Bệnh nhân: [Tên bệnh nhân]");
+        lines.add("Bác sĩ: [Tên bác sĩ]");
+        lines.add("Phương thức thanh toán: [Tiền mặt/Thẻ/PayOS]");
+        lines.add("--------------------------------");
+        lines.add("Dịch vụ: [Tên dịch vụ] - [Thành tiền]");
+        lines.add("Thuốc: [Tổng tiền thuốc]");
+        lines.add("Giảm giá: [Nếu có]");
+        lines.add("--------------------------------");
+        lines.add("Tổng cộng: " + new BigDecimal("0.00") + " VND");
+        lines.add("Trạng thái: [Đã thanh toán/Chờ thanh toán]");
+
+        byte[] pdf = pdfExportService.generateSimplePdf("HÓA ĐƠN THANH TOÁN", lines);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }
