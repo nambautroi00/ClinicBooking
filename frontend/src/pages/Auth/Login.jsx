@@ -129,6 +129,21 @@ export default function Login() {
     console.log('reCAPTCHA expired');
   };
 
+  const decodeJwtPayload = (token) => {
+    try {
+      const base64Url = token?.split?.('.')[1];
+      if (!base64Url) return {};
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const binary = window.atob(base64);
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      const json = new TextDecoder('utf-8').decode(bytes);
+      return JSON.parse(json);
+    } catch (err) {
+      console.error('Error decoding JWT payload:', err);
+      return {};
+    }
+  };
+
 
   // Handle Google sign-in callback
   const handleGoogleCallback = async (response) => {
@@ -136,7 +151,7 @@ export default function Login() {
       const idToken = response?.credential;
       
       // Decode JWT payload (basic decode, no verification)
-      const payload = JSON.parse(atob(idToken.split('.')[1]));
+      const payload = decodeJwtPayload(idToken);
       const email = payload.email;
       const firstName = payload.given_name || 'Google';
       const lastName = payload.family_name || 'User';
