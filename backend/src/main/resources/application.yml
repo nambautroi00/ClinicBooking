@@ -4,13 +4,6 @@ spring:
     username: sa
     password: 123
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
-  
-  # HTTP encoding configuration
-  http:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
 
   jpa:
     hibernate:
@@ -27,7 +20,7 @@ spring:
           characterEncoding: UTF-8
           useUnicode: true
 
-  # Email Configuration (optional - nếu không có sẽ simulate trong log)
+  # Email Configuration
   mail:
     host: smtp.gmail.com
     port: 587
@@ -66,3 +59,11 @@ payos:
   cancel-url: http://localhost:3000/payment/cancel
   webhook-url: http://localhost:8080/api/payments/webhook
   log-level: INFO
+
+
+# Google Gemini Configuration
+gemini:
+  api:
+    key: AIzaSyAnA2mbXB0PJAU1LS6rEH6a1hHvJXeDEJ4
+    url: https://generativelanguage.googleapis.com/v1beta/models
+  model: gemini-1.5-flash
