@@ -7,12 +7,14 @@ import "./App.css";
 // Import components
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
+import FloatingChatButton from "./components/FloatingChatButton";
 import AppRoutes from "./routes/AppRoutes";
 
 const AppContent = () => {
   const location = useLocation();
   const isDoctorRoute = location.pathname.startsWith("/doctor");
   const isAdminRoute = location.pathname.startsWith("/admin");
+  const isChatbotRoute = location.pathname === "/chatbot";
 
   // Nếu đang ở trong doctor layout, không hiển thị header/sidebar chính
   if (isDoctorRoute) {
@@ -21,6 +23,11 @@ const AppContent = () => {
 
   // Nếu đang ở trong admin layout, không hiển thị header/footer chính
   if (isAdminRoute) {
+    return <AppRoutes />;
+  }
+
+  // Nếu đang ở chatbot, không hiển thị header/footer
+  if (isChatbotRoute) {
     return <AppRoutes />;
   }
 
@@ -38,6 +45,7 @@ function App() {
   return (
     <Router>
       <AppContent />
+      <FloatingChatButton />
     </Router>
   );
 }

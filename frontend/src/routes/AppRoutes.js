@@ -58,6 +58,7 @@ import ArticleDetail from "../components/article/ArticleDetail";
 import PublicArticleDetail from "../pages/ArticleDetail";
 import PaymentSuccess from "../pages/Payment/PaymentSuccess";
 import PaymentCancel from "../pages/Payment/PaymentCancel";
+import ChatBot from "../components/ChatBot";
 
 const AppRoutes = () => {
   return (
@@ -69,6 +70,7 @@ const AppRoutes = () => {
       <Route path="/doctor/:doctorId" element={<DoctorDetail />} />
       <Route path="/specialty/:departmentId" element={<SpecialtyDoctors />} />
       <Route path="/notifications" element={<NotificationsPage />} />
+      <Route path="/chatbot" element={<ChatBot />} />
       <Route path="/test-auth" element={<TestAuth />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/cancel" element={<PaymentCancel />} />
