@@ -20,6 +20,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findByDoctor_DoctorId(@Param("doctorId") Long doctorId);
 
     @Query("SELECT a FROM Appointment a " +
+           "LEFT JOIN FETCH a.patient p " +
+           "LEFT JOIN FETCH p.user " +
+           "LEFT JOIN FETCH a.doctor d " +
+           "LEFT JOIN FETCH d.user " +
+           "LEFT JOIN FETCH a.schedule " +
+           "WHERE d.doctorId = :doctorId " +
+           "AND a.startTime >= :startDate AND a.startTime <= :endDate")
+    List<Appointment> findByDoctor_DoctorIdAndDateRange(@Param("doctorId") Long doctorId,
+                                                         @Param("startDate") LocalDateTime startDate,
+                                                         @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT a FROM Appointment a " +
         "LEFT JOIN FETCH a.patient p " +
         "LEFT JOIN FETCH p.user " +
         "LEFT JOIN FETCH a.doctor d " +

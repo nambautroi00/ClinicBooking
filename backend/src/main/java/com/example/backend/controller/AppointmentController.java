@@ -46,6 +46,12 @@ public class AppointmentController {
             ));
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<AppointmentDTO.BulkCreateResponse> bulkCreate(@Valid @RequestBody AppointmentDTO.BulkCreate bulkCreate) {
+        AppointmentDTO.BulkCreateResponse response = appointmentService.bulkCreate(bulkCreate);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     // =====================================================================
     // QUAN TRỌNG: Các endpoint CỤ THỂ phải đặt TRƯỚC {id}
     // Nếu không, Spring sẽ match "/available-slots" với "/{id}"
@@ -63,7 +69,17 @@ public class AppointmentController {
     }
 
     @GetMapping("/available-slots")
-    public ResponseEntity<List<AppointmentDTO.Response>> getAvailableSlots(@RequestParam("doctorId") Long doctorId) {
+    public ResponseEntity<List<AppointmentDTO.Response>> getAvailableSlots(
+            @RequestParam("doctorId") Long doctorId,
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate) {
+        // Nếu có date range, sử dụng query tối ưu
+        if (startDate != null && endDate != null) {
+            java.time.LocalDateTime start = java.time.LocalDateTime.parse(startDate);
+            java.time.LocalDateTime end = java.time.LocalDateTime.parse(endDate);
+            return ResponseEntity.ok(appointmentService.getAvailableSlotsByDoctorAndDateRange(doctorId, start, end));
+        }
+        // Nếu không có date range, trả về tất cả (backward compatible)
         return ResponseEntity.ok(appointmentService.getAvailableSlotsByDoctor(doctorId));
     }
 
@@ -112,5 +128,3 @@ public class AppointmentController {
         return ResponseEntity.ok(updated);
     }
 }
-
-

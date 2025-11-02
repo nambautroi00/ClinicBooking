@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import appointmentApi from "../../api/appointmentApi";
 import doctorApi from "../../api/doctorApi";
 import doctorScheduleApi from "../../api/doctorScheduleApi";
@@ -13,16 +13,7 @@ const DoctorAvailableSlotManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
-  const [viewMode, setViewMode] = useState("calendar"); // calendar, month
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(() => {
-    // Sử dụng local timezone để tránh lỗi ngày
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
 
   // Modal hiển thị tất cả slots trong một ngày (tháng)
   const [showSlotsModal, setShowSlotsModal] = useState(false);
@@ -30,6 +21,31 @@ const DoctorAvailableSlotManagement = () => {
 
   // State cho form tạo slots
   const [showBulkCreateForm, setShowBulkCreateForm] = useState(false);
+  const [createProgress, setCreateProgress] = useState({ current: 0, total: 0 });
+  const [scheduleSearchTerm, setScheduleSearchTerm] = useState("");
+  const [showFullSchedules, setShowFullSchedules] = useState(false); // Hiển thị lịch trình đã đầy
+
+  // Load allAppointments và schedules khi mở modal để đảm bảo dữ liệu mới nhất
+  useEffect(() => {
+    if (showBulkCreateForm && doctorId) {
+      Promise.all([
+        appointmentApi.getAppointmentsByDoctor(doctorId),
+        doctorScheduleApi.getSchedulesByDoctor(doctorId)
+      ])
+        .then(([appointmentsResponse, schedulesResponse]) => {
+          setAllAppointments(appointmentsResponse.data || []);
+          // Load tất cả Available schedules, không filter theo tháng
+          const allSchedules = schedulesResponse.data || [];
+          const availableSchedules = allSchedules.filter(
+            (s) => s.status === "Available"
+          );
+          setDoctorSchedules(availableSchedules);
+        })
+        .catch(err => {
+          console.error("Error loading data for modal:", err);
+        });
+    }
+  }, [showBulkCreateForm, doctorId]);
 
   const [bulkCreateData, setBulkCreateData] = useState({
     selectedScheduleIds: [], // Danh sách ID lịch trình được chọn
@@ -53,32 +69,44 @@ const DoctorAvailableSlotManagement = () => {
     }
   }, []);
 
-  // Load slots và schedules
+  // Load slots và schedules - chỉ load cho tháng hiện tại để tăng tốc
   const loadSlots = useCallback(async () => {
     if (!doctorId) return;
     try {
       setLoading(true);
       setError(null);
       
-      const [availableResponse, allResponse, schedulesResponse] = await Promise.all([
-        appointmentApi.getAvailableSlots(doctorId),
-        appointmentApi.getAppointmentsByDoctor(doctorId),
+      // Tính toán range tháng hiện tại
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+      
+      // Format dates cho API (ISO string với time)
+      const startDateTime = startDate.toISOString().slice(0, 19); // Remove 'Z' và milliseconds
+      const endDateTime = endDate.toISOString().slice(0, 19);
+      
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
+      // Load song song - backend sẽ filter theo date range (tối ưu hơn)
+      const [availableResponse, schedulesResponse] = await Promise.all([
+        appointmentApi.getAvailableSlots(doctorId, startDateTime, endDateTime),
         doctorScheduleApi.getSchedulesByDoctor(doctorId),
       ]);
       
-      console.log("🔍 DEBUG - Available slots:", availableResponse.data);
-      console.log("🔍 DEBUG - All appointments:", allResponse.data);
-      console.log("🔍 DEBUG - Doctor ID:", doctorId);
-      console.log("🔍 DEBUG - Selected Date:", selectedDate);
-      
+      // Backend đã filter slots theo tháng, chỉ cần set
       setSlots(availableResponse.data || []);
-      setAllAppointments(allResponse.data || []);
       
-      // Lọc chỉ lấy schedules Available
-      const availableSchedules = (schedulesResponse.data || []).filter(
-        (s) => s.status === "Available" 
+      // Filter schedules ở frontend - lấy tất cả Available schedules (không filter theo tháng trong modal)
+      // Vì user có thể muốn tạo khung giờ cho tháng khác
+      const allSchedules = schedulesResponse.data || [];
+      const availableSchedules = allSchedules.filter(
+        (s) => s.status === "Available"
       );
       setDoctorSchedules(availableSchedules);
+      
+      // Không cần load allAppointments ngay - chỉ load khi mở form tạo hàng loạt
     } catch (err) {
       console.error("❌ ERROR loading slots:", err);
       setError(
@@ -88,11 +116,11 @@ const DoctorAvailableSlotManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [doctorId]);
+  }, [doctorId, currentMonth]);
 
   useEffect(() => {
     if (doctorId) loadSlots();
-  }, [doctorId, loadSlots]);
+  }, [doctorId, currentMonth, loadSlots]);
 
 
   // Tạo các time slots từ DoctorSchedule
@@ -142,7 +170,7 @@ const DoctorAvailableSlotManagement = () => {
   };
 
 
-  // Xử lý tạo hàng loạt slots cho nhiều schedules
+  // Xử lý tạo hàng loạt slots cho nhiều schedules (sử dụng bulk endpoint)
   const handleBulkCreate = async () => {
     if (!doctorId || bulkCreateData.selectedScheduleIds.length === 0) {
       alert("Vui lòng chọn ít nhất một lịch trình");
@@ -151,9 +179,17 @@ const DoctorAvailableSlotManagement = () => {
 
     try {
       setLoading(true);
-      const createPromises = [];
-      let totalSlots = 0;
+      setError(null);
+      
+      // Chuẩn bị danh sách appointments để gửi
+      const appointmentsToCreate = [];
       let existingSlots = 0;
+      
+      // Load allAppointments nếu chưa có (để check exists trong generateTimeSlotsFromSchedule)
+      if (allAppointments.length === 0) {
+        const allResponse = await appointmentApi.getAppointmentsByDoctor(doctorId);
+        setAllAppointments(allResponse.data || []);
+      }
       
       // Với mỗi schedule được chọn
       bulkCreateData.selectedScheduleIds.forEach((scheduleId) => {
@@ -167,30 +203,28 @@ const DoctorAvailableSlotManagement = () => {
         
         // Lọc ra chỉ những slots chưa tồn tại
         const newSlots = timeSlots.filter(slot => !slot.exists);
-        totalSlots += timeSlots.length;
         existingSlots += (timeSlots.length - newSlots.length);
         
         newSlots.forEach((slot) => {
           const startDateTime = `${slot.date}T${slot.startTime}:00`;
           const endDateTime = `${slot.date}T${slot.endTime}:00`;
           
-          createPromises.push(
-            appointmentApi.createAppointment({
-              doctorId,
-              scheduleId: slot.scheduleId,
-              patientId: null,
-              startTime: startDateTime,
-              endTime: endDateTime,
-              status: "Available",
-              fee: bulkCreateData.fee,
-              notes: null,
-            })
-          );
+          appointmentsToCreate.push({
+            doctorId,
+            scheduleId: slot.scheduleId,
+            patientId: null,
+            startTime: startDateTime,
+            endTime: endDateTime,
+            status: "Available",
+            fee: bulkCreateData.fee,
+            notes: null,
+          });
         });
       });
 
-      if (createPromises.length === 0) {
+      if (appointmentsToCreate.length === 0) {
         alert("Tất cả các khung giờ đã được tạo trước đó rồi!");
+        setLoading(false);
         setShowBulkCreateForm(false);
         setBulkCreateData({
           selectedScheduleIds: [],
@@ -201,27 +235,56 @@ const DoctorAvailableSlotManagement = () => {
       }
       
       if (existingSlots > 0) {
-        const confirmMsg = `Có ${existingSlots} khung giờ đã tồn tại.\nChỉ tạo ${createPromises.length} khung giờ mới?`;
+        const confirmMsg = `Có ${existingSlots} khung giờ đã tồn tại.\nChỉ tạo ${appointmentsToCreate.length} khung giờ mới?`;
         if (!window.confirm(confirmMsg)) {
+          setLoading(false);
           return;
         }
       }
 
-      await Promise.all(createPromises);
+      // Hiển thị progress
+      setCreateProgress({ current: 0, total: appointmentsToCreate.length });
+
+      // Gọi bulk endpoint để tạo tất cả cùng lúc
+      const response = await appointmentApi.bulkCreateAppointments(doctorId, appointmentsToCreate);
+      
+      // Cập nhật progress
+      setCreateProgress({ 
+        current: response.data.successCount || appointmentsToCreate.length, 
+        total: appointmentsToCreate.length 
+      });
+      
+      // Reload slots và appointments TRƯỚC KHI đóng modal để cập nhật trạng thái
+      await loadSlots();
+      
+      // Reload allAppointments để cập nhật tính toán "có thể tạo"
+      const allResponse = await appointmentApi.getAppointmentsByDoctor(doctorId);
+      setAllAppointments(allResponse.data || []);
+      
+      // Đóng modal và reset sau khi đã reload xong
       setShowBulkCreateForm(false);
+      setCreateProgress({ current: 0, total: 0 });
       setBulkCreateData({
         selectedScheduleIds: [],
         slotDuration: 30,
         fee: 200000,
       });
-      loadSlots();
       
-      // Hiển thị thông báo thành công
-      setError(null);
-      let message = `Đã tạo thành công ${createPromises.length} khung giờ mới`;
+      // Hiển thị thông báo thành công với chi tiết
+      const bulkResponse = response.data;
+      let message = `Đã tạo thành công ${bulkResponse.successCount || 0} khung giờ mới`;
+      if (bulkResponse.failedCount > 0) {
+        message += ` (${bulkResponse.failedCount} khung giờ không thể tạo)`;
+      }
       if (existingSlots > 0) {
         message += ` (Bỏ qua ${existingSlots} khung giờ đã tồn tại)`;
       }
+      
+      // Hiển thị lỗi nếu có
+      if (bulkResponse.errors && bulkResponse.errors.length > 0 && bulkResponse.errors.length <= 5) {
+        console.warn("Các lỗi khi tạo:", bulkResponse.errors);
+      }
+      
       setSuccessMessage(message);
       
       // Tự động ẩn thông báo sau 5 giây
@@ -229,10 +292,12 @@ const DoctorAvailableSlotManagement = () => {
         setSuccessMessage(null);
       }, 5000);
     } catch (err) {
+      console.error("Lỗi khi tạo bulk appointments:", err);
       setError(
         "Không thể tạo khung giờ: " +
-          (err.response?.data?.message || err.message)
+          (err.response?.data?.message || err.message || "Đã xảy ra lỗi không xác định")
       );
+      setCreateProgress({ current: 0, total: 0 });
     } finally {
       setLoading(false);
     }
@@ -243,7 +308,12 @@ const DoctorAvailableSlotManagement = () => {
     if (window.confirm("Bạn có chắc chắn muốn xóa khung giờ này?")) {
       try {
         await appointmentApi.deleteAppointment(appointmentId);
-        loadSlots();
+        await loadSlots();
+        // Reload allAppointments để cập nhật tính toán
+        if (doctorId) {
+          const allResponse = await appointmentApi.getAppointmentsByDoctor(doctorId);
+          setAllAppointments(allResponse.data || []);
+        }
       } catch (err) {
         setError(
           "Không thể xóa khung giờ: " +
@@ -253,12 +323,6 @@ const DoctorAvailableSlotManagement = () => {
     }
   };
 
-
-  // Không lọc theo ngày — hiển thị tất cả slots
-  const filteredSlots = slots;
-  
-  console.log("🔍 Filtered slots count:", filteredSlots.length, "Total slots:", slots.length);
-  console.log("🔍 Selected date:", selectedDate);
 
   // Kiểm tra slot đã được đặt chưa
   const isSlotBooked = (slot) => {
@@ -295,15 +359,6 @@ const DoctorAvailableSlotManagement = () => {
       style: "currency",
       currency: "VND",
     }).format(amount);
-  };
-
-  // Helper function to format date for display (MM/DD/YYYY)
-  const formatDisplayDate = (dateString) => {
-    if (!dateString) return "";
-    const [year, month, day] = dateString.split('-');
-    const formattedMonth = month.padStart(2, '0');
-    const formattedDay = day.padStart(2, '0');
-    return `${formattedMonth}/${formattedDay}/${year}`;
   };
 
   // Calendar month helpers
@@ -356,61 +411,79 @@ const DoctorAvailableSlotManagement = () => {
       }
       return newMonth;
     });
+    // Reload slots khi đổi tháng
+    if (doctorId) {
+      loadSlots();
+    }
   };
 
   const goToToday = () => {
     setCurrentMonth(new Date());
   };
 
-  const getSlotsForDate = (date) => {
-    // Sử dụng local timezone thay vì UTC để tránh lỗi ngày
+  // Helper: Format Date object thành YYYY-MM-DD string
+  const formatDateToStr = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
-    
-    console.log(`🔍 getSlotsForDate: ${dateStr}`, {
-      originalDate: date,
-      year, month, day,
-      slotsFound: slots.filter(slot => slot.startTime.split('T')[0] === dateStr).length
-    });
-    
+    return `${year}-${month}-${day}`;
+  };
+
+  // Lấy slots cho một ngày cụ thể
+  const getSlotsForDate = (date) => {
+    const dateStr = formatDateToStr(date);
     return slots.filter(slot => slot.startTime.split('T')[0] === dateStr);
   };
 
-  // Lấy tất cả slot theo chuỗi ngày YYYY-MM-DD
+  // Lấy tất cả slot theo chuỗi ngày YYYY-MM-DD (cho modal)
   const getSlotsForDateStr = (dateStr) => {
     return slots
       .filter(slot => slot.startTime.split('T')[0] === dateStr)
       .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
   };
 
-  // Nhóm slots theo ngày
-  const groupSlotsByDate = (slotsToGroup) => {
-    const grouped = {};
-    slotsToGroup.forEach((slot) => {
-      const date = slot.startTime.split("T")[0];
-      if (!grouped[date]) {
-        grouped[date] = [];
-      }
-      grouped[date].push(slot);
-    });
+  // Tính số slot có thể tạo cho mỗi schedule
+  const getScheduleSlotInfo = useCallback((schedule, slotDuration) => {
+    if (!schedule) return { canCreate: 0, totalPossible: 0, isFull: true };
     
-    // Sắp xếp slots theo thời gian trong mỗi ngày
-    Object.keys(grouped).forEach((date) => {
-      grouped[date].sort((a, b) => 
-        new Date(a.startTime) - new Date(b.startTime)
-      );
-    });
+    const allSlots = generateTimeSlotsFromSchedule(schedule, slotDuration);
+    const newSlots = allSlots.filter(s => !s.exists);
     
-    return grouped;
-  };
+    return {
+      canCreate: newSlots.length,
+      totalPossible: allSlots.length,
+      existing: allSlots.length - newSlots.length,
+      isFull: newSlots.length === 0 && allSlots.length > 0
+    };
+  }, [allAppointments]);
 
-  // Thống kê
-  const bookedCount = allAppointments.filter(
-    (apt) => apt.patientId != null && apt.status !== "Từ chối lịch hẹn"
-  ).length;
-  const availableCount = slots.length;
+  // Filter schedules theo search term và trạng thái đầy
+  const filteredSchedules = useMemo(() => {
+    let filtered = doctorSchedules;
+    
+    // Filter theo search term
+    if (scheduleSearchTerm.trim()) {
+      const searchLower = scheduleSearchTerm.toLowerCase();
+      filtered = filtered.filter(schedule => {
+        const dateStr = formatDate(schedule.workDate + "T00:00:00").toLowerCase();
+        const timeStr = `${schedule.startTime}-${schedule.endTime}`.toLowerCase();
+        const notesStr = (schedule.notes || "").toLowerCase();
+        return dateStr.includes(searchLower) || 
+               timeStr.includes(searchLower) || 
+               notesStr.includes(searchLower);
+      });
+    }
+    
+    // Filter theo trạng thái đầy (ẩn các schedule đã đầy nếu không bật showFullSchedules)
+    if (!showFullSchedules) {
+      filtered = filtered.filter(schedule => {
+        const slotInfo = getScheduleSlotInfo(schedule, bulkCreateData.slotDuration);
+        return !slotInfo.isFull;
+      });
+    }
+    
+    return filtered;
+  }, [doctorSchedules, scheduleSearchTerm, showFullSchedules, bulkCreateData.slotDuration, getScheduleSlotInfo]);
 
   if (loading && !slots.length) {
     return (
@@ -422,8 +495,6 @@ const DoctorAvailableSlotManagement = () => {
     );
   }
 
-  const groupedSlots = groupSlotsByDate(filteredSlots);
-
   return (
     <div className="w-full mx-0 px-0">
       <div className="row justify-content-center" style={{ margin: 0 }}>
@@ -434,7 +505,7 @@ const DoctorAvailableSlotManagement = () => {
               <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div className="d-flex align-items-center gap-3">
                   <span
-                    className="bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
+                    className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
                     style={{ width: 48, height: 48 }}
                   >
                     <i className="bi bi-clock" style={{ fontSize: "1.5rem" }}></i>
@@ -448,46 +519,13 @@ const DoctorAvailableSlotManagement = () => {
                 </div>
 
                 <div className="d-flex gap-3 flex-wrap align-items-center">
-                  {/* Đã loại bỏ lọc theo ngày và nút Xem tất cả theo yêu cầu */}
-                  <div className="d-flex gap-2">
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => setShowBulkCreateForm(true)}
-                      style={{ borderRadius: "0.5rem" }}
-                    >
-                      <i className="bi bi-calendar-plus"></i> Tạo hàng loạt
-                    </button>
-                    <div className="btn-group" role="group">
-                      <button
-                        className={`btn ${
-                          viewMode === "calendar"
-                            ? "btn-primary"
-                            : "btn-outline-primary"
-                        }`}
-                        onClick={() => setViewMode("calendar")}
-                        style={{ 
-                          borderRadius: "0.5rem 0 0 0.5rem",
-                          borderRight: "none"
-                        }}
-                      >
-                        <i className="bi bi-calendar3"></i> Lịch
-                      </button>
-                      <button
-                        className={`btn ${
-                          viewMode === "month"
-                            ? "btn-primary"
-                            : "btn-outline-primary"
-                        }`}
-                        onClick={() => setViewMode("month")}
-                        style={{ 
-                          borderRadius: "0 0.5rem 0.5rem 0",
-                          borderLeft: "none"
-                        }}
-                      >
-                        <i className="bi bi-calendar-month"></i> Tháng
-                      </button>
-                    </div>
-                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setShowBulkCreateForm(true)}
+                    style={{ borderRadius: "0.5rem" }}
+                  >
+                    <i className="bi bi-calendar-plus"></i> Tạo hàng loạt
+                  </button>
                 </div>
               </div>
             </div>
@@ -519,223 +557,8 @@ const DoctorAvailableSlotManagement = () => {
                 </div>
               )}
 
-              {/* Calendar View */}
-              {viewMode === "calendar" && (
-                <div>
-                  <style jsx>{`
-                    .calendar-container {
-                      max-width: 100%;
-                    }
-                    
-                    .calendar-day-card {
-                      background: #fff;
-                      border-radius: 12px;
-                      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                      border: 1px solid #e9ecef;
-                      overflow: hidden;
-                    }
-                    
-                    .calendar-day-header {
-                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      color: white;
-                      padding: 16px 20px;
-                      display: flex;
-                      justify-content: space-between;
-                      align-items: center;
-                    }
-                    
-                    .calendar-day-title {
-                      margin: 0;
-                      font-size: 1.1rem;
-                      font-weight: 600;
-                    }
-                    
-                    .calendar-day-count {
-                      background: rgba(255,255,255,0.2);
-                      padding: 4px 12px;
-                      border-radius: 20px;
-                      font-size: 0.9rem;
-                      font-weight: 500;
-                    }
-                    
-                    .calendar-slots-grid {
-                      display: grid;
-                      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                      gap: 12px;
-                      padding: 20px;
-                    }
-                    
-                    .calendar-slot {
-                      background: #f8f9fa;
-                      border: 2px solid #e9ecef;
-                      border-radius: 8px;
-                      padding: 12px;
-                      position: relative;
-                      transition: all 0.2s ease;
-                      min-height: 100px;
-                    }
-                    
-                    .calendar-slot:hover {
-                      transform: translateY(-2px);
-                      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                    }
-                    
-                    .calendar-slot.available {
-                      border-color: #28a745;
-                      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-                    }
-                    
-                    .calendar-slot.booked {
-                      border-color: #17a2b8;
-                      background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
-                    }
-                    
-                    .slot-time {
-                      font-weight: 600;
-                      color: #495057;
-                      margin-bottom: 8px;
-                      font-size: 0.95rem;
-                    }
-                    
-                    .slot-price {
-                      color: #28a745;
-                      font-weight: 600;
-                      margin-bottom: 8px;
-                      font-size: 0.9rem;
-                    }
-                    
-                    .slot-status {
-                      margin-bottom: 8px;
-                    }
-                    
-                    .slot-patient {
-                      color: #17a2b8;
-                      font-size: 0.85rem;
-                      font-weight: 500;
-                    }
-                    
-                    .slot-delete-btn {
-                      position: absolute;
-                      top: 8px;
-                      right: 8px;
-                      background: #dc3545;
-                      color: white;
-                      border: none;
-                      border-radius: 4px;
-                      width: 24px;
-                      height: 24px;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      font-size: 0.8rem;
-                      transition: all 0.2s ease;
-                    }
-                    
-                    .slot-delete-btn:hover {
-                      background: #c82333;
-                      transform: scale(1.1);
-                    }
-                    
-                    @media (max-width: 768px) {
-                      .calendar-slots-grid {
-                        grid-template-columns: 1fr;
-                        padding: 16px;
-                      }
-                      
-                      .calendar-day-header {
-                        padding: 12px 16px;
-                        flex-direction: column;
-                        gap: 8px;
-                        text-align: center;
-                      }
-                      
-                      .calendar-day-title {
-                        font-size: 1rem;
-                      }
-                    }
-                  `}</style>
-
-                  {filteredSlots.length === 0 ? (
-                    <div className="text-center py-5">
-                      <i
-                        className="bi bi-calendar-x text-muted"
-                        style={{ fontSize: "4rem" }}
-                      ></i>
-                      <p className="text-muted mt-3 fs-5">Chưa có khung giờ nào</p>
-                      <p className="text-info">
-                        Tổng tất cả: {allAppointments.length} appointments | 
-                        Available slots: {slots.length}
-                      </p>
-                      <button
-                        className="btn btn-primary btn-lg mt-2 px-4"
-                        onClick={() => setShowBulkCreateForm(true)}
-                      >
-                        <i className="bi bi-calendar-plus"></i> Tạo khung giờ
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="calendar-container">
-                      {Object.entries(groupedSlots).map(([date, daySlots]) => (
-                        <div key={date} className="calendar-day-card mb-4">
-                          <div className="calendar-day-header">
-                            <h5 className="calendar-day-title">
-                              <i className="bi bi-calendar-day me-2"></i>
-                              {formatDate(date + "T00:00:00")}
-                            </h5>
-                            <span className="calendar-day-count">
-                              {daySlots.length} khung giờ
-                            </span>
-                          </div>
-                          <div className="calendar-slots-grid">
-                            {daySlots.map((slot) => {
-                        const booked = isSlotBooked(slot);
-  return (
-                                <div
-                                  key={slot.appointmentId}
-                                  className={`calendar-slot ${booked ? 'booked' : 'available'}`}
-                                >
-                                  <div className="slot-time">
-                                    <i className="bi bi-clock me-1"></i>
-                                    {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                                  </div>
-                                  <div className="slot-price">
-                                    <i className="bi bi-cash me-1"></i>
-                                    {formatCurrency(slot.fee)}
-                                  </div>
-                                  <div className="slot-status">
-                                    <span className={`badge ${booked ? 'bg-info' : 'bg-success'}`}>
-                                    {booked ? "Đã đặt" : "Còn trống"}
-                                  </span>
-                                </div>
-                                {booked && slot.patientName && (
-                                    <div className="slot-patient">
-                                    <i className="bi bi-person me-1"></i>
-                                      {slot.patientName}
-                                    </div>
-                                )}
-                                {!booked && (
-                                  <button
-                                      className="slot-delete-btn"
-                                      onClick={() => handleDeleteSlot(slot.appointmentId)}
-                                      title="Xóa khung giờ"
-                                    >
-                                      <i className="bi bi-trash"></i>
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Month Calendar View */}
-              {viewMode === "month" && (
-                <div>
+              {/* Month Calendar View - Chỉ hiển thị dạng tháng */}
+              <div>
                   <style jsx>{`
                     .month-calendar {
                       background: white;
@@ -745,7 +568,7 @@ const DoctorAvailableSlotManagement = () => {
                     }
                     
                     .month-header {
-                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
                       color: white;
                       padding: 20px;
                       display: flex;
@@ -840,8 +663,8 @@ const DoctorAvailableSlotManagement = () => {
                     }
                     
                     .calendar-day.today {
-                      background: #e3f2fd;
-                      border: 2px solid #2196f3;
+                      background: #edf2f7;
+                      border: 2px solid #4299e1;
                     }
                     
                     .day-number {
@@ -857,7 +680,7 @@ const DoctorAvailableSlotManagement = () => {
                     }
                     
                     .slot-indicator {
-                      background: #28a745;
+                      background: #718096;
                       color: white;
                       padding: 1px 4px;
                       border-radius: 8px;
@@ -867,11 +690,11 @@ const DoctorAvailableSlotManagement = () => {
                     }
                     
                     .slot-indicator.booked {
-                      background: #17a2b8;
+                      background: #4299e1;
                     }
                     
                     .slot-indicator.available {
-                      background: #28a745;
+                      background: #48bb78;
                     }
                     
                     @media (max-width: 768px) {
@@ -959,11 +782,7 @@ const DoctorAvailableSlotManagement = () => {
                             } ${isToday ? 'today' : ''}`}
                             onClick={() => {
                               if (!day.isCurrentMonth) return;
-                              const year = day.date.getFullYear();
-                              const month = String(day.date.getMonth() + 1).padStart(2, '0');
-                              const dayNum = String(day.date.getDate()).padStart(2, '0');
-                              const dateStr = `${year}-${month}-${dayNum}`;
-                              setModalDateStr(dateStr);
+                              setModalDateStr(formatDateToStr(day.date));
                               setShowSlotsModal(true);
                             }}
                           >
@@ -987,6 +806,19 @@ const DoctorAvailableSlotManagement = () => {
                       })}
                     </div>
                   </div>
+                </div>
+
+              {/* Empty state */}
+              {!loading && slots.length === 0 && (
+                <div className="text-center py-5">
+                  <i className="bi bi-calendar-x text-muted" style={{ fontSize: "4rem" }}></i>
+                  <p className="text-muted mt-3 fs-5">Chưa có khung giờ nào</p>
+                  <button
+                    className="btn btn-primary btn-lg mt-2 px-4"
+                    onClick={() => setShowBulkCreateForm(true)}
+                  >
+                    <i className="bi bi-calendar-plus"></i> Tạo khung giờ
+                  </button>
                 </div>
               )}
 
@@ -1044,11 +876,11 @@ const DoctorAvailableSlotManagement = () => {
                                   <i className="bi bi-clock me-1"></i>
                                   {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
                                 </td>
-                                <td className="text-success fw-semibold">
+                                <td className="text-primary fw-semibold">
                                   {formatCurrency(slot.fee)}
                                 </td>
                                 <td>
-                                  <span className={`badge ${booked ? 'bg-info' : 'bg-success'}`}
+                                  <span className={`badge ${booked ? 'bg-primary' : 'bg-secondary'}`}
                                     style={{ fontSize: '0.75rem' }}>
                                     {booked ? 'Đã đặt' : 'Còn trống'}
                                   </span>
@@ -1109,14 +941,51 @@ const DoctorAvailableSlotManagement = () => {
                 <button
                   type="button"
                   className="btn-close"
-                  onClick={() => setShowBulkCreateForm(false)}
+                  onClick={() => {
+                    setShowBulkCreateForm(false);
+                    setScheduleSearchTerm("");
+                    setShowFullSchedules(false);
+                    setBulkCreateData({
+                      selectedScheduleIds: [],
+                      slotDuration: 30,
+                      fee: 200000,
+                    });
+                  }}
                 ></button>
               </div>
               <div className="modal-body">
-                <div className="alert alert-info">
-                  <i className="bi bi-info-circle me-2"></i>
-                  Chọn nhiều lịch trình và tạo khung giờ khám cho tất cả
-                </div>
+                {loading && createProgress.total > 0 && (
+                  <div className="alert alert-info">
+                    <div className="d-flex align-items-center">
+                      <div className="spinner-border spinner-border-sm me-2" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                      <div className="flex-grow-1">
+                        <div className="mb-1">Đang tạo khung giờ...</div>
+                        <div className="progress" style={{ height: '8px' }}>
+                          <div 
+                            className="progress-bar progress-bar-striped progress-bar-animated" 
+                            role="progressbar"
+                            style={{ width: `${(createProgress.current / createProgress.total) * 100}%` }}
+                            aria-valuenow={createProgress.current}
+                            aria-valuemin="0"
+                            aria-valuemax={createProgress.total}
+                          >
+                          </div>
+                        </div>
+                        <small className="text-muted">
+                          {createProgress.current} / {createProgress.total} khung giờ đã tạo
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!loading && (
+                  <div className="alert alert-info">
+                    <i className="bi bi-info-circle me-2"></i>
+                    Chọn nhiều lịch trình và tạo khung giờ khám cho tất cả
+                  </div>
+                )}
 
                   {doctorSchedules.length === 0 ? (
                     <div className="alert alert-warning">
@@ -1129,12 +998,30 @@ const DoctorAvailableSlotManagement = () => {
                         <label className="form-label mb-0">
                           Chọn lịch trình <span className="text-danger">*</span>
                         </label>
-                        <div className="d-flex gap-2">
-                <button
-                  type="button"
+                        <div className="d-flex gap-2 align-items-center">
+                          {/* Toggle hiển thị lịch trình đã đầy */}
+                          <div className="form-check form-switch me-2">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="showFullSchedules"
+                              checked={showFullSchedules}
+                              onChange={(e) => setShowFullSchedules(e.target.checked)}
+                            />
+                            <label className="form-check-label small" htmlFor="showFullSchedules">
+                              Hiển thị đã đầy
+                            </label>
+                          </div>
+                          <button
+                            type="button"
                             className="btn btn-sm btn-outline-primary"
                             onClick={() => {
-                              const allIds = doctorSchedules.map(s => s.scheduleId);
+                              const allIds = filteredSchedules
+                                .filter(s => {
+                                  const slotInfo = getScheduleSlotInfo(s, bulkCreateData.slotDuration);
+                                  return !slotInfo.isFull;
+                                })
+                                .map(s => s.scheduleId);
                               setBulkCreateData({
                                 ...bulkCreateData,
                                 selectedScheduleIds: allIds,
@@ -1143,9 +1030,9 @@ const DoctorAvailableSlotManagement = () => {
                           >
                             <i className="bi bi-check-all me-1"></i>
                             Chọn tất cả
-                </button>
-                <button
-                  type="button"
+                          </button>
+                          <button
+                            type="button"
                             className="btn btn-sm btn-outline-secondary"
                             onClick={() => {
                               setBulkCreateData({
@@ -1155,39 +1042,114 @@ const DoctorAvailableSlotManagement = () => {
                             }}
                           >
                             <i className="bi bi-x-square me-1"></i>
-                            Bỏ chọn tất cả
-                </button>
-              </div>
-            </div>
+                            Bỏ chọn
+                          </button>
+                        </div>
+                      </div>
                       
 
-                      <div className="border rounded p-3" style={{ maxHeight: 300, overflowY: "auto" }}>
-                        {doctorSchedules.map((schedule) => (
-                          <div key={schedule.scheduleId} className="form-check mb-2">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id={`schedule-${schedule.scheduleId}`}
-                              checked={bulkCreateData.selectedScheduleIds.includes(schedule.scheduleId)}
-                              onChange={(e) => {
-                                const newIds = e.target.checked
-                                  ? [...bulkCreateData.selectedScheduleIds, schedule.scheduleId]
-                                  : bulkCreateData.selectedScheduleIds.filter(id => id !== schedule.scheduleId);
-                                setBulkCreateData({
-                                  ...bulkCreateData,
-                                  selectedScheduleIds: newIds,
-                                });
-                              }}
-                            />
-                            <label className="form-check-label" htmlFor={`schedule-${schedule.scheduleId}`}>
-                              <strong>{formatDate(schedule.workDate + "T00:00:00")}</strong> - {schedule.startTime} đến {schedule.endTime}
-                              {schedule.notes && <small className="text-muted d-block">{schedule.notes}</small>}
-                            </label>
+                      {(() => {
+                        const fullCount = doctorSchedules.filter(s => {
+                          const slotInfo = getScheduleSlotInfo(s, bulkCreateData.slotDuration);
+                          return slotInfo.isFull;
+                        }).length;
+                        const availableCount = doctorSchedules.length - fullCount;
+                        
+                        return (
+                          <div className="mb-2">
+                            <small className="text-muted">
+                              <i className="bi bi-info-circle me-1"></i>
+                              Hiển thị {filteredSchedules.length} / {doctorSchedules.length} lịch trình
+                              {!showFullSchedules && fullCount > 0 && (
+                                <span className="text-success ms-2">
+                                  (Ẩn {fullCount} lịch trình đã đầy)
+                                </span>
+                              )}
+                            </small>
                           </div>
-                        ))}
+                        );
+                      })()}
+
+                      <div className="border rounded p-3" style={{ maxHeight: 450, overflowY: "auto", backgroundColor: 'white' }}>
+                        {filteredSchedules.length === 0 ? (
+                          <div className="text-center py-4 text-muted">
+                            <i className="bi bi-calendar-x" style={{ fontSize: "2rem" }}></i>
+                            <p className="mt-2 mb-0">
+                              {scheduleSearchTerm ? "Không tìm thấy lịch trình" : "Tất cả lịch trình đã đầy"}
+                            </p>
+                          </div>
+                        ) : (
+                          filteredSchedules.map((schedule) => {
+                            const slotInfo = getScheduleSlotInfo(schedule, bulkCreateData.slotDuration);
+                            const isSelected = bulkCreateData.selectedScheduleIds.includes(schedule.scheduleId);
+                            
+                            return (
+                              <div 
+                                key={schedule.scheduleId}
+                                className={`border rounded p-3 mb-2 ${isSelected ? 'border-primary bg-light' : 'border-secondary'} ${slotInfo.isFull ? 'opacity-50' : ''}`}
+                                style={{ 
+                                  cursor: slotInfo.isFull ? 'not-allowed' : 'pointer',
+                                  backgroundColor: isSelected ? '#f8f9fa' : 'white'
+                                }}
+                                onClick={() => {
+                                  if (slotInfo.isFull) return;
+                                  const isCurrentlySelected = bulkCreateData.selectedScheduleIds.includes(schedule.scheduleId);
+                                  const newIds = !isCurrentlySelected
+                                    ? [...bulkCreateData.selectedScheduleIds, schedule.scheduleId]
+                                    : bulkCreateData.selectedScheduleIds.filter(id => id !== schedule.scheduleId);
+                                  setBulkCreateData({
+                                    ...bulkCreateData,
+                                    selectedScheduleIds: newIds,
+                                  });
+                                }}
+                              >
+                                <div className="d-flex align-items-start gap-3">
+                                  <input
+                                    className="form-check-input mt-1"
+                                    type="checkbox"
+                                    id={`schedule-${schedule.scheduleId}`}
+                                    checked={isSelected}
+                                    disabled={slotInfo.isFull}
+                                    onChange={() => {}}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                  <div className="flex-grow-1">
+                                    <div className="d-flex justify-content-between align-items-start">
+                                      <div>
+                                        <div className="fw-semibold mb-1">
+                                          {formatDate(schedule.workDate + "T00:00:00")}
+                                        </div>
+                                        <div className="text-muted small">
+                                          {schedule.startTime} - {schedule.endTime}
+                                        </div>
+                                        {schedule.notes && (
+                                          <div className="text-muted small mt-1">
+                                            {schedule.notes}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-end">
+                                        {slotInfo.isFull ? (
+                                          <span className="badge bg-secondary">
+                                            Đã đầy
+                                          </span>
+                                        ) : (
+                                          <span className="badge bg-success">
+                                            Có thể tạo {slotInfo.canCreate} khung
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
-                      <small className="text-muted">
-                        Đã chọn: {bulkCreateData.selectedScheduleIds.length} lịch trình
+                      <small className="text-muted d-block mt-2">
+                        <i className="bi bi-info-circle me-1"></i>
+                        Đã chọn: <strong>{bulkCreateData.selectedScheduleIds.length}</strong> lịch trình
                       </small>
                     </div>
 
@@ -1271,7 +1233,16 @@ const DoctorAvailableSlotManagement = () => {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => setShowBulkCreateForm(false)}
+                  onClick={() => {
+                    setShowBulkCreateForm(false);
+                    setScheduleSearchTerm("");
+                    setShowFullSchedules(false);
+                    setBulkCreateData({
+                      selectedScheduleIds: [],
+                      slotDuration: 30,
+                      fee: 200000,
+                    });
+                  }}
                 >
                   Hủy
                 </button>
@@ -1284,7 +1255,7 @@ const DoctorAvailableSlotManagement = () => {
                   {loading ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2"></span>
-                      Đang tạo...
+                      Đang tạo... ({createProgress.current}/{createProgress.total})
                     </>
                   ) : (
                     <>
