@@ -87,7 +87,7 @@ export default function PatientAppointmentBooking() {
             const r = ratingMap[id] || { avg: 0, count: 0 };
             return {
               id,
-              name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
+              name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim(),
               specialty: doctor.specialty || 'Chưa cập nhật',
               rating: r.count > 0 ? r.avg : 0,
               reviewCount: r.count || 0,
@@ -130,7 +130,7 @@ export default function PatientAppointmentBooking() {
       if (searchResponse.data) {
         const transformedDoctors = searchResponse.data.map(doctor => ({
           id: doctor.doctorId || doctor.id,
-          name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
+          name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim(),
           specialty: doctor.specialty || 'Chưa cập nhật',
           rating: 4.5,
           avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',

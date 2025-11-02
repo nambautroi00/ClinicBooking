@@ -216,61 +216,14 @@ public class AuthService {
         }
     }
 
-    // Fix encoding issues
-    private String fixEncoding(String text) {
-        if (text == null) return null;
-        
-        try {
-            // Common encoding fixes for Vietnamese characters
-            text = text.replace("Ã¹", "ù")
-                      .replace("Ã¡", "á")
-                      .replace("Ã ", "à")
-                      .replace("Ã£", "ã")
-                      .replace("Ã¢", "â")
-                      .replace("Ã¨", "è")
-                      .replace("Ã©", "é")
-                      .replace("Ãª", "ê")
-                      .replace("Ã¬", "ì")
-                      .replace("Ã­", "í")
-                      .replace("Ã³", "ó")
-                      .replace("Ã²", "ò")
-                      .replace("Ãµ", "õ")
-                      .replace("Ã´", "ô")
-                      .replace("Ã¹", "ù")
-                      .replace("Ãº", "ú")
-                      .replace("Ã½", "ý")
-                      .replace("Ä", "Đ")
-                      .replace("Ä'", "đ")
-                      // Fix specific Google OAuth encoding issues
-                      .replace("TẤ", "Tấn")
-                      .replace("TẤ¹ng", "Tùng")
-                      .replace("¹ng", "ùng");
-            
-            System.out.println("DEBUG OAuth: Fixed encoding: '" + text + "'");
-            return text;
-        } catch (Exception e) {
-            System.err.println("ERROR: Failed to fix encoding for: " + text);
-            return text;
-        }
-    }
-
     // OAuth login/registration (Google)
     public AuthDTO.LoginResponse oauthLogin(String email, String firstName, String lastName, String picture) {
         try {
             System.out.println("DEBUG OAuth: Searching for email = '" + email + "'");
             System.out.println("DEBUG OAuth: Picture URL = '" + picture + "'");
             
-            // Fix encoding issues
-            System.out.println("DEBUG OAuth: Original firstName = '" + firstName + "'");
-            System.out.println("DEBUG OAuth: Original lastName = '" + lastName + "'");
-            if (firstName != null) {
-                firstName = fixEncoding(firstName);
-            }
-            if (lastName != null) {
-                lastName = fixEncoding(lastName);
-            }
-            System.out.println("DEBUG OAuth: Fixed firstName = '" + firstName + "'");
-            System.out.println("DEBUG OAuth: Fixed lastName = '" + lastName + "'");
+            System.out.println("DEBUG OAuth: Received firstName = '" + firstName + "'");
+            System.out.println("DEBUG OAuth: Received lastName = '" + lastName + "'");
             
             // Try to find existing user
             User user = userRepository.findByEmailWithRole(email).orElse(null);

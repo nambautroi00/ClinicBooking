@@ -5,11 +5,7 @@ import Cookies from "js-cookie";
 import doctorApi from "../../api/doctorApi";
 
 const DoctorScheduleManagement = () => {
-  // State filter, custom range
-  const [dateFilter, setDateFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [customRange, setCustomRange] = useState({ from: "", to: "" });
-  const [dayOfWeekFilter, setDayOfWeekFilter] = useState("All");
+  // (Removed) time range filter state per request
 
   // Helper & filter
   const toDateString = (date) =>
@@ -55,97 +51,7 @@ const DoctorScheduleManagement = () => {
     
     return config;
   };
-  const filterSchedulesByDate = (schedules) => {
-    const todayStr = toDateString(new Date());
-    let filteredSchedules = schedules;
-    
-    // Filter by date
-    switch (dateFilter) {
-      case "Today":
-        filteredSchedules = filteredSchedules.filter((s) => toDateString(s.workDate) === todayStr);
-        break;
-      case "Yesterday": {
-        const yestStr = toDateString(new Date(Date.now() - 86400000));
-        filteredSchedules = filteredSchedules.filter((s) => toDateString(s.workDate) === yestStr);
-        break;
-      }
-      case "Last7Days": {
-        const fromStr = toDateString(new Date(Date.now() - 6 * 86400000));
-        filteredSchedules = filteredSchedules.filter((s) => {
-          const dStr = toDateString(s.workDate);
-          return dStr >= fromStr && dStr <= todayStr;
-        });
-        break;
-      }
-      case "Last30Days": {
-        const fromStr = toDateString(new Date(Date.now() - 29 * 86400000));
-        filteredSchedules = filteredSchedules.filter((s) => {
-          const dStr = toDateString(s.workDate);
-          return dStr >= fromStr && dStr <= todayStr;
-        });
-        break;
-      }
-      case "ThisMonth": {
-        const now = new Date();
-        filteredSchedules = filteredSchedules.filter((s) => {
-          const d = new Date(s.workDate);
-          return (
-            d.getMonth() === now.getMonth() &&
-            d.getFullYear() === now.getFullYear()
-          );
-        });
-        break;
-      }
-      case "LastMonth": {
-        const now = new Date();
-        const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-        const year =
-          lastMonth === 11 ? now.getFullYear() - 1 : now.getFullYear();
-        filteredSchedules = filteredSchedules.filter((s) => {
-          const d = new Date(s.workDate);
-          return d.getMonth() === lastMonth && d.getFullYear() === year;
-        });
-        break;
-      }
-      case "CustomRange": {
-        if (!customRange.from || !customRange.to) break;
-        const fromStr = toDateString(customRange.from);
-        const toStr = toDateString(customRange.to);
-        filteredSchedules = filteredSchedules.filter((s) => {
-          const dStr = toDateString(s.workDate);
-          return dStr >= fromStr && dStr <= toStr;
-        });
-        break;
-      }
-      default:
-        break;
-    }
-    
-    // Filter by status
-    if (statusFilter !== "All") {
-      filteredSchedules = filteredSchedules.filter((s) => s.status === statusFilter);
-    }
-    
-    // Filter by day of week
-    if (dayOfWeekFilter !== "All") {
-      filteredSchedules = filteredSchedules.filter((s) => {
-        const date = new Date(s.workDate);
-        const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-        const dayMapping = {
-          "Monday": 1,
-          "Tuesday": 2, 
-          "Wednesday": 3,
-          "Thursday": 4,
-          "Friday": 5,
-          "Saturday": 6,
-          "Sunday": 0
-        };
-        return dayOfWeek === dayMapping[dayOfWeekFilter];
-      });
-    }
-    
-    return filteredSchedules;
-  };
+  // (Removed) filterSchedulesByDate per request
 
   // CRUD schedule
   const handleDeleteSchedule = async (scheduleId) => {
@@ -210,16 +116,6 @@ const DoctorScheduleManagement = () => {
       );
     }
   };
-  const handleCreateSchedule = async (scheduleData) => {
-    if (!doctorId) return;
-    try {
-      await doctorScheduleApi.createSchedule({ ...scheduleData, doctorId });
-      setShowForm(false);
-      loadSchedules();
-    } catch (err) {
-      throw err;
-    }
-  };
   const handleUpdateSchedule = async (scheduleId, scheduleData) => {
     try {
       await doctorScheduleApi.updateSchedule(scheduleId, scheduleData);
@@ -229,13 +125,203 @@ const DoctorScheduleManagement = () => {
       throw err;
     }
   };
+
+  // Calendar helper functions
+  const getDaysInMonth = (date) => {
+    try {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      
+      // Validate date
+      if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
+        console.error('Invalid date for getDaysInMonth:', date);
+        return [];
+      }
+      
+      // Get first day of the month
+      const firstDayOfMonth = new Date(year, month, 1);
+      
+      // Calculate the starting date (Sunday of the week containing the first day)
+      const dayOfWeek = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const startDate = new Date(year, month, 1 - dayOfWeek);
+      
+      const days = [];
+      
+      // Generate 42 days (6 weeks × 7 days) - Create new Date objects each time
+      for (let i = 0; i < 42; i++) {
+        const dayDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+        days.push(dayDate);
+      }
+      
+      return days;
+    } catch (error) {
+      console.error('Error in getDaysInMonth:', error);
+      return [];
+    }
+  };
+
+  const getSchedulesForDate = (date) => {
+    // Use local timezone to avoid UTC day-shift issues (which hid Mondays)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    return schedules.filter((schedule) => schedule.workDate === dateStr);
+  };
+
+  const isToday = (date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const isSelected = (date) => {
+    return selectedDate && date.toDateString() === selectedDate.toDateString();
+  };
+
+  const navigateMonth = (direction) => {
+    setCurrentDate(prev => {
+      try {
+        // Navigate to the first day of the target month
+        const targetMonth = prev.getMonth() + direction;
+        const targetYear = prev.getFullYear();
+        
+        // Create new date for the target month
+        const newMonthDate = new Date(targetYear, targetMonth, 1);
+        
+        // Validate the new date
+        if (isNaN(newMonthDate.getTime())) {
+          console.error('Invalid date created during navigation:', { targetYear, targetMonth });
+          return prev; // Return previous date if invalid
+        }
+        
+        return newMonthDate;
+      } catch (error) {
+        console.error('Error in navigateMonth:', error);
+        return prev; // Return previous date if error
+      }
+    });
+  };
+
+  // Bulk create schedules for a week
+  const handleBulkCreateSchedules = async (bulkData) => {
+    if (!doctorId) return;
+    
+    try {
+      const { startDate, endDate, startTime, endTime, notes, daysOfWeek, shifts } = bulkData;
+      const schedules = [];
+      
+      // Generate schedules for each selected day of the week (use local time parsing)
+      const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
+      const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
+      const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+      const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+      
+      console.log(`Start date: ${start.toISOString()}, End date: ${end.toISOString()}`);
+      console.log(`Selected days of week: [${daysOfWeek.join(',')}]`);
+      console.log(`Selected shifts: [${shifts ? shifts.join(',') : 'none'}]`);
+      
+      // Normalize selected days to numbers (defensive against string values)
+      const selectedDays = (daysOfWeek || []).map(Number);
+
+      // Create a new date object for each iteration to avoid mutation
+      let currentDate = new Date(start);
+      
+      while (currentDate <= end) {
+        const dayOfWeek = currentDate.getDay();
+        // Use local timezone to avoid UTC shifting a day backward
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        console.log(`Checking date: ${dateStr}, dayOfWeek: ${dayOfWeek}, selected days: [${selectedDays.join(',')}], includes: ${selectedDays.includes(dayOfWeek)}`);
+        
+        // Check if this day is selected
+        if (selectedDays.includes(dayOfWeek)) {
+          // If shifts are selected, create schedule for each shift
+          if (shifts && shifts.length > 0) {
+            shifts.forEach(shiftValue => {
+              const shift = shiftOptions.find(s => s.value === shiftValue);
+              if (shift) {
+                // Use custom time if available, otherwise use default
+                const customStartTime = bulkData[`${shiftValue}StartTime`] || shift.startTime;
+                const customEndTime = bulkData[`${shiftValue}EndTime`] || shift.endTime;
+                
+                const scheduleData = {
+                  doctorId,
+                  workDate: dateStr,
+                  startTime: customStartTime,
+                  endTime: customEndTime,
+                  notes: `${notes} (${shift.label})`,
+                  status: 'Available'
+                };
+                
+                console.log(`Creating schedule for: ${dateStr} - ${shift.label} (${customStartTime}-${customEndTime})`);
+                schedules.push(scheduleData);
+              }
+            });
+          } else {
+            // Fallback to original time if no shifts selected
+            const scheduleData = {
+              doctorId,
+              workDate: dateStr,
+              startTime,
+              endTime,
+              notes,
+              status: 'Available'
+            };
+            
+            console.log(`Creating schedule for: ${dateStr}`);
+            schedules.push(scheduleData);
+          }
+        }
+        
+        // Move to next day by creating a new Date object
+        currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
+      }
+      
+      // Create all schedules
+      console.log(`Total schedules to create: ${schedules.length}`);
+      for (const schedule of schedules) {
+        console.log(`Creating schedule for: ${schedule.workDate}`);
+        try {
+          await doctorScheduleApi.createSchedule(schedule);
+          console.log(`✅ Successfully created schedule for: ${schedule.workDate}`);
+        } catch (error) {
+          console.error(`❌ Failed to create schedule for: ${schedule.workDate}`, error);
+        }
+      }
+      
+      setShowBulkForm(false);
+      loadSchedules();
+      
+      // Show success message
+      if (window.toast) {
+        window.toast.success(`Đã tạo ${schedules.length} lịch trình thành công!`);
+      }
+      
+    } catch (err) {
+      setError("Không thể tạo lịch trình hàng loạt: " + (err.response?.data?.message || err.message));
+    }
+  };
+
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [doctorId, setDoctorId] = useState(null);
-  const [showDateDropdown, setShowDateDropdown] = useState(false);
+  // (Removed) date dropdown state per request
+  const [showBulkForm, setShowBulkForm] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [calendarKey, setCalendarKey] = useState(0);
+
+  // Shift options for bulk creation
+  const shiftOptions = [
+    { value: 'morning', label: 'Ca sáng', startTime: '08:00', endTime: '12:00', icon: 'bi bi-sunrise' },
+    { value: 'afternoon', label: 'Ca chiều', startTime: '13:00', endTime: '17:00', icon: 'bi bi-sunset' }
+  ];
 
   // Load schedules
   const loadSchedules = useCallback(async () => {
@@ -302,6 +388,69 @@ const DoctorScheduleManagement = () => {
     if (doctorId) loadSchedules();
   }, [doctorId, loadSchedules]);
 
+  // Reset selectedDate when currentDate changes
+  useEffect(() => {
+    setSelectedDate(null);
+    setCalendarKey(prev => prev + 1); // Force calendar re-render
+  }, [currentDate]);
+
+  // Force calendar re-render when needed
+  const forceCalendarRefresh = () => {
+    setCalendarKey(prev => prev + 1);
+    setSelectedDate(null);
+  };
+
+  // Safe modal close function
+  const closeAllModals = () => {
+    setTimeout(() => {
+      setShowBulkForm(false);
+      setEditingSchedule(null);
+      setShowScheduleModal(false);
+      setSelectedDate(null);
+    }, 0);
+  };
+
+  // Safe modal close with re-render
+  const closeModalSafely = (modalType) => {
+    setTimeout(() => {
+      switch (modalType) {
+        case 'bulk':
+          setShowBulkForm(false);
+          break;
+        case 'edit':
+          setEditingSchedule(null);
+          break;
+        case 'schedule':
+          setShowScheduleModal(false);
+          setSelectedDate(null);
+          break;
+        default:
+          closeAllModals();
+      }
+      setCalendarKey(prev => prev + 1);
+    }, 0);
+  };
+
+
+  // Close all modals when component unmounts
+  useEffect(() => {
+    return () => {
+      closeAllModals();
+    };
+  }, []);
+
+  // Force re-render when modal states change
+  useEffect(() => {
+    if (showBulkForm || editingSchedule || showScheduleModal) {
+      setCalendarKey(prev => prev + 1);
+    }
+  }, [showBulkForm, editingSchedule, showScheduleModal]);
+
+  // Force re-render when schedules change
+  useEffect(() => {
+    setCalendarKey(prev => prev + 1);
+  }, [schedules]);
+
   // ...existing code...
 
   if (loading) {
@@ -339,512 +488,943 @@ const DoctorScheduleManagement = () => {
               </div>
               <div className="d-flex gap-2 flex-wrap">
                 <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setShowForm(true)}
+                  className="btn btn-success btn-sm"
+                  onClick={() => setShowBulkForm(true)}
+                  title="Tạo lịch trình cho cả tuần"
                 >
-                  <i className="bi bi-plus-circle"></i> Thêm lịch trình
+                  <i className="bi bi-calendar-week"></i> Tạo lịch làm việc
                 </button>
+                
                 <button
                   className="btn btn-outline-primary btn-sm"
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    forceCalendarRefresh();
+                    setCurrentDate(new Date());
+                  }}
                   title="Làm mới dữ liệu"
                 >
                   <i className="bi bi-arrow-clockwise"></i> Làm mới
                 </button>
-                <div style={{ position: "relative" }}>
-                  <button
-                    className="btn btn-outline-primary btn-sm dropdown-toggle"
-                    type="button"
-                    onClick={() => setShowDateDropdown((v) => !v)}
-                  >
-                    <i className="bi bi-calendar-range"></i>{" "}
-                    {(() => {
-                      switch (dateFilter) {
-                        case "All":
-                          return "Chọn khoảng thời gian";
-                        case "Today":
-                          return "Hôm nay";
-                        case "Yesterday":
-                          return "Hôm qua";
-                        case "Last7Days":
-                          return "7 ngày gần nhất";
-                        case "Last30Days":
-                          return "30 ngày gần nhất";
-                        case "ThisMonth":
-                          return "Tháng này";
-                        case "LastMonth":
-                          return "Tháng trước";
-                        case "CustomRange":
-                          return "Tùy chọn";
-                        default:
-                          return dateFilter;
-                      }
-                    })()}
-                  </button>
-                  {showDateDropdown && (
-                    <ul
-                      className="dropdown-menu show"
-                      style={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        zIndex: 999,
-                        minWidth: "190px",
-                      }}
-                    >
-                      <li>
-                        <button
-                          className="dropdown-item"
-                          type="button"
-                          onClick={() => {
-                            setDateFilter("Today");
-                            setShowDateDropdown(false);
-                          }}
-                        >
-                          Hôm nay
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="dropdown-item"
-                          type="button"
-                          onClick={() => {
-                            setDateFilter("Yesterday");
-                            setShowDateDropdown(false);
-                          }}
-                        >
-                          Hôm qua
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="dropdown-item"
-                          type="button"
-                          onClick={() => {
-                            setDateFilter("Last7Days");
-                            setShowDateDropdown(false);
-                          }}
-                        >
-                          7 ngày gần nhất
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="dropdown-item"
-                          type="button"
-                          onClick={() => {
-                            setDateFilter("Last30Days");
-                            setShowDateDropdown(false);
-                          }}
-                        >
-                          30 ngày gần nhất
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="dropdown-item"
-                          type="button"
-                          onClick={() => {
-                            setDateFilter("ThisMonth");
-                            setShowDateDropdown(false);
-                          }}
-                        >
-                          Tháng này
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="dropdown-item"
-                          type="button"
-                          onClick={() => {
-                            setDateFilter("LastMonth");
-                            setShowDateDropdown(false);
-                          }}
-                        >
-                          Tháng trước
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="dropdown-item"
-                          type="button"
-                          onClick={() => {
-                            setDateFilter("CustomRange");
-                            setShowDateDropdown(false);
-                          }}
-                        >
-                          Tùy chọn
-                        </button>
-                      </li>
-                    </ul>
-                  )}
-                </div>
-                {dateFilter === "CustomRange" && (
-                  <div className="d-flex align-items-center gap-2">
-                    <input
-                      type="date"
-                      className="form-control form-control-sm border-primary"
-                      style={{ maxWidth: 130 }}
-                      value={customRange.from}
-                      onChange={(e) =>
-                        setCustomRange((r) => ({ ...r, from: e.target.value }))
-                      }
-                    />
-                    <span>-</span>
-                    <input
-                      type="date"
-                      className="form-control form-control-sm border-primary"
-                      style={{ maxWidth: 130 }}
-                      value={customRange.to}
-                      onChange={(e) =>
-                        setCustomRange((r) => ({ ...r, to: e.target.value }))
-                      }
-                    />
-                  </div>
-                )}
-                <select
-                  className="form-select form-select-sm border-primary"
-                  style={{ maxWidth: 140 }}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="All">Tất cả trạng thái</option>
-                  <option value="Available">Có sẵn</option>
-                  <option value="Completed">Hoàn thành</option>
-                </select>
+                {/* Đã loại bỏ chọn khoảng thời gian theo yêu cầu */}
+                {/* Trạng thái đã được loại bỏ theo yêu cầu */}
               </div>
             </div>
             
-            {/* Day of Week Filter Buttons */}
-            <div className="px-4 py-3 border-top bg-white">
-              <div className="d-flex align-items-center justify-content-between mb-2">
-                <h6 className="mb-0 fw-semibold text-muted">
-                  <i className="bi bi-calendar-week me-2"></i>
-                  Lọc theo ngày trong tuần
-                </h6>
-                
-              </div>
-              <div className="d-flex flex-wrap align-items-center gap-3">
-                <div className="d-flex gap-2">
-                  <button
-                    type="button"
-                    className={`btn btn-sm ${
-                      dayOfWeekFilter === "All" 
-                        ? "btn-primary" 
-                        : "btn-outline-primary"
-                    }`}
-                    onClick={() => setDayOfWeekFilter("All")}
-                    style={{ 
-                      fontSize: "13px", 
-                      padding: "8px 16px",
-                      fontWeight: "600",
-                      borderRadius: "20px",
-                      transition: "all 0.2s ease",
-                      border: "1px solid #dee2e6"
-                    }}
-                  >
-                    <i className="bi bi-grid-3x3-gap me-1"></i>
-                    Tất cả
-                  </button>
-                  {[
-                    { key: "Monday", label: "Thứ 2", icon: "bi-calendar-day" },
-                    { key: "Tuesday", label: "Thứ 3", icon: "bi-calendar-day" },
-                    { key: "Wednesday", label: "Thứ 4", icon: "bi-calendar-check" },
-                    { key: "Thursday", label: "Thứ 5", icon: "bi-calendar-day" },
-                    { key: "Friday", label: "Thứ 6", icon: "bi-calendar-day" },
-                    { key: "Saturday", label: "Thứ 7", icon: "bi-calendar-day" },
-                    { key: "Sunday", label: "Chủ nhật", icon: "bi-calendar-day" }
-                  ].map((day) => (
-                    <button
-                      type="button"
-                      key={day.key}
-                      className={`btn btn-sm ${
-                        dayOfWeekFilter === day.key 
-                          ? "btn-primary" 
-                          : "btn-outline-primary"
-                      }`}
-                      onClick={() => setDayOfWeekFilter(day.key)}
-                      style={{ 
-                        fontSize: "13px", 
-                        padding: "8px 16px",
-                        fontWeight: "600",
-                        borderRadius: "20px",
-                        transition: "all 0.2s ease",
-                        border: "1px solid #dee2e6"
-                      }}
-                    >
-                      <i className={`bi ${day.icon} me-1`}></i>
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Quick Stats */}
-                <div className="ms-auto d-flex align-items-center gap-3">
-                  <small className="text-muted">
-                    <i className="bi bi-info-circle me-1"></i>
-                    {dayOfWeekFilter !== "All" ? 
-                      `Đang xem: ${dayOfWeekFilter === "Monday" ? "Thứ 2" :
-                       dayOfWeekFilter === "Tuesday" ? "Thứ 3" :
-                       dayOfWeekFilter === "Wednesday" ? "Thứ 4" :
-                       dayOfWeekFilter === "Thursday" ? "Thứ 5" :
-                       dayOfWeekFilter === "Friday" ? "Thứ 6" :
-                       dayOfWeekFilter === "Saturday" ? "Thứ 7" :
-                       dayOfWeekFilter === "Sunday" ? "Chủ nhật" : dayOfWeekFilter}` : 
-                      "Tất cả ngày trong tuần"}
-                  </small>
-                  <button 
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => setDayOfWeekFilter("All")}
-                    title="Xóa bộ lọc ngày"
-                    style={{ 
-                      fontSize: "12px",
-                      padding: "4px 8px",
-                      borderRadius: "12px"
-                    }}
-                  >
-                    <i className="bi bi-x-circle me-1"></i>
-                    Reset
-                  </button>
-                </div>
-              </div>
-            </div>
             
             <div className="card-body px-4 py-4">
               {error && (
                 <div className="alert alert-danger" role="alert">
                   {error}
-                </div>
+              </div>
               )}
-              {filterSchedulesByDate(schedules).length === 0 ? (
-                  <div className="text-center py-5">
-                    <i
-                      className="bi bi-calendar-x text-muted"
-                      style={{ fontSize: "4rem" }}
-                    ></i>
-                    <p className="text-muted mt-3 fs-5">
-                      Chưa có lịch trình nào
-                    </p>
-                    <button
-                      className="btn btn-primary btn-lg mt-2 px-4"
-                      onClick={() => setShowForm(true)}
-                    >
-                    <i className="bi bi-plus-circle"></i> Thêm lịch trình đầu tiên
-                    </button>
-                  </div>
-                ) : (
-                <div className="row g-4">
-                  {filterSchedulesByDate(schedules).map((schedule) => {
-                    const isToday = toDateString(schedule.workDate) === toDateString(new Date());
-                    const isPast = new Date(schedule.workDate) < new Date();
-                    const isUpcoming = new Date(schedule.workDate) > new Date();
-                    
-                    return (
-                      <div key={schedule.scheduleId} className="col-lg-6 col-xl-4">
-                        <div className={`card h-100 shadow-sm border-0 ${
-                          isToday ? 'border-warning' : 
-                          isPast ? 'border-secondary' : 
-                          'border-primary'
-                        }`} style={{ 
-                          borderRadius: "16px",
-                          transition: "all 0.3s ease",
-                          cursor: "pointer"
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = "translateY(-2px)";
-                          e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = "translateY(0)";
-                          e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
-                        }}>
-                          {/* Card Header */}
-                          <div className={`card-header border-0 ${
-                            isToday ? 'bg-warning bg-opacity-10' : 
-                            isPast ? 'bg-secondary bg-opacity-10' : 
-                            'bg-primary bg-opacity-10'
-                          }`} style={{ borderRadius: "16px 16px 0 0" }}>
-                            <div className="d-flex align-items-center justify-content-between">
-                              <div className="d-flex align-items-center gap-3">
-                                <div className={`rounded-circle d-flex align-items-center justify-content-center ${
-                                  isToday ? 'bg-warning text-dark' : 
-                                  isPast ? 'bg-secondary text-white' : 
-                                  'bg-primary text-white'
-                                }`} style={{ width: 40, height: 40 }}>
-                                  <i className="bi bi-calendar3"></i>
-                                </div>
-                                <div>
-                                  <h6 className="mb-0 fw-bold">
-                              {formatDate(schedule.workDate)}
-                                  </h6>
-                                  <small className={`${
-                                    isToday ? 'text-warning' : 
-                                    isPast ? 'text-muted' : 
-                                    'text-primary'
-                                  }`}>
-                                    {isToday ? 'Hôm nay' : 
-                                     isPast ? 'Đã qua' : 
-                                     'Sắp tới'}
-                                  </small>
-                                </div>
-                              </div>
-                              
-                              {/* Status Badge and Action Buttons */}
-                              <div className="d-flex align-items-center gap-3">
-                                {(() => {
-                                  const statusConfig = getStatusBadge(schedule.status);
-                                  return (
-                                    <span className={statusConfig.class} style={{ fontSize: "12px", fontWeight: "600" }}>
-                                      <i className={`${statusConfig.icon} me-1`}></i>
-                                      {statusConfig.text}
-                                    </span>
-                                  );
-                                })()}
-                                <div className="d-flex gap-1">
-                                  <button
-                                    className="btn btn-sm btn-outline-primary rounded-circle"
-                                    onClick={() => setEditingSchedule(schedule)}
-                                    title="Chỉnh sửa lịch trình"
-                                    style={{ 
-                                      width: 32, 
-                                      height: 32,
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      transition: "all 0.2s ease"
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.target.style.transform = "scale(1.1)";
-                                      e.target.style.backgroundColor = "#0d6efd";
-                                      e.target.style.color = "white";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.target.style.transform = "scale(1)";
-                                      e.target.style.backgroundColor = "transparent";
-                                      e.target.style.color = "#0d6efd";
-                                    }}
-                                  >
-                                    <i className="bi bi-pencil" style={{ fontSize: "12px" }}></i>
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-outline-danger rounded-circle"
-                                    onClick={() => handleDeleteSchedule(schedule.scheduleId)}
-                                    title="Xóa lịch trình"
-                                    style={{ 
-                                      width: 32, 
-                                      height: 32,
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      transition: "all 0.2s ease"
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.target.style.transform = "scale(1.1)";
-                                      e.target.style.backgroundColor = "#dc3545";
-                                      e.target.style.color = "white";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.target.style.transform = "scale(1)";
-                                      e.target.style.backgroundColor = "transparent";
-                                      e.target.style.color = "#dc3545";
-                                    }}
-                                  >
-                                    <i className="bi bi-trash" style={{ fontSize: "12px" }}></i>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Card Body */}
-                          <div className="card-body p-4">
-                            {/* Time Info */}
-                            <div className="row mb-3">
-                              <div className="col-6">
-                                <div className="d-flex align-items-center gap-2 mb-2">
-                                  <i className="bi bi-clock text-primary"></i>
-                                  <small className="text-muted">Bắt đầu</small>
-                                </div>
-                                <div className="fw-semibold text-primary fs-5">
-                                  {formatTime(schedule.startTime)}
-                                </div>
-                              </div>
-                              <div className="col-6">
-                                <div className="d-flex align-items-center gap-2 mb-2">
-                                  <i className="bi bi-clock-fill text-success"></i>
-                                  <small className="text-muted">Kết thúc</small>
-                                </div>
-                                <div className="fw-semibold text-success fs-5">
-                                  {formatTime(schedule.endTime)}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Duration Info */}
-                            <div className="d-flex align-items-center gap-2 mb-3">
-                              <i className="bi bi-hourglass-split text-info"></i>
-                              <small className="text-muted">Thời gian làm việc:</small>
-                              <span className="fw-semibold text-info">
-                                {(() => {
-                                  const start = new Date(`2000-01-01T${schedule.startTime}`);
-                                  const end = new Date(`2000-01-01T${schedule.endTime}`);
-                                  const diffMs = end - start;
-                                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                                  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                                  return `${diffHours}h ${diffMinutes}m`;
-                                })()}
-                              </span>
-                            </div>
-
-                            {/* Appointments Info */}
-                            <div className="d-flex align-items-center gap-2 mb-3">
-                              <i className="bi bi-calendar-check text-primary"></i>
-                              <small className="text-muted">Appointments:</small>
-                              <span className="fw-bold text-primary fs-5">
-                                {schedule.appointmentCount || 0}
-                              </span>
-                            </div>
-
-                            {/* Notes */}
-                            {schedule.notes && (
-                              <div className="mb-3">
-                                <div className="d-flex align-items-center gap-2 mb-1">
-                                  <i className="bi bi-sticky text-muted"></i>
-                                  <small className="text-muted">Ghi chú</small>
-                                </div>
-                                <p className="small mb-0 text-muted">
-                                  {schedule.notes}
-                                </p>
-                              </div>
-                            )}
-                          </div>                     
-                        </div>
-                  </div>
-                    );
-                  })}
-                </div>
-              )}
+              
+              {/* Calendar View Only */}
+              <CalendarView 
+                key={calendarKey}
+                currentDate={currentDate}
+                setCurrentDate={setCurrentDate}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                schedules={schedules}
+                navigateMonth={navigateMonth}
+                getDaysInMonth={getDaysInMonth}
+                getSchedulesForDate={getSchedulesForDate}
+                isToday={isToday}
+                isSelected={isSelected}
+                formatDate={formatDate}
+                formatTime={formatTime}
+                getStatusBadge={getStatusBadge}
+                handleDeleteSchedule={handleDeleteSchedule}
+                setEditingSchedule={setEditingSchedule}
+                setShowScheduleModal={setShowScheduleModal}
+              />
             </div>
           </div>
         </div>
       </div>
-      {/* Modal cho form tạo/sửa lịch trình */}
-      {(showForm || editingSchedule) && (
-        <DoctorScheduleForm
-          schedule={editingSchedule}
-          onSubmit={
-            editingSchedule
-              ? (data) => handleUpdateSchedule(editingSchedule.scheduleId, data)
-              : handleCreateSchedule
-          }
-          onClose={() => {
-            setShowForm(false);
-            setEditingSchedule(null);
-          }}
-        />
+      {/* Schedule Details Modal */}
+      {showScheduleModal && selectedDate && (
+        <div 
+          key={`schedule-modal-container-${selectedDate.toISOString()}`}
+          className="modal fade show" 
+          style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header bg-primary text-white">
+                <h5 className="modal-title">
+                  <i className="bi bi-calendar3 me-2"></i>
+                  {formatDate(selectedDate.toISOString())}
+                </h5>
+                        <button
+                          type="button"
+                  className="btn-close btn-close-white"
+                          onClick={() => {
+                    setShowScheduleModal(false);
+                    setSelectedDate(null);
+                  }}
+                ></button>
+              </div>
+              
+              <div className="modal-body">
+                {getSchedulesForDate(selectedDate).length === 0 ? (
+                  <div className="text-center py-4">
+                    <i className="bi bi-calendar-x text-muted" style={{ fontSize: "3rem" }}></i>
+                    <h5 className="mt-3 text-muted">Không có lịch trình nào</h5>
+                    <p className="text-muted">Ngày này chưa có lịch trình được đặt</p>
+                        <button
+                      className="btn btn-primary"
+                          onClick={() => {
+                        setShowScheduleModal(false);
+                        setShowBulkForm(true);
+                          }}
+                        >
+                      <i className="bi bi-calendar-week me-1"></i>
+                      Tạo cho cả tuần
+                        </button>
+                  </div>
+                ) : (
+                  <div className="row g-3">
+                    {getSchedulesForDate(selectedDate).map((schedule) => {
+                      const statusConfig = getStatusBadge(schedule.status);
+                      return (
+                        <div key={schedule.scheduleId} className="col-12">
+                          <div className="card border-0 shadow-sm">
+                            <div className="card-body">
+                              <div className="d-flex align-items-center justify-content-between mb-3">
+                                <div className="d-flex align-items-center gap-3">
+                                  <i className="bi bi-clock text-primary"></i>
+                                  <span className="fw-bold">
+                                    {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
+                                  </span>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                  <span className={statusConfig.class} style={{ fontSize: "12px" }}>
+                                    <i className={`${statusConfig.icon} me-1`}></i>
+                                    {statusConfig.text}
+                                  </span>
+                                  <div className="btn-group btn-group-sm">
+                        <button
+                                      className="btn btn-outline-primary"
+                          onClick={() => {
+                                        setShowScheduleModal(false);
+                                        setEditingSchedule(schedule);
+                          }}
+                                      title="Chỉnh sửa"
+                        >
+                                      <i className="bi bi-pencil"></i>
+                        </button>
+                        <button
+                                      className="btn btn-outline-danger"
+                          onClick={() => {
+                                        handleDeleteSchedule(schedule.scheduleId);
+                                        setShowScheduleModal(false);
+                          }}
+                                      title="Xóa"
+                        >
+                                      <i className="bi bi-trash"></i>
+                        </button>
+                </div>
+              </div>
+            </div>
+            
+                              <div className="row g-3 text-sm">
+                                <div className="col-md-6">
+                                  <div className="d-flex align-items-center gap-2">
+                                    <i className="bi bi-calendar-check text-primary"></i>
+                                    <span className="text-muted">Appointments:</span>
+                                    <span className="fw-bold text-primary">
+                                      {schedule.appointmentCount || 0}
+                                    </span>
+                                  </div>
+                                </div>
+                                {schedule.notes && (
+                                  <div className="col-12">
+                                    <div className="d-flex align-items-start gap-2">
+                                      <i className="bi bi-sticky text-muted"></i>
+                                      <div>
+                                        <small className="text-muted">Ghi chú:</small>
+                                        <p className="mb-0 small">{schedule.notes}</p>
+                                      </div>
+                                    </div>
+                </div>
+              )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              
+              <div className="modal-footer">
+                        <button
+                          type="button"
+                  className="btn btn-secondary"
+                  onClick={() => closeModalSafely('schedule')}
+                >
+                  Đóng
+                        </button>
+                        <button
+                          type="button"
+                  className="btn btn-primary"
+                          onClick={() => {
+                    setShowScheduleModal(false);
+                    setShowBulkForm(true);
+                          }}
+                        >
+                  <i className="bi bi-calendar-week me-1"></i>
+                  Tạo cho cả tuần
+                        </button>
+                  </div>
+                                </div>
+                              </div>
+        </div>
       )}
+
+      {/* Bulk Create Modal */}
+      {showBulkForm && (
+        <div key="bulk-modal-container">
+          <BulkScheduleForm
+            key="bulk-form"
+            onSubmit={handleBulkCreateSchedules}
+            onClose={() => closeModalSafely('bulk')}
+            shiftOptions={shiftOptions}
+          />
+                </div>
+      )}
+
+
+      {/* Modal cho form sửa lịch trình */}
+      {editingSchedule && (
+        <div key={`edit-modal-container-${editingSchedule.scheduleId}`}>
+          <DoctorScheduleForm
+            key={`edit-${editingSchedule.scheduleId}`}
+            schedule={editingSchedule}
+            onSubmit={(data) => handleUpdateSchedule(editingSchedule.scheduleId, data)}
+            onClose={() => closeModalSafely('edit')}
+                    />
+                  </div>
+                )}
+              </div>
+  );
+};
+
+// Calendar View Component
+const CalendarView = ({
+  currentDate,
+  setCurrentDate,
+  selectedDate,
+  setSelectedDate,
+  schedules,
+  navigateMonth,
+  getDaysInMonth,
+  getSchedulesForDate,
+  isToday,
+  isSelected,
+  formatDate,
+  formatTime,
+  getStatusBadge,
+  handleDeleteSchedule,
+  setEditingSchedule,
+  setShowScheduleModal
+}) => {
+  // Add error handling for currentDate
+  if (!currentDate || isNaN(currentDate.getTime())) {
+    console.error('Invalid currentDate in CalendarView:', currentDate);
+                                  return (
+      <div className="alert alert-danger">
+        <i className="bi bi-exclamation-triangle me-2"></i>
+        Lỗi hiển thị lịch. Vui lòng làm mới trang.
+            </div>
+    );
+  }
+
+  const days = getDaysInMonth(currentDate);
+  const weekDays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  
+  // Debug: Log current state (remove in production)
+  // console.log('CalendarView render:', { 
+  //   currentDate: currentDate.toISOString(), 
+  //   daysCount: days.length,
+  //   firstDay: days[0]?.toISOString(),
+  //   lastDay: days[days.length - 1]?.toISOString()
+  // });
+  
+  return (
+    <div className="calendar-container">
+      {/* Calendar Header */}
+      <div className="calendar-header">
+        <div className="d-flex align-items-center justify-content-between mb-4">
+          <div className="d-flex align-items-center gap-3">
+                  <button
+              className="btn btn-outline-primary btn-sm rounded-circle"
+              onClick={() => navigateMonth(-1)}
+              style={{ width: '40px', height: '40px' }}
+            >
+              <i className="bi bi-chevron-left"></i>
+                  </button>
+            <h4 className="mb-0 fw-bold text-dark">
+              {currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+            </h4>
+                    <button
+              className="btn btn-outline-primary btn-sm rounded-circle"
+              onClick={() => navigateMonth(1)}
+              style={{ width: '40px', height: '40px' }}
+            >
+              <i className="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+                
+                  <button 
+            className="btn btn-primary btn-sm px-3"
+            onClick={() => setCurrentDate(new Date())}
+          >
+            <i className="bi bi-calendar-day me-2"></i>
+            Hôm nay
+                  </button>
+              </div>
+            </div>
+            
+      {/* Calendar Grid */}
+      <div className="calendar-grid">
+        {/* Week day headers */}
+        <div className="calendar-weekdays">
+          {weekDays.map((day) => (
+            <div key={day} className="calendar-weekday">
+              <span className="fw-semibold text-muted">{day}</span>
+                </div>
+          ))}
+                  </div>
+
+        {/* Calendar days */}
+        <div className="calendar-days">
+          {days && days.length > 0 ? days.map((day, index) => {
+            if (!day || isNaN(day.getTime())) {
+              return <div key={`empty-${index}`} className="calendar-day-empty"></div>;
+            }
+
+            const daySchedules = getSchedulesForDate(day);
+            const isCurrentDay = isToday(day);
+            const isSelectedDay = isSelected(day);
+            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                    
+                    return (
+              <div
+                key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}-${index}`}
+                className={`calendar-day ${
+                  isCurrentDay ? 'calendar-day-today' : ''
+                } ${isSelectedDay ? 'calendar-day-selected' : ''} ${
+                  !isCurrentMonth ? 'calendar-day-other-month' : ''
+                }`}
+                onClick={() => {
+                  setSelectedDate(day);
+                  setShowScheduleModal(true);
+                }}
+              >
+                <div className="calendar-day-content">
+                  {/* Day number */}
+                  <div className="calendar-day-header">
+                    <span className={`calendar-day-number ${
+                      isCurrentDay ? 'text-white' : 
+                      isSelectedDay ? 'text-primary' : 
+                      !isCurrentMonth ? 'text-muted' :
+                      'text-dark'
+                    }`}>
+                      {day.getDate()}
+                    </span>
+                    {daySchedules.length > 0 && (
+                      <span className="calendar-day-badge">
+                        {daySchedules.length}
+                      </span>
+                    )}
+                              </div>
+                              
+                  {/* Schedule indicators */}
+                  <div className="calendar-day-schedules">
+                    {daySchedules.slice(0, 2).map((schedule) => {
+                                  const statusConfig = getStatusBadge(schedule.status);
+                                  return (
+                        <div
+                          key={schedule.scheduleId}
+                          className={`calendar-schedule-item ${
+                            schedule.status === 'Available' 
+                              ? 'schedule-available' 
+                              : 'schedule-completed'
+                          }`}
+                          title={`${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`}
+                        >
+                                  {formatTime(schedule.startTime)}
+                                </div>
+                      );
+                    })}
+                    {daySchedules.length > 2 && (
+                      <div className="calendar-schedule-more">
+                        +{daySchedules.length - 2} khác
+                              </div>
+                    )}
+                                </div>
+                                </div>
+              </div>
+            );
+          }) : (
+            <div className="alert alert-warning text-center py-4">
+              <i className="bi bi-calendar-x me-2"></i>
+              Không thể tải dữ liệu lịch. Vui lòng thử lại.
+            </div>
+          )}
+                              </div>
+                            </div>
+
+      <style jsx>{`
+        .calendar-container {
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+          overflow: hidden;
+          border: 1px solid #e9ecef;
+        }
+
+        .calendar-header {
+          padding: 24px 24px 0 24px;
+          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .calendar-grid {
+          padding: 0;
+        }
+
+        .calendar-weekdays {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          background: #f8f9fa;
+          border-bottom: 2px solid #dee2e6;
+        }
+
+        .calendar-weekday {
+          padding: 16px 8px;
+          text-align: center;
+          font-weight: 600;
+          color: #6c757d;
+          border-right: 1px solid #e9ecef;
+        }
+
+        .calendar-weekday:last-child {
+          border-right: none;
+        }
+
+        .calendar-days {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          grid-template-rows: repeat(6, 1fr);
+          min-height: 300px;
+        }
+
+        .calendar-day {
+          border-right: 1px solid #e9ecef;
+          border-bottom: 1px solid #e9ecef;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          position: relative;
+          min-height: 45px;
+        }
+
+        .calendar-day:hover {
+          background: #f8f9fa;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .calendar-day-today {
+          background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+          color: white;
+        }
+
+        .calendar-day-today:hover {
+          background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
+        }
+
+        .calendar-day-selected {
+          background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);
+          color: white;
+        }
+
+        .calendar-day-other-month {
+          background: #f8f9fa;
+          opacity: 0.6;
+        }
+
+        .calendar-day-empty {
+          border-right: 1px solid #e9ecef;
+          border-bottom: 1px solid #e9ecef;
+          min-height: 45px;
+        }
+
+        .calendar-day-content {
+          padding: 2px 1px;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .calendar-day-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1px;
+        }
+
+        .calendar-day-number {
+          font-weight: 600;
+          font-size: 11px;
+        }
+
+        .calendar-day-badge {
+          background: rgba(255, 255, 255, 0.9);
+          color: #0d6efd;
+          border-radius: 4px;
+          padding: 0px 3px;
+          font-size: 8px;
+          font-weight: 600;
+          min-width: 12px;
+          text-align: center;
+        }
+
+        .calendar-day-today .calendar-day-badge {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+        }
+
+        .calendar-day-schedules {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0px;
+        }
+
+        .calendar-schedule-item {
+          padding: 0px 1px;
+          border-radius: 2px;
+          font-size: 7px;
+          font-weight: 500;
+          text-align: center;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .schedule-available {
+          background: #d1edff;
+          color: #0d6efd;
+          border: 1px solid #b3d7ff;
+        }
+
+        .schedule-completed {
+          background: #d4edda;
+          color: #155724;
+          border: 1px solid #c3e6cb;
+        }
+
+        .calendar-day-today .schedule-available {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .calendar-day-today .schedule-completed {
+          background: rgba(255, 255, 255, 0.3);
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .calendar-schedule-more {
+          font-size: 6px;
+          color: #6c757d;
+          text-align: center;
+          font-style: italic;
+        }
+
+        .calendar-day-today .calendar-schedule-more {
+          color: rgba(255, 255, 255, 0.8);
+        }
+
+        @media (max-width: 768px) {
+          .calendar-day {
+            min-height: 35px;
+          }
+          
+          .calendar-day-content {
+            padding: 1px 0px;
+          }
+          
+          .calendar-day-number {
+            font-size: 9px;
+          }
+          
+          .calendar-schedule-item {
+            font-size: 6px;
+            padding: 0px 0px;
+          }
+        }
+      `}</style>
+                            </div>
+  );
+};
+
+// Bulk Schedule Form Component
+const BulkScheduleForm = ({ onSubmit, onClose, shiftOptions }) => {
+  const [formData, setFormData] = useState({
+    startDate: '',
+    endDate: '',
+    notes: '',
+    daysOfWeek: [],
+    shifts: [] // Thêm ca làm việc
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const weekDays = [
+    { value: 0, label: 'Chủ nhật', short: 'CN' },
+    { value: 1, label: 'Thứ 2', short: 'T2' },
+    { value: 2, label: 'Thứ 3', short: 'T3' },
+    { value: 3, label: 'Thứ 4', short: 'T4' },
+    { value: 4, label: 'Thứ 5', short: 'T5' },
+    { value: 5, label: 'Thứ 6', short: 'T6' },
+    { value: 6, label: 'Thứ 7', short: 'T7' }
+  ];
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (formData.daysOfWeek.length === 0) {
+      alert('Vui lòng chọn ít nhất một ngày trong tuần');
+      return;
+    }
+
+    if (formData.shifts.length === 0) {
+      alert('Vui lòng chọn ít nhất một ca làm việc');
+      return;
+    }
+
+    if (new Date(formData.startDate) > new Date(formData.endDate)) {
+      alert('Ngày bắt đầu không được sau ngày kết thúc');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      console.error('Error creating bulk schedules:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const toggleDayOfWeek = (dayValue) => {
+    setFormData(prev => ({
+      ...prev,
+      daysOfWeek: prev.daysOfWeek.includes(dayValue)
+        ? prev.daysOfWeek.filter(d => d !== dayValue)
+        : [...prev.daysOfWeek, dayValue]
+    }));
+  };
+
+  const toggleShift = (shiftValue) => {
+    setFormData(prev => ({
+      ...prev,
+      shifts: prev.shifts.includes(shiftValue)
+        ? prev.shifts.filter(s => s !== shiftValue)
+        : [...prev.shifts, shiftValue]
+    }));
+  };
+
+  return (
+    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          {/* Modal Header */}
+          <div className="modal-header bg-success text-white">
+            <h5 className="modal-title">
+              <i className="bi bi-calendar-week me-2"></i>
+              Tạo lịch làm việc 
+            </h5>
+                                  <button
+              type="button"
+              className="btn-close btn-close-white"
+              onClick={onClose}
+            ></button>
+                            </div>
+
+          {/* Modal Body */}
+          <form onSubmit={handleSubmit}>
+            <div className="modal-body">
+              <div className="row g-3">
+                {/* Date Range */}
+                <div className="col-md-6">
+                  <label className="form-label">
+                    <i className="bi bi-calendar-date me-1"></i>
+                    Ngày bắt đầu *
+                  </label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                  />
+                                </div>
+                <div className="col-md-6">
+                  <label className="form-label">
+                    <i className="bi bi-calendar-date me-1"></i>
+                    Ngày kết thúc *
+                  </label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    required
+                    value={formData.endDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                  />
+                              </div>
+
+
+                {/* Days of Week */}
+                <div className="col-12">
+                  <label className="form-label">
+                    <i className="bi bi-calendar-week me-1"></i>
+                    Ngày trong tuần *
+                  </label>
+                  <div className="d-flex flex-wrap gap-2">
+                    {weekDays.map((day) => (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => toggleDayOfWeek(day.value)}
+                        className={`btn ${
+
+                          formData.daysOfWeek.includes(day.value)
+                            ? 'btn-success'
+                            : 'btn-outline-success'
+                        }`}
+                        style={{ minWidth: '80px' }}
+                      >
+                        <div className="fw-bold">{day.label}</div>
+                                  </button>
+                    ))}
+                  </div>
+                  
+                            </div>
+
+                {/* Ca làm việc */}
+                <div className="col-12">
+                  <label className="form-label">
+                    <i className="bi bi-clock-history me-1"></i>
+                    Ca làm việc *
+                  </label>
+                  <div className="row g-2">
+                    {shiftOptions.map((shift) => (
+                      <div key={shift.value} className="col-md-6">
+                                  <button
+                          type="button"
+                          onClick={() => toggleShift(shift.value)}
+                          className={`btn w-100 ${
+                            formData.shifts.includes(shift.value)
+                              ? 'btn-primary'
+                              : 'btn-outline-primary'
+                          }`}
+                        >
+                          <div className="d-flex align-items-center">
+                            <i className={`${shift.icon} me-2`}></i>
+                            <div className="text-start">
+                              <div className="fw-bold">{shift.label}</div>
+                              <small className="text-muted">{shift.startTime} - {shift.endTime}</small>
+                                </div>
+                              </div>
+                        </button>
+                      </div>
+                    ))}
+                            </div>
+                          </div>
+
+                {/* Thời gian tùy chỉnh cho ca */}
+                {formData.shifts.length > 0 && (
+                  <div className="col-12">
+                    <div className="row g-3">
+                      {formData.shifts.map((shiftValue) => {
+                        const shift = shiftOptions.find(s => s.value === shiftValue);
+                        return (
+                          <div key={shiftValue} className="col-md-6">
+                            <div className="card border-0 shadow-sm">
+                              <div className="card-header bg-light border-0 py-3">
+                                <div className="d-flex align-items-center">
+                                  <i className={`${shift.icon} me-2 text-primary`}></i>
+                                  <span className="fw-bold text-dark">{shift.label}</span>
+                                  <span className="badge bg-primary ms-auto">
+                                    {formData[`${shiftValue}StartTime`] || shift.startTime} - {formData[`${shiftValue}EndTime`] || shift.endTime}
+                              </span>
+                                </div>
+                                </div>
+                              <div className="card-body py-3">
+                                <div className="row g-2">
+                                  <div className="col-6">
+                                    <label className="form-label small text-muted">Giờ bắt đầu</label>
+                                    <input
+                                      type="time"
+                                      className="form-control form-control-sm border-primary"
+                                      value={formData[`${shiftValue}StartTime`] || shift.startTime}
+                                      onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        [`${shiftValue}StartTime`]: e.target.value
+                                      }))}
+                                    />
+                              </div>
+                              <div className="col-6">
+                                    <label className="form-label small text-muted">Giờ kết thúc</label>
+                                    <input
+                                      type="time"
+                                      className="form-control form-control-sm border-primary"
+                                      value={formData[`${shiftValue}EndTime`] || shift.endTime}
+                                      onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        [`${shiftValue}EndTime`]: e.target.value
+                                      }))}
+                                    />
+                                </div>
+                                </div>
+                              </div>
+                            </div>
+                            </div>
+                        );
+                      })}
+                            </div>
+                  </div>
+                )}
+
+                            {/* Notes */}
+                <div className="col-12">
+                  <label className="form-label">
+                    <i className="bi bi-sticky me-1"></i>
+                    Ghi chú
+                  </label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    placeholder="Ghi chú cho tất cả lịch trình..."
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  />
+                                </div>
+
+                {/* Preview */}
+                {formData.startDate && formData.endDate && formData.daysOfWeek.length > 0 && formData.shifts.length > 0 && (
+                  <div className="col-12">
+                    <div className="card border-success">
+                      <div className="card-header bg-success text-white">
+                        <h6 className="mb-0">
+                          <i className="bi bi-eye me-2"></i>
+                          Xem trước lịch trình
+                        </h6>
+                      </div>
+                      <div className="card-body">
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <div className="d-flex align-items-center mb-2">
+                              <i className="bi bi-calendar-range text-success me-2"></i>
+                              <strong>Khoảng thời gian:</strong>
+                            </div>
+                            <p className="ms-4 mb-0 text-muted">
+                              {formData.startDate} đến {formData.endDate}
+                                </p>
+                              </div>
+                          <div className="col-md-6">
+                            <div className="d-flex align-items-center mb-2">
+                              <i className="bi bi-calendar-week text-success me-2"></i>
+                              <strong>Ngày trong tuần:</strong>
+                          </div>                     
+                            <p className="ms-4 mb-0 text-muted">
+                              {formData.daysOfWeek.map(day => 
+                                weekDays.find(d => d.value === day)?.label
+                              ).join(', ')}
+                            </p>
+                        </div>
+                          <div className="col-12">
+                            <div className="d-flex align-items-center mb-2">
+                              <i className="bi bi-clock-history text-success me-2"></i>
+                              <strong>Ca làm việc:</strong>
+                            </div>
+                            <div className="ms-4">
+                              {formData.shifts.map(shiftValue => {
+                                const shift = shiftOptions.find(s => s.value === shiftValue);
+                                const customStartTime = formData[`${shiftValue}StartTime`] || shift.startTime;
+                                const customEndTime = formData[`${shiftValue}EndTime`] || shift.endTime;
+                                return (
+                                  <div key={shiftValue} className="d-flex align-items-center mb-1">
+                                    <i className={`${shift.icon} me-2 text-primary`}></i>
+                                    <span className="me-2">{shift.label}:</span>
+                                    <span className="badge bg-primary">
+                                      {customStartTime} - {customEndTime}
+                                    </span>
+                  </div>
+                    );
+                  })}
+                </div>
+            </div>
+                          <div className="col-12">
+                            <div className="alert alert-success mb-0">
+                              <div className="d-flex align-items-center">
+                                <i className="bi bi-calculator me-2"></i>
+                                <strong>Tổng số lịch trình sẽ tạo:</strong>
+                                <span className="badge bg-success ms-2 fs-6">
+                                  {formData.daysOfWeek.length * formData.shifts.length} lịch
+                                </span>
+          </div>
+        </div>
+      </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onClose}
+              >
+                <i className="bi bi-x-circle me-1"></i>
+                Hủy
+              </button>
+              <button
+                type="submit"
+                className="btn btn-success"
+                disabled={isSubmitting || formData.daysOfWeek.length === 0 || formData.shifts.length === 0}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                    Đang tạo...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-check-circle me-1"></i>
+                    Tạo lịch trình
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };
+
 
 export default DoctorScheduleManagement;

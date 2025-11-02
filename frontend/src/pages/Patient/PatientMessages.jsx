@@ -38,7 +38,10 @@ const Input = (props) => (
   <input {...props} className={`form-control ${props.className || ""}`} />
 );
 
-const Avatar = ({ src, alt, children, size = 40, online = false }) => (
+const Avatar = ({ src, alt, children, size = 40, online = false }) => {
+  const hasValidSrc = src && src.trim() !== "" && src !== "/placeholder.svg";
+  
+  return (
   <div className="position-relative">
     <div
       className="avatar rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
@@ -51,7 +54,7 @@ const Avatar = ({ src, alt, children, size = 40, online = false }) => (
         boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
       }}
     >
-      {src ? (
+      {hasValidSrc ? (
         <img
           src={src}
           alt={alt}
@@ -79,7 +82,8 @@ const Avatar = ({ src, alt, children, size = 40, online = false }) => (
       />
     )}
   </div>
-);
+  );
+};
 
 function PatientMessages() {
   const [searchParams] = useSearchParams();
@@ -336,8 +340,8 @@ function PatientMessages() {
               ...doctor,
               doctorId,
               doctorUserId: doctor.user?.id ?? doctor?.userId,
-              doctorName: doctor.user?.lastName + " " + doctor.user?.firstName ||
-                          doctor.lastName + " " + doctor.firstName ||
+              doctorName: doctor.user?.firstName + " " + doctor.user?.lastName ||
+                          doctor.firstName + " " + doctor.lastName ||
                           "Không rõ",
               doctorEmail: doctor.user?.email || "",
               doctorPhone: doctor.user?.phone || "",
@@ -958,7 +962,7 @@ function PatientMessages() {
                   <div className="d-flex align-items-center gap-3">
                     <Avatar
                       size={50}
-                      src={doctor.doctorAvatar || "/placeholder.svg"}
+                      src={resolveSenderAvatar(doctor.doctorAvatar) || "/placeholder.svg"}
                       alt={doctor.doctorName}
                       online={doctor.unreadCount > 0}
                     >
@@ -1001,7 +1005,7 @@ function PatientMessages() {
                 <div className="d-flex align-items-center gap-3">
                   <Avatar
                     size={45}
-                    src={selectedDoctor.doctorAvatar || "/placeholder.svg"}
+                    src={resolveSenderAvatar(selectedDoctor.doctorAvatar) || "/placeholder.svg"}
                     alt={selectedDoctor.doctorName}
                   >
                     {selectedDoctor.doctorName
