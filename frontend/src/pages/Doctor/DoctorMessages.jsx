@@ -114,6 +114,8 @@ function DoctorMessages() {
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [uploadError, setUploadError] = useState("");
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const markConversationAsRead = useCallback(async () => {
     if (!conversationId || !currentUserId) return;
@@ -942,6 +944,16 @@ function DoctorMessages() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Responsive: detect mobile
+  useEffect(() => {
+    const onResize = () => {
+      const mobile = window.innerWidth < 992;
+      setIsMobile(mobile);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Render
   if (loading) {
     return (
@@ -957,9 +969,10 @@ function DoctorMessages() {
     <div className="bg-white rounded-4 shadow-sm border" style={{ height: "calc(100vh - 120px)", overflow: "hidden" }}>
       <div className="d-flex h-100">
         {/* Patients List Sidebar */}
+        {(!isMobile || (isMobile && sidebarVisible)) && (
         <div
           className="border-end bg-light"
-          style={{ width: "350px", minWidth: "350px" }}
+          style={{ width: isMobile ? "100%" : "350px", minWidth: isMobile ? "auto" : "350px" }}
         >
           {/* Header */}
           <div className="p-3 border-bottom">
@@ -1015,6 +1028,7 @@ function DoctorMessages() {
                     if (patients.length === 0) {
                       fetchPatients();
                     }
+                    if (isMobile) setSidebarVisible(false);
                   }}
                   style={{ cursor: "pointer" }}
                 >
@@ -1051,14 +1065,25 @@ function DoctorMessages() {
             )}
           </div>
         </div>
+        )}
 
         {/* Chat Area */}
+        {(!isMobile || (isMobile && !sidebarVisible)) && (
         <div className="flex-grow-1 d-flex flex-column">
           {selectedPatient ? (
             <>
               {/* Chat Header */}
               <div className="p-3 border-bottom d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center gap-3">
+                  {isMobile && (
+                    <button
+                      className="btn btn-outline-secondary d-flex align-items-center"
+                      onClick={() => setSidebarVisible(true)}
+                      title="Danh sách bệnh nhân"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                  )}
                   <Avatar
                     size={45}
                     src={config.helpers.getAvatarUrl(selectedPatient.patientAvatar) || null}
@@ -1236,8 +1261,10 @@ function DoctorMessages() {
                                 {message.content && <p className="mb-0">{message.content}</p>}
                               </>
                             )}
-                            <small className={timeClass}>{formatTime(message.createdAt || message.sentAt)}</small>
                           </div>
+                          <small className={`d-block mt-1 ${alignRight ? "text-end text-muted" : "text-start text-muted"}`}>
+                            {formatTime(message.createdAt || message.sentAt)}
+                          </small>
                         </div>
                         {alignRight && (
                           <div className="ms-2">
@@ -1303,6 +1330,7 @@ function DoctorMessages() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
 

@@ -94,6 +94,8 @@ function PatientMessages() {
   const [searchQuery, setSearchQuery] = useState("");
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -883,6 +885,16 @@ function PatientMessages() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Responsive: detect mobile
+  useEffect(() => {
+    const onResize = () => {
+      const mobile = window.innerWidth < 992;
+      setIsMobile(mobile);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Render
   if (loading) {
     return (
@@ -898,9 +910,10 @@ function PatientMessages() {
     <div className="bg-white rounded-4 shadow-sm border" style={{ height: "calc(100vh - 180px)", overflow: "hidden" }}>
       <div className="d-flex h-100">
         {/* Doctors List Sidebar */}
+        {(!isMobile || (isMobile && sidebarVisible)) && (
         <div
           className="border-end bg-light"
-          style={{ width: "350px", minWidth: "350px" }}
+          style={{ width: isMobile ? "100%" : "350px", minWidth: isMobile ? "auto" : "350px" }}
         >
           {/* Header */}
           <div className="p-3 border-bottom">
@@ -952,6 +965,7 @@ function PatientMessages() {
                   }`}
                   onClick={() => {
                     setSelectedDoctor(doctor);
+                    if (isMobile) setSidebarVisible(false);
                     // Load doctors if list is empty
                     if (doctors.length === 0) {
                       fetchDoctors();
@@ -979,9 +993,7 @@ function PatientMessages() {
                           </span>
                         )}
                       </div>
-                      <p className="mb-1 small text-truncate">
-                        {doctor.lastMessage}
-                      </p>
+                      <p className="mb-1 small text-truncate">{doctor.lastMessage}</p>
                       <small className="text-muted">
                         {doctor.lastMessageTime ? formatTime(doctor.lastMessageTime) : ""}
                       </small>
@@ -992,14 +1004,25 @@ function PatientMessages() {
             )}
           </div>
         </div>
+        )}
 
         {/* Chat Area */}
+        {(!isMobile || (isMobile && !sidebarVisible)) && (
         <div className="flex-grow-1 d-flex flex-column">
           {selectedDoctor ? (
             <>
               {/* Chat Header */}
               <div className="p-3 border-bottom d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center gap-3">
+                  {isMobile && (
+                    <button
+                      className="btn btn-outline-secondary d-flex align-items-center"
+                      onClick={() => setSidebarVisible(true)}
+                      title="Danh sách bác sĩ"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                  )}
                   <Avatar
                     size={45}
                     src={resolveSenderAvatar(selectedDoctor.doctorAvatar) || "/placeholder.svg"}
@@ -1175,8 +1198,10 @@ function PatientMessages() {
                                 {message.content && <p className="mb-0">{message.content}</p>}
                               </>
                             )}
-                            <small className={timeClass}>{formatTime(message.createdAt || message.sentAt)}</small>
                           </div>
+                          <small className={`d-block mt-1 ${alignRight ? "text-end text-muted" : "text-start text-muted"}`}>
+                            {formatTime(message.createdAt || message.sentAt)}
+                          </small>
                         </div>
                         {alignRight && (
                           <div className="ms-2">
@@ -1235,13 +1260,22 @@ function PatientMessages() {
               <div className="text-center">
                 <MessageCircle size={64} color="#ccc" className="mb-3" />
                 <h5 className="text-muted">Chọn bác sĩ để bắt đầu trò chuyện</h5>
-                <p className="text-muted">
-                  Chọn một bác sĩ từ danh sách bên trái để xem tin nhắn
+                <p className="text-muted mb-3">
+                  Chọn một bác sĩ từ danh sách để xem tin nhắn
                 </p>
+                {isMobile && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setSidebarVisible(true)}
+                  >
+                    Chọn bác sĩ
+                  </button>
+                )}
               </div>
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
 
