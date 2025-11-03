@@ -59,7 +59,7 @@ import ArticleDetail from "../components/article/ArticleDetail";
 import PublicArticleDetail from "../pages/ArticleDetail";
 import PaymentSuccess from "../pages/Payment/PaymentSuccess";
 import PaymentCancel from "../pages/Payment/PaymentCancel";
-import ChatBot from "../components/ChatBot";
+import ChatBot from "../components/chatbot/ChatBot";
 
 const AppRoutes = () => {
   return (
