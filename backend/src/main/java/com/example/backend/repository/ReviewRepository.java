@@ -1,6 +1,7 @@
 package com.example.backend.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -25,5 +26,5 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Query("SELECT COUNT(r) FROM Review r WHERE r.doctor.doctorId = :doctorId AND r.status = 'ACTIVE'")
     Long getReviewCountByDoctor(@Param("doctorId") Long doctorId);
     
-    List<Review> findByPatient_PatientIdAndDoctor_DoctorId(Long patientId, Long doctorId);
+    Optional<Review> findByAppointment_AppointmentId(Long appointmentId);
 }

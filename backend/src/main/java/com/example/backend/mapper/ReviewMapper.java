@@ -6,14 +6,16 @@ import com.example.backend.dto.ReviewDTO;
 import com.example.backend.model.Review;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.Patient;
+import com.example.backend.model.Appointment;
 
 @Component
 public class ReviewMapper {
 
-    public Review createDTOToEntity(ReviewDTO.Create dto, Patient patient, Doctor doctor) {
+    public Review createDTOToEntity(ReviewDTO.Create dto, Patient patient, Doctor doctor, Appointment appointment) {
         Review entity = new Review();
         entity.setPatient(patient);
         entity.setDoctor(doctor);
+        entity.setAppointment(appointment);
         entity.setRating(dto.getRating());
         entity.setComment(dto.getComment());
         entity.setCreatedAt(java.time.LocalDateTime.now());
@@ -44,6 +46,7 @@ public class ReviewMapper {
         dto.setDoctorName(entity.getDoctor() != null && entity.getDoctor().getUser() != null
                 ? entity.getDoctor().getUser().getFirstName() + " " + entity.getDoctor().getUser().getLastName()
                 : null);
+        dto.setAppointmentId(entity.getAppointment() != null ? entity.getAppointment().getAppointmentId() : null);
         dto.setRating(entity.getRating());
         dto.setComment(entity.getComment());
         dto.setCreatedAt(entity.getCreatedAt());

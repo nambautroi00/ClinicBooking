@@ -895,7 +895,7 @@ function PatientMessages() {
 
   return (
     <>
-    <div className="bg-white rounded-4 shadow-sm border" style={{ height: "calc(100vh - 120px)", overflow: "hidden" }}>
+    <div className="bg-white rounded-4 shadow-sm border" style={{ height: "calc(100vh - 180px)", overflow: "hidden" }}>
       <div className="d-flex h-100">
         {/* Doctors List Sidebar */}
         <div
@@ -980,9 +980,6 @@ function PatientMessages() {
                         )}
                       </div>
                       <p className="mb-1 small text-truncate">
-                        {doctor.doctorSpecialty}
-                      </p>
-                      <p className="mb-1 small text-truncate">
                         {doctor.lastMessage}
                       </p>
                       <small className="text-muted">
@@ -1014,8 +1011,7 @@ function PatientMessages() {
                   </Avatar>
                   <div>
                     <h6 className="mb-0 fw-bold">{selectedDoctor.doctorName}</h6>
-                    <small className="text-muted">
-                      {selectedDoctor.doctorSpecialty} • {selectedDoctor.totalAppointments} lịch hẹn
+                    <small className="text-muted"> • {selectedDoctor.totalAppointments} lịch hẹn
                     </small>
                   </div>
                 </div>
