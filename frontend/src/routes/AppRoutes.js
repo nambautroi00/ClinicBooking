@@ -30,6 +30,7 @@ import DoctorAvailableSlotManagement from "../pages/Doctor/DoctorAvailableSlotMa
 import DoctorPrescriptions from "../pages/Doctor/DoctorPrescriptions";
 import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
 import MedicalRecords from "../pages/Doctor/MedicalRecords";
+import DoctorReviews from "../pages/Doctor/DoctorReviews";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
@@ -128,6 +129,8 @@ const AppRoutes = () => {
         <Route path="prescriptions/new" element={<PrescriptionForm />} />
         <Route path="medical-records" element={<MedicalRecords />} />
         <Route path="profile" element={<DoctorProfile />} />
+        <Route path="reviews" element={<DoctorReviews />} />
+        <Route path="reiview" element={<DoctorReviews />} />
       </Route>
 
       {/* Admin (protected) */}

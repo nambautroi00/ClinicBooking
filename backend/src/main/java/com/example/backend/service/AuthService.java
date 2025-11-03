@@ -1,6 +1,7 @@
 package com.example.backend.service;
 
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -528,5 +529,19 @@ public class AuthService {
         content.append("Đội ngũ ClinicBooking 🏥");
         
         return content.toString();
+    }
+
+    // Attempt to fix mojibake where UTF-8 bytes were decoded as ISO-8859-1
+    private String fixEncoding(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        try {
+            String converted = new String(input.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+            String roundtrip = new String(converted.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1);
+            return roundtrip.equals(input) ? converted : input;
+        } catch (Exception ignore) {
+            return input;
+        }
     }
 }

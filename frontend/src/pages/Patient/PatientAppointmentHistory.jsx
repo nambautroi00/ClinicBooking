@@ -63,7 +63,7 @@ export default function PatientAppointmentHistory() {
   const [rating, setRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [reviews, setReviews] = useState({}); // Lưu thông tin đánh giá theo doctorId
+  const [reviews, setReviews] = useState({}); // Store reviews keyed by appointmentId
   const [isEditingReview, setIsEditingReview] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState(null);
 
@@ -207,13 +207,13 @@ export default function PatientAppointmentHistory() {
       try {
         const list = await reviewApi.getByPatient(patientId);
         if (Array.isArray(list)) {
-          const mapByDoctor = {};
-          list.forEach(r => {
-            if (r && r.doctorId != null) {
-              mapByDoctor[r.doctorId] = r;
-            }
-          });
-          setReviews(mapByDoctor);
+          const mapByAppointment = {};
+            list.forEach(r => {
+              if (r && r.appointmentId != null) {
+                mapByAppointment[r.appointmentId] = r;
+              }
+            });
+            setReviews(mapByAppointment);
         } else {
           setReviews({});
         }
@@ -285,15 +285,19 @@ export default function PatientAppointmentHistory() {
           throw new Error('Không nhận được phản hồi từ server');
         }
 
-        // Update reviews state (map by doctorId)
+        // Update reviews state (map by appointmentId)
         setReviews(prev => ({
           ...prev,
-          [appointmentToReview.doctorId]: {
+          [appointmentToReview.appointmentId]: {
+            ...(prev[appointmentToReview.appointmentId] || {}),
             ...resp,
             reviewId: resp.reviewId || resp.id || editingReviewId,
             rating: resp.rating ?? rating,
             comment: resp.comment ?? reviewComment,
-            createdAt: resp.createdAt || new Date().toISOString()
+            appointmentId: resp.appointmentId ?? appointmentToReview.appointmentId,
+            doctorId: resp.doctorId ?? appointmentToReview.doctorId,
+            patientId: resp.patientId ?? patientId,
+            createdAt: resp.createdAt || prev[appointmentToReview.appointmentId]?.createdAt || new Date().toISOString()
           }
         }));
 
@@ -324,26 +328,29 @@ export default function PatientAppointmentHistory() {
 
         console.log('Review submission response:', response);
 
-        // Update reviews state (map by doctorId)
-        setReviews(prev => {
-          const newReviews = {
-            ...prev,
-            [appointmentToReview.doctorId]: {
-              reviewId: response.reviewId || response.id,
-              rating,
-              comment: reviewComment,
-              createdAt: new Date().toISOString(),
-              doctorId: appointmentToReview.doctorId,
-              patientId: patientId
-            }
-          };
-          return newReviews;
-        });
+          // Update reviews state (map by appointmentId)
+          setReviews(prev => {
+            const newReviews = {
+              ...prev,
+              [appointmentToReview.appointmentId]: {
+                reviewId: response.reviewId || response.id,
+                rating,
+                comment: reviewComment,
+                createdAt: response.createdAt || new Date().toISOString(),
+                doctorId: appointmentToReview.doctorId,
+                patientId: patientId,
+                appointmentId: appointmentToReview.appointmentId
+              }
+            };
+            return newReviews;
+          });
 
-        setShowReviewModal(false);
-        setAppointmentToReview(null);
-        setRating(0);
-        setReviewComment('');
+          setShowReviewModal(false);
+          setAppointmentToReview(null);
+          setRating(0);
+          setReviewComment('');
+          setIsEditingReview(false);
+          setEditingReviewId(null);
         toast.success('Đánh giá của bạn đã được ghi nhận!');
       }
     } catch (error) {
@@ -719,21 +726,28 @@ export default function PatientAppointmentHistory() {
 
                                     {appointment.status === 'Completed' && (
                                       <div className="flex items-center gap-2">
-                                        {reviews[appointment.doctorId] ? (
+                                        {reviews[appointment.appointmentId] ? (
                                           <div className="flex items-center justify-between w-full">
                                             <div className="flex items-center gap-2">
                                               <span className="text-xs text-gray-500">Đánh giá của bạn:</span>
                                               <div className="flex items-center gap-1">
-                                                <RatingStars value={reviews[appointment.doctorId].rating} readonly={true} />
-                                                <span className="text-xs text-gray-500">({reviews[appointment.doctorId].comment || 'Chưa có nhận xét'})</span>
+                                                <RatingStars value={reviews[appointment.appointmentId].rating} readonly={true} />
+                                                <span className="text-xs text-gray-500">({reviews[appointment.appointmentId].comment || 'Chưa có nhận xét'})</span>
                                               </div>
                                             </div>
-                                            <button onClick={() => openEditReview(appointment, reviews[appointment.doctorId])} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                                            <button onClick={() => openEditReview(appointment, reviews[appointment.appointmentId])} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
                                               Chỉnh sửa
                                             </button>
                                           </div>
                                         ) : (
-                                          <button onClick={() => { setAppointmentToReview(appointment); setShowReviewModal(true); }} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                                          <button onClick={() => {
+                                            setAppointmentToReview(appointment);
+                                            setIsEditingReview(false);
+                                            setEditingReviewId(null);
+                                            setRating(0);
+                                            setReviewComment('');
+                                            setShowReviewModal(true);
+                                          }} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
                                             <Star className="h-3 w-3" /> Thêm đánh giá của bạn
                                           </button>
                                         )}
@@ -763,12 +777,23 @@ export default function PatientAppointmentHistory() {
 
                                   {appointment.status === 'Completed' && (
                                     <div className="flex items-center gap-2">
-                                      {reviews[appointment.doctorId] && <RatingStars value={reviews[appointment.doctorId].rating} readonly={true} />}
-                                      <button className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium" onClick={() => { if (reviews[appointment.doctorId]) openEditReview(appointment, reviews[appointment.doctorId]); else { setAppointmentToReview(appointment); setShowReviewModal(true); } }}>
-                                        {reviews[appointment.doctorId] ? 'Chỉnh sửa đánh giá' : 'Đánh giá'}
+                                      {reviews[appointment.appointmentId] && <RatingStars value={reviews[appointment.appointmentId].rating} readonly={true} />}
+                                      <button className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium" onClick={() => {
+                                        if (reviews[appointment.appointmentId]) {
+                                          openEditReview(appointment, reviews[appointment.appointmentId]);
+                                        } else {
+                                          setAppointmentToReview(appointment);
+                                          setIsEditingReview(false);
+                                          setEditingReviewId(null);
+                                          setRating(0);
+                                          setReviewComment('');
+                                          setShowReviewModal(true);
+                                        }
+                                      }}>
+                                        {reviews[appointment.appointmentId] ? 'Chỉnh sửa đánh giá' : 'Đánh giá'}
                                       </button>
-                                      {reviews[appointment.doctorId] && (
-                                        <span className="text-sm text-gray-500">{new Date(reviews[appointment.doctorId].createdAt).toLocaleDateString('vi-VN')}</span>
+                                      {reviews[appointment.appointmentId] && (
+                                        <span className="text-sm text-gray-500">{new Date(reviews[appointment.appointmentId].createdAt).toLocaleDateString('vi-VN')}</span>
                                       )}
                                     </div>
                                   )}

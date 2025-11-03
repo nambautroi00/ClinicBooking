@@ -38,6 +38,11 @@ public class ReviewController {
     public ResponseEntity<List<ReviewDTO.Response>> getAllExplicit() {
         return ResponseEntity.ok(reviewService.getAll());
     }
+
+    @GetMapping("/by-appointment/{appointmentId}")
+    public ResponseEntity<ReviewDTO.Response> getByAppointment(@PathVariable("appointmentId") Long appointmentId) {
+        return ResponseEntity.ok(reviewService.getByAppointment(appointmentId));
+    }
     @PostMapping
     public ResponseEntity<ReviewDTO.Response> create(@Valid @RequestBody ReviewDTO.Create dto) {
         ReviewDTO.Response created = reviewService.create(dto);
