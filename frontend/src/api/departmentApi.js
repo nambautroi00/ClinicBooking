@@ -1,5 +1,15 @@
 import axiosClient from './axiosClient';
 
+export const getDepartments = (params = {}) =>
+  axiosClient.get('/departments', {
+    params: { page: 0, size: 1000, sort: 'departmentName,asc', ...params },
+  });
+
+export const getAllDepartmentsList = () => getDepartments();
+
+export const getActiveDepartmentList = () =>
+  axiosClient.get('/departments/active/list');
+
 const departmentApi = {
   // Get all departments with pagination
   getAllDepartments: (page = 0, size = 10, sort = 'departmentName,asc') =>
