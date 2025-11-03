@@ -7,7 +7,6 @@ import "./App.css";
 // Import components
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
-import FloatingChatButton from "./components/FloatingChatButton";
 import AppRoutes from "./routes/AppRoutes";
 
 const AppContent = () => {
@@ -45,7 +44,6 @@ function App() {
   return (
     <Router>
       <AppContent />
-      <FloatingChatButton />
     </Router>
   );
 }
