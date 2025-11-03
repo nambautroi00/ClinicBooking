@@ -24,6 +24,10 @@ public class Review {
     @JoinColumn(name = "DoctorID", nullable = false)
     private Doctor doctor;
 
+    @ManyToOne
+    @JoinColumn(name = "AppointmentID", nullable = false)
+    private Appointment appointment;
+
     private Integer rating;
     @Column(columnDefinition = "NVARCHAR(255)")
     private String comment;

@@ -60,6 +60,28 @@ public class AppointmentDTO {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class BulkCreate {
+        @NotNull(message = "DoctorID không được để trống")
+        private Long doctorId;
+
+        @NotNull(message = "Danh sách appointments không được để trống")
+        private java.util.List<Create> appointments;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BulkCreateResponse {
+        private int totalRequested;
+        private int successCount;
+        private int failedCount;
+        private java.util.List<Response> createdAppointments;
+        private java.util.List<String> errors;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Response {
     private Long appointmentId;
     private Long patientId;

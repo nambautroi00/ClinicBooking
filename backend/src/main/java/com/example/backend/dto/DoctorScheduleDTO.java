@@ -66,6 +66,7 @@ public class DoctorScheduleDTO {
         private LocalTime endTime;
         private String status;
         private String notes;
+        private Long appointmentCount; // Số lượng appointments cho schedule này
     }
 }
 

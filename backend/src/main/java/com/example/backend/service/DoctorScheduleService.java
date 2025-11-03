@@ -2,6 +2,8 @@ package com.example.backend.service;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +51,24 @@ public class DoctorScheduleService {
         List<DoctorSchedule> list = (status == null || status.isBlank())
                 ? doctorScheduleRepository.findByDoctor_DoctorId(doctorId)
                 : doctorScheduleRepository.findByDoctor_DoctorIdAndStatus(doctorId, status);
-        return list.stream().map(doctorScheduleMapper::entityToResponseDTO).toList();
+        
+        // Load appointment counts efficiently in a single query
+        List<Long> scheduleIds = list.stream().map(DoctorSchedule::getScheduleId).toList();
+        List<Appointment> appointments = appointmentRepository.findBySchedule_ScheduleIdIn(scheduleIds);
+        
+        // Create count map: scheduleId -> count
+        Map<Long, Long> appointmentCountMap = appointments.stream()
+                .collect(Collectors.groupingBy(
+                    apt -> apt.getSchedule().getScheduleId(),
+                    Collectors.counting()
+                ));
+        
+        // Map to DTOs with appointment counts
+        return list.stream().map(schedule -> {
+            DoctorScheduleDTO.Response response = doctorScheduleMapper.entityToResponseDTO(schedule);
+            response.setAppointmentCount(appointmentCountMap.getOrDefault(schedule.getScheduleId(), 0L));
+            return response;
+        }).toList();
     }
 
     public DoctorScheduleDTO.Response update(Long scheduleId, DoctorScheduleDTO.Update dto) {

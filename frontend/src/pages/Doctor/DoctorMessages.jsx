@@ -37,48 +37,51 @@ const Input = (props) => (
   <input {...props} className={`form-control ${props.className || ""}`} />
 );
 
-const Avatar = ({ src, alt, children, size = 40, online = false }) => (
-  <div className="position-relative">
-    <div
-      className="avatar rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-      style={{
-        width: size,
-        height: size,
-        overflow: "hidden",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        border: "3px solid #fff",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-      }}
-    >
-      {src ? (
-        <img
-          src={src}
-          alt={alt}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+const Avatar = ({ src, alt, children, size = 40, online = false }) => {
+  const hasValidSrc = src && src.trim() !== "" && src !== "/placeholder.svg";
+  return (
+    <div className="position-relative">
+      <div
+        className="avatar rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+        style={{
+          width: size,
+          height: size,
+          overflow: "hidden",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          border: "3px solid #fff",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+        }}
+      >
+        {hasValidSrc ? (
+          <img
+            src={src}
+            alt={alt}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <span
+            className="fw-bold text-white"
+            style={{ fontSize: `${size * 0.4}px` }}
+          >
+            {children}
+          </span>
+        )}
+      </div>
+      {online && (
+        <div
+          className="position-absolute bg-success rounded-circle"
+          style={{
+            width: 12,
+            height: 12,
+            bottom: 2,
+            right: 2,
+            border: "2px solid white",
+          }}
         />
-      ) : (
-        <span
-          className="fw-bold text-white"
-          style={{ fontSize: `${size * 0.4}px` }}
-        >
-          {children}
-        </span>
       )}
     </div>
-    {online && (
-      <div
-        className="position-absolute bg-success rounded-circle"
-        style={{
-          width: 12,
-          height: 12,
-          bottom: 2,
-          right: 2,
-          border: "2px solid white",
-        }}
-      />
-    )}
-  </div>
-);
+  );
+};
 
 // Messages are loaded from API
 
@@ -1018,7 +1021,7 @@ function DoctorMessages() {
                   <div className="d-flex align-items-center gap-3">
                     <Avatar
                       size={50}
-                      src={patient.patientAvatar || "/placeholder.svg"}
+                      src={config.helpers.getAvatarUrl(patient.patientAvatar) || null}
                       alt={patient.patientName}
                       online={patient.unreadCount > 0}
                     >
@@ -1058,7 +1061,7 @@ function DoctorMessages() {
                 <div className="d-flex align-items-center gap-3">
                   <Avatar
                     size={45}
-                    src={selectedPatient.patientAvatar || "/placeholder.svg"}
+                    src={config.helpers.getAvatarUrl(selectedPatient.patientAvatar) || null}
                     alt={selectedPatient.patientName}
                   >
                     {selectedPatient.patientName

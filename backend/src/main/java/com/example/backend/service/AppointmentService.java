@@ -160,6 +160,20 @@ public class AppointmentService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<AppointmentDTO.Response> getAvailableSlotsByDoctorAndDateRange(
+            Long doctorId, 
+            java.time.LocalDateTime startDate, 
+            java.time.LocalDateTime endDate) {
+        List<Appointment> list = appointmentRepository.findByDoctor_DoctorIdAndDateRange(
+                doctorId, startDate, endDate);
+        // Lọc các appointment có patient = null và status = "Available"
+        return list.stream()
+                .filter(apt -> apt.getPatient() == null && "Available".equals(apt.getStatus()))
+                .map(appointmentMapper::entityToResponseDTO)
+                .toList();
+    }
+
     public AppointmentDTO.Response bookAppointment(Long appointmentId, Long patientId, String notes) {
         Appointment entity = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc hẹn với ID: " + appointmentId));
@@ -274,6 +288,141 @@ public class AppointmentService {
         return appointments.stream()
                 .map(appointmentMapper::entityToResponseDTO)
                 .toList();
+    }
+
+    // Bulk create appointments - tối ưu để tránh timeout
+    public AppointmentDTO.BulkCreateResponse bulkCreate(AppointmentDTO.BulkCreate bulkCreate) {
+        List<AppointmentDTO.Create> appointmentDTOs = bulkCreate.getAppointments();
+        if (appointmentDTOs == null || appointmentDTOs.isEmpty()) {
+            throw new IllegalArgumentException("Danh sách appointments không được để trống");
+        }
+
+        // Validate doctor tồn tại
+        Doctor doctor = doctorRepository.findById(bulkCreate.getDoctorId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy bác sĩ với ID: " + bulkCreate.getDoctorId()));
+
+        // Lấy tất cả existing appointments một lần để tránh query nhiều lần
+        List<Appointment> existingAppointments = appointmentRepository.findByDoctor_DoctorId(bulkCreate.getDoctorId());
+        
+        AppointmentDTO.BulkCreateResponse response = new AppointmentDTO.BulkCreateResponse();
+        response.setTotalRequested(appointmentDTOs.size());
+        response.setCreatedAppointments(new java.util.ArrayList<>());
+        response.setErrors(new java.util.ArrayList<>());
+        
+        // Tạo danh sách appointments để save batch
+        java.util.List<Appointment> appointmentsToSave = new java.util.ArrayList<>();
+
+        for (int i = 0; i < appointmentDTOs.size(); i++) {
+            AppointmentDTO.Create dto = appointmentDTOs.get(i);
+            try {
+                // Set doctorId nếu chưa có
+                if (dto.getDoctorId() == null) {
+                    dto.setDoctorId(bulkCreate.getDoctorId());
+                }
+                
+                // Validate doctorId phải khớp
+                if (!dto.getDoctorId().equals(bulkCreate.getDoctorId())) {
+                    response.getErrors().add("Appointment #" + (i + 1) + ": DoctorId không khớp");
+                    response.setFailedCount(response.getFailedCount() + 1);
+                    continue;
+                }
+
+                Patient patient = null;
+                if (dto.getPatientId() != null) {
+                    patient = patientRepository.findById(dto.getPatientId())
+                            .orElse(null);
+                    if (patient == null) {
+                        response.getErrors().add("Appointment #" + (i + 1) + ": Không tìm thấy bệnh nhân");
+                        response.setFailedCount(response.getFailedCount() + 1);
+                        continue;
+                    }
+                }
+
+                DoctorSchedule schedule = doctorScheduleRepository.findById(dto.getScheduleId())
+                        .orElse(null);
+                if (schedule == null) {
+                    response.getErrors().add("Appointment #" + (i + 1) + ": Không tìm thấy lịch trình");
+                    response.setFailedCount(response.getFailedCount() + 1);
+                    continue;
+                }
+
+                // Validate schedule
+                if (!schedule.getDoctor().getDoctorId().equals(dto.getDoctorId())) {
+                    response.getErrors().add("Appointment #" + (i + 1) + ": Lịch trình không thuộc về bác sĩ này");
+                    response.setFailedCount(response.getFailedCount() + 1);
+                    continue;
+                }
+
+                if (!"Available".equals(schedule.getStatus())) {
+                    response.getErrors().add("Appointment #" + (i + 1) + ": Lịch trình không khả dụng");
+                    response.setFailedCount(response.getFailedCount() + 1);
+                    continue;
+                }
+
+                // Validate time range
+                java.time.LocalDate scheduleDate = schedule.getWorkDate();
+                java.time.LocalTime scheduleStartTime = schedule.getStartTime();
+                java.time.LocalTime scheduleEndTime = schedule.getEndTime();
+                java.time.LocalDate appointmentDate = dto.getStartTime().toLocalDate();
+                java.time.LocalTime appointmentStartTime = dto.getStartTime().toLocalTime();
+                java.time.LocalTime appointmentEndTime = dto.getEndTime().toLocalTime();
+
+                if (!appointmentDate.equals(scheduleDate) ||
+                    appointmentStartTime.isBefore(scheduleStartTime) ||
+                    appointmentEndTime.isAfter(scheduleEndTime)) {
+                    response.getErrors().add("Appointment #" + (i + 1) + ": Thời gian không hợp lệ với lịch trình");
+                    response.setFailedCount(response.getFailedCount() + 1);
+                    continue;
+                }
+
+                // Check overlap với existing appointments
+                boolean hasOverlap = false;
+                for (Appointment existing : existingAppointments) {
+                    if (dto.getStartTime().isBefore(existing.getEndTime()) && 
+                        dto.getEndTime().isAfter(existing.getStartTime())) {
+                        hasOverlap = true;
+                        break;
+                    }
+                }
+                
+                // Check overlap với appointments đang được tạo trong batch
+                for (Appointment pending : appointmentsToSave) {
+                    if (dto.getStartTime().isBefore(pending.getEndTime()) && 
+                        dto.getEndTime().isAfter(pending.getStartTime())) {
+                        hasOverlap = true;
+                        break;
+                    }
+                }
+
+                if (hasOverlap) {
+                    response.getErrors().add("Appointment #" + (i + 1) + ": Khung giờ bị trùng");
+                    response.setFailedCount(response.getFailedCount() + 1);
+                    continue;
+                }
+
+                // Tạo appointment entity
+                Appointment entity = appointmentMapper.createDTOToEntity(dto, patient, doctor, schedule);
+                appointmentsToSave.add(entity);
+
+            } catch (Exception e) {
+                log.error("Lỗi khi tạo appointment #{}: {}", i + 1, e.getMessage());
+                response.getErrors().add("Appointment #" + (i + 1) + ": " + e.getMessage());
+                response.setFailedCount(response.getFailedCount() + 1);
+            }
+        }
+
+        // Save tất cả appointments cùng lúc (batch insert)
+        if (!appointmentsToSave.isEmpty()) {
+            List<Appointment> saved = appointmentRepository.saveAll(appointmentsToSave);
+            List<AppointmentDTO.Response> responseDTOs = saved.stream()
+                    .map(appointmentMapper::entityToResponseDTO)
+                    .toList();
+            response.setCreatedAppointments(responseDTOs);
+            response.setSuccessCount(saved.size());
+            log.info("Đã tạo thành công {} appointments trong {} requests", saved.size(), appointmentDTOs.size());
+        }
+
+        return response;
     }
     
 }

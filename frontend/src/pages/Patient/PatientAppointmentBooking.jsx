@@ -1,35 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Search, ArrowRight, Star, MapPin, Clock, Users, Heart, Stethoscope, Baby, Shield, Brain, Eye, Bone, Activity, Zap, Pill } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Search, ArrowRight, Star } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import doctorApi from "../../api/doctorApi";
 import departmentApi from "../../api/departmentApi";
 import reviewApi from "../../api/reviewApi";
 
 export default function PatientAppointmentBooking() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [doctors, setDoctors] = useState([]);
   const [allDoctors, setAllDoctors] = useState([]); // Store all doctors for filtering
   const [featuredDoctors, setFeaturedDoctors] = useState([]); // Store featured doctors
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("doctor");
   const [showAllDoctors, setShowAllDoctors] = useState(false); // Control whether to show all or featured
-
-  // Mock data for specialties
-  const specialties = [
-    { name: "Nhi khoa", icon: Baby, color: "bg-blue-100 text-blue-600" },
-    { name: "Sản phụ khoa", icon: Heart, color: "bg-pink-100 text-pink-600" },
-    { name: "Da liễu", icon: Shield, color: "bg-green-100 text-green-600" },
-    { name: "Tiêu hoá", icon: Stethoscope, color: "bg-yellow-100 text-yellow-600" },
-    { name: "Cơ xương khớp", icon: Bone, color: "bg-purple-100 text-purple-600" },
-    { name: "Dị ứng - miễn dịch", icon: Shield, color: "bg-indigo-100 text-indigo-600" },
-    { name: "Gây mê hồi sức", icon: Activity, color: "bg-cyan-100 text-cyan-600" },
-    { name: "Tai - mũi - họng", icon: Eye, color: "bg-orange-100 text-orange-600" },
-    { name: "Ung bướu", icon: Activity, color: "bg-red-100 text-red-600" },
-    { name: "Tim mạch", icon: Heart, color: "bg-pink-100 text-pink-600" },
-    { name: "Lão khoa", icon: Users, color: "bg-gray-100 text-gray-600" },
-    { name: "Chấn thương chỉnh hình", icon: Bone, color: "bg-purple-100 text-purple-600" }
-  ];
 
   // Function to select featured doctors (top 6-8 doctors)
   const selectFeaturedDoctors = (allDoctorsList) => {
@@ -107,11 +91,28 @@ export default function PatientAppointmentBooking() {
           setDoctors(featured);
         }
         
-        // Set specialties (static data for now)
-        setDepartments(specialties);
+        // Fetch departments from API
+        try {
+          const departmentsResponse = await departmentApi.getAllDepartments();
+          console.log('📋 Departments response:', departmentsResponse);
+          if (departmentsResponse && departmentsResponse.data) {
+            console.log('✅ Setting departments:', departmentsResponse.data);
+            setDepartments(departmentsResponse.data);
+          } else if (Array.isArray(departmentsResponse)) {
+            // Nếu response là array trực tiếp
+            console.log('✅ Setting departments (direct array):', departmentsResponse);
+            setDepartments(departmentsResponse);
+          } else {
+            console.log('⚠️ No departments data found');
+            setDepartments([]);
+          }
+        } catch (deptError) {
+          console.error("❌ Error loading departments:", deptError);
+          // Fallback to empty array if API fails
+          setDepartments([]);
+        }
       } catch (error) {
         console.error("Error loading data:", error);
-        setDepartments(specialties);
       } finally {
         setLoading(false);
       }
@@ -362,27 +363,89 @@ export default function PatientAppointmentBooking() {
         </section>
 
         {/* Specialties Section */}
-        <section>
+        <section className="mb-12">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Đa dạng chuyên khoa khám</h2>
             <p className="text-gray-600">Đặt khám dễ dàng và tiện lợi hơn với đầy đủ các chuyên khoa</p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {specialties.map((specialty, index) => (
-              <button
-                key={index}
-                onClick={() => handleSpecialtyClick(specialty.name)}
-                className="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow group w-full"
-              >
-                <div className={`w-12 h-12 mx-auto mb-3 rounded-lg ${specialty.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                  <specialty.icon className="h-6 w-6" />
-                </div>
-                <p className="text-sm font-medium text-gray-900">{specialty.name}</p>
-              </button>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-gray-600">Đang tải danh sách chuyên khoa...</span>
+            </div>
+          ) : departments.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {departments.filter(dept => dept.status !== 'CLOSED').slice(0, 12).map((dept) => {
+                const imageUrl = dept.imageUrl 
+                  ? `http://localhost:8080${dept.imageUrl}` 
+                  : null;
+                
+                return (
+                  <div
+                    key={dept.id}
+                    className={`bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow cursor-pointer border border-gray-100 ${
+                      dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE' 
+                        ? 'opacity-60 cursor-not-allowed' 
+                        : 'hover:border-blue-200'
+                    }`}
+                    onClick={() => {
+                      if (dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE') {
+                        alert('Khoa này đang trong quá trình bảo trì. Vui lòng quay lại sau!');
+                        return;
+                      }
+                      navigate(`/specialty/${dept.id}`, {
+                        state: { departmentName: dept.departmentName }
+                      });
+                    }}
+                  >
+                    {/* Image or Icon */}
+                    <div className="relative w-12 h-12 mx-auto mb-3 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {imageUrl ? (
+                        <img 
+                          src={imageUrl} 
+                          alt={dept.departmentName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className="absolute inset-0 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center"
+                        style={{display: imageUrl ? 'none' : 'flex'}}
+                      >
+                        <span className="text-blue-600 font-bold text-xs">
+                          {dept.departmentName.charAt(0)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Name */}
+                    <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
+                      {dept.departmentName}
+                    </p>
+                    
+                    {/* Status Badge */}
+                    {(dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE') && (
+                      <div className="text-center mb-1">
+                        <span className="inline-block px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                          Đang bảo trì
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Chưa có chuyên khoa nào</p>
+            </div>
+          )}
         </section>
+
       </div>
     </div>
   );

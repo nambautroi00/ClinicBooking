@@ -6,6 +6,14 @@ const appointmentApi = {
     return axiosClient.post("/appointments", appointmentData);
   },
 
+  // Tạo hàng loạt lịch hẹn (tối ưu để tránh timeout)
+  bulkCreateAppointments: (doctorId, appointments) => {
+    return axiosClient.post("/appointments/bulk", {
+      doctorId,
+      appointments
+    });
+  },
+
   // Lấy lịch hẹn theo ID
   getAppointmentById: (appointmentId) => {
     return axiosClient.get(`/appointments/${appointmentId}`);
@@ -42,8 +50,12 @@ const appointmentApi = {
   },
 
   // Lấy các khung giờ trống (available slots) của bác sĩ
-  getAvailableSlots: (doctorId) => {
-    return axiosClient.get(`/appointments/available-slots?doctorId=${doctorId}`);
+  getAvailableSlots: (doctorId, startDate = null, endDate = null) => {
+    let url = `/appointments/available-slots?doctorId=${doctorId}`;
+    if (startDate && endDate) {
+      url += `&startDate=${startDate}&endDate=${endDate}`;
+    }
+    return axiosClient.get(url);
   },
 
   // Bệnh nhân đặt lịch (book appointment)
