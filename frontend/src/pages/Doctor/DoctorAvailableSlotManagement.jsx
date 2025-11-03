@@ -25,14 +25,31 @@ const DoctorAvailableSlotManagement = () => {
   const [scheduleSearchTerm, setScheduleSearchTerm] = useState("");
   const [showFullSchedules, setShowFullSchedules] = useState(false); // Hiển thị lịch trình đã đầy
 
+  // Helper function to add timeout to promises
+  const withTimeout = useCallback((promise, timeoutMs = 8000) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+      ),
+    ]);
+  }, []);
+
   // Load allAppointments và schedules khi mở modal để đảm bảo dữ liệu mới nhất
   useEffect(() => {
     if (showBulkCreateForm && doctorId) {
-      Promise.all([
-        appointmentApi.getAppointmentsByDoctor(doctorId),
-        doctorScheduleApi.getSchedulesByDoctor(doctorId)
+      Promise.allSettled([
+        withTimeout(appointmentApi.getAppointmentsByDoctor(doctorId), 10000),
+        withTimeout(doctorScheduleApi.getSchedulesByDoctor(doctorId), 10000)
       ])
-        .then(([appointmentsResponse, schedulesResponse]) => {
+        .then(([appointmentsResult, schedulesResult]) => {
+          const appointmentsResponse = appointmentsResult.status === 'fulfilled' 
+            ? appointmentsResult.value 
+            : { data: [] };
+          const schedulesResponse = schedulesResult.status === 'fulfilled'
+            ? schedulesResult.value
+            : { data: [] };
+          
           setAllAppointments(appointmentsResponse.data || []);
           // Load tất cả Available schedules, không filter theo tháng
           const allSchedules = schedulesResponse.data || [];
@@ -43,9 +60,11 @@ const DoctorAvailableSlotManagement = () => {
         })
         .catch(err => {
           console.error("Error loading data for modal:", err);
+          setAllAppointments([]);
+          setDoctorSchedules([]);
         });
     }
-  }, [showBulkCreateForm, doctorId]);
+  }, [showBulkCreateForm, doctorId, withTimeout]);
 
   const [bulkCreateData, setBulkCreateData] = useState({
     selectedScheduleIds: [], // Danh sách ID lịch trình được chọn
@@ -92,18 +111,26 @@ const DoctorAvailableSlotManagement = () => {
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
       
-      // Load song song - backend sẽ filter theo date range (tối ưu hơn)
-      const [availableResponse, schedulesResponse] = await Promise.all([
-        appointmentApi.getAvailableSlots(doctorId, startDateTime, endDateTime),
-        doctorScheduleApi.getSchedulesByDoctor(doctorId),
+      // Load song song - backend sẽ filter theo date range (tối ưu hơn) với timeout
+      const [availableResponse, schedulesResponse] = await Promise.allSettled([
+        withTimeout(appointmentApi.getAvailableSlots(doctorId, startDateTime, endDateTime), 10000),
+        withTimeout(doctorScheduleApi.getSchedulesByDoctor(doctorId), 10000),
       ]);
       
+      // Extract data with fallback
+      const availableData = availableResponse.status === 'fulfilled' 
+        ? (availableResponse.value?.data || availableResponse.value || [])
+        : [];
+      const schedulesData = schedulesResponse.status === 'fulfilled'
+        ? (schedulesResponse.value?.data || schedulesResponse.value || [])
+        : [];
+      
       // Backend đã filter slots theo tháng, chỉ cần set
-      setSlots(availableResponse.data || []);
+      setSlots(availableData);
       
       // Filter schedules ở frontend - lấy tất cả Available schedules (không filter theo tháng trong modal)
       // Vì user có thể muốn tạo khung giờ cho tháng khác
-      const allSchedules = schedulesResponse.data || [];
+      const allSchedules = schedulesData;
       const availableSchedules = allSchedules.filter(
         (s) => s.status === "Available"
       );
@@ -119,7 +146,7 @@ const DoctorAvailableSlotManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [doctorId, currentMonth]);
+  }, [doctorId, currentMonth, withTimeout]);
 
   useEffect(() => {
     if (doctorId) loadSlots();

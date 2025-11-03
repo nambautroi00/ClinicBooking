@@ -75,6 +75,16 @@ const DoctorLayout = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Helper function to add timeout to promises
+  const withTimeout = (promise, timeoutMs = 10000) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+      ),
+    ]);
+  };
+
   // Fetch doctor info with useCallback to avoid re-creating function
   const fetchDoctorInfo = useCallback(async () => {
     if (!currentUser) {
@@ -86,21 +96,39 @@ const DoctorLayout = () => {
     try {
       setLoading(true);
 
-      // Fetch doctor and user info in parallel (faster!)
-      const [doctorResponse, userResponse] = await Promise.all([
-        doctorApi.getDoctorByUserId(currentUser.id),
-        userApi.getUserById(currentUser.id),
+      // Fetch doctor and user info in parallel with timeout
+      const [doctorResponse, userResponse] = await Promise.allSettled([
+        withTimeout(doctorApi.getDoctorByUserId(currentUser.id), 8000),
+        withTimeout(userApi.getUserById(currentUser.id), 8000),
       ]);
 
-      const doctorData = doctorResponse.data;
-      const userData = userResponse.data;
+      // Handle doctor response
+      const doctorData = doctorResponse.status === 'fulfilled' 
+        ? (doctorResponse.value?.data || doctorResponse.value)
+        : null;
 
-      // Set doctor info
+      // Handle user response
+      const userData = userResponse.status === 'fulfilled'
+        ? (userResponse.value?.data || userResponse.value)
+        : null;
+
+      // If both failed, use fallback
+      if (!doctorData && !userData) {
+        throw new Error('Both API calls failed');
+      }
+
+      // Set doctor info with fallback values
       setDoctorInfo({
-        name: `${userData.firstName} ${userData.lastName}`,
-        department: doctorData.department?.departmentName || "Chưa phân công",
-        avatar: userData.avatarUrl
+        name: userData?.firstName && userData?.lastName
+          ? `${userData.firstName} ${userData.lastName}`
+          : currentUser?.firstName && currentUser?.lastName
+          ? `${currentUser.firstName} ${currentUser.lastName}`
+          : currentUser?.username || "Bác sĩ",
+        department: doctorData?.department?.departmentName || "Chưa phân công",
+        avatar: userData?.avatarUrl
           ? getFullAvatarUrl(userData.avatarUrl)
+          : currentUser?.avatarUrl 
+          ? getFullAvatarUrl(currentUser.avatarUrl) 
           : null,
       });
     } catch (error) {

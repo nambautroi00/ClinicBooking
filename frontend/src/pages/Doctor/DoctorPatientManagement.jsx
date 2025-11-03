@@ -104,31 +104,49 @@ function DoctorPatientManagement() {
     fetchDoctorId();
   }, [currentUser]);
 
+  // Helper function to add timeout to promises
+  const withTimeout = useCallback((promise, timeoutMs = 8000) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+      ),
+    ]);
+  }, []);
+
   // Fetch patients with appointments
   const fetchPatients = useCallback(async () => {
     if (!doctorId) return;
 
     setLoading(true);
     try {
-      // Lấy tất cả appointments của bác sĩ
-      const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(doctorId);
+      // Lấy tất cả appointments của bác sĩ với timeout
+      const appointmentsRes = await withTimeout(
+        appointmentApi.getAppointmentsByDoctor(doctorId),
+        10000
+      );
+      
+      const appointmentsData = appointmentsRes?.data || [];
       
       // Lấy danh sách patient IDs từ appointments
       const patientIds = [...new Set(
-        appointmentsRes.data
+        appointmentsData
           .filter(appointment => appointment.patientId !== null)
           .map(appointment => appointment.patientId)
       )];
 
-      // Lấy thông tin chi tiết của từng patient
-      const patientsWithDetails = await Promise.all(
+      // Lấy thông tin chi tiết của từng patient với timeout
+      const patientsWithDetails = await Promise.allSettled(
         patientIds.map(async (patientId) => {
           try {
-            const patientRes = await patientApi.getPatientById(patientId);
-            const patient = patientRes.data;
+            const patientRes = await withTimeout(
+              patientApi.getPatientById(patientId),
+              5000
+            );
+            const patient = patientRes?.data || patientRes;
             
             // Lấy appointments của patient này với bác sĩ
-            const patientAppointments = appointmentsRes.data.filter(
+            const patientAppointments = appointmentsData.filter(
               appointment => appointment.patientId === patientId
             );
 
@@ -173,7 +191,7 @@ function DoctorPatientManagement() {
     } finally {
       setLoading(false);
     }
-  }, [doctorId]);
+  }, [doctorId, withTimeout]);
 
   useEffect(() => {
     if (doctorId) {
