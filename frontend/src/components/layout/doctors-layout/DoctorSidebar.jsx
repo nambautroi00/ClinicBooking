@@ -106,12 +106,6 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
       description: "Danh sách bệnh nhân",
     },
     {
-      path: "/doctor/messages",
-      icon: "bi-chat-dots",
-      label: "Tin nhắn",
-      description: "Chat với bệnh nhân",
-    },
-    {
       path: "/doctor/medical-records",
       icon: "bi-file-text",
       label: "Hồ sơ bệnh án",
@@ -122,12 +116,6 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
       icon: "bi-capsule",
       label: "Kê đơn thuốc",
       description: "Tạo đơn thuốc mới",
-    },
-    {
-      path: "/doctor/profile",
-      icon: "bi-person",
-      label: "Hồ sơ cá nhân",
-      description: "Thông tin cá nhân",
     },
   ];
 
@@ -212,9 +200,6 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
                       <small className="text-muted">{item.description}</small>
                     </div>
                   </div>
-                  {item.path === '/doctor/messages' && totalUnread > 0 && (
-                    <span className="badge bg-danger rounded-pill ms-2">{totalUnread}</span>
-                  )}
                 </div>
               </Link>
             </li>

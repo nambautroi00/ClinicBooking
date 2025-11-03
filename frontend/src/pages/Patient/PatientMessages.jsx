@@ -14,9 +14,6 @@ import config from "../../config/config";
 import {
   Search,
   Send,
-  Phone,
-  Mail,
-  Calendar,
   MessageCircle,
   User,
   ArrowLeft,
@@ -116,6 +113,7 @@ function PatientMessages() {
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [uploadError, setUploadError] = useState("");
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const markConversationAsRead = useCallback(async () => {
     if (!conversationId || !currentUserId) return;
@@ -461,6 +459,7 @@ function PatientMessages() {
               .map((id) => String(id));
             seenMessageIdsRef.current = new Set(ids);
             setMessages(data);
+            setVisibleCount(20);
             scrollToBottom();
             setLastFetchedAt(new Date().toISOString());
             
@@ -648,8 +647,10 @@ function PatientMessages() {
   // Messages for current conversation (already filtered)
   const doctorMessages = useMemo(() => {
     const getTs = (m) => new Date(m.createdAt || m.sentAt || m._arrivalAt || 0).getTime();
-    return [...messages].sort((a, b) => getTs(a) - getTs(b));
-  }, [messages]);
+    const sorted = [...messages].sort((a, b) => getTs(a) - getTs(b));
+    const start = Math.max(0, sorted.length - visibleCount);
+    return sorted.slice(start);
+  }, [messages, visibleCount]);
 
   // Handle send message
   const handleSendMessage = async () => {
@@ -1038,35 +1039,25 @@ function PatientMessages() {
                     </small>
                   </div>
                 </div>
-                <div className="d-flex align-items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="d-flex align-items-center gap-1"
-                  >
-                    <Phone size={16} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="d-flex align-items-center gap-1"
-                  >
-                    <Mail size={16} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="d-flex align-items-center gap-1"
-                  >
-                    <Calendar size={16} />
-                  </Button>
-                </div>
               </div>
 
               {/* Messages */}
               <div
                 id="messages-container"
                 className="flex-grow-1 p-3 overflow-auto"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  if (el.scrollTop <= 0) {
+                    const prevHeight = el.scrollHeight;
+                    setVisibleCount((v) => {
+                      const next = Math.min(v + 20, messages.length);
+                      return next;
+                    });
+                    setTimeout(() => {
+                      el.scrollTop = el.scrollHeight - prevHeight;
+                    }, 0);
+                  }
+                }}
               >
                 {doctorMessages.length === 0 ? (
                   <div className="text-center py-5">
