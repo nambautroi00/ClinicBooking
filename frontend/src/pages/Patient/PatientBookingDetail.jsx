@@ -47,6 +47,7 @@ export default function PatientBookingDetail() {
   const [paymentData, setPaymentData] = useState(null);
   const [payOSLink, setPayOSLink] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [paymentId, setPaymentId] = useState(null);
   const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
@@ -100,6 +101,75 @@ export default function PatientBookingDetail() {
     // Chạy ngay lập tức, không cần đợi currentUser
     loadPatientByUserId();
   }, [currentUser]);
+
+  // Khôi phục thông tin booking sau khi đăng nhập
+  useEffect(() => {
+    // Chỉ restore khi đã có patientId và appointments đã load xong và chưa có selectedAppointment
+    if (patientId && !loading && appointments.length > 0 && selectedAppointment === null && bookingStep === 1) {
+      // Kiểm tra xem có pendingBooking trong sessionStorage không
+      const pendingBookingStr = sessionStorage.getItem('pendingBooking');
+      if (pendingBookingStr) {
+        try {
+          const pendingBooking = JSON.parse(pendingBookingStr);
+          console.log('📋 Restoring pending booking:', pendingBooking);
+          
+          // Kiểm tra xem có đúng doctorId không
+          if (pendingBooking.doctorId === doctorId) {
+            // Restore thông tin booking
+            setSelectedDate(pendingBooking.selectedDate);
+            setSelectedTimeSlot(pendingBooking.selectedTimeSlot);
+            setPatientNote(pendingBooking.patientNote || '');
+            
+            // Tìm lại appointment từ appointments
+            const appointment = appointments.find(
+              apt => apt.appointmentId === pendingBooking.selectedAppointmentId
+            );
+            
+            if (appointment) {
+              const startTime = new Date(appointment.startTime);
+              const endTime = new Date(appointment.endTime);
+              
+              if (!isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
+                const timeSlot = `${startTime.toLocaleTimeString('vi-VN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false
+                })}-${endTime.toLocaleTimeString('vi-VN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false
+                })}`;
+                
+                const slot = {
+                  id: appointment.appointmentId,
+                  time: timeSlot,
+                  available: appointment.patientId == null && appointment.status !== "Schedule",
+                  appointmentId: appointment.appointmentId,
+                  fee: appointment.fee,
+                  status: appointment.status
+                };
+                
+                setSelectedAppointment(slot);
+                // Chuyển đến step 2 (confirmation) sau một chút delay để đảm bảo state được update
+                setTimeout(() => {
+                  setBookingStep(2);
+                }, 100);
+              }
+            }
+            
+            // Xóa pendingBooking sau khi restore
+            sessionStorage.removeItem('pendingBooking');
+          } else {
+            // Nếu không đúng doctorId thì xóa luôn
+            sessionStorage.removeItem('pendingBooking');
+          }
+        } catch (error) {
+          console.error('❌ Error restoring pending booking:', error);
+          sessionStorage.removeItem('pendingBooking');
+        }
+      }
+    }
+  }, [patientId, doctorId, appointments, selectedAppointment, loading, bookingStep]);
 
   const getUserIdFromCookie = () => {
     // Lấy UserID từ cookie
@@ -429,7 +499,19 @@ export default function PatientBookingDetail() {
     try {
       // Kiểm tra patientId trước
       if (!patientId) {
-        alert('Không xác định được ID bệnh nhân. Vui lòng đăng nhập lại.');
+        // Lưu thông tin booking vào sessionStorage để sau khi login xong có thể quay lại
+        const bookingInfo = {
+          doctorId: doctorId,
+          selectedDate: selectedDate,
+          selectedTimeSlot: selectedTimeSlot,
+          selectedAppointmentId: selectedAppointment.appointmentId,
+          patientNote: patientNote,
+          returnUrl: window.location.pathname + window.location.search
+        };
+        sessionStorage.setItem('pendingBooking', JSON.stringify(bookingInfo));
+        
+        // Chuyển đến trang login
+        navigate('/login?redirect=/patient/booking/' + doctorId);
         return;
       }
       
@@ -459,6 +541,7 @@ export default function PatientBookingDetail() {
         if (paymentResponse.data && paymentResponse.data.payOSLink) {
           setPayOSLink(paymentResponse.data.payOSLink);
           setPaymentStatus('PENDING');
+          setPaymentId(paymentResponse.data.paymentId); // Lưu paymentId để dùng sau
           
           // Tự động mở PayOS link trong tab hiện tại
           console.log('🚀 Auto-opening PayOS link:', paymentResponse.data.payOSLink);
@@ -565,28 +648,17 @@ export default function PatientBookingDetail() {
             setPaymentStatus('PAID');
             console.log('✅ Payment completed successfully');
             
-            // THANH TOÁN THÀNH CÔNG → MỚI ĐẶT LỊCH
-            try {
-              console.log('🎯 Booking appointment after successful payment...');
-              const appointmentResponse = await appointmentApi.bookAppointment(
-                selectedAppointment.appointmentId, 
-                patientId, 
-                patientNote
-              );
-              
-              console.log('✅ Appointment booked successfully after payment:', appointmentResponse);
-              
-              // Chuyển đến trang payment success với paymentId
-              const params = new URLSearchParams({
-                paymentId: paymentId
-              });
-              navigate(`/payment/success?${params.toString()}`);
-              
-            } catch (bookingError) {
-              console.error('❌ Error booking appointment after payment:', bookingError);
-              alert('Thanh toán thành công nhưng có lỗi khi đặt lịch. Vui lòng liên hệ hỗ trợ.');
-              setPaymentStatus('FAILED');
-            }
+            // Backend đã tự động book appointment khi payment status = PAID
+            // Không cần gọi bookAppointment lại ở đây để tránh duplicate
+            // Appointment đã được update status và patientId bởi PaymentService
+            
+            console.log('✅ Appointment đã được đặt tự động bởi backend sau khi thanh toán thành công');
+            
+            // Chuyển đến trang payment success với paymentId
+            const params = new URLSearchParams({
+              paymentId: paymentId || ''
+            });
+            navigate(`/payment/success?${params.toString()}`);
             
           } else if (status === 'FAILED' || status === 'CANCELLED') {
             clearInterval(interval);
@@ -609,7 +681,7 @@ export default function PatientBookingDetail() {
         });
         clearInterval(interval);
         setPaymentStatus('FAILED');
-      }
+    }
     }, 5000); // Poll every 5 seconds
     
     return () => clearInterval(interval);
@@ -880,8 +952,8 @@ export default function PatientBookingDetail() {
                       </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                            </div>
+                          )}
                       
                       {/* Buổi chiều */}
                       {afternoonSlots.length > 0 && (
@@ -916,8 +988,8 @@ export default function PatientBookingDetail() {
                                     </div>
                                   )}
                                   
-                                </div>
-                              </button>
+                        </div>
+                      </button>
                             ))}
                           </div>
                         </div>

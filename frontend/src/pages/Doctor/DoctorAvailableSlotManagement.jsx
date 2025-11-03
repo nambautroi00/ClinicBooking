@@ -76,6 +76,9 @@ const DoctorAvailableSlotManagement = () => {
       setLoading(true);
       setError(null);
       
+      // Clear slots trước khi load để tránh hiển thị dữ liệu cũ
+      setSlots([]);
+      
       // Tính toán range tháng hiện tại
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
@@ -409,12 +412,10 @@ const DoctorAvailableSlotManagement = () => {
       } else {
         newMonth.setMonth(prev.getMonth() + 1);
       }
-      return newMonth;
+      // Tạo Date mới với cùng năm/tháng để đảm bảo reference thay đổi
+      return new Date(newMonth.getFullYear(), newMonth.getMonth(), 1);
     });
-    // Reload slots khi đổi tháng
-    if (doctorId) {
-      loadSlots();
-    }
+    // useEffect sẽ tự động reload slots khi currentMonth thay đổi
   };
 
   const goToToday = () => {
@@ -485,16 +486,6 @@ const DoctorAvailableSlotManagement = () => {
     return filtered;
   }, [doctorSchedules, scheduleSearchTerm, showFullSchedules, bulkCreateData.slotDuration, getScheduleSlotInfo]);
 
-  if (loading && !slots.length) {
-    return (
-      <div className="d-flex justify-content-center py-5">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Đang tải...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full mx-0 px-0">
       <div className="row justify-content-center" style={{ margin: 0 }}>
@@ -524,7 +515,7 @@ const DoctorAvailableSlotManagement = () => {
                     onClick={() => setShowBulkCreateForm(true)}
                     style={{ borderRadius: "0.5rem" }}
                   >
-                    <i className="bi bi-calendar-plus"></i> Tạo hàng loạt
+                    <i className="bi bi-calendar-plus"></i> Tạo khung giờ
                   </button>
                 </div>
               </div>
@@ -807,21 +798,6 @@ const DoctorAvailableSlotManagement = () => {
                     </div>
                   </div>
                 </div>
-
-              {/* Empty state */}
-              {!loading && slots.length === 0 && (
-                <div className="text-center py-5">
-                  <i className="bi bi-calendar-x text-muted" style={{ fontSize: "4rem" }}></i>
-                  <p className="text-muted mt-3 fs-5">Chưa có khung giờ nào</p>
-                  <button
-                    className="btn btn-primary btn-lg mt-2 px-4"
-                    onClick={() => setShowBulkCreateForm(true)}
-                  >
-                    <i className="bi bi-calendar-plus"></i> Tạo khung giờ
-                  </button>
-                </div>
-              )}
-
             </div>
           </div>
         </div>
@@ -1122,11 +1098,6 @@ const DoctorAvailableSlotManagement = () => {
                                         <div className="text-muted small">
                                           {schedule.startTime} - {schedule.endTime}
                                         </div>
-                                        {schedule.notes && (
-                                          <div className="text-muted small mt-1">
-                                            {schedule.notes}
-                                          </div>
-                                        )}
                                       </div>
                                       <div className="text-end">
                                         {slotInfo.isFull ? (

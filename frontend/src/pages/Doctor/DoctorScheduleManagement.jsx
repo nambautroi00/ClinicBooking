@@ -5,11 +5,7 @@ import Cookies from "js-cookie";
 import doctorApi from "../../api/doctorApi";
 
 const DoctorScheduleManagement = () => {
-  // (Removed) time range filter state per request
-
-  // Helper & filter
-  const toDateString = (date) =>
-    date ? new Date(date).toISOString().slice(0, 10) : "";
+  // Helper functions
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const weekdays = [
@@ -51,7 +47,6 @@ const DoctorScheduleManagement = () => {
     
     return config;
   };
-  // (Removed) filterSchedulesByDate per request
 
   // CRUD schedule
   const handleDeleteSchedule = async (scheduleId) => {
@@ -83,39 +78,6 @@ const DoctorScheduleManagement = () => {
     }
   };
 
-  // Status management actions
-  const handleUpdateScheduleStatus = async (scheduleId, newStatus) => {
-    try {
-      // Tìm schedule hiện tại để kiểm tra status cũ
-      const currentSchedule = schedules.find(s => s.scheduleId === scheduleId);
-      const oldStatus = currentSchedule?.status;
-      const hasAppointments = currentSchedule?.appointmentCount > 0;
-      
-      // Cập nhật schedule status
-      await doctorScheduleApi.updateSchedule(scheduleId, { status: newStatus });
-      
-      // Tích hợp với Appointment System
-      if (newStatus === "Completed" && oldStatus === "Available") {
-        if (hasAppointments) {
-          // Completed schedule - appointments vẫn giữ nguyên status
-          window.toast && window.toast.success(
-            `Đã hoàn thành lịch trình với ${currentSchedule.appointmentCount} appointments`
-          );
-        } else {
-          window.toast && window.toast.success("Đã hoàn thành lịch trình");
-        }
-      } else {
-        window.toast && window.toast.success(`Đã cập nhật trạng thái thành ${getStatusBadge(newStatus).text}`);
-      }
-      
-      loadSchedules();
-    } catch (err) {
-      setError(
-        "Không thể cập nhật trạng thái: " +
-          (err.response?.data?.message || err.message)
-      );
-    }
-  };
   const handleUpdateSchedule = async (scheduleId, scheduleData) => {
     try {
       await doctorScheduleApi.updateSchedule(scheduleId, scheduleData);
@@ -216,10 +178,6 @@ const DoctorScheduleManagement = () => {
       const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
       const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
       
-      console.log(`Start date: ${start.toISOString()}, End date: ${end.toISOString()}`);
-      console.log(`Selected days of week: [${daysOfWeek.join(',')}]`);
-      console.log(`Selected shifts: [${shifts ? shifts.join(',') : 'none'}]`);
-      
       // Normalize selected days to numbers (defensive against string values)
       const selectedDays = (daysOfWeek || []).map(Number);
 
@@ -233,8 +191,6 @@ const DoctorScheduleManagement = () => {
         const month = String(currentDate.getMonth() + 1).padStart(2, '0');
         const day = String(currentDate.getDate()).padStart(2, '0');
         const dateStr = `${year}-${month}-${day}`;
-        
-        console.log(`Checking date: ${dateStr}, dayOfWeek: ${dayOfWeek}, selected days: [${selectedDays.join(',')}], includes: ${selectedDays.includes(dayOfWeek)}`);
         
         // Check if this day is selected
         if (selectedDays.includes(dayOfWeek)) {
@@ -256,7 +212,6 @@ const DoctorScheduleManagement = () => {
                   status: 'Available'
                 };
                 
-                console.log(`Creating schedule for: ${dateStr} - ${shift.label} (${customStartTime}-${customEndTime})`);
                 schedules.push(scheduleData);
               }
             });
@@ -271,37 +226,64 @@ const DoctorScheduleManagement = () => {
               status: 'Available'
             };
             
-            console.log(`Creating schedule for: ${dateStr}`);
             schedules.push(scheduleData);
           }
         }
         
         // Move to next day by creating a new Date object
         currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
-      }
+    }
       
-      // Create all schedules
-      console.log(`Total schedules to create: ${schedules.length}`);
-      for (const schedule of schedules) {
-        console.log(`Creating schedule for: ${schedule.workDate}`);
-        try {
-          await doctorScheduleApi.createSchedule(schedule);
-          console.log(`✅ Successfully created schedule for: ${schedule.workDate}`);
-        } catch (error) {
-          console.error(`❌ Failed to create schedule for: ${schedule.workDate}`, error);
-        }
-      }
+      // Create all schedules using Promise.allSettled to handle partial failures
+      const results = await Promise.allSettled(
+        schedules.map(schedule => doctorScheduleApi.createSchedule(schedule))
+      );
       
+      // Count successes and failures
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      // Close modal immediately
       setShowBulkForm(false);
-      loadSchedules();
       
-      // Show success message
-      if (window.toast) {
-        window.toast.success(`Đã tạo ${schedules.length} lịch trình thành công!`);
-      }
+      // Use requestAnimationFrame to ensure modal is fully unmounted before reload
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+      loadSchedules();
+          
+          // Show appropriate message based on results
+          if (window.toast) {
+            if (failed === 0) {
+              // All succeeded
+              window.toast.success(`Đã tạo ${successful} lịch trình thành công!`);
+            } else if (successful === 0) {
+              // All failed
+              const firstError = results.find(r => r.status === 'rejected');
+              const errorMsg = firstError?.reason?.response?.data?.message || 
+                              firstError?.reason?.message || 
+                              'Validation failed';
+              setError(`Không thể tạo lịch trình: ${errorMsg}`);
+              window.toast.error(`Không thể tạo lịch trình: ${errorMsg}`);
+            } else {
+              // Partial success
+              window.toast.warning(
+                `Đã tạo ${successful} lịch trình thành công, ${failed} lịch trình thất bại. ` +
+                `Một số lịch trình có thể không hợp lệ (ví dụ: ngày trong quá khứ).`
+              );
+              // Don't set error for partial success
+              setError(null);
+            }
+          }
+        }, 0);
+      });
       
     } catch (err) {
+      // This catch block should rarely be hit now since we use allSettled
+      console.error('Unexpected error in bulk create:', err);
       setError("Không thể tạo lịch trình hàng loạt: " + (err.response?.data?.message || err.message));
+      if (window.toast) {
+        window.toast.error("Không thể tạo lịch trình hàng loạt: " + (err.response?.data?.message || err.message));
+      }
     }
   };
 
@@ -310,12 +292,10 @@ const DoctorScheduleManagement = () => {
   const [error, setError] = useState(null);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [doctorId, setDoctorId] = useState(null);
-  // (Removed) date dropdown state per request
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [calendarKey, setCalendarKey] = useState(0);
 
   // Shift options for bulk creation
   const shiftOptions = [
@@ -323,43 +303,15 @@ const DoctorScheduleManagement = () => {
     { value: 'afternoon', label: 'Ca chiều', startTime: '13:00', endTime: '17:00', icon: 'bi bi-sunset' }
   ];
 
-  // Load schedules
+  // Load schedules (appointment counts are now included from backend)
   const loadSchedules = useCallback(async () => {
     if (!doctorId) return;
     try {
       setLoading(true);
       setError(null);
       const response = await doctorScheduleApi.getSchedulesByDoctor(doctorId);
-      const schedulesData = response.data;
-      
-      // Load appointment counts for each schedule
-      const schedulesWithCounts = await Promise.all(
-        schedulesData.map(async (schedule) => {
-          try {
-            // Import appointmentApi dynamically to avoid circular dependency
-            const { default: appointmentApi } = await import("../../api/appointmentApi");
-            const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(doctorId);
-            
-            // Count appointments for this schedule
-            const appointmentCount = appointmentsRes.data.filter(
-              appointment => appointment.scheduleId === schedule.scheduleId
-            ).length;
-            
-            return {
-              ...schedule,
-              appointmentCount
-            };
-          } catch (err) {
-            console.warn(`Could not load appointment count for schedule ${schedule.scheduleId}:`, err);
-            return {
-              ...schedule,
-              appointmentCount: 0
-            };
-          }
-        })
-      );
-      
-      setSchedules(schedulesWithCounts);
+      // Backend now includes appointmentCount in response
+      setSchedules(response.data || []);
     } catch (err) {
       setError(
         "Không thể tải lịch trình: " +
@@ -391,67 +343,7 @@ const DoctorScheduleManagement = () => {
   // Reset selectedDate when currentDate changes
   useEffect(() => {
     setSelectedDate(null);
-    setCalendarKey(prev => prev + 1); // Force calendar re-render
   }, [currentDate]);
-
-  // Force calendar re-render when needed
-  const forceCalendarRefresh = () => {
-    setCalendarKey(prev => prev + 1);
-    setSelectedDate(null);
-  };
-
-  // Safe modal close function
-  const closeAllModals = () => {
-    setTimeout(() => {
-      setShowBulkForm(false);
-      setEditingSchedule(null);
-      setShowScheduleModal(false);
-      setSelectedDate(null);
-    }, 0);
-  };
-
-  // Safe modal close with re-render
-  const closeModalSafely = (modalType) => {
-    setTimeout(() => {
-      switch (modalType) {
-        case 'bulk':
-          setShowBulkForm(false);
-          break;
-        case 'edit':
-          setEditingSchedule(null);
-          break;
-        case 'schedule':
-          setShowScheduleModal(false);
-          setSelectedDate(null);
-          break;
-        default:
-          closeAllModals();
-      }
-      setCalendarKey(prev => prev + 1);
-    }, 0);
-  };
-
-
-  // Close all modals when component unmounts
-  useEffect(() => {
-    return () => {
-      closeAllModals();
-    };
-  }, []);
-
-  // Force re-render when modal states change
-  useEffect(() => {
-    if (showBulkForm || editingSchedule || showScheduleModal) {
-      setCalendarKey(prev => prev + 1);
-    }
-  }, [showBulkForm, editingSchedule, showScheduleModal]);
-
-  // Force re-render when schedules change
-  useEffect(() => {
-    setCalendarKey(prev => prev + 1);
-  }, [schedules]);
-
-  // ...existing code...
 
   if (loading) {
     return (
@@ -498,15 +390,13 @@ const DoctorScheduleManagement = () => {
                 <button
                   className="btn btn-outline-primary btn-sm"
                   onClick={() => {
-                    forceCalendarRefresh();
+                    loadSchedules();
                     setCurrentDate(new Date());
                   }}
                   title="Làm mới dữ liệu"
                 >
                   <i className="bi bi-arrow-clockwise"></i> Làm mới
                 </button>
-                {/* Đã loại bỏ chọn khoảng thời gian theo yêu cầu */}
-                {/* Trạng thái đã được loại bỏ theo yêu cầu */}
               </div>
             </div>
             
@@ -520,7 +410,6 @@ const DoctorScheduleManagement = () => {
               
               {/* Calendar View Only */}
               <CalendarView 
-                key={calendarKey}
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
                 selectedDate={selectedDate}
@@ -545,7 +434,6 @@ const DoctorScheduleManagement = () => {
       {/* Schedule Details Modal */}
       {showScheduleModal && selectedDate && (
         <div 
-          key={`schedule-modal-container-${selectedDate.toISOString()}`}
           className="modal fade show" 
           style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
         >
@@ -562,7 +450,7 @@ const DoctorScheduleManagement = () => {
                           onClick={() => {
                     setShowScheduleModal(false);
                     setSelectedDate(null);
-                  }}
+                          }}
                 ></button>
               </div>
               
@@ -663,8 +551,11 @@ const DoctorScheduleManagement = () => {
                         <button
                           type="button"
                   className="btn btn-secondary"
-                  onClick={() => closeModalSafely('schedule')}
-                >
+                          onClick={() => {
+                    setShowScheduleModal(false);
+                    setSelectedDate(null);
+                          }}
+                        >
                   Đóng
                         </button>
                         <button
@@ -678,7 +569,7 @@ const DoctorScheduleManagement = () => {
                   <i className="bi bi-calendar-week me-1"></i>
                   Tạo cho cả tuần
                         </button>
-                  </div>
+                </div>
                                 </div>
                               </div>
         </div>
@@ -686,28 +577,22 @@ const DoctorScheduleManagement = () => {
 
       {/* Bulk Create Modal */}
       {showBulkForm && (
-        <div key="bulk-modal-container">
-          <BulkScheduleForm
-            key="bulk-form"
-            onSubmit={handleBulkCreateSchedules}
-            onClose={() => closeModalSafely('bulk')}
-            shiftOptions={shiftOptions}
-          />
-                </div>
+        <BulkScheduleForm
+          onSubmit={handleBulkCreateSchedules}
+          onClose={() => setShowBulkForm(false)}
+          shiftOptions={shiftOptions}
+        />
       )}
 
 
       {/* Modal cho form sửa lịch trình */}
       {editingSchedule && (
-        <div key={`edit-modal-container-${editingSchedule.scheduleId}`}>
-          <DoctorScheduleForm
-            key={`edit-${editingSchedule.scheduleId}`}
-            schedule={editingSchedule}
-            onSubmit={(data) => handleUpdateSchedule(editingSchedule.scheduleId, data)}
-            onClose={() => closeModalSafely('edit')}
-                    />
-                  </div>
-                )}
+        <DoctorScheduleForm
+          schedule={editingSchedule}
+          onSubmit={(data) => handleUpdateSchedule(editingSchedule.scheduleId, data)}
+          onClose={() => setEditingSchedule(null)}
+        />
+      )}
               </div>
   );
 };
@@ -745,44 +630,37 @@ const CalendarView = ({
   const days = getDaysInMonth(currentDate);
   const weekDays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
   
-  // Debug: Log current state (remove in production)
-  // console.log('CalendarView render:', { 
-  //   currentDate: currentDate.toISOString(), 
-  //   daysCount: days.length,
-  //   firstDay: days[0]?.toISOString(),
-  //   lastDay: days[days.length - 1]?.toISOString()
-  // });
-  
   return (
     <div className="calendar-container">
       {/* Calendar Header */}
       <div className="calendar-header">
-        <div className="d-flex align-items-center justify-content-between mb-4">
-          <div className="d-flex align-items-center gap-3">
+              <div className="d-flex align-items-center justify-content-between mb-2">
+          <div className="d-flex align-items-center gap-2">
                   <button
               className="btn btn-outline-primary btn-sm rounded-circle"
               onClick={() => navigateMonth(-1)}
-              style={{ width: '40px', height: '40px' }}
-            >
-              <i className="bi bi-chevron-left"></i>
+              style={{ width: '32px', height: '32px', padding: 0 }}
+                  >
+              <i className="bi bi-chevron-left" style={{ fontSize: '0.8rem' }}></i>
                   </button>
-            <h4 className="mb-0 fw-bold text-dark">
+            <h5 className="mb-0 fw-bold text-dark" style={{ fontSize: '1rem' }}>
               {currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
-            </h4>
+            </h5>
                     <button
               className="btn btn-outline-primary btn-sm rounded-circle"
               onClick={() => navigateMonth(1)}
-              style={{ width: '40px', height: '40px' }}
-            >
-              <i className="bi bi-chevron-right"></i>
+              style={{ width: '32px', height: '32px', padding: 0 }}
+                    >
+              <i className="bi bi-chevron-right" style={{ fontSize: '0.8rem' }}></i>
                     </button>
                 </div>
                 
                   <button 
-            className="btn btn-primary btn-sm px-3"
+            className="btn btn-primary btn-sm px-2"
             onClick={() => setCurrentDate(new Date())}
-          >
-            <i className="bi bi-calendar-day me-2"></i>
+            style={{ fontSize: '0.75rem' }}
+                  >
+            <i className="bi bi-calendar-day me-1"></i>
             Hôm nay
                   </button>
               </div>
@@ -881,14 +759,16 @@ const CalendarView = ({
       <style jsx>{`
         .calendar-container {
           background: white;
-          border-radius: 16px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+          border-radius: 12px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
           overflow: hidden;
           border: 1px solid #e9ecef;
+          max-width: 95%;
+          margin: 0 auto;
         }
 
         .calendar-header {
-          padding: 24px 24px 0 24px;
+          padding: 12px 16px 0 16px;
           background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         }
 
@@ -900,14 +780,15 @@ const CalendarView = ({
           display: grid;
           grid-template-columns: repeat(7, 1fr);
           background: #f8f9fa;
-          border-bottom: 2px solid #dee2e6;
+          border-bottom: 1px solid #dee2e6;
         }
 
         .calendar-weekday {
-          padding: 16px 8px;
+          padding: 8px 4px;
           text-align: center;
           font-weight: 600;
           color: #6c757d;
+          font-size: 0.75rem;
           border-right: 1px solid #e9ecef;
         }
 
@@ -919,7 +800,7 @@ const CalendarView = ({
           display: grid;
           grid-template-columns: repeat(7, 1fr);
           grid-template-rows: repeat(6, 1fr);
-          min-height: 300px;
+          min-height: 180px;
         }
 
         .calendar-day {
@@ -928,7 +809,7 @@ const CalendarView = ({
           cursor: pointer;
           transition: all 0.2s ease;
           position: relative;
-          min-height: 45px;
+          min-height: 30px;
         }
 
         .calendar-day:hover {
@@ -959,11 +840,11 @@ const CalendarView = ({
         .calendar-day-empty {
           border-right: 1px solid #e9ecef;
           border-bottom: 1px solid #e9ecef;
-          min-height: 45px;
+          min-height: 30px;
         }
 
         .calendar-day-content {
-          padding: 2px 1px;
+          padding: 1px;
           height: 100%;
           display: flex;
           flex-direction: column;
@@ -978,17 +859,17 @@ const CalendarView = ({
 
         .calendar-day-number {
           font-weight: 600;
-          font-size: 11px;
+          font-size: 0.7rem;
         }
 
         .calendar-day-badge {
           background: rgba(255, 255, 255, 0.9);
           color: #0d6efd;
-          border-radius: 4px;
-          padding: 0px 3px;
-          font-size: 8px;
+          border-radius: 3px;
+          padding: 0px 2px;
+          font-size: 0.6rem;
           font-weight: 600;
-          min-width: 12px;
+          min-width: 10px;
           text-align: center;
         }
 
@@ -1007,7 +888,7 @@ const CalendarView = ({
         .calendar-schedule-item {
           padding: 0px 1px;
           border-radius: 2px;
-          font-size: 7px;
+          font-size: 0.6rem;
           font-weight: 500;
           text-align: center;
           white-space: nowrap;
@@ -1040,7 +921,7 @@ const CalendarView = ({
         }
 
         .calendar-schedule-more {
-          font-size: 6px;
+          font-size: 0.55rem;
           color: #6c757d;
           text-align: center;
           font-style: italic;
@@ -1052,7 +933,7 @@ const CalendarView = ({
 
         @media (max-width: 768px) {
           .calendar-day {
-            min-height: 35px;
+            min-height: 25px;
           }
           
           .calendar-day-content {
@@ -1060,11 +941,11 @@ const CalendarView = ({
           }
           
           .calendar-day-number {
-            font-size: 9px;
+            font-size: 0.65rem;
           }
           
           .calendar-schedule-item {
-            font-size: 6px;
+            font-size: 0.55rem;
             padding: 0px 0px;
           }
         }
@@ -1142,8 +1023,16 @@ const BulkScheduleForm = ({ onSubmit, onClose, shiftOptions }) => {
   };
 
   return (
-    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-lg">
+    <div 
+      className="modal fade show" 
+      style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+                                    }}
+                                  >
+      <div className="modal-dialog modal-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-content">
           {/* Modal Header */}
           <div className="modal-header bg-success text-white">
@@ -1214,9 +1103,9 @@ const BulkScheduleForm = ({ onSubmit, onClose, shiftOptions }) => {
                         <div className="fw-bold">{day.label}</div>
                                   </button>
                     ))}
-                  </div>
+                                </div>
                   
-                            </div>
+                              </div>
 
                 {/* Ca làm việc */}
                 <div className="col-12">
@@ -1416,7 +1305,7 @@ const BulkScheduleForm = ({ onSubmit, onClose, shiftOptions }) => {
                     <i className="bi bi-check-circle me-1"></i>
                     Tạo lịch trình
                   </>
-                )}
+      )}
               </button>
             </div>
           </form>

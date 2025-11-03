@@ -15,32 +15,71 @@ const PaymentsManagement = () => {
   const [error, setError] = useState("");
   const [payments, setPayments] = useState([]);
   const [appointmentFilter, setAppointmentFilter] = useState("");
-  const [sortField, setSortField] = useState("id");
+  const [sortField, setSortField] = useState("paymentId");
   const [sortOrder, setSortOrder] = useState("desc"); // asc | desc
   const [exportId, setExportId] = useState("");
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(50); // Lấy nhiều records mặc định
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
   const fetchPayments = async () => {
-    if (!patientId) {
-      setPayments([]);
-      return;
-    }
     setLoading(true);
     setError("");
     try {
-      const data = await paymentApi.getHistoryByPatient(Number(patientId));
-      setPayments(Array.isArray(data) ? data : []);
+      let data;
+      if (patientId && patientId.trim() !== "") {
+        // Nếu có patientId thì filter theo patientId
+        const response = await paymentApi.getPaymentsByPatientId(Number(patientId));
+        data = response.data || response;
+        setPayments(Array.isArray(data) ? data : []);
+        setTotalPages(1);
+        setTotalElements(Array.isArray(data) ? data.length : 0);
+      } else {
+        // Nếu không có patientId thì lấy tất cả với pagination
+        const response = await paymentApi.getAllPayments(page, size);
+        if (response.data) {
+          // Handle Page response
+          if (response.data.content) {
+            setPayments(Array.isArray(response.data.content) ? response.data.content : []);
+            setTotalPages(response.data.totalPages || 0);
+            setTotalElements(response.data.totalElements || 0);
+          } else if (Array.isArray(response.data)) {
+            // Fallback nếu response trả về array trực tiếp
+            setPayments(response.data);
+            setTotalPages(1);
+            setTotalElements(response.data.length);
+          } else {
+            setPayments([]);
+            setTotalPages(0);
+            setTotalElements(0);
+          }
+        } else if (Array.isArray(response)) {
+          // Nếu response là array trực tiếp
+          setPayments(response);
+          setTotalPages(1);
+          setTotalElements(response.length);
+        } else {
+          setPayments([]);
+          setTotalPages(0);
+          setTotalElements(0);
+        }
+      }
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || "Không thể tải lịch sử thanh toán");
       setPayments([]);
+      setTotalPages(0);
+      setTotalElements(0);
     } finally {
       setLoading(false);
     }
   };
 
+  // Load payments khi component mount hoặc khi patientId/page thay đổi
   useEffect(() => {
-    if (patientId) fetchPayments();
+    fetchPayments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patientId]);
+  }, [patientId, page, size]);
 
   const displayedPayments = useMemo(() => {
     let rows = Array.isArray(payments) ? [...payments] : [];
@@ -55,11 +94,15 @@ const PaymentsManagement = () => {
       const dir = sortOrder === "asc" ? 1 : -1;
       const getVal = (r) => {
         if (sortField === "amount") return Number(r.amount || 0);
-        if (sortField === "status") return (r.status || "");
+        if (sortField === "status") return (r.status || "").toString();
         if (sortField === "appointmentId") return Number(r.appointmentId || r.appointment?.appointmentId || 0);
-        if (sortField === "id") return Number(r.id || 0);
-        // Default to ID sorting
-        return Number(r.id || 0);
+        if (sortField === "id" || sortField === "paymentId") return Number(r.paymentId || r.id || 0);
+        if (sortField === "createdAt") return new Date(r.createdAt || 0).getTime();
+        if (sortField === "paidAt") return new Date(r.paidAt || 0).getTime();
+        if (sortField === "patientName") return (r.patientName || "").toString().toLowerCase();
+        if (sortField === "doctorName") return (r.doctorName || "").toString().toLowerCase();
+        // Default to paymentId sorting
+        return Number(r.paymentId || r.id || 0);
       };
       const va = getVal(a);
       const vb = getVal(b);
@@ -88,128 +131,245 @@ const PaymentsManagement = () => {
 
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div>
-              <h2 className="mb-1">Quản lý thanh toán</h2>
-              <p className="text-muted mb-0">Tra cứu lịch sử thanh toán theo bệnh nhân</p>
+              <h2 className="mb-1 fw-bold text-dark">
+                <i className="bi bi-credit-card-2-front text-primary me-2"></i>
+                Quản lý thanh toán
+              </h2>
             </div>
           </div>
 
-          <div className="card mb-4">
-            <div className="card-header">
-              <h6 className="card-title mb-0"><i className="bi bi-search me-2"></i>Tìm kiếm</h6>
-            </div>
-            <div className="card-body">
-              <div className="row g-3">
-                <div className="col-md-4">
-                  <label htmlFor="patientId" className="form-label">ID Bệnh nhân</label>
+          <div className="card shadow-sm">
+            <div className="card-header bg-light">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <h5 className="card-title mb-1 fw-bold text-dark">
+                    <i className="bi bi-receipt-cutoff text-primary me-2"></i>
+                    Danh sách thanh toán
+                  </h5>
+                  
+                </div>
+              </div>
+              
+              {/* Toolbar lọc gọn gàng */}
+              <div className="row g-2">
+                <div className="col-md-2">
                   <input
-                    id="patientId"
                     type="number"
-                    className="form-control"
+                    className="form-control form-control-sm"
+                    placeholder="ID Bệnh nhân..."
                     value={patientId}
-                    onChange={(e) => setPatientId(e.target.value)}
-                    placeholder="Nhập ID bệnh nhân"
+                    onChange={(e) => {
+                      setPatientId(e.target.value);
+                      setPage(0);
+                    }}
                   />
                 </div>
-                <div className="col-md-4">
-                  <label htmlFor="appointmentFilter" className="form-label">Mã lịch hẹn</label>
+                <div className="col-md-2">
                   <input
-                    id="appointmentFilter"
                     type="text"
-                    className="form-control"
+                    className="form-control form-control-sm"
+                    placeholder="Mã lịch hẹn..."
                     value={appointmentFilter}
                     onChange={(e) => setAppointmentFilter(e.target.value)}
-                    placeholder="Nhập mã lịch hẹn để lọc"
                   />
                 </div>
-                <div className="col-md-4">
-                  <label className="form-label">Sắp xếp</label>
-                  <div className="d-flex gap-2">
-                    <select className="form-select" value={sortField} onChange={(e) => setSortField(e.target.value)}>
-                      <option value="id">ID</option>
-                      <option value="createdAt">Thời gian tạo</option>
-                      <option value="amount">Số tiền</option>
-                      <option value="status">Trạng thái</option>
-                      <option value="appointmentId">Mã lịch hẹn</option>
-                    </select>
-                    <select className="form-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-                      <option value="desc">Giảm dần</option>
-                      <option value="asc">Tăng dần</option>
-                    </select>
-                  </div>
+                <div className="col-md-2">
+                  <select 
+                    className="form-select form-select-sm" 
+                    value={sortField} 
+                    onChange={(e) => setSortField(e.target.value)}
+                  >
+                    <option value="paymentId">Payment ID</option>
+                    <option value="appointmentId">Appointment ID</option>
+                    <option value="amount">Số tiền</option>
+                    <option value="status">Trạng thái</option>
+                    <option value="createdAt">Thời gian tạo</option>
+                    <option value="paidAt">Thời gian thanh toán</option>
+                    <option value="patientName">Tên bệnh nhân</option>
+                    <option value="doctorName">Tên bác sĩ</option>
+                  </select>
                 </div>
-                <div className="col-md-3 d-flex align-items-end">
-                  <div className="btn-group w-100">
-                    <button className="btn btn-primary" onClick={fetchPayments} disabled={loading}>
-                      <i className="bi bi-search"></i> Tìm
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary"
-                      onClick={() => { setPatientId(""); setPayments([]); setAppointmentFilter(""); }}
-                      disabled={loading}
-                    >
-                      <i className="bi bi-arrow-clockwise"></i>
-                    </button>
+                <div className="col-md-2">
+                  <select 
+                    className="form-select form-select-sm" 
+                    value={sortOrder} 
+                    onChange={(e) => setSortOrder(e.target.value)}
+                  >
+                    <option value="desc">Giảm dần</option>
+                    <option value="asc">Tăng dần</option>
+                  </select>
+                </div>
+                <div className="col-md-4">
+                  <div className="d-flex gap-2 align-items-end">
+                    <div className="d-flex gap-1 flex-shrink-0">
+                      <button 
+                        className="btn btn-sm btn-primary" 
+                        onClick={fetchPayments} 
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <span className="spinner-border spinner-border-sm"></span>
+                        ) : (
+                          <i className="bi bi-search"></i>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => { 
+                          setPatientId(""); 
+                          setAppointmentFilter("");
+                          setPage(0);
+                        }}
+                        disabled={loading}
+                      >
+                        <i className="bi bi-x"></i>
+                      </button>
+                    </div>
+                    <div className="input-group input-group-sm flex-grow-1">
+                      <input
+                        type="number"
+                        className="form-control"
+                        placeholder="Payment ID xuất PDF..."
+                        value={exportId}
+                        onChange={(e) => setExportId(e.target.value)}
+                      />
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleExportInvoice(exportId)}
+                        disabled={!exportId}
+                      >
+                        <i className="bi bi-download me-1"></i>
+                        Xuất
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="form-text mt-2">Nhập ID bệnh nhân để xem lịch sử thanh toán.</div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="card-title mb-0"><i className="bi bi-receipt me-2"></i>Danh sách thanh toán</h5>
             </div>
             <div className="card-body">
               {error && (
-                <div className="alert alert-danger" role="alert">{error}</div>
+                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                  {error}
+                  <button type="button" className="btn-close" onClick={() => setError("")}></button>
+                </div>
               )}
 
               {loading ? (
-                <div className="text-center py-4">
-                  <div className="spinner-border" role="status"/>
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary mb-3" role="status">
+                    <span className="visually-hidden">Đang tải...</span>
+                  </div>
+                  <p className="text-muted">Đang tải dữ liệu thanh toán...</p>
                 </div>
               ) : (
                 <div className="table-responsive">
-                  <table className="table table-striped align-middle">
+                  <table className="table table-hover align-middle mb-0">
                     <thead>
                       <tr>
-                        <th>ID</th>
-                        <th>OrderID</th>
-                        <th>AppointmentID</th>
-                        <th>Số tiền</th>
-                        <th>Trạng thái</th>
-                        <th>Mã giao dịch</th>
-                        <th>Tạo lúc</th>
-                        <th>Thanh toán lúc</th>
-                        <th className="text-end">Hành động</th>
+                        <th className="fw-semibold">Payment ID</th>
+                        <th className="fw-semibold">Appointment ID</th>
+                        <th className="fw-semibold">Bệnh nhân</th>
+                        <th className="fw-semibold">Bác sĩ</th>
+                        <th className="fw-semibold">Số tiền</th>
+                        <th className="fw-semibold">Mô tả</th>
+                        <th className="fw-semibold">Trạng thái</th>
+                        <th className="fw-semibold">PayOS Code</th>
+                        <th className="fw-semibold">Tạo lúc</th>
+                        <th className="fw-semibold">Thanh toán lúc</th>
+                        <th className="fw-semibold">Lỗi</th>
+                        <th className="fw-semibold text-end">Hành động</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(displayedPayments || []).length === 0 ? (
                         <tr>
-                          <td colSpan="9" className="text-center text-muted py-4">Không có dữ liệu</td>
+                          <td colSpan="12" className="text-center py-5">
+                            <i className="bi bi-inbox text-muted" style={{ fontSize: '3rem' }}></i>
+                            <p className="text-muted mt-3 mb-0">Không có dữ liệu</p>
+                          </td>
                         </tr>
                       ) : (
                         displayedPayments.map((p) => (
                           <tr key={p.paymentId}>
-                            <td>{p.paymentId}</td>
-                            <td>{p.orderId}</td>
-                            <td>{p.appointmentId || p.appointment?.appointmentId}</td>
-                            <td>{(p.amount || 0).toLocaleString('vi-VN')} đ</td>
                             <td>
-                              <span className={`badge ${p.status === 'Paid' ? 'bg-success' : p.status === 'Failed' ? 'bg-danger' : 'bg-secondary'}`}>{p.status}</span>
+                              <span className="fw-bold text-primary">#{p.paymentId}</span>
                             </td>
-                            <td>{p.transactionId || '-'}</td>
-                            <td>{p.createdAt ? new Date(p.createdAt).toLocaleString() : ''}</td>
-                            <td>{p.paidAt ? new Date(p.paidAt).toLocaleString() : ''}</td>
+                            <td>{p.appointmentId || p.appointment?.appointmentId || '-'}</td>
+                            <td>
+                              {p.patientName ? (
+                                <span>{p.patientName}</span>
+                              ) : p.patientId ? (
+                                <span className="text-muted">ID: {p.patientId}</span>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td>
+                              {p.doctorName ? (
+                                <span>{p.doctorName}</span>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td>
+                              <span className="fw-semibold text-success">
+                                {(p.amount || 0).toLocaleString('vi-VN')} {p.currency || 'VND'}
+                              </span>
+                            </td>
+                            <td>
+                              <small className="text-muted" title={p.description}>
+                                {p.description || '-'}
+                              </small>
+                            </td>
+                            <td>
+                              <span className={`badge ${
+                                p.status === 'PAID' || p.status === 'Paid' ? 'bg-success' : 
+                                p.status === 'FAILED' || p.status === 'Failed' ? 'bg-danger' : 
+                                p.status === 'PENDING' || p.status === 'Pending' ? 'bg-warning text-dark' : 
+                                'bg-secondary'
+                              }`}>
+                                {p.status || '-'}
+                              </span>
+                            </td>
+                            <td>
+                              {p.payOSCode ? (
+                                <small className="text-primary">{p.payOSCode}</small>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td>
+                              <small className="text-muted">
+                                {p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN') : '-'}
+                              </small>
+                            </td>
+                            <td>
+                              {p.paidAt ? (
+                                <small className="text-success">
+                                  {new Date(p.paidAt).toLocaleString('vi-VN')}
+                                </small>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td>
+                              {p.failureReason ? (
+                                <small className="text-danger" title={p.failureReason}>
+                                  <i className="bi bi-exclamation-triangle"></i>
+                                </small>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
                             <td className="text-end">
                               <button
-                                className="px-3 py-1 border rounded text-sm"
+                                className="btn btn-sm btn-outline-primary"
                                 onClick={() => handleExportInvoice(p.paymentId)}
                               >
-                                Xuất hóa đơn
+                                <i className="bi bi-file-earmark-pdf me-1"></i>
+                                PDF
                               </button>
                             </td>
                           </tr>
@@ -220,22 +380,52 @@ const PaymentsManagement = () => {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Thanh công cụ xuất PDF cho ADMIN */}
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              className="border px-3 py-2 rounded w-64"
-              placeholder="Nhập ID thanh toán để xuất PDF"
-              value={exportId}
-              onChange={(e) => setExportId(e.target.value)}
-            />
-            <button
-              className="px-3 py-2 border rounded bg-white"
-              onClick={() => handleExportInvoice(exportId)}
-            >
-              Xuất hóa đơn (PDF)
-            </button>
+              
+            {/* Pagination - Chỉ hiển thị khi không filter theo patientId */}
+            {!patientId && totalPages > 1 && (
+              <div className="card-footer bg-white border-top">
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                  <div className="d-flex align-items-center gap-2">
+                    <label className="mb-0 text-muted small">Số bản ghi mỗi trang:</label>
+                    <select 
+                      className="form-select form-select-sm" 
+                      style={{ width: '90px' }}
+                      value={size}
+                      onChange={(e) => {
+                        setSize(Number(e.target.value));
+                        setPage(0);
+                      }}
+                    >
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={200}>200</option>
+                    </select>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => setPage(p => Math.max(0, p - 1))}
+                      disabled={page === 0 || loading}
+                    >
+                      <i className="bi bi-chevron-left me-1"></i>
+                      Trước
+                    </button>
+                    <span className="text-muted px-3">
+                      Trang <strong>{page + 1}</strong> / {totalPages}
+                    </span>
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1 || loading}
+                    >
+                      Sau
+                      <i className="bi bi-chevron-right ms-1"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
