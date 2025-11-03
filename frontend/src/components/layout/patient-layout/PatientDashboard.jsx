@@ -746,33 +746,7 @@ const PatientDashboard = () => {
                           
                           // Kiểm tra firstName và lastName
                           if (user.firstName && user.lastName) {
-                            // Fix encoding issues
-                            const fixEncoding = (text) => {
-                              if (!text) return text;
-                              return text
-                                .replace(/Ă¹/g, 'ù')
-                                .replace(/Ă/g, 'à')
-                                .replace(/áº/g, 'ạ')
-                                .replace(/Ä/g, 'à')
-                                .replace(/á»/g, 'ộ')
-                                .replace(/á»‡/g, 'ệ')
-                                .replace(/á»‹/g, 'ị')
-                                .replace(/á»/g, 'ồ')
-                                .replace(/á»/g, 'ô')
-                                .replace(/á»/g, 'ơ')
-                                .replace(/á»/g, 'ư')
-                                .replace(/á»/g, 'ứ')
-                                .replace(/á»/g, 'ừ')
-                                .replace(/á»/g, 'ử')
-                                .replace(/á»/g, 'ữ')
-                                .replace(/á»/g, 'ự')
-                                .replace(/á»/g, 'ỳ')
-                                .replace(/á»/g, 'ỵ')
-                                .replace(/á»/g, 'ỷ')
-                                .replace(/á»/g, 'ỹ')
-                                .replace(/á»/g, 'ỵ');
-                            };
-                            return `${fixEncoding(user.firstName)} ${fixEncoding(user.lastName)}`;
+                            return `${user.firstName} ${user.lastName}`;
                           }
                           
                           // Kiểm tra name từ Google

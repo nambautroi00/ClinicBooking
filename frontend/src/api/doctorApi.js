@@ -1,5 +1,10 @@
 import axiosClient from './axiosClient';
 
+export const getDoctors = (params = {}) =>
+  axiosClient.get('/doctors', {
+    params: { page: 0, size: 12, sort: 'doctorId,asc', ...params },
+  });
+
 const doctorApi = {
   // Lấy tất cả bác sĩ với thông tin User và Role
   getAllDoctors: () => {

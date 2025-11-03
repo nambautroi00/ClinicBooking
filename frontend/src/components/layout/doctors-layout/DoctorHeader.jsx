@@ -62,6 +62,50 @@ const DoctorHeader = ({ onToggleSidebar, sidebarOpen }) => {
           </div>
           
           <div className="d-flex align-items-center gap-2">
+            {/* Shortcut to Messages */}
+            <Link
+              to="/doctor/messages"
+              className="btn btn-outline-light d-none d-md-inline-flex align-items-center px-3 py-2"
+              title="Tin nhắn"
+              style={{ 
+                fontSize: "0.9rem",
+                borderColor: "rgba(255, 255, 255, 0.5)",
+                transition: "all 0.2s"
+              }}
+            >
+              <i className="bi bi-chat-dots me-1"></i>
+              <span>Tin nhắn</span>
+            </Link>
+            {/* Shortcut to Profile */}
+            <Link
+              to="/doctor/profile"
+              className="btn btn-outline-light d-none d-md-inline-flex align-items-center px-3 py-2"
+              title="Hồ sơ cá nhân"
+              style={{ 
+                fontSize: "0.9rem",
+                borderColor: "rgba(255, 255, 255, 0.5)",
+                transition: "all 0.2s"
+              }}
+            >
+              <i className="bi bi-person me-1"></i>
+              <span>Hồ sơ</span>
+            </Link>
+            <Link
+              to="/doctor/messages"
+              className="btn btn-link text-white d-inline d-md-none p-2"
+              title="Tin nhắn"
+              style={{ textDecoration: "none" }}
+            >
+              <i className="bi bi-chat-dots text-white" style={{ fontSize: 18 }}></i>
+            </Link>
+            <Link
+              to="/doctor/profile"
+              className="btn btn-link text-white d-inline d-md-none p-2"
+              title="Hồ sơ"
+              style={{ textDecoration: "none" }}
+            >
+              <i className="bi bi-person text-white" style={{ fontSize: 18 }}></i>
+            </Link>
             {/* Nút đăng xuất */}
             <button
               className="btn btn-outline-light d-flex align-items-center px-3 py-2"

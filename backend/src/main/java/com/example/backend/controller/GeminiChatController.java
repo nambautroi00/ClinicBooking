@@ -56,17 +56,6 @@ public class GeminiChatController {
             
             String aiResponse = geminiService.getChatResponse(userMessage);
 
-            // If the service returned an error-like message (starts with apology),
-            // treat it as a backend failure and return appropriate HTTP status so
-            // frontend can handle it as an error instead of a successful chat reply.
-            if (aiResponse != null && aiResponse.toLowerCase().startsWith("xin lỗi")) {
-                Map<String, String> errorResponse = new HashMap<>();
-                errorResponse.put("error", aiResponse);
-                errorResponse.put("status", "error");
-                errorResponse.put("provider", "gemini");
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
-            }
-
             Map<String, String> response = new HashMap<>();
             response.put("message", aiResponse);
             response.put("status", "success");
@@ -111,14 +100,6 @@ public class GeminiChatController {
             }
             
             String aiResponse = geminiService.getChatResponseWithHistory(contents);
-            // Handle service-level error responses similarly to single chat
-            if (aiResponse != null && aiResponse.toLowerCase().startsWith("xin lỗi")) {
-                Map<String, String> errorResponse = new HashMap<>();
-                errorResponse.put("error", aiResponse);
-                errorResponse.put("status", "error");
-                errorResponse.put("provider", "gemini");
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
-            }
 
             Map<String, String> response = new HashMap<>();
             response.put("message", aiResponse);
@@ -154,7 +135,7 @@ public class GeminiChatController {
         response.put("status", "ok");
         response.put("service", "AI Chatbot");
         response.put("provider", "Google Gemini");
-        response.put("model", "gemini-1.5-flash");
+        response.put("model", "gemini-pro");
         return ResponseEntity.ok(response);
     }
 }

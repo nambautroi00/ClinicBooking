@@ -210,6 +210,7 @@ export default function Header() {
     { label: "Chuyên khoa", href: "/#specialties" },
     { label: "Bài viết", href: "/articles" },
     { label: "Đặt lịch", href: "/patient/book-appointment" },
+    { label: "Trợ lý y khoa", href: "/chatbot" },
   ];
 
   const userDropdownItems = [

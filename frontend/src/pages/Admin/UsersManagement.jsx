@@ -6,6 +6,7 @@ import userApi from '../../api/userApi';
 import doctorApi from '../../api/doctorApi';
 import fileUploadApi from '../../api/fileUploadApi';
 import { getFullAvatarUrl } from '../../utils/avatarUtils';
+import DepartmentSelect from "./DepartmentSelect";
 
 // Utility functions
 const calculateAge = (dateOfBirth) => {
@@ -1529,23 +1530,17 @@ const UsersManagement = () => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Khoa *</Form.Label>
-                      <Form.Select
-                        value={formData.departmentId || ''}
-                        onChange={(e) => setFormData({...formData, departmentId: e.target.value})}
-                        required
-                      >
-                        <option value="">Chọn khoa</option>
-                        <option value="1">Khoa Nội</option>
-                        <option value="2">Khoa Ngoại</option>
-                        <option value="3">Khoa Sản</option>
-                        <option value="4">Khoa Nhi</option>
-                        <option value="5">Khoa Tim mạch</option>
-                        <option value="6">Khoa Thần kinh</option>
-                        <option value="7">Khoa Da liễu</option>
-                        <option value="8">Khoa Mắt</option>
-                        <option value="9">Khoa Tai mũi họng</option>
-                        <option value="10">Khoa Xương khớp</option>
-                      </Form.Select>
+                      <DepartmentSelect
+                        value={formData.departmentId}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            departmentId: e.target.value ? Number(e.target.value) : "",
+                          }))
+                        }
+                        className="border rounded px-3 py-2 w-full"
+                        placeholder="Chọn khoa"
+                      />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -1800,22 +1795,17 @@ const UsersManagement = () => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Khoa</Form.Label>
-                      <Form.Select
-                        value={formData.departmentId || ''}
-                        onChange={(e) => setFormData({...formData, departmentId: e.target.value})}
-                      >
-                        <option value="">Chọn khoa</option>
-                        <option value="1">Khoa Nội</option>
-                        <option value="2">Khoa Ngoại</option>
-                        <option value="3">Khoa Sản</option>
-                        <option value="4">Khoa Nhi</option>
-                        <option value="5">Khoa Tim mạch</option>
-                        <option value="6">Khoa Thần kinh</option>
-                        <option value="7">Khoa Da liễu</option>
-                        <option value="8">Khoa Mắt</option>
-                        <option value="9">Khoa Tai mũi họng</option>
-                        <option value="10">Khoa Xương khớp</option>
-                      </Form.Select>
+                      <DepartmentSelect
+                        value={formData.departmentId}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            departmentId: e.target.value ? Number(e.target.value) : "",
+                          }))
+                        }
+                        className="border rounded px-3 py-2 w-full"
+                        placeholder="Chọn khoa"
+                      />
                     </Form.Group>
                   </Col>
                 </Row>
