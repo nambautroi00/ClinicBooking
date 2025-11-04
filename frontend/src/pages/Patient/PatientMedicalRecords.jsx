@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, Container, Row, Col, Table, Modal, Badge, Alert, Tabs, Tab } from "react-bootstrap";
-import { FileText, Eye, Calendar, TestTube, Camera, Download } from "lucide-react";
+import { FileText, Eye, Calendar, TestTube, Camera, Download, User, Stethoscope, Pill, Clock } from "lucide-react";
 import medicalRecordApi from "../../api/medicalRecordApi";
 import patientApi from "../../api/patientApi";
 
@@ -159,23 +159,24 @@ const PatientMedicalRecords = () => {
             </Col>
       </Row>
 
-      {/* Medical Records Table */}
+      {/* Medical Records Cards */}
       <Row>
         <Col>
-          <Card>
-            <Card.Header>
-              <h6 className="mb-0">Lịch Sử Khám Bệnh</h6>
-            </Card.Header>
-            <Card.Body>
-              {loading ? (
+          {loading ? (
+            <Card className="shadow-sm">
+              <Card.Body>
                 <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
+                  <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
                     <span className="visually-hidden">Loading...</span>
                   </div>
-                  <p className="mt-2 text-muted">Đang tải hồ sơ bệnh án...</p>
+                  <p className="mt-3 text-muted">Đang tải hồ sơ bệnh án...</p>
                 </div>
-              ) : error ? (
-                <Alert variant="danger" className="text-center">
+              </Card.Body>
+            </Card>
+          ) : error ? (
+            <Card className="shadow-sm">
+              <Card.Body>
+                <Alert variant="danger" className="text-center border-0">
                   <FileText size={48} className="mb-3 text-danger" />
                   <h5>Lỗi tải dữ liệu</h5>
                   <p>{error}</p>
@@ -189,209 +190,330 @@ const PatientMedicalRecords = () => {
                     Thử lại
                   </button>
                 </Alert>
-              ) : medicalRecords.length === 0 ? (
-                <Alert variant="info" className="text-center">
+              </Card.Body>
+            </Card>
+          ) : medicalRecords.length === 0 ? (
+            <Card className="shadow-sm">
+              <Card.Body>
+                <Alert variant="info" className="text-center border-0 mb-0">
                   <FileText size={48} className="mb-3 text-muted" />
                   <h5>Chưa có hồ sơ bệnh án nào</h5>
-                  <p>Bạn chưa có lịch sử khám bệnh nào trong hệ thống.</p>
+                  <p className="mb-0">Bạn chưa có lịch sử khám bệnh nào trong hệ thống.</p>
                 </Alert>
-              ) : (
-                <Table responsive hover>
-                  <thead className="table-light">
-                    <tr>
-                      <th>Mã hồ sơ</th>
-                      <th>Bác sĩ khám</th>
-                      <th>Ngày khám</th>
-                      <th>Chẩn đoán</th>
-                      <th>Đơn thuốc</th>
-                      <th>Trạng thái</th>
-                      <th className="text-center">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {medicalRecords.map((record) => (
-                      <tr key={record.id}>
-                        <td className="fw-bold text-primary">
-                          {record.recordId}
-                        </td>
-                        <td>
-                          <div>
-                            <strong>{record.doctorName}</strong>
+              </Card.Body>
+            </Card>
+          ) : (
+            <Row className="g-4">
+              {medicalRecords.map((record) => (
+                <Col key={record.id} md={6} lg={4}>
+                  <Card 
+                    className="h-100 shadow-sm border-0 hover-card"
+                    style={{ 
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-5px)';
+                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                    }}
+                  >
+                    <Card.Header className="bg-primary text-white border-0">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <h6 className="mb-0 text-white">
+                            <FileText className="me-2" size={18} />
+                            Hồ sơ #{record.recordId}
+                          </h6>
+                        </div>
+                        {getStatusBadge(record.status)}
+                      </div>
+                    </Card.Header>
+                    <Card.Body>
+                      <div className="mb-3">
+                        <div className="d-flex align-items-center mb-2">
+                          <User size={16} className="me-2 text-primary" />
+                          <strong className="text-dark">{record.doctorName}</strong>
+                        </div>
+                        <div className="d-flex align-items-center mb-2 text-muted">
+                          <Calendar size={16} className="me-2" />
+                          <small>{record.visitDate ? new Date(record.visitDate).toLocaleDateString('vi-VN') : 'N/A'}</small>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <div className="d-flex align-items-start">
+                          <Stethoscope size={16} className="me-2 text-success mt-1" />
+                          <div className="flex-grow-1">
+                            <small className="text-muted d-block mb-1">Chẩn đoán</small>
+                            <p className="mb-0 fw-semibold" style={{ fontSize: '0.9rem' }}>
+                              {record.diagnosis || "Chưa cập nhật"}
+                            </p>
                           </div>
-                        </td>
-                        <td>
-                          <Calendar size={14} className="me-1" />
-                          {record.visitDate ? new Date(record.visitDate).toLocaleDateString('vi-VN') : 'N/A'}
-                        </td>
-                        <td>{record.diagnosis || "Chưa cập nhật"}</td>
-                        <td>
+                        </div>
+                      </div>
+
+                      <div className="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <div>
                           {record.prescription ? (
-                            <Badge bg="success">Có đơn thuốc</Badge>
+                            <Badge bg="success" className="d-flex align-items-center" style={{ width: 'fit-content' }}>
+                              <Pill size={12} className="me-1" />
+                              Có đơn thuốc
+                            </Badge>
                           ) : (
-                            <Badge bg="secondary">Chưa kê đơn</Badge>
+                            <Badge bg="secondary" className="d-flex align-items-center" style={{ width: 'fit-content' }}>
+                              <Pill size={12} className="me-1" />
+                              Chưa kê đơn
+                            </Badge>
                           )}
-                        </td>
-                        <td>{getStatusBadge(record.status)}</td>
-                        <td className="text-center">
-                          <div className="btn-group" role="group">
-                            <button
-                              className="btn btn-outline-primary btn-sm"
-                              onClick={() => handleViewRecord(record)}
-                              title="Xem chi tiết"
-                            >
-                              <Eye size={14} />
-                            </button>
-                            <button
-                              className="btn btn-outline-secondary btn-sm"
-                              onClick={() => handleExportPDF(record.id)}
-                              title="Xuất PDF"
-                            >
-                              <Download size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
-            </Card.Body>
-          </Card>
+                        </div>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => handleViewRecord(record)}
+                          title="Xem chi tiết"
+                        >
+                          <Eye size={14} className="me-1" />
+                          Xem
+                        </button>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
         </Col>
       </Row>
 
       {/* View Medical Record Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="xl">
-        <Modal.Header closeButton>
-          <Modal.Title>
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered>
+        <Modal.Header closeButton className="bg-primary text-white border-0">
+          <Modal.Title className="text-white">
             <FileText className="me-2" size={24} />
             Chi Tiết Hồ Sơ Bệnh Án
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="p-0">
           {selectedRecord && (
-            <Tabs defaultActiveKey="general" className="mb-3">
-              <Tab eventKey="general" title="Thông tin khám">
-                <Row>
-                  <Col md={6}>
-                    <h6>Thông tin khám bệnh</h6>
-                    <p><strong>Mã hồ sơ:</strong> {selectedRecord.recordId}</p>
-                    <p><strong>Bác sĩ khám:</strong> {selectedRecord.doctorName}</p>
-                    <p><strong>Ngày khám:</strong> {new Date(selectedRecord.visitDate).toLocaleDateString('vi-VN')}</p>
-                    <p><strong>Trạng thái:</strong> {getStatusBadge(selectedRecord.status)}</p>
-                  </Col>
-                  <Col md={6}>
-                    <h6>Sinh hiệu</h6>
-                    {selectedRecord.vitalSigns && (
-                      <>
-                        <p><strong>Huyết áp:</strong> {selectedRecord.vitalSigns.bloodPressure} mmHg</p>
-                        <p><strong>Nhịp tim:</strong> {selectedRecord.vitalSigns.heartRate} bpm</p>
-                        <p><strong>Nhiệt độ:</strong> {selectedRecord.vitalSigns.temperature}°C</p>
-                        <p><strong>Cân nặng:</strong> {selectedRecord.vitalSigns.weight} kg</p>
-                        <p><strong>Chiều cao:</strong> {selectedRecord.vitalSigns.height} cm</p>
-                      </>
-                    )}
-                  </Col>
-                </Row>
-                <hr />
-                <Row>
-                  <Col>
-                    <h6>Chẩn đoán</h6>
-                    <p>{selectedRecord.diagnosis || "Chưa cập nhật"}</p>
-                    
-                    {selectedRecord.advice && (
-                      <>
-                        <h6>Lời khuyên</h6>
-                        <p>{selectedRecord.advice}</p>
-                      </>
-                    )}
-                    
-                    {selectedRecord.prescription && (
-                      <>
-                        <h6>Đơn thuốc</h6>
-                        <div className="bg-light p-3 rounded">
-                          {selectedRecord.prescription.notes && (
-                            <p><strong>Ghi chú:</strong> {selectedRecord.prescription.notes}</p>
-                          )}
-                          {selectedRecord.prescription.items && selectedRecord.prescription.items.length > 0 ? (
-                            <div className="mt-2">
-                              <strong>Thuốc kê đơn:</strong>
-                              <ul className="mt-2">
-                                {selectedRecord.prescription.items.map((item, index) => (
-                                  <li key={index} className="mb-2">
-                                    <strong>{item.medicineName || `Thuốc ${index + 1}`}</strong>
-                                    <br />
-                                    <small className="text-muted">
-                                      Liều: {item.dosage || 'N/A'} | 
-                                      Thời gian: {item.duration || 'N/A'} | 
-                                      Số lượng: {item.quantity || 1}
-                                    </small>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : (
-                            <p className="text-muted">Không có thuốc nào được kê</p>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </Col>
-                </Row>
-              </Tab>
-              
-              <Tab eventKey="tests" title="Xét nghiệm">
-                <h6>Kết quả xét nghiệm</h6>
-                {selectedRecord.testResults && selectedRecord.testResults.length > 0 ? (
-                  selectedRecord.testResults.map((test, index) => (
-                    <Card key={index} className="mb-3">
-                      <Card.Header>
-                        <strong>{test.type}</strong>
-                        <small className="text-muted ms-2">
-                          {new Date(test.date).toLocaleDateString('vi-VN')}
-                        </small>
+            <Tabs defaultActiveKey="general" className="mb-0">
+              <Tab eventKey="general" title={
+                <span>
+                  <Stethoscope size={16} className="me-1" />
+                  Thông tin khám
+                </span>
+              }>
+                <div className="p-4">
+                  {/* Header Info Card */}
+                  <Card className="mb-4 border-0 shadow-sm" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+                    <Card.Body className="text-white">
+                      <Row>
+                        <Col md={6}>
+                          <div className="d-flex align-items-center mb-2">
+                            <FileText size={20} className="me-2" />
+                            <h5 className="mb-0">Hồ sơ #{selectedRecord.recordId}</h5>
+                          </div>
+                          <div className="d-flex align-items-center mb-2">
+                            <User size={18} className="me-2" />
+                            <span>{selectedRecord.doctorName}</span>
+                          </div>
+                        </Col>
+                        <Col md={6} className="text-md-end">
+                          <div className="d-flex align-items-center justify-content-md-end mb-2">
+                            <Calendar size={18} className="me-2" />
+                            <span>{new Date(selectedRecord.visitDate).toLocaleDateString('vi-VN')}</span>
+                          </div>
+                          <div className="d-flex align-items-center justify-content-md-end">
+                            {getStatusBadge(selectedRecord.status)}
+                          </div>
+                        </Col>
+                      </Row>
+                    </Card.Body>
+                  </Card>
+
+                  {/* Diagnosis Card */}
+                  <Card className="mb-3 border-0 shadow-sm">
+                    <Card.Header className="bg-light border-0">
+                      <h6 className="mb-0 d-flex align-items-center">
+                        <Stethoscope size={18} className="me-2 text-primary" />
+                        Chẩn đoán
+                      </h6>
+                    </Card.Header>
+                    <Card.Body>
+                      <p className="mb-0" style={{ fontSize: '1.05rem', lineHeight: '1.8' }}>
+                        {selectedRecord.diagnosis || "Chưa cập nhật"}
+                      </p>
+                    </Card.Body>
+                  </Card>
+
+                  {/* Advice Card */}
+                  {selectedRecord.advice && (
+                    <Card className="mb-3 border-0 shadow-sm">
+                      <Card.Header className="bg-light border-0">
+                        <h6 className="mb-0 d-flex align-items-center">
+                          <FileText size={18} className="me-2 text-success" />
+                          Lời khuyên
+                        </h6>
                       </Card.Header>
                       <Card.Body>
-                        <pre style={{margin: 0, fontFamily: 'inherit'}}>{test.result}</pre>
+                        <p className="mb-0" style={{ fontSize: '1.05rem', lineHeight: '1.8' }}>
+                          {selectedRecord.advice}
+                        </p>
                       </Card.Body>
                     </Card>
-                  ))
-                ) : (
-                  <Alert variant="info">
-                    <TestTube size={24} className="me-2" />
-                    Chưa có kết quả xét nghiệm nào
-                  </Alert>
-                )}
+                  )}
+
+                  {/* Prescription Card */}
+                  {selectedRecord.prescription && (
+                    <Card className="mb-3 border-0 shadow-sm">
+                      <Card.Header className="bg-light border-0">
+                        <h6 className="mb-0 d-flex align-items-center">
+                          <Pill size={18} className="me-2 text-danger" />
+                          Đơn thuốc
+                        </h6>
+                      </Card.Header>
+                      <Card.Body>
+                        {selectedRecord.prescription.notes && (
+                          <div className="mb-3 p-3 bg-light rounded">
+                            <strong>Ghi chú:</strong>
+                            <p className="mb-0 mt-1">{selectedRecord.prescription.notes}</p>
+                          </div>
+                        )}
+                        {selectedRecord.prescription.items && selectedRecord.prescription.items.length > 0 ? (
+                          <div>
+                            <strong className="mb-3 d-block">Thuốc kê đơn:</strong>
+                            <Row className="g-3">
+                              {selectedRecord.prescription.items.map((item, index) => (
+                                <Col md={6} key={index}>
+                                  <Card className="border h-100">
+                                    <Card.Body className="p-3">
+                                      <div className="d-flex align-items-start mb-2">
+                                        <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                             style={{ width: '28px', height: '28px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                          {index + 1}
+                                        </div>
+                                        <div className="flex-grow-1">
+                                          <h6 className="mb-1 text-primary">{item.medicineName || `Thuốc ${index + 1}`}</h6>
+                                          <div className="small text-muted">
+                                            <div className="mb-1">
+                                              <strong>Liều dùng:</strong> {item.dosage || 'N/A'}
+                                            </div>
+                                            <div className="mb-1">
+                                              <strong>Thời gian:</strong> {item.duration || 'N/A'}
+                                            </div>
+                                            <div>
+                                              <strong>Số lượng:</strong> {item.quantity || 1}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </Card.Body>
+                                  </Card>
+                                </Col>
+                              ))}
+                            </Row>
+                          </div>
+                        ) : (
+                          <Alert variant="info" className="mb-0">
+                            <Pill size={16} className="me-2" />
+                            Không có thuốc nào được kê
+                          </Alert>
+                        )}
+                      </Card.Body>
+                    </Card>
+                  )}
+                </div>
               </Tab>
               
-              <Tab eventKey="images" title="Hình ảnh">
-                <h6>Hình ảnh y học</h6>
-                {selectedRecord.medicalImages && selectedRecord.medicalImages.length > 0 ? (
-                  <Row>
-                    {selectedRecord.medicalImages.map((image, index) => (
-                      <Col md={4} key={index} className="mb-3">
-                        <Card>
-                          <Card.Img variant="top" src={image.url} />
-                          <Card.Body>
-                            <Card.Title>{image.type}</Card.Title>
-                            <small className="text-muted">{image.date}</small>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                ) : (
-                  <Alert variant="info">
-                    <Camera size={24} className="me-2" />
-                    Chưa có hình ảnh y học nào
-                  </Alert>
-                )}
+              <Tab eventKey="tests" title={
+                <span>
+                  <TestTube size={16} className="me-1" />
+                  Xét nghiệm
+                </span>
+              }>
+                <div className="p-4">
+                  <h6 className="mb-4 d-flex align-items-center">
+                    <TestTube size={20} className="me-2 text-info" />
+                    Kết quả xét nghiệm
+                  </h6>
+                  {selectedRecord.testResults && selectedRecord.testResults.length > 0 ? (
+                    <Row className="g-3">
+                      {selectedRecord.testResults.map((test, index) => (
+                        <Col md={6} key={index}>
+                          <Card className="border-0 shadow-sm h-100">
+                            <Card.Header className="bg-info text-white">
+                              <div className="d-flex justify-content-between align-items-center">
+                                <strong>{test.type}</strong>
+                                <small>
+                                  {new Date(test.date).toLocaleDateString('vi-VN')}
+                                </small>
+                              </div>
+                            </Card.Header>
+                            <Card.Body>
+                              <p className="mb-0" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                                {test.result}
+                              </p>
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      ))}
+                    </Row>
+                  ) : (
+                    <Alert variant="info" className="border-0">
+                      <TestTube size={24} className="me-2" />
+                      Chưa có kết quả xét nghiệm nào
+                    </Alert>
+                  )}
+                </div>
+              </Tab>
+              
+              <Tab eventKey="images" title={
+                <span>
+                  <Camera size={16} className="me-1" />
+                  Hình ảnh
+                </span>
+              }>
+                <div className="p-4">
+                  <h6 className="mb-4 d-flex align-items-center">
+                    <Camera size={20} className="me-2 text-warning" />
+                    Hình ảnh y học
+                  </h6>
+                  {selectedRecord.medicalImages && selectedRecord.medicalImages.length > 0 ? (
+                    <Row className="g-3">
+                      {selectedRecord.medicalImages.map((image, index) => (
+                        <Col md={4} key={index}>
+                          <Card className="border-0 shadow-sm h-100">
+                            <Card.Img 
+                              variant="top" 
+                              src={image.url} 
+                              style={{ height: '200px', objectFit: 'cover' }}
+                            />
+                            <Card.Body>
+                              <Card.Title className="h6">{image.type}</Card.Title>
+                              <small className="text-muted">
+                                <Clock size={14} className="me-1" />
+                                {image.date}
+                              </small>
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      ))}
+                    </Row>
+                  ) : (
+                    <Alert variant="info" className="border-0">
+                      <Camera size={24} className="me-2" />
+                      Chưa có hình ảnh y học nào
+                    </Alert>
+                  )}
+                </div>
               </Tab>
             </Tabs>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+        <Modal.Footer className="border-0 bg-light">
+          <button className="btn btn-outline-secondary" onClick={() => setShowModal(false)}>
             Đóng
           </button>
           <button 

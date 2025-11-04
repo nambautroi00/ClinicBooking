@@ -337,7 +337,7 @@ const MedicalRecords = () => {
                   <th>Tuổi/Giới tính</th>
                   <th>Chẩn đoán</th>
                   <th>Bác sĩ</th>
-                  <th>Đơn thuốc</th>
+
                   <th>Ngày tạo</th>
                   <th>Thao tác</th>
                 </tr>
@@ -372,19 +372,7 @@ const MedicalRecords = () => {
                           <strong>{record.doctorName}</strong>
                         </div>
                       </td>
-                      <td>
-                        {record.prescription ? (
-                          <Badge bg="success">
-                            <Pill size={12} className="me-1" />
-                            Có đơn thuốc
-                          </Badge>
-                        ) : (
-                          <Badge bg="secondary">
-                            <Pill size={12} className="me-1" />
-                            Chưa kê đơn
-                          </Badge>
-                        )}
-                      </td>
+                   
                       <td>
                         <div className="d-flex align-items-center">
                           <Calendar size={14} className="me-1 text-muted" />
@@ -591,20 +579,22 @@ const MedicalRecords = () => {
                 </Col>
               </Row>
               <Form.Group className="mb-3">
-                <Form.Label>Triệu chứng</Form.Label>
-                <Form.Control as="textarea" rows={3} placeholder="Mô tả triệu chứng..." />
-              </Form.Group>
-              <Form.Group className="mb-3">
                 <Form.Label>Chẩn đoán</Form.Label>
-                <Form.Control type="text" placeholder="Chẩn đoán bệnh..." />
+                <Form.Control 
+                  as="textarea" 
+                  rows={3} 
+                  placeholder="Nhập chẩn đoán bệnh..." 
+                  name="diagnosis"
+                />
               </Form.Group>
               <Form.Group className="mb-3">
-                <Form.Label>Phương án điều trị</Form.Label>
-                <Form.Control as="textarea" rows={3} placeholder="Phương án điều trị..." />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Ghi chú</Form.Label>
-                <Form.Control as="textarea" rows={2} placeholder="Ghi chú thêm..." />
+                <Form.Label>Lời khuyên</Form.Label>
+                <Form.Control 
+                  as="textarea" 
+                  rows={3} 
+                  placeholder="Nhập lời khuyên cho bệnh nhân..." 
+                  name="advice"
+                />
               </Form.Group>
             </Form>
           )}
