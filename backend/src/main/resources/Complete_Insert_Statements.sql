@@ -23,50 +23,50 @@ DELETE FROM Doctors;
 DELETE FROM Departments;
 DBCC CHECKIDENT ('Departments', RESEED, 0);
 
-INSERT INTO Departments (department_name, Description, Status) VALUES
+INSERT INTO Departments (department_name, Description, Status, image_url) VALUES
 -- Nhóm Nội khoa
-(N'Nội tổng hợp', N'Khoa Nội tổng hợp - Khám và điều trị các bệnh lý nội khoa thường gặp', 'ACTIVE'),
-(N'Tim mạch', N'Khoa Tim mạch - Chuyên điều trị các bệnh về tim và mạch máu', 'ACTIVE'),
-(N'Hô hấp', N'Khoa Hô hấp - Chuyên điều trị các bệnh lý phổi và đường hô hấp', 'ACTIVE'),
-(N'Tiêu hóa', N'Khoa Tiêu hóa - Chuyên điều trị các bệnh về dạ dày, gan, mật và ruột', 'ACTIVE'),
-(N'Thận - Tiết niệu', N'Khoa Thận - Tiết niệu - Điều trị bệnh thận và hệ tiết niệu', 'ACTIVE'),
-(N'Nội tiết', N'Khoa Nội tiết - Điều trị bệnh đái tháo đường, tuyến giáp và rối loạn chuyển hóa', 'ACTIVE'),
-(N'Thần kinh', N'Khoa Thần kinh - Điều trị các bệnh về thần kinh trung ương và ngoại biên', 'ACTIVE'),
+(N'Nội tổng hợp', N'Khoa Nội tổng hợp - Khám và điều trị các bệnh lý nội khoa thường gặp', 'ACTIVE', '/uploads/departments/noi_tong_hop.jpg'),
+(N'Tim mạch', N'Khoa Tim mạch - Chuyên điều trị các bệnh về tim và mạch máu', 'ACTIVE', '/uploads/departments/tim_mach.jpg'),
+(N'Hô hấp', N'Khoa Hô hấp - Chuyên điều trị các bệnh lý phổi và đường hô hấp', 'ACTIVE', '/uploads/departments/ho_hap.jpg'),
+(N'Tiêu hóa', N'Khoa Tiêu hóa - Chuyên điều trị các bệnh về dạ dày, gan, mật và ruột', 'ACTIVE', '/uploads/departments/tieu_hoa.jpg'),
+(N'Thận - Tiết niệu', N'Khoa Thận - Tiết niệu - Điều trị bệnh thận và hệ tiết niệu', 'ACTIVE', '/uploads/departments/noi_than.jpg'),
+(N'Nội tiết', N'Khoa Nội tiết - Điều trị bệnh đái tháo đường, tuyến giáp và rối loạn chuyển hóa', 'ACTIVE', '/uploads/departments/noi_tiet.jpg'),
+(N'Thần kinh', N'Khoa Thần kinh - Điều trị các bệnh về thần kinh trung ương và ngoại biên', 'ACTIVE', '/uploads/departments/noi_than_kinh.jpg'),
 
 -- Nhóm Ngoại khoa
-(N'Ngoại tổng hợp', N'Khoa Ngoại tổng hợp - Thực hiện phẫu thuật các bệnh lý ngoại khoa', 'ACTIVE'),
-(N'Chấn thương chỉnh hình', N'Khoa Chấn thương chỉnh hình - Điều trị gãy xương, trật khớp và phẫu thuật chỉnh hình', 'ACTIVE'),
-(N'Ngoại thần kinh', N'Khoa Ngoại thần kinh - Phẫu thuật điều trị các bệnh lý hệ thần kinh', 'ACTIVE'),
-(N'Ngoại tiêu hóa', N'Khoa Ngoại tiêu hóa - Phẫu thuật các bệnh dạ dày, ruột, gan, mật', 'ACTIVE'),
-(N'Ngoại lồng ngực', N'Khoa Ngoại lồng ngực - Phẫu thuật tim, phổi và mạch máu lớn', 'ACTIVE'),
+(N'Ngoại tổng hợp', N'Khoa Ngoại tổng hợp - Thực hiện phẫu thuật các bệnh lý ngoại khoa', 'ACTIVE', '/uploads/departments/ngoai_tong_hop.jpg'),
+(N'Chấn thương chỉnh hình', N'Khoa Chấn thương chỉnh hình - Điều trị gãy xương, trật khớp và phẫu thuật chỉnh hình', 'ACTIVE', '/uploads/departments/chan_thuong_chinh_hinh.jpg'),
+(N'Ngoại thần kinh', N'Khoa Ngoại thần kinh - Phẫu thuật điều trị các bệnh lý hệ thần kinh', 'ACTIVE', '/uploads/departments/ngoai_than_kinh.jpg'),
+(N'Ngoại tiêu hóa', N'Khoa Ngoại tiêu hóa - Phẫu thuật các bệnh dạ dày, ruột, gan, mật', 'ACTIVE', '/uploads/departments/ngoai_nieu.jpg'),
+(N'Ngoại lồng ngực', N'Khoa Ngoại lồng ngực - Phẫu thuật tim, phổi và mạch máu lớn', 'ACTIVE', '/uploads/departments/ngoai_tiet_nieu.jpg'),
 
 -- Nhóm Sản - Nhi - Phụ
-(N'Sản phụ khoa', N'Khoa Sản phụ khoa - Chăm sóc sức khỏe sinh sản và thai sản', 'ACTIVE'),
-(N'Nhi khoa', N'Khoa Nhi - Khám và điều trị cho trẻ em', 'ACTIVE'),
+(N'Sản phụ khoa', N'Khoa Sản phụ khoa - Chăm sóc sức khỏe sinh sản và thai sản', 'ACTIVE', '/uploads/departments/san_phu_khoa.jpg'),
+(N'Nhi khoa', N'Khoa Nhi - Khám và điều trị cho trẻ em', 'ACTIVE', '/uploads/departments/nhi_khoa.jpg'),
 
 -- Nhóm Cận lâm sàng
-(N'Chẩn đoán hình ảnh', N'Khoa Chẩn đoán hình ảnh - Siêu âm, X-quang, CT, MRI', 'ACTIVE'),
-(N'Xét nghiệm', N'Khoa Xét nghiệm - Thực hiện các xét nghiệm máu, nước tiểu, sinh hóa', 'ACTIVE'),
-(N'Giải phẫu bệnh', N'Khoa Giải phẫu bệnh - Phân tích mô bệnh học và tế bào học', 'ACTIVE'),
+(N'Chẩn đoán hình ảnh', N'Khoa Chẩn đoán hình ảnh - Siêu âm, X-quang, CT, MRI', 'ACTIVE', '/uploads/departments/chan_doan_hinh_anh.jpg'),
+(N'Xét nghiệm', N'Khoa Xét nghiệm - Thực hiện các xét nghiệm máu, nước tiểu, sinh hóa', 'ACTIVE', '/uploads/departments/xet_nghiem.jpg'),
+(N'Giải phẫu bệnh', N'Khoa Giải phẫu bệnh - Phân tích mô bệnh học và tế bào học', 'ACTIVE', '/uploads/departments/phau_thuat_tao_hinh.jpg'),
 
 -- Nhóm Khám chuyên khoa sâu
-(N'Da liễu', N'Khoa Da liễu - Điều trị các bệnh về da, tóc và móng', 'ACTIVE'),
-(N'Tai - Mũi - Họng', N'Khoa Tai - Mũi - Họng - Khám và điều trị các bệnh đường hô hấp trên', 'ACTIVE'),
-(N'Răng - Hàm - Mặt', N'Khoa Răng - Hàm - Mặt - Khám và điều trị răng miệng', 'ACTIVE'),
-(N'Mắt', N'Khoa Mắt - Khám và điều trị bệnh lý về mắt', 'ACTIVE'),
-(N'Cơ - Xương - Khớp', N'Khoa Cơ - Xương - Khớp - Điều trị thoái hóa khớp, viêm khớp, loãng xương', 'ACTIVE'),
-(N'Ung bướu', N'Khoa Ung bướu - Điều trị ung thư và các khối u ác tính', 'ACTIVE'),
+(N'Da liễu', N'Khoa Da liễu - Điều trị các bệnh về da, tóc và móng', 'ACTIVE', '/uploads/departments/da_lieu.jpg'),
+(N'Tai - Mũi - Họng', N'Khoa Tai - Mũi - Họng - Khám và điều trị các bệnh đường hô hấp trên', 'ACTIVE', '/uploads/departments/tai_mui_hong.jpg'),
+(N'Răng - Hàm - Mặt', N'Khoa Răng - Hàm - Mặt - Khám và điều trị răng miệng', 'ACTIVE', '/uploads/departments/rang_ham_mat.jpg'),
+(N'Mắt', N'Khoa Mắt - Khám và điều trị bệnh lý về mắt', 'ACTIVE', '/uploads/departments/nhan_khoa.jpg'),
+(N'Cơ - Xương - Khớp', N'Khoa Cơ - Xương - Khớp - Điều trị thoái hóa khớp, viêm khớp, loãng xương', 'ACTIVE', '/uploads/departments/co_xuong_khop.jpg'),
+(N'Ung bướu', N'Khoa Ung bướu - Điều trị ung thư và các khối u ác tính', 'ACTIVE', '/uploads/departments/ung_buou.jpg'),
 
 -- Nhóm Hỗ trợ điều trị
-(N'Phục hồi chức năng', N'Khoa Phục hồi chức năng - Tập vật lý trị liệu, phục hồi sau phẫu thuật', 'ACTIVE'),
-(N'Dinh dưỡng', N'Khoa Dinh dưỡng - Tư vấn và xây dựng chế độ ăn cho bệnh nhân', 'ACTIVE'),
-(N'Tâm lý - Tâm thần', N'Khoa Tâm lý - Tâm thần - Hỗ trợ điều trị rối loạn tâm lý và tâm thần', 'ACTIVE'),
+(N'Phục hồi chức năng', N'Khoa Phục hồi chức năng - Tập vật lý trị liệu, phục hồi sau phẫu thuật', 'ACTIVE', '/uploads/departments/phuc_hoi_chuc_nang_vat_ly_tri_lieu.jpg'),
+(N'Dinh dưỡng', N'Khoa Dinh dưỡng - Tư vấn và xây dựng chế độ ăn cho bệnh nhân', 'ACTIVE', '/uploads/departments/dinh_duong.jpg'),
+(N'Tâm lý - Tâm thần', N'Khoa Tâm lý - Tâm thần - Hỗ trợ điều trị rối loạn tâm lý và tâm thần', 'ACTIVE', '/uploads/departments/tam_ly.jpg'),
 
 -- Nhóm Quản lý & Hành chính
-(N'Cấp cứu', N'Khoa Cấp cứu - Tiếp nhận và xử lý bệnh nhân cấp cứu 24/7', 'ACTIVE'),
-(N'Kiểm soát nhiễm khuẩn', N'Khoa Kiểm soát nhiễm khuẩn - Đảm bảo vệ sinh và an toàn trong bệnh viện', 'ACTIVE'),
-(N'Dược', N'Khoa Dược - Quản lý thuốc và vật tư y tế', 'ACTIVE'),
-(N'Hành chính', N'Phòng Hành chính - Quản lý hồ sơ, nhân sự và hành chính bệnh viện', 'ACTIVE');
+(N'Cấp cứu', N'Khoa Cấp cứu - Tiếp nhận và xử lý bệnh nhân cấp cứu 24/7', 'ACTIVE', '/uploads/departments/cap_cuu.jpg'),
+(N'Kiểm soát nhiễm khuẩn', N'Khoa Kiểm soát nhiễm khuẩn - Đảm bảo vệ sinh và an toàn trong bệnh viện', 'ACTIVE', '/uploads/departments/gay_me_hoi_suc.jpg'),
+(N'Dược', N'Khoa Dược - Quản lý thuốc và vật tư y tế', 'ACTIVE', '/uploads/departments/y_hoc_co_truyen.jpg'),
+(N'Hành chính', N'Phòng Hành chính - Quản lý hồ sơ, nhân sự và hành chính bệnh viện', 'ACTIVE', '/uploads/departments/y_hoc_du_phong.jpg');
 
 
 -- ===========================================================
