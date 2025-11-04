@@ -14,6 +14,7 @@ const AppContent = () => {
   const isDoctorRoute = location.pathname.startsWith("/doctor");
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isChatbotRoute = location.pathname === "/chatbot";
+  const isHomePage = location.pathname === "/";
 
   // Nếu đang ở trong doctor layout, không hiển thị header/sidebar chính
   if (isDoctorRoute) {
@@ -35,7 +36,7 @@ const AppContent = () => {
     <div className="App">
       <Header />
       <AppRoutes />
-      <Footer />
+      {isHomePage && <Footer />}
     </div>
   );
 };
