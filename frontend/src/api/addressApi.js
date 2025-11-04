@@ -1,26 +1,26 @@
 import axios from 'axios';
 
 const addressApi = {
-  // Lấy danh sách tỉnh/thành phố
+  // Lấy danh sách tỉnh/thành phố - Dùng HTTP thay vì HTTPS để tránh lỗi SSL
   getProvinces: () => {
-    return axios.get('https://provinces.open-api.vn/api/p/');
+    return axios.get('http://provinces.open-api.vn/api/p/');
   },
 
   // Lấy danh sách quận/huyện theo tỉnh
   getDistricts: (provinceCode) => {
-    return axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
+    return axios.get(`http://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
   },
 
   // Lấy danh sách phường/xã theo quận/huyện
   getWards: (districtCode) => {
-    return axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
+    return axios.get(`http://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
   },
 
   // Tìm tỉnh theo tên
   findProvinceByName: (provinces, name) => {
     if (!name || !provinces) return null;
     return provinces.find(p => {
-      const provinceName = p.name.toLowerCase().replace(/tỉnh|thành phố/g, '').trim();
+      const provinceName = (p.province_name || p.name || '').toLowerCase().replace(/tỉnh|thành phố/g, '').trim();
       const searchName = name.toLowerCase().replace(/tỉnh|thành phố/g, '').trim();
       return provinceName === searchName || 
              provinceName.includes(searchName) || 
@@ -32,10 +32,10 @@ const addressApi = {
   findDistrictByName: (districts, name) => {
     if (!name || !districts) return null;
     console.log('🔍 Searching district:', name);
-    console.log('🔍 Available districts:', districts.map(d => d.name));
+    console.log('🔍 Available districts:', districts.map(d => d.district_name || d.name));
     
     return districts.find(d => {
-      const districtName = d.name.toLowerCase().replace(/huyện|quận|thị xã|thành phố/g, '').trim();
+      const districtName = (d.district_name || d.name || '').toLowerCase().replace(/huyện|quận|thị xã|thành phố/g, '').trim();
       const searchName = name.toLowerCase().replace(/huyện|quận|thị xã|thành phố/g, '').trim();
       
       console.log('🔍 Comparing:', districtName, 'vs', searchName);
@@ -44,7 +44,7 @@ const addressApi = {
       const containsMatch = districtName.includes(searchName) || searchName.includes(districtName);
       
       if (exactMatch || containsMatch) {
-        console.log('✅ Found district match:', d.name);
+        console.log('✅ Found district match:', d.district_name || d.name);
         return true;
       }
       return false;
@@ -55,10 +55,10 @@ const addressApi = {
   findWardByName: (wards, name) => {
     if (!name || !wards) return null;
     console.log('🔍 Searching ward:', name);
-    console.log('🔍 Available wards:', wards.map(w => w.name));
+    console.log('🔍 Available wards:', wards.map(w => w.ward_name || w.name));
     
     return wards.find(w => {
-      const wardName = w.name.toLowerCase().replace(/phường|xã|thị trấn/g, '').trim();
+      const wardName = (w.ward_name || w.name || '').toLowerCase().replace(/phường|xã|thị trấn/g, '').trim();
       const searchName = name.toLowerCase().replace(/phường|xã|thị trấn/g, '').trim();
       
       console.log('🔍 Comparing:', wardName, 'vs', searchName);
@@ -67,7 +67,7 @@ const addressApi = {
       const containsMatch = wardName.includes(searchName) || searchName.includes(wardName);
       
       if (exactMatch || containsMatch) {
-        console.log('✅ Found ward match:', w.name);
+        console.log('✅ Found ward match:', w.ward_name || w.name);
         return true;
       }
       return false;

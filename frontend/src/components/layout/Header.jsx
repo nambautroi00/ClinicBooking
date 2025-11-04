@@ -254,11 +254,11 @@ export default function Header() {
       </div>
 
       {/* Main header */}
-      <div className="w-full px-4">
-        <div className="max-w-full mx-auto flex items-center gap-8 py-6">
+      <div className="w-full px-2 sm:px-4">
+        <div className="max-w-full mx-auto flex items-center gap-2 sm:gap-4 md:gap-8 py-4 sm:py-6">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl overflow-hidden bg-white p-1">
+          <Link to="/" className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0 min-w-0">
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 items-center justify-center rounded-xl overflow-hidden bg-white p-1 flex-shrink-0">
               <img 
                 src="/images/logo.png" 
                 alt="ClinicBooking Logo" 
@@ -267,8 +267,8 @@ export default function Header() {
                   // Fallback to original design if logo fails to load
                   e.target.style.display = 'none';
                   e.target.parentElement.innerHTML = `
-                    <div class="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-[#0d6efd] text-white">
-                      <svg class="h-6 w-6 sm:h-8 sm:w-8" fill="currentColor" viewBox="0 0 20 20">
+                    <div class="flex h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 items-center justify-center rounded-xl bg-[#0d6efd] text-white">
+                      <svg class="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
                       </svg>
                     </div>
@@ -276,17 +276,14 @@ export default function Header() {
                 }}
               />
             </div>
-            <div className="hidden sm:block">
-              <div className="text-xl font-bold text-[#0d6efd]">ClinicBooking</div>
-              <div className="text-sm text-gray-500">Tìm bác sĩ, đặt lịch nhanh chóng</div>
-            </div>
-            <div className="sm:hidden">
-              <div className="text-base font-bold text-[#0d6efd]">CB</div>
+            <div className="min-w-0">
+              <div className="text-sm sm:text-base md:text-xl font-bold text-[#0d6efd] whitespace-nowrap">ClinicBooking</div>
+              <div className="hidden sm:block text-xs md:text-sm text-gray-500">Tìm bác sĩ, đặt lịch nhanh chóng</div>
             </div>
           </Link>
 
           {/* Center search - shorter with larger text */}
-          <div className="flex-1 hidden sm:block">
+          <div className="flex-1 hidden sm:block min-w-0">
             <div className="relative max-w-xl mx-auto">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
@@ -298,7 +295,7 @@ export default function Header() {
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 ml-auto flex-shrink-0">
             <nav className="hidden lg:flex items-center gap-6">
               {menuItems.map((item) => {
                 const handleClick = (e) => {
