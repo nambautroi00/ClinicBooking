@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Search, ArrowRight, Star } from "lucide-react";
+import { Search, ArrowRight, Star, Shield, Clock, CheckCircle, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import doctorApi from "../../api/doctorApi";
-import departmentApi from "../../api/departmentApi";
 import reviewApi from "../../api/reviewApi";
 
 export default function PatientAppointmentBooking() {
@@ -11,7 +10,6 @@ export default function PatientAppointmentBooking() {
   const [doctors, setDoctors] = useState([]);
   const [allDoctors, setAllDoctors] = useState([]); // Store all doctors for filtering
   const [featuredDoctors, setFeaturedDoctors] = useState([]); // Store featured doctors
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAllDoctors, setShowAllDoctors] = useState(false); // Control whether to show all or featured
 
@@ -90,27 +88,6 @@ export default function PatientAppointmentBooking() {
           // Display featured doctors initially
           setDoctors(featured);
         }
-        
-        // Fetch departments from API
-        try {
-          const departmentsResponse = await departmentApi.getAllDepartments();
-          console.log('📋 Departments response:', departmentsResponse);
-          if (departmentsResponse && departmentsResponse.data) {
-            console.log('✅ Setting departments:', departmentsResponse.data);
-            setDepartments(departmentsResponse.data);
-          } else if (Array.isArray(departmentsResponse)) {
-            // Nếu response là array trực tiếp
-            console.log('✅ Setting departments (direct array):', departmentsResponse);
-            setDepartments(departmentsResponse);
-          } else {
-            console.log('⚠️ No departments data found');
-            setDepartments([]);
-          }
-        } catch (deptError) {
-          console.error("❌ Error loading departments:", deptError);
-          // Fallback to empty array if API fails
-          setDepartments([]);
-        }
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -182,7 +159,7 @@ export default function PatientAppointmentBooking() {
                   Đặt khám bác sĩ
                 </h1>
                 <p className="text-lg md:text-xl text-blue-100 leading-relaxed">
-                  Đặt khám với hơn 1000 bác sĩ đã kết nối chính thức với Medicare để có số thứ tự và khung giờ khám trước
+                  Đặt khám với hơn 1000 bác sĩ đã kết nối chính thức với ClinicBooking để có số thứ tự và khung giờ khám trước
                 </p>
               </div>  
               
@@ -362,88 +339,97 @@ export default function PatientAppointmentBooking() {
           </div>
         </section>
 
-        {/* Specialties Section */}
-        <section className="mb-12">
+        {/* Trust Section */}
+        <section className="mb-12 rounded-2xl p-8 md:p-12">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Đa dạng chuyên khoa khám</h2>
-            <p className="text-gray-600">Đặt khám dễ dàng và tiện lợi hơn với đầy đủ các chuyên khoa</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              An tâm tìm và đặt bác sĩ
+            </h2>
+            <p className="text-lg text-gray-600">
+              Hơn {allDoctors.length > 0 ? allDoctors.length : '600'} bác sĩ liên kết chính thức với ClinicBooking
+            </p>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600">Đang tải danh sách chuyên khoa...</span>
-            </div>
-          ) : departments.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {departments.filter(dept => dept.status !== 'CLOSED').slice(0, 12).map((dept) => {
-                const imageUrl = dept.imageUrl 
-                  ? `http://localhost:8080${dept.imageUrl}` 
-                  : null;
+          <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto items-center mb-8">
+            {/* Left: Image Section */}
+            <div className="lg:col-span-1 relative">
+              <div className="relative w-full h-64 lg:h-80 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                <img 
+                  src="/images/family2.jpg" 
+                  alt="Bác sĩ và bệnh nhân" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.nextElementSibling;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center text-6xl" style={{display: 'none'}}>
+                  👨‍⚕️👩‍⚕️
+                </div>
                 
-                return (
-                  <div
-                    key={dept.id}
-                    className={`bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow cursor-pointer border border-gray-100 ${
-                      dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE' 
-                        ? 'opacity-60 cursor-not-allowed' 
-                        : 'hover:border-blue-200'
-                    }`}
-                    onClick={() => {
-                      if (dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE') {
-                        alert('Khoa này đang trong quá trình bảo trì. Vui lòng quay lại sau!');
-                        return;
-                      }
-                      navigate(`/specialty/${dept.id}`, {
-                        state: { departmentName: dept.departmentName }
-                      });
-                    }}
-                  >
-                    {/* Image or Icon */}
-                    <div className="relative w-12 h-12 mx-auto mb-3 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                      {imageUrl ? (
-                        <img 
-                          src={imageUrl} 
-                          alt={dept.departmentName}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div 
-                        className="absolute inset-0 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center"
-                        style={{display: imageUrl ? 'none' : 'flex'}}
-                      >
-                        <span className="text-blue-600 font-bold text-xs">
-                          {dept.departmentName.charAt(0)}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Name */}
-                    <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
-                      {dept.departmentName}
-                    </p>
-                    
-                    {/* Status Badge */}
-                    {(dept.status === 'INACTIVE' || dept.status === 'MAINTENANCE') && (
-                      <div className="text-center mb-1">
-                        <span className="inline-block px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                          Đang bảo trì
-                        </span>
-                      </div>
-                    )}
+                {/* Floating icon */}
+                <div className="absolute top-4 right-4 w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm">
+                  <span className="text-xl">💬</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Features */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Feature 1: Đội ngũ bác sĩ */}
+              <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow border-l-4 border-blue-500">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-100 rounded-lg flex-shrink-0">
+                    <Shield className="h-6 w-6 text-blue-600" />
                   </div>
-                );
-              })}
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                      <Users className="h-5 w-5 text-blue-600" />
+                      Đội ngũ bác sĩ
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed">
+                      Tất cả các bác sĩ đều có liên kết chính thức với ClinicBooking để bảo đảm lịch đặt khám của bạn được xác nhận.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature 2: Đặt khám dễ dàng */}
+              <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-green-100 rounded-lg flex-shrink-0">
+                    <Clock className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Đặt khám dễ dàng, nhanh chóng, chủ động
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed">
+                      Chỉ với 1 phút, bạn có thể đặt khám thành công với bác sĩ. Phiếu khám bao gồm số thứ tự và khung thời gian dự kiến.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Chưa có chuyên khoa nào</p>
+          </div>
+
+          {/* Visual Elements */}
+          <div className="mt-8 flex justify-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-gray-700 font-medium">Bác sĩ được xác minh</span>
             </div>
-          )}
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-gray-700 font-medium">Xác nhận tức thì</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-gray-700 font-medium">Thanh toán an toàn</span>
+            </div>
+          </div>
         </section>
 
       </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import doctorApi from "../../api/doctorApi";
 import appointmentApi from "../../api/appointmentApi";
 
@@ -12,15 +13,18 @@ const AppointmentsManagement = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedAppointments, setSelectedAppointments] = useState([]);
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      'SCHEDULED': { class: 'bg-info text-white', text: 'Đã đặt', color: '#17a2b8' },
-      'CONFIRMED': { class: 'bg-primary text-white', text: 'Đã xác nhận', color: '#0d6efd' },
-      'COMPLETED': { class: 'bg-success text-white', text: 'Hoàn thành', color: '#28a745' },
-      'CANCELLED': { class: 'bg-danger text-white', text: 'Đã hủy', color: '#dc3545' },
+      'Scheduled': { class: 'bg-info text-white', text: 'Đã đặt', color: '#0dcaf0' },
+      'Confirmed': { class: 'bg-primary text-white', text: 'Đã xác nhận', color: '#0d6efd' },
+      'Completed': { class: 'bg-success text-white', text: 'Hoàn thành', color: '#198754' },
+      'Cancelled': { class: 'bg-danger text-white', text: 'Đã hủy', color: '#dc3545' },
+      'Rejected': { class: 'bg-danger text-white', text: 'Từ chối', color: '#dc3545' },
       'Schedule': { class: 'bg-secondary text-white', text: 'Lịch trình', color: '#6c757d' },
+      'Available': { class: 'bg-secondary text-white', text: 'Trống', color: '#6c757d' },
     };
     const config = statusMap[status] || { class: 'bg-secondary text-white', text: status || 'Không xác định', color: '#6c757d' };
     return config;
@@ -91,126 +95,109 @@ const AppointmentsManagement = () => {
   return (
     <div className="container-fluid py-4">
       <style>{`
-        .appointment-card {
-          background: white;
-          border-radius: 6px;
-          padding: 6px 8px;
-          margin-bottom: 4px;
-          border-left: 3px solid;
-          font-size: 0.75rem;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .appointment-card:hover {
-          transform: translateX(2px);
-          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
         .calendar-day {
-          min-height: 100px;
-          padding: 6px !important;
+          min-height: 120px;
+          padding: 10px 8px !important;
           border: 1px solid #e9ecef !important;
           vertical-align: top;
+          background: white;
+          transition: all 0.15s ease;
         }
         .calendar-day:hover:not(.calendar-today):not(.calendar-other-month) {
           background-color: #f8f9fa !important;
         }
         .calendar-today {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-          color: white;
+          background: #e7f1ff !important;
+          border: 2px solid #0d6efd !important;
         }
         .calendar-other-month {
           background: #f8f9fa;
-          opacity: 0.5;
+          opacity: 0.6;
         }
         .calendar-header th {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-          color: white;
+          background: #f8f9fa;
+          color: #495057;
           font-weight: 600;
-          padding: 12px 8px;
-          border: none !important;
+          padding: 10px 8px;
+          border: 1px solid #dee2e6 !important;
         }
         .day-number {
           font-weight: 600;
           font-size: 0.9rem;
-        }
-        .appointment-count-badge {
-          background: #667eea;
-          color: white;
-          border-radius: 50%;
-          width: 20px;
-          height: 20px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.65rem;
-          font-weight: 600;
-        }
-        .calendar-today .appointment-count-badge {
-          background: white;
-          color: #667eea;
+          color: #212529;
         }
       `}</style>
 
       <div className="row">
         <div className="col-12">
-          <div className="mb-4">
-            <h2 className="mb-0 fw-bold">
-              <i className="bi bi-calendar-check-fill text-primary me-2"></i>
-              Lịch hẹn theo bác sĩ
-            </h2>
-            <p className="text-muted mb-0 small mt-1">Xem và quản lý lịch hẹn theo dạng lịch</p>
-          </div>
-
-          <div className="card border-0 shadow-sm mb-3">
-            <div className="card-body py-3">
-              <div className="row g-3 align-items-end">
-                <div className="col-md-4">
-                  <label className="form-label fw-semibold small mb-1" htmlFor="doctor">
-                    Chọn bác sĩ
-                  </label>
-                  <select 
-                    id="doctor" 
-                    className="form-select form-select-sm" 
-                    value={doctorId} 
-                    onChange={(e) => setDoctorId(e.target.value)}
-                  >
-                    <option value="">-- Chọn bác sĩ --</option>
-                    {doctors.map(d => (
-                      <option key={d.doctorId || d.id} value={d.doctorId || d.id}>
-                        {d.user?.firstName ? `${d.user.firstName} ${d.user.lastName || ''}` : (d.fullName || d.name || `Bác sĩ #${d.doctorId || d.id}`)}
-                      </option>
-                    ))}
-                  </select>
+          <div className="d-flex justify-content-between align-items-end mb-4">
+            <div>
+              <h2 className="mb-0 fw-bold">
+                <i className="bi bi-calendar-check-fill text-primary me-2"></i>
+                Lịch hẹn của  bác sĩ
+              </h2>
+            </div>
+            <div className="d-flex align-items-center gap-4">
+              <div className="d-flex align-items-center gap-2">
+                <label className="form-label fw-semibold mb-0" htmlFor="doctor" style={{ whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
+                  Chọn bác sĩ:
+                </label>
+                <select 
+                  id="doctor" 
+                  className="form-select" 
+                  value={doctorId} 
+                  onChange={(e) => setDoctorId(e.target.value)}
+                  style={{ 
+                    width: '200px',
+                    fontSize: '0.875rem',
+                    height: '38px'
+                  }}
+                >
+                  <option value="">-- Chọn bác sĩ --</option>
+                  {doctors.map(d => (
+                    <option key={d.doctorId || d.id} value={d.doctorId || d.id}>
+                      {d.user?.firstName ? `${d.user.firstName} ${d.user.lastName || ''}` : (d.fullName || d.name || `Bác sĩ #${d.doctorId || d.id}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                <button 
+                  className="btn btn-sm btn-outline-secondary" 
+                  onClick={() => changeMonth(-1)}
+                >
+                  <i className="bi bi-chevron-left"></i>
+                </button>
+                <div 
+                  className="border rounded d-flex align-items-center justify-content-center" 
+                  style={{ 
+                    width: '200px',
+                    height: '38px',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    borderColor: '#dee2e6',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  {title}
                 </div>
-                <div className="col-md-8 d-flex justify-content-end align-items-end gap-2">
-                  <button 
-                    className="btn btn-sm btn-outline-secondary" 
-                    onClick={() => changeMonth(-1)}
-                  >
-                    <i className="bi bi-chevron-left"></i>
-                  </button>
-                  <div className="fw-bold px-4" style={{ minWidth: '180px', textAlign: 'center' }}>
-                    {title}
-                  </div>
-                  <button 
-                    className="btn btn-sm btn-outline-secondary" 
-                    onClick={() => changeMonth(1)}
-                  >
-                    <i className="bi bi-chevron-right"></i>
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-primary" 
-                    onClick={fetchAppointments} 
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <span className="spinner-border spinner-border-sm"></span>
-                    ) : (
-                      <i className="bi bi-arrow-clockwise"></i>
-                    )}
-                  </button>
-                </div>
+                <button 
+                  className="btn btn-sm btn-outline-secondary" 
+                  onClick={() => changeMonth(1)}
+                >
+                  <i className="bi bi-chevron-right"></i>
+                </button>
+                <button 
+                  className="btn btn-sm btn-primary" 
+                  onClick={fetchAppointments} 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="spinner-border spinner-border-sm"></span>
+                  ) : (
+                    <i className="bi bi-arrow-clockwise"></i>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -260,58 +247,67 @@ const AppointmentsManagement = () => {
                             const isTodayDate = isToday(date);
                             const isPastMonth = date && date.getMonth() !== currentMonth.getMonth();
                             
+                            // Tính số slot đã đặt và trống
+                            const bookedCount = events.filter(ev => ev.patientId != null && ev.status !== 'Schedule').length;
+                            const emptyCount = events.filter(ev => ev.patientId == null || ev.status === 'Schedule').length;
+                            
                             return (
                               <td 
                                 key={key} 
                                 className={`calendar-day ${isTodayDate ? 'calendar-today' : ''} ${isPastMonth ? 'calendar-other-month' : ''}`}
+                                style={{ cursor: events.length > 0 ? 'pointer' : 'default' }}
+                                onClick={() => {
+                                  if (events.length > 0 && date) {
+                                    setSelectedDate(date);
+                                    setSelectedAppointments(events);
+                                  }
+                                }}
                               >
-                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                <div className="d-flex justify-content-between align-items-center mb-2">
                                   <span className={`day-number ${isTodayDate ? 'text-white' : ''}`}>
                                     {date ? date.getDate() : ""}
                                   </span>
-                                  {events.length > 0 && (
-                                    <span className="appointment-count-badge">
-                                      {events.length}
-                                    </span>
-                                  )}
                                 </div>
-                                <div className="d-grid gap-1">
-                                  {events.slice(0, 2).map(ev => {
-                                    const statusConfig = getStatusBadge(ev.status);
-                                    return (
-                                      <div
-                                        key={ev.appointmentId} 
-                                        className="appointment-card"
-                                        onClick={() => setSelected(ev)}
-                                        style={{ borderLeftColor: statusConfig.color }}
+                                {events.length > 0 ? (
+                                  <div className="d-flex flex-column gap-1 mt-2">
+                                    {bookedCount > 0 && (
+                                      <div 
+                                        className="d-flex align-items-center justify-content-center px-2 py-1 rounded"
+                                        style={{ 
+                                          background: '#28a745',
+                                          color: 'white',
+                                          border: '1px solid #1e7e34',
+                                          fontSize: '0.75rem'
+                                        }}
                                       >
-                                        <div className="d-flex align-items-center justify-content-between mb-1">
-                                          <span className="fw-semibold">#{ev.appointmentId}</span>
-                                          <span className={`badge ${statusConfig.class}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>
-                                            {statusConfig.text}
-                                          </span>
-                                        </div>
-                                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                          <i className="bi bi-clock me-1"></i>
-                                          {ev.startTime ? new Date(ev.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                          {ev.endTime ? ` - ${new Date(ev.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
-                                        </div>
+                                        <i className="bi bi-check-circle-fill me-1" style={{ fontSize: '0.7rem' }}></i>
+                                        <span className="fw-semibold">
+                                          Đã đặt: {bookedCount}
+                                        </span>
                                       </div>
-                                    );
-                                  })}
-                                  {events.length > 2 && (
-                                    <button 
-                                      className="btn btn-sm btn-link text-primary p-0 mt-1"
-                                      style={{ fontSize: '0.7rem' }}
-                                      onClick={() => {
-                                        const firstExtraEvent = events[2];
-                                        setSelected(firstExtraEvent);
-                                      }}
-                                    >
-                                      +{events.length - 2} lịch hẹn khác
-                                    </button>
-                                  )}
+                                    )}
+                                    {emptyCount > 0 && (
+                                      <div 
+                                        className="d-flex align-items-center justify-content-center px-2 py-1 rounded"
+                                        style={{ 
+                                          background: '#17a2b8',
+                                          color: 'white',
+                                          border: '1px solid #138496',
+                                          fontSize: '0.75rem'
+                                        }}
+                                      >
+                                        <i className="bi bi-circle-fill me-1" style={{ fontSize: '0.7rem' }}></i>
+                                        <span className="fw-semibold">
+                                          Trống: {emptyCount}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className={`text-center mt-3 ${isTodayDate ? 'text-white opacity-75' : 'text-muted'}`} style={{ fontSize: '0.75rem' }}>
+                                    Không có
                                 </div>
+                                )}
                               </td>
                             );
                           })}
@@ -324,128 +320,161 @@ const AppointmentsManagement = () => {
             </div>
           </div>
 
-          {/* Detail modal */}
-          {selected && (
+          {/* Detail modal - Danh sách appointments của ngày */}
+          {selectedDate && selectedAppointments.length > 0 && createPortal(
             <div 
               className="modal d-block" 
               tabIndex="-1" 
               role="dialog" 
-              onClick={() => setSelected(null)}
-              style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+              onClick={() => {
+                setSelectedDate(null);
+                setSelectedAppointments([]);
+              }}
+              style={{ 
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 0,
+                padding: 0
+              }}
             >
               <div className="modal-dialog modal-lg modal-dialog-centered" role="document" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-content border-0 shadow-lg">
-                  <div className="modal-header border-0 pb-2" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                    <h5 className="modal-title text-white">
+                  <div className="modal-header bg-primary text-white border-0">
+                    <h5 className="modal-title mb-0 fw-bold">
                       <i className="bi bi-calendar-event-fill me-2"></i>
-                      Chi tiết lịch hẹn #{selected.appointmentId}
+                      Lịch hẹn ngày {selectedDate.toLocaleDateString('vi-VN', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
                     </h5>
-                    <button type="button" className="btn-close btn-close-white" onClick={() => setSelected(null)}></button>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => {
+                      setSelectedDate(null);
+                      setSelectedAppointments([]);
+                    }}></button>
                   </div>
-                  <div className="modal-body pt-4">
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <div className="d-flex align-items-center mb-3">
-                          <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
-                            <i className="bi bi-person-fill text-primary fs-5"></i>
-                          </div>
-                          <div>
-                            <small className="text-muted d-block">Bệnh nhân</small>
-                            <strong className="d-block">{selected.patientName || 'Chưa có tên'}</strong>
-                            {selected.patientId && (
-                              <small className="text-muted">ID: {selected.patientId}</small>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-6">
-                        <div className="d-flex align-items-center mb-3">
-                          <div className="bg-info bg-opacity-10 rounded-circle p-3 me-3">
-                            <i className="bi bi-person-badge-fill text-info fs-5"></i>
-                          </div>
-                          <div>
-                            <small className="text-muted d-block">Bác sĩ</small>
-                            <strong className="d-block">{selected.doctorName || 'Chưa có tên'}</strong>
-                            {selected.doctorId && (
-                              <small className="text-muted">ID: {selected.doctorId}</small>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-6">
-                        <div className="d-flex align-items-center mb-3">
-                          <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
-                            <i className="bi bi-clock-fill text-success fs-5"></i>
-                          </div>
-                          <div>
-                            <small className="text-muted d-block">Thời gian</small>
-                            <strong className="d-block">
-                              {selected.startTime ? new Date(selected.startTime).toLocaleString('vi-VN', {
-                                weekday: 'short',
-                                day: 'numeric',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              }) : 'Chưa xác định'}
-                            </strong>
-                            {selected.endTime && (
-                              <small className="text-muted">
-                                Đến: {new Date(selected.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                              </small>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-6">
-                        <div className="d-flex align-items-center mb-3">
-                          <div className="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
-                            <i className="bi bi-info-circle-fill text-warning fs-5"></i>
-                          </div>
-                          <div>
-                            <small className="text-muted d-block">Trạng thái</small>
-                            <span className={`badge ${getStatusBadge(selected.status).class} fs-6 px-3 py-2`}>
-                              {getStatusBadge(selected.status).text}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      {selected.fee && (
-                        <div className="col-12">
-                          <div className="d-flex align-items-center">
-                            <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
-                              <i className="bi bi-cash-coin text-success fs-5"></i>
-                            </div>
-                            <div>
-                              <small className="text-muted d-block">Phí khám</small>
-                              <strong className="text-success fs-4">
-                                {Number(selected.fee).toLocaleString('vi-VN')} đ
-                              </strong>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {selected.notes && (
-                        <div className="col-12 mt-2">
-                          <div className="border-top pt-3">
-                            <small className="text-muted d-block mb-2">
-                              <i className="bi bi-sticky-fill me-1"></i>
-                              Ghi chú
-                            </small>
-                            <p className="mb-0">{selected.notes}</p>
-                          </div>
-                        </div>
-                      )}
+                  <div className="modal-body pt-3">
+                    <div className="d-flex gap-2 mb-3">
+                      <span className="badge bg-success">
+                        Đã đặt: {selectedAppointments.filter(ev => ev.patientId != null && ev.status !== 'Schedule').length}
+                      </span>
+                      <span className="badge bg-secondary">
+                        Trống: {selectedAppointments.filter(ev => ev.patientId == null || ev.status === 'Schedule').length}
+                      </span>
+                    </div>
+                    <div className="table-responsive">
+                      <table className="table table-hover mb-0 align-middle">
+                        <thead className="table-light">
+                          <tr>
+                            <th className="fw-semibold" style={{ width: '60px' }}>ID</th>
+                            <th className="fw-semibold" style={{ width: '120px' }}>Thời gian</th>
+                            <th className="fw-semibold">Bệnh nhân</th>
+                            <th className="fw-semibold" style={{ width: '100px' }}>Trạng thái</th>
+                            <th className="fw-semibold" style={{ width: '100px' }}>Phí</th>
+                            <th className="fw-semibold">Ghi chú</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedAppointments.sort((a, b) => {
+                            const timeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+                            const timeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+                            return timeA - timeB;
+                          }).map((appointment, index) => {
+                            const statusConfig = getStatusBadge(appointment.status);
+                            const isBooked = appointment.patientId != null && appointment.status !== 'Schedule';
+                            return (
+                              <tr 
+                                key={appointment.appointmentId} 
+                                className={isBooked ? '' : ''}
+                                style={{ 
+                                  cursor: 'default',
+                                  transition: 'background-color 0.15s ease',
+                                  backgroundColor: isBooked ? 'rgba(40, 167, 69, 0.05)' : 'transparent'
+                                }}
+                              >
+                                <td>
+                                  <span className="fw-semibold">#{appointment.appointmentId}</span>
+                                </td>
+                                <td>
+                                  <div>
+                                    {appointment.startTime ? new Date(appointment.startTime).toLocaleTimeString('vi-VN', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    }) : ''}
+                                    {appointment.endTime && ` - ${new Date(appointment.endTime).toLocaleTimeString('vi-VN', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}`}
+                                  </div>
+                                </td>
+                                <td>
+                                  {appointment.patientName ? (
+                                    <div>
+                                      <div className="fw-semibold">{appointment.patientName}</div>
+                                      {appointment.patientId && (
+                                        <small className="text-muted">ID: {appointment.patientId}</small>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted">-</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <span className={`badge ${statusConfig.class}`}>
+                                    {statusConfig.text}
+                                  </span>
+                                </td>
+                                <td>
+                                  {appointment.fee ? (
+                                    <span className="fw-semibold">
+                                      {Number(appointment.fee).toLocaleString('vi-VN')} đ
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted">-</span>
+                                  )}
+                                </td>
+                                <td>
+                                  {appointment.notes ? (
+                                    <small className="text-muted" title={appointment.notes}>
+                                      {appointment.notes.length > 30 
+                                        ? appointment.notes.substring(0, 30) + '...' 
+                                        : appointment.notes}
+                                    </small>
+                                  ) : (
+                                    <span className="text-muted">-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                  <div className="modal-footer border-0 pt-0">
-                    <button type="button" className="btn btn-secondary" onClick={() => setSelected(null)}>
+                  <div className="modal-footer border-0">
+                    <button type="button" className="btn btn-secondary" onClick={() => {
+                      setSelectedDate(null);
+                      setSelectedAppointments([]);
+                    }}>
                       <i className="bi bi-x-circle me-1"></i>
                       Đóng
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>

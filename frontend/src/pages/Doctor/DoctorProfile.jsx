@@ -5,6 +5,7 @@ import doctorApi from '../../api/doctorApi';
 import userApi from '../../api/userApi';
 import fileUploadApi from '../../api/fileUploadApi';
 import departmentApi from '../../api/departmentApi';
+import reviewApi from '../../api/reviewApi';
 import { getFullAvatarUrl } from '../../utils/avatarUtils';
 
 const DoctorProfile = () => {
@@ -18,6 +19,8 @@ const DoctorProfile = () => {
   const [editing, setEditing] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [avgRating, setAvgRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -86,6 +89,19 @@ const DoctorProfile = () => {
       
       setDoctor(doctorData);
       setUser(userData);
+
+      // Load rating stats
+      try {
+        const [avg, count] = await Promise.all([
+          reviewApi.getAverageRatingByDoctor(doctorData.doctorId || doctorData.id),
+          reviewApi.getReviewCountByDoctor(doctorData.doctorId || doctorData.id),
+        ]);
+        setAvgRating(Number(avg) || 0);
+        setReviewCount(Number(count) || 0);
+      } catch (_) {
+        setAvgRating(0);
+        setReviewCount(0);
+      }
 
       // Set form data
       setFormData({
@@ -340,10 +356,10 @@ const DoctorProfile = () => {
                   </div>
                   <h4 className="mt-3">{formData.firstName} {formData.lastName}</h4>
                   <p className="text-muted">{formData.specialty}</p>
-                  <Badge bg="primary" className="fs-6 px-3 py-2">
-                    <BiStar className="me-2" />
-                    Bác sĩ
-                  </Badge>
+                  <div className="d-inline-flex align-items-center fs-6">
+                    <BiStar className="me-1" style={{ color: '#fbbf24' }} />
+                    <span>{avgRating.toFixed(1)}{reviewCount > 0 && <span className="ms-1">({reviewCount})</span>}</span>
+                  </div>
                   
                   {editing && (
                     <div className="mt-3">

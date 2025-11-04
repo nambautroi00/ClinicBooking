@@ -15,6 +15,9 @@ const DoctorDashboard = () => {
     upcomingAppointments: 0,
     completedAppointments: 0,
     totalPatients: 0,
+    todayRevenue: 0,
+    monthlyRevenue: 0,
+    totalRevenue: 0,
   });
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,23 +49,40 @@ const DoctorDashboard = () => {
     fetchDoctorId();
   }, [currentUser]);
 
+  // Helper function to add timeout to promises
+  const withTimeout = useCallback((promise, timeoutMs = 10000) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+      ),
+    ]);
+  }, []);
+
   const loadDashboardData = useCallback(async () => {
     if (!doctorId) return;
 
     try {
       setLoading(true);
       
-      // Load schedules and appointments in parallel
-      const [schedulesRes, appointmentsRes] = await Promise.all([
-        doctorScheduleApi.getSchedulesByDoctor(doctorId),
-        appointmentApi.getAppointmentsByDoctor(doctorId),
+      // Load schedules and appointments in parallel with timeout
+      const [schedulesRes, appointmentsRes] = await Promise.allSettled([
+        withTimeout(doctorScheduleApi.getSchedulesByDoctor(doctorId), 8000),
+        withTimeout(appointmentApi.getAppointmentsByDoctor(doctorId), 8000),
       ]);
 
-      const schedules = schedulesRes.data || [];
-      const appointments = appointmentsRes.data || [];
+      // Extract data with fallback to empty arrays
+      const schedules = schedulesRes.status === 'fulfilled' 
+        ? (schedulesRes.value?.data || schedulesRes.value || [])
+        : [];
+      const appointments = appointmentsRes.status === 'fulfilled'
+        ? (appointmentsRes.value?.data || appointmentsRes.value || [])
+        : [];
 
       const today = new Date().toISOString().split("T")[0];
       const now = new Date();
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
 
       // Filter today's schedules
       const todaySchedules = schedules.filter((s) => s.workDate === today);
@@ -71,6 +91,32 @@ const DoctorDashboard = () => {
       const todayAppointments = appointments.filter(
         (apt) => apt.startTime?.split("T")[0] === today && apt.status !== "Cancelled"
       );
+
+      // Calculate revenue from completed appointments
+      const completedAppointments = appointments.filter((apt) => apt.status === "Completed");
+      
+      // Today's revenue
+      const todayCompleted = completedAppointments.filter(
+        (apt) => apt.startTime?.split("T")[0] === today
+      );
+      const todayRevenue = todayCompleted.reduce((sum, apt) => {
+        return sum + (apt.fee ? Number(apt.fee) : 0);
+      }, 0);
+
+      // Monthly revenue (current month)
+      const monthlyCompleted = completedAppointments.filter((apt) => {
+        if (!apt.startTime) return false;
+        const aptDate = new Date(apt.startTime);
+        return aptDate.getMonth() === currentMonth && aptDate.getFullYear() === currentYear;
+      });
+      const monthlyRevenue = monthlyCompleted.reduce((sum, apt) => {
+        return sum + (apt.fee ? Number(apt.fee) : 0);
+      }, 0);
+
+      // Total revenue (all completed appointments)
+      const totalRevenue = completedAppointments.reduce((sum, apt) => {
+        return sum + (apt.fee ? Number(apt.fee) : 0);
+      }, 0);
 
       // Filter and sort patient appointments (only appointments with patients, not empty slots)
       const upcomingAppointmentsList = appointments
@@ -105,17 +151,35 @@ const DoctorDashboard = () => {
           if (!apt.startTime || apt.status === "Cancelled" || apt.status === "Completed") return false;
           return new Date(apt.startTime) > now;
         }).length,
-        completedAppointments: appointments.filter((apt) => apt.status === "Completed").length,
+        completedAppointments: completedAppointments.length,
         totalPatients: uniquePatients.size,
+        todayRevenue: todayRevenue,
+        monthlyRevenue: monthlyRevenue,
+        totalRevenue: totalRevenue,
       });
 
       setUpcomingAppointments(upcomingAppointmentsList);
     } catch (err) {
       console.error("Error loading dashboard data:", err);
+      // Set empty data on error to prevent UI crash
+      setStats({
+        totalSchedules: 0,
+        todaySchedules: 0,
+        availableSchedules: 0,
+        totalAppointments: 0,
+        todayAppointments: 0,
+        upcomingAppointments: 0,
+        completedAppointments: 0,
+        totalPatients: 0,
+        todayRevenue: 0,
+        monthlyRevenue: 0,
+        totalRevenue: 0,
+      });
+      setUpcomingAppointments([]);
     } finally {
       setLoading(false);
     }
-  }, [doctorId]);
+  }, [doctorId, withTimeout]);
 
   useEffect(() => {
     if (doctorId) {
@@ -141,6 +205,13 @@ const DoctorDashboard = () => {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
 
   if (loading) {
@@ -242,6 +313,61 @@ const DoctorDashboard = () => {
                   <i className="bi bi-check2-all text-warning" style={{ fontSize: "1.5rem" }}></i>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Section */}
+      <div className="row g-3 mb-3">
+        <div className="col-12">
+          <div className="card border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+            <div className="card-header bg-white border-0 py-2 px-3">
+              <h6 className="mb-0 fw-bold" style={{ fontSize: "1rem" }}>
+                <i className="bi bi-cash-coin text-success me-2"></i>
+                Doanh thu
+              </h6>
+            </div>
+            <div className="card-body p-3">
+                  <div className="row g-3">
+                    {/* Today's Revenue */}
+                    <div className="col-md-6">
+                      <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                        <div>
+                          <div className="text-muted small mb-1" style={{ fontSize: "0.75rem" }}>Doanh thu hôm nay</div>
+                          <div className="h5 mb-0 fw-bold text-success" style={{ fontSize: "1.25rem" }}>
+                            {formatCurrency(stats.todayRevenue)}
+                          </div>
+                          <div className="text-muted small mt-1" style={{ fontSize: "0.7rem" }}>
+                            <i className="bi bi-calendar-day me-1"></i>
+                            Hôm nay
+                          </div>
+                        </div>
+                        <div className="bg-success bg-opacity-10 rounded-circle p-3">
+                          <i className="bi bi-cash-stack text-success" style={{ fontSize: "1.5rem" }}></i>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Monthly Revenue */}
+                    <div className="col-md-6">
+                      <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                        <div>
+                          <div className="text-muted small mb-1" style={{ fontSize: "0.75rem" }}>Doanh thu tháng này</div>
+                          <div className="h5 mb-0 fw-bold text-primary" style={{ fontSize: "1.25rem" }}>
+                            {formatCurrency(stats.monthlyRevenue)}
+                          </div>
+                          <div className="text-muted small mt-1" style={{ fontSize: "0.7rem" }}>
+                            <i className="bi bi-calendar-month me-1"></i>
+                            Tháng {new Date().getMonth() + 1}/{new Date().getFullYear()}
+                          </div>
+                        </div>
+                        <div className="bg-primary bg-opacity-10 rounded-circle p-3">
+                          <i className="bi bi-calendar-range text-primary" style={{ fontSize: "1.5rem" }}></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
             </div>
           </div>
         </div>

@@ -101,26 +101,40 @@ function DoctorAppointmentList() {
     fetchDoctorId();
   }, [currentUser]);
 
+  // Helper function to add timeout to promises
+  const withTimeout = useCallback((promise, timeoutMs = 8000) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+      ),
+    ]);
+  }, []);
+
   // Fetch appointments with useCallback
   const fetchAppointments = useCallback(async () => {
     if (!doctorId) return;
 
     setLoading(true);
     try {
-      // Lấy lịch hẹn của bác sĩ
-      const appointmentsRes = await appointmentApi.getAppointmentsByDoctor(
-        doctorId
+      // Lấy lịch hẹn của bác sĩ với timeout
+      const appointmentsRes = await withTimeout(
+        appointmentApi.getAppointmentsByDoctor(doctorId),
+        10000
       );
 
+      const appointmentsData = appointmentsRes?.data || [];
+
       // Filter out empty slots (only show appointments with patients)
-      const appointmentsWithPatients = appointmentsRes.data
+      const appointmentsWithPatients = appointmentsData
         .filter(appointment => appointment.patientId !== null) // Chỉ lấy appointments có patient
         .map(async (appointment) => {
           try {
-            const patientRes = await patientApi.getPatientById(
-              appointment.patientId
+            const patientRes = await withTimeout(
+              patientApi.getPatientById(appointment.patientId),
+              5000
             );
-            const patient = patientRes.data;
+            const patient = patientRes?.data || patientRes;
             return {
               ...appointment,
               patientName:
@@ -148,8 +162,11 @@ function DoctorAppointmentList() {
           }
         });
 
-      // Wait for all patient data to be fetched
-      const resolvedAppointments = await Promise.all(appointmentsWithPatients);
+      // Wait for all patient data to be fetched with timeout protection
+      const resolvedAppointments = await Promise.allSettled(appointmentsWithPatients);
+      const validAppointments = resolvedAppointments
+        .filter(result => result.status === 'fulfilled')
+        .map(result => result.value);
       console.log("Appointments loaded:", resolvedAppointments);
       console.log(
         "Rejected count:",
@@ -157,16 +174,16 @@ function DoctorAppointmentList() {
       );
       console.log(
         "Canceled count:",
-        resolvedAppointments.filter((a) => a.status === "Canceled").length
+        validAppointments.filter((a) => a.status === "Canceled").length
       );
-      setAppointments(resolvedAppointments);
+      setAppointments(validAppointments);
     } catch (error) {
       console.error("Error fetching appointments:", error);
       setAppointments([]);
     } finally {
       setLoading(false);
     }
-  }, [doctorId]);
+  }, [doctorId, withTimeout]);
 
   useEffect(() => {
     if (doctorId) {

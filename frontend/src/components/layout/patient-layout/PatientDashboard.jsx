@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, FileText, User, Clock, MapPin, Phone, Mail, Calendar as CalendarIcon, CreditCard, DollarSign, Edit, Save, X, Camera, Eye, EyeOff } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import paymentApi from '../../../api/paymentApi';
 import patientApi from '../../../api/patientApi';
 import userApi from '../../../api/userApi';
@@ -10,6 +10,7 @@ import PatientAppointmentHistory from '../../../pages/Patient/PatientAppointment
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('appointments');
   const [payments, setPayments] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
@@ -1670,6 +1671,29 @@ const PatientDashboard = () => {
               >
                 <Calendar className="me-2" size={18} />
                 Lịch khám
+              </button>
+              
+              <button 
+                className="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center"
+                onClick={() => navigate('/patient/medical-records')}
+                style={{
+                  backgroundColor: 'transparent',
+                  fontWeight: 'normal',
+                  color: '#333',
+                  borderLeft: '4px solid transparent',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#f5f5f5';
+                  e.target.style.color = '#1976d2';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#333';
+                }}
+              >
+                <FileText className="me-2" size={18} />
+                Hồ sơ bệnh án
               </button>
               
               <button 

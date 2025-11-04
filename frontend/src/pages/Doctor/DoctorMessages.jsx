@@ -13,9 +13,6 @@ import config from "../../config/config";
 import {
   Search,
   Send,
-  Phone,
-  Mail,
-  Calendar,
   MessageCircle,
   User,
   ArrowLeft,
@@ -114,6 +111,9 @@ function DoctorMessages() {
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [uploadError, setUploadError] = useState("");
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const markConversationAsRead = useCallback(async () => {
     if (!conversationId || !currentUserId) return;
@@ -522,6 +522,7 @@ function DoctorMessages() {
               .map((id) => String(id));
             seenMessageIdsRef.current = new Set(ids);
             setMessages(data);
+            setVisibleCount(20);
             scrollToBottom();
             setLastFetchedAt(new Date().toISOString());
             
@@ -705,8 +706,10 @@ function DoctorMessages() {
   // Messages for current conversation (already filtered)
   const patientMessages = useMemo(() => {
     const getTs = (m) => new Date(m.createdAt || m.sentAt || m._arrivalAt || 0).getTime();
-    return [...messages].sort((a, b) => getTs(a) - getTs(b));
-  }, [messages]);
+    const sorted = [...messages].sort((a, b) => getTs(a) - getTs(b));
+    const start = Math.max(0, sorted.length - visibleCount);
+    return sorted.slice(start);
+  }, [messages, visibleCount]);
 
   // Handle send message
   const handleSendMessage = async () => {
@@ -942,6 +945,16 @@ function DoctorMessages() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Responsive: detect mobile
+  useEffect(() => {
+    const onResize = () => {
+      const mobile = window.innerWidth < 992;
+      setIsMobile(mobile);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Render
   if (loading) {
     return (
@@ -957,9 +970,10 @@ function DoctorMessages() {
     <div className="bg-white rounded-4 shadow-sm border" style={{ height: "calc(100vh - 120px)", overflow: "hidden" }}>
       <div className="d-flex h-100">
         {/* Patients List Sidebar */}
+        {(!isMobile || (isMobile && sidebarVisible)) && (
         <div
           className="border-end bg-light"
-          style={{ width: "350px", minWidth: "350px" }}
+          style={{ width: isMobile ? "100%" : "350px", minWidth: isMobile ? "auto" : "350px" }}
         >
           {/* Header */}
           <div className="p-3 border-bottom">
@@ -1015,6 +1029,7 @@ function DoctorMessages() {
                     if (patients.length === 0) {
                       fetchPatients();
                     }
+                    if (isMobile) setSidebarVisible(false);
                   }}
                   style={{ cursor: "pointer" }}
                 >
@@ -1051,14 +1066,25 @@ function DoctorMessages() {
             )}
           </div>
         </div>
+        )}
 
         {/* Chat Area */}
+        {(!isMobile || (isMobile && !sidebarVisible)) && (
         <div className="flex-grow-1 d-flex flex-column">
           {selectedPatient ? (
             <>
               {/* Chat Header */}
               <div className="p-3 border-bottom d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center gap-3">
+                  {isMobile && (
+                    <button
+                      className="btn btn-outline-secondary d-flex align-items-center"
+                      onClick={() => setSidebarVisible(true)}
+                      title="Danh sách bệnh nhân"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                  )}
                   <Avatar
                     size={45}
                     src={config.helpers.getAvatarUrl(selectedPatient.patientAvatar) || null}
@@ -1075,35 +1101,26 @@ function DoctorMessages() {
                     </small>
                   </div>
                 </div>
-                <div className="d-flex align-items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="d-flex align-items-center gap-1"
-                  >
-                    <Phone size={16} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="d-flex align-items-center gap-1"
-                  >
-                    <Mail size={16} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="d-flex align-items-center gap-1"
-                  >
-                    <Calendar size={16} />
-                  </Button>
-                </div>
               </div>
 
               {/* Messages */}
               <div
                 id="messages-container"
                 className="flex-grow-1 p-3 overflow-auto"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  if (el.scrollTop <= 0) {
+                    const prevHeight = el.scrollHeight;
+                    setVisibleCount((v) => {
+                      const next = Math.min(v + 20, messages.length);
+                      return next;
+                    });
+                    // Restore position after more items prepended
+                    setTimeout(() => {
+                      el.scrollTop = el.scrollHeight - prevHeight;
+                    }, 0);
+                  }
+                }}
               >
                 {patientMessages.length === 0 ? (
                   <div className="text-center py-5">
@@ -1236,8 +1253,10 @@ function DoctorMessages() {
                                 {message.content && <p className="mb-0">{message.content}</p>}
                               </>
                             )}
-                            <small className={timeClass}>{formatTime(message.createdAt || message.sentAt)}</small>
                           </div>
+                          <small className={`d-block mt-1 ${alignRight ? "text-end text-muted" : "text-start text-muted"}`}>
+                            {formatTime(message.createdAt || message.sentAt)}
+                          </small>
                         </div>
                         {alignRight && (
                           <div className="ms-2">
@@ -1303,6 +1322,7 @@ function DoctorMessages() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
 
