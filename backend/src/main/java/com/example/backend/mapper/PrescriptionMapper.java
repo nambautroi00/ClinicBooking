@@ -51,6 +51,20 @@ public class PrescriptionMapper {
                 }
             }
             
+            // Map doctor info
+            if (appointment.getDoctor() != null) {
+                dto.setDoctorId((long) appointment.getDoctor().getDoctorId());
+                
+                // Build doctor name from User entity
+                if (appointment.getDoctor().getUser() != null) {
+                    String lastName = appointment.getDoctor().getUser().getLastName() != null 
+                        ? appointment.getDoctor().getUser().getLastName() : "";
+                    String firstName = appointment.getDoctor().getUser().getFirstName() != null 
+                        ? appointment.getDoctor().getUser().getFirstName() : "";
+                    dto.setDoctorName((lastName + " " + firstName).trim());
+                }
+            }
+            
             // Map diagnosis from MedicalRecord
             dto.setDiagnosis(entity.getMedicalRecord().getDiagnosis());
         }

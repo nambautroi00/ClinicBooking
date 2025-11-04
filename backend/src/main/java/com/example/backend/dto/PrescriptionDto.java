@@ -22,6 +22,8 @@ public class PrescriptionDto {
     // Additional fields for display
     private Long patientId;
     private String patientName;
+    private Long doctorId;
+    private String doctorName;
     private String diagnosis; // From MedicalRecord
     private Double totalAmount; // Calculated from items
     private LocalDateTime createdDate; // Alias for createdAt for frontend compatibility
@@ -85,4 +87,10 @@ public class PrescriptionDto {
 
     public LocalDateTime getCreatedDate() { return createdAt != null ? createdAt : createdDate; }
     public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }
+
+    public Long getDoctorId() { return doctorId; }
+    public void setDoctorId(Long doctorId) { this.doctorId = doctorId; }
+
+    public String getDoctorName() { return doctorName; }
+    public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
 }

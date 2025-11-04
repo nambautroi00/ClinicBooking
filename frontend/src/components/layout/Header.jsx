@@ -215,6 +215,7 @@ export default function Header() {
 
   const userDropdownItems = [
     { label: "Lịch khám", href: "/patient/profile?tab=appointments", icon: "📅" },
+    { label: "Hồ sơ bệnh án", href: "/patient/medical-records", icon: "📋" },
     { label: "Lịch sử thanh toán", href: "/patient/profile?tab=payments", icon: "💳" },
     { label: "Tài khoản", href: "/patient/profile?tab=profile", icon: "👤" },
   ];

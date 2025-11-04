@@ -28,31 +28,31 @@ const PrescriptionsManagement = () => {
       const prescriptionsRes = await prescriptionApi.getAllPrescriptions();
       
       const prescriptionsData = (prescriptionsRes.data || []).map(prescription => ({
-        id: prescription.id,
-        prescriptionId: prescription.prescriptionId || `DT${String(prescription.id).padStart(3, '0')}`,
-        patientId: prescription.patient?.patientId || prescription.patientId,
-        patientName: prescription.patient?.user?.fullName || prescription.patientName,
-        doctorName: prescription.doctor?.user?.fullName || prescription.doctorName,
-        diagnosis: prescription.diagnosis,
-        prescriptionDate: prescription.prescriptionDate || prescription.createdDate,
+        id: prescription.prescriptionId, // Backend returns prescriptionId as the primary key
+        prescriptionId: prescription.prescriptionId ? `DT${String(prescription.prescriptionId).padStart(3, '0')}` : 'N/A',
+        patientId: prescription.patientId,
+        patientName: prescription.patientName || 'Chưa có tên',
+        doctorId: prescription.doctorId,
+        doctorName: prescription.doctorName || 'Chưa có tên',
+        diagnosis: prescription.diagnosis || prescription.notes || 'Chưa có chẩn đoán',
+        prescriptionDate: prescription.createdAt || prescription.createdDate,
         totalAmount: prescription.totalAmount || 0,
-        status: prescription.status || 'new',
-        medicines: prescription.prescriptionItems?.map(item => ({
-          id: item.id,
-          medicineId: item.medicine?.medicineId || item.medicineId,
-          medicineName: item.medicine?.name || item.medicineName,
-          quantity: item.quantity,
+        status: 'new', // Default status since backend doesn't have status field
+        medicines: (prescription.items || []).map(item => ({
+          id: item.itemId,
+          medicineId: item.medicineId,
+          medicineName: item.medicineName,
+          quantity: item.quantity || 1,
           dosage: item.dosage,
           duration: item.duration,
-          price: item.price || (item.quantity * (item.medicine?.price || 0)),
-          instructions: item.instructions
-        })) || []
+          price: item.price || 0,
+          instructions: item.note || item.instructions
+        }))
       }));
 
       setPrescriptions(prescriptionsData);
     } catch (error) {
       console.error('Lỗi khi tải đơn thuốc:', error);
-      console.warn('PrescriptionsManagement: backend unavailable, no mock fallback.');
       setPrescriptions([]);
     } finally {
       setLoading(false);
@@ -106,7 +106,20 @@ const PrescriptionsManagement = () => {
   const handleSaveEdit = async () => {
     if (!editForm.id) return;
     try {
-      await prescriptionApi.updatePrescription(editForm.id, { diagnosis: editForm.diagnosis, status: editForm.status });
+      // Find the prescription being edited to get its current items
+      const currentPrescription = prescriptions.find(p => p.id === editForm.id);
+      const payload = {
+        notes: editForm.diagnosis, // Backend uses 'notes' field
+        items: currentPrescription ? currentPrescription.medicines.map(m => ({
+          medicineId: m.medicineId,
+          quantity: m.quantity,
+          dosage: m.dosage,
+          duration: m.duration,
+          note: m.instructions
+        })) : []
+      };
+      
+      await prescriptionApi.updatePrescription(editForm.id, payload);
       setShowEditModal(false);
       toast.success("Cập nhật đơn thuốc thành công");
       loadPrescriptions();
