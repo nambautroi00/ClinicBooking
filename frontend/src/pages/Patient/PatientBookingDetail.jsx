@@ -305,6 +305,12 @@ export default function PatientBookingDetail() {
     
     console.log('📋 Filtered appointments for date:', filteredAppointments);
     
+    // Get current date/time for comparison
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const isToday = selectedDate === todayStr;
+    const isPastDate = selectedDate < todayStr;
+    
     // Convert appointments to time slots format
     const timeSlots = filteredAppointments.map(appointment => {
       try {
@@ -328,10 +334,20 @@ export default function PatientBookingDetail() {
           hour12: false
         });
         
+        // Check if this time slot is in the past
+        // If the selected date is in the past, all slots are past
+        // If the selected date is today, check if startTime is before now
+        const isPast = isPastDate || (isToday && startTime < now);
+        
+        // Available if: no patient assigned, not Schedule status, and not in the past
+        const isAvailable = appointment.patientId == null && 
+                           appointment.status !== "Schedule" && 
+                           !isPast;
+        
         const timeSlot = {
           id: appointment.appointmentId,
           time: `${startTimeStr}-${endTimeStr}`,
-          available: appointment.patientId == null && appointment.status !== "Schedule", // Available if no patient assigned and not Schedule status
+          available: isAvailable,
           appointmentId: appointment.appointmentId,
           fee: appointment.fee,
           status: appointment.status
@@ -341,6 +357,10 @@ export default function PatientBookingDetail() {
           ...timeSlot,
           originalStatus: appointment.status,
           originalPatientId: appointment.patientId,
+          isPast,
+          isToday,
+          currentTime: now.toISOString(),
+          startTime: startTime.toISOString(),
           isAvailable: timeSlot.available
         });
         return timeSlot;
@@ -465,6 +485,33 @@ export default function PatientBookingDetail() {
     }
   }, [appointments, selectedDate]);
 
+  // Auto-refresh available slots every minute when viewing today's date
+  // This ensures past slots are automatically disabled as time passes
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isViewingToday = selectedDate === todayStr;
+    
+    if (!isViewingToday || appointments.length === 0) {
+      return;
+    }
+    
+    // Refresh immediately and then every minute
+    const refreshSlots = () => {
+      if (selectedDate && appointments.length > 0) {
+        const timeSlots = processAppointmentsToTimeSlots(appointments, selectedDate);
+        setAvailableSlots(timeSlots);
+      }
+    };
+    
+    // Refresh immediately
+    refreshSlots();
+    
+    // Set up interval to refresh every minute
+    const interval = setInterval(refreshSlots, 60000); // 60000ms = 1 minute
+    
+    return () => clearInterval(interval);
+  }, [appointments, selectedDate]);
+
   const handleDateSelect = (date) => {
     console.log('📅 Date selected:', date);
     setSelectedDate(date);
@@ -472,14 +519,46 @@ export default function PatientBookingDetail() {
   };
 
   const handleTimeSlotSelect = (timeSlot) => {
-    setSelectedTimeSlot(timeSlot);
-    
     // Find the selected appointment details
     const appointment = availableSlots.find(slot => slot.time === timeSlot);
-    if (appointment) {
-      setSelectedAppointment(appointment);
-      setBookingStep(2); // Move to confirmation step
+    
+    // Double check: Don't allow selection of unavailable or past slots
+    if (!appointment || !appointment.available) {
+      console.warn('⚠️ Cannot select unavailable or past time slot:', timeSlot);
+      return;
     }
+    
+    // Additional check: Verify the slot is not in the past
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const isToday = selectedDate === todayStr;
+    const isPastDate = selectedDate < todayStr;
+    
+    if (isPastDate) {
+      console.warn('⚠️ Cannot select slot from past date:', selectedDate);
+      return;
+    }
+    
+    if (isToday) {
+      // Find the appointment to get the actual startTime
+      const apt = appointments.find(apt => {
+        const aptDate = new Date(apt.startTime);
+        return apt.startTime && apt.startTime.split('T')[0] === selectedDate && 
+               apt.appointmentId === appointment.appointmentId;
+      });
+      
+      if (apt) {
+        const slotStartTime = new Date(apt.startTime);
+        if (slotStartTime < now) {
+          console.warn('⚠️ Cannot select past time slot:', timeSlot);
+          return;
+        }
+      }
+    }
+    
+    setSelectedTimeSlot(timeSlot);
+    setSelectedAppointment(appointment);
+    setBookingStep(2); // Move to confirmation step
   };
 
   const handleBackToStep1 = () => {
