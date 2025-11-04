@@ -182,7 +182,30 @@ const ChatBot = () => {
       textAlign: 'center',
       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       fontSize: '24px',
-      fontWeight: '600'
+      fontWeight: '600',
+      position: 'relative'
+    },
+    backButton: {
+      position: 'absolute',
+      left: '20px',
+      top: '50%',
+      transform: 'translateY(-50%)',
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      border: 'none',
+      color: 'white',
+      padding: '8px 16px',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      fontWeight: '500',
+      transition: 'all 0.3s ease',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px'
+    },
+    backButtonHover: {
+      backgroundColor: 'rgba(255,255,255,0.3)',
+      transform: 'translateY(-50%) scale(1.05)'
     },
     chatContainer: {
       flex: 1,
@@ -339,6 +362,7 @@ const ChatBot = () => {
 
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
+  const [isBackButtonHovered, setIsBackButtonHovered] = useState(false);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -411,6 +435,20 @@ const ChatBot = () => {
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
+        <button
+          style={{
+            ...styles.backButton,
+            ...(isBackButtonHovered ? styles.backButtonHover : {})
+          }}
+          onClick={() => navigate('/')}
+          onMouseEnter={() => setIsBackButtonHovered(true)}
+          onMouseLeave={() => setIsBackButtonHovered(false)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fillRule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+          </svg>
+          Trang chủ
+        </button>
         Clinic Booking Chatbot 💬
       </div>
 
