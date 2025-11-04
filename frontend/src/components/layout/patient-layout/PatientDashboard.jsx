@@ -7,6 +7,7 @@ import userApi from '../../../api/userApi';
 import fileUploadApi from '../../../api/fileUploadApi';
 import addressApi from '../../../api/addressApi';
 import PatientAppointmentHistory from '../../../pages/Patient/PatientAppointmentHistory';
+import PatientMedicalRecords from '../../../pages/Patient/PatientMedicalRecords';
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
@@ -50,7 +51,7 @@ const PatientDashboard = () => {
   // Đọc tab từ URL params
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && ['appointments', 'payments', 'profile'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['appointments', 'payments', 'profile', 'medical-records'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [searchParams]);
@@ -1645,6 +1646,9 @@ const PatientDashboard = () => {
           </div>
         );
       
+      case 'medical-records':
+        return <PatientMedicalRecords />;
+      
       default:
         return null;
     }
@@ -1674,22 +1678,16 @@ const PatientDashboard = () => {
               </button>
               
               <button 
-                className="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center"
-                onClick={() => navigate('/patient/medical-records')}
+                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
+                  activeTab === 'medical-records' ? 'active' : ''
+                }`}
+                onClick={() => setActiveTab('medical-records')}
                 style={{
-                  backgroundColor: 'transparent',
-                  fontWeight: 'normal',
-                  color: '#333',
-                  borderLeft: '4px solid transparent',
+                  backgroundColor: activeTab === 'medical-records' ? '#e3f2fd' : 'transparent',
+                  fontWeight: activeTab === 'medical-records' ? 'bold' : 'normal',
+                  color: activeTab === 'medical-records' ? '#1976d2' : '#333',
+                  borderLeft: activeTab === 'medical-records' ? '4px solid #1976d2' : '4px solid transparent',
                   cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#f5f5f5';
-                  e.target.style.color = '#1976d2';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#333';
                 }}
               >
                 <FileText className="me-2" size={18} />
