@@ -1,162 +1,205 @@
-import React, { useState, useEffect } from "react";
-import { Search, MapPin, Filter, Star, Calendar, Clock, Users } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Search, MapPin, Filter, Star, Calendar, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
-import doctorApi from "../../api/doctorApi";
+import { getDoctors as apiGetDoctors } from "../../api/doctorApi";
 import reviewApi from "../../api/reviewApi";
 
 export default function DoctorList() {
   const [doctors, setDoctors] = useState([]);
   const [filteredDoctors, setFilteredDoctors] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  // bộ lọc
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("");
   const [selectedArea, setSelectedArea] = useState("");
   const [sortBy, setSortBy] = useState("name");
 
-  // Available specialties
-  const specialties = [
-    "Noi tong hop", "Tim mach", "Ho hap", "Tieu hoa", "Than - Tiet nieu",
-    "Noi tiet", "Than kinh", "Ngoai tong hop", "Chan thuong chinh hinh",
-    "Ngoai than kinh", "Ngoai tieu hoa", "Ngoai long nguc", "San phu khoa",
-    "Nhi khoa", "Chan doan hinh anh", "Xet nghiem", "Giai phau benh",
-    "Da lieu", "Tai - Mui - Hong", "Rang - Ham - Mat", "Mat",
-    "Co - Xuong - Khop", "Ung buou", "Phuc hoi chuc nang", "Dinh duong",
-    "Tam ly - Tam than", "Cap cuu", "Kiem soat nhiem khuan", "Duoc", "Hanh chinh"
-  ];
+  // options lấy từ dữ liệu thật
+  const [specialties, setSpecialties] = useState([]);
+  const [areas, setAreas] = useState([]);
 
-  // Mock areas (you can replace with real data)
-  const areas = [
-    "Quan 1", "Quan 2", "Quan 3", "Quan 4", "Quan 5", "Quan 6", "Quan 7", "Quan 8",
-    "Quan 9", "Quan 10", "Quan 11", "Quan 12", "Thu Duc", "Binh Thanh", "Tan Binh",
-    "Phu Nhuan", "Go Vap", "Tan Phu", "Hoc Mon", "Cu Chi", "Binh Chanh", "Nha Be", "Can Gio"
-  ];
+  // phân trang
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(12);
+  const [hasMore, setHasMore] = useState(true);
 
+  const mounted = useRef(true);
   useEffect(() => {
-    loadDoctors();
+    mounted.current = true;
+    return () => { mounted.current = false; };
   }, []);
 
   useEffect(() => {
-    filterDoctors();
-  }, [searchQuery, selectedSpecialty, selectedArea, sortBy, doctors]);
+    // tải trang đầu
+    setDoctors([]);
+    setFilteredDoctors([]);
+    setPage(0);
+    setHasMore(true);
+  }, []);
 
-  const loadDoctors = async () => {
+  // load theo page/size
+  useEffect(() => {
+    loadDoctors(page, size, page === 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, size]);
+
+  // áp dụng lọc/sort khi dữ liệu/tiêu chí đổi
+  useEffect(() => {
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctors, searchQuery, selectedSpecialty, selectedArea, sortBy]);
+
+  async function loadDoctors(p, s, replace = false) {
     try {
       setLoading(true);
-      const response = await doctorApi.getAllDoctors();
-      if (response.data) {
-        const docs = response.data;
 
-        // Fetch avg rating and review count for each doctor (best-effort)
-        const ratingPromises = docs.map(async (d) => {
-          try {
-            const avg = await reviewApi.getAverageRatingByDoctor(d.doctorId || d.id);
-            const count = await reviewApi.getReviewCountByDoctor(d.doctorId || d.id);
-            return { doctorId: d.doctorId || d.id, avg: Number(avg || 0), count: Number(count || 0) };
-          } catch (e) {
-            return { doctorId: d.doctorId || d.id, avg: 0, count: 0 };
-          }
-        });
+      const res = await apiGetDoctors({ page: p, size: s, sort: "doctorId,asc" });
 
-        const ratings = await Promise.all(ratingPromises);
-        const ratingMap = {};
-        ratings.forEach(r => { ratingMap[r.doctorId] = r; });
+      // Unwrap: {data:{content}} | {content} | []
+      const root = res?.data ?? {};
+      const payload = root?.data ?? root;
+      const list = Array.isArray(payload)
+        ? payload
+        : (payload.content ?? payload.items ?? payload.results ?? []);
 
-        const transformedDoctors = docs.map(doctor => {
-          const id = doctor.doctorId || doctor.id;
-          const r = ratingMap[id] || { avg: 0, count: 0 };
-          return {
-            id,
-            name: `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim(),
-            specialty: doctor.specialty || 'Chưa cập nhật',
-            rating: r.count > 0 ? r.avg : 0,
-            reviewCount: r.count || 0,
-            avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
-            experience: doctor.experience || Math.floor(Math.random() * 20) + 5,
-            department: doctor.department?.departmentName || 'Chưa phân khoa',
-            address: generateMockAddress(), // Mock address for now
-            degree: generateMockDegree(), // Mock degree
-            availableSlots: Math.floor(Math.random() * 10) + 1,
-            nextAvailable: generateNextAvailable()
-          };
-        });
+      // map dữ liệu thật (không random)
+      const mapped = list.map((doctor) => {
+        const id = doctor.doctorId ?? doctor.id;
+        const user = doctor.user ?? {};
+        const first = user.firstName ?? doctor.firstName ?? "";
+        const last = user.lastName ?? doctor.lastName ?? "";
+        const fullName = (doctor.fullName ?? `${first} ${last}`.trim()) || "Bác sĩ";
+        const depName =
+          doctor.department?.departmentName ??
+          doctor.departmentName ??
+          doctor.department?.name ??
+          "";
+        const specialty = doctor.specialty ?? depName ?? "";
 
-        setDoctors(transformedDoctors);
+        return {
+          id,
+          name: fullName,
+          specialty,
+          rating: Number(doctor.avgRating ?? doctor.averageRating ?? 0),
+          reviewCount: Number(doctor.reviewCount ?? 0),
+          avatar: user.avatarUrl || doctor.avatarUrl || "/images/default-doctor.png",
+          experience: Number(doctor.experience ?? doctor.yearsOfExperience ?? 0),
+          degree: doctor.degree ?? doctor.title ?? "",
+          address: user.address ?? doctor.address ?? "",
+          availableSlots: Number(doctor.availableSlots ?? 0),
+          nextAvailable: doctor.nextAvailable ?? doctor.nextAvailableDate ?? "",
+          // Working hours từ các field có thể có của backend
+          workingHours:
+            doctor.workingHours ??
+            doctor.workingHour ??
+            doctor.workHours ??
+            doctor.officeHours ??
+            doctor.workSchedule ??
+            "",
+        };
+      });
+
+      // append hoặc replace
+      const next = replace ? mapped : [...doctors, ...mapped];
+      if (!mounted.current) return;
+      setDoctors(next);
+
+      // tính hasMore
+      if (Array.isArray(payload)) {
+        setHasMore(mapped.length === s);
+      } else {
+        const last = payload.last;
+        const totalPages =
+          payload.totalPages ??
+          Math.ceil((payload.totalElements ?? next.length) / s);
+        setHasMore(last === undefined ? p + 1 < totalPages : !last);
       }
-    } catch (error) {
-      console.error("Error loading doctors:", error);
+
+      // cập nhật options filter
+      const specSet = new Set(
+        next.flatMap((d) =>
+          (d.specialty || "").split(",").map((x) => x.trim()).filter(Boolean)
+        )
+      );
+      setSpecialties(Array.from(specSet));
+      setAreas(Array.from(new Set(next.map((d) => d.address).filter(Boolean))));
+
+      // nạp rating thật từ review nếu chưa có
+      const needIds = next.filter((d) => !d.reviewCount && !d.rating).map((d) => d.id).slice(0, 20);
+      if (needIds.length) {
+        const pairs = await Promise.all(
+          needIds.map(async (id) => {
+            try {
+              const [avgRes, countRes] = await Promise.all([
+                reviewApi.getAverageRatingByDoctor(id),
+                reviewApi.getReviewCountByDoctor(id),
+              ]);
+              const avg = Number((avgRes?.data ?? avgRes) || 0);
+              const count = Number((countRes?.data ?? countRes) || 0);
+              return [id, { avg, count }];
+            } catch {
+              return [id, { avg: 0, count: 0 }];
+            }
+          })
+        );
+        const map = new Map(pairs);
+        if (!mounted.current) return;
+        setDoctors((prev) =>
+          prev.map((d) => (map.has(d.id) ? { ...d, rating: map.get(d.id).avg, reviewCount: map.get(d.id).count } : d))
+        );
+      }
+    } catch (e) {
+      console.error("Error loading doctors:", e);
+      if (replace && mounted.current) {
+        setDoctors([]);
+      }
+      setHasMore(false);
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
-  };
+  }
 
-  const generateMockAddress = () => {
-    const streets = ["Nguyen Chi Thanh", "Nguyen Trai", "Nguyen Van Dau", "Le Van Viet", "Dien Bien Phu"];
-    const districts = ["Quan 1", "Quan 2", "Quan 3", "Quan 10", "Quan Phu Nhuan"];
-    const street = streets[Math.floor(Math.random() * streets.length)];
-    const district = districts[Math.floor(Math.random() * districts.length)];
-    const number = Math.floor(Math.random() * 500) + 1;
-    return `${number} ${street}, ${district}, Ho Chi Minh`;
-  };
+  function applyFilters() {
+    let list = [...doctors];
 
-  const generateMockDegree = () => {
-    const degrees = ["TS. BS", "PGS. TS. BS", "ThS. BS", "BS", "BS.CKII", "BS.CKI"];
-    return degrees[Math.floor(Math.random() * degrees.length)];
-  };
-
-  const generateNextAvailable = () => {
-    const days = ["Hôm nay", "Ngày mai", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6"];
-    return days[Math.floor(Math.random() * days.length)];
-  };
-
-  const filterDoctors = () => {
-    let filtered = [...doctors];
-
-    // Filter by search query
     if (searchQuery) {
-      filtered = filtered.filter(doctor =>
-        doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doctor.address.toLowerCase().includes(searchQuery.toLowerCase())
+      const q = searchQuery.toLowerCase();
+      list = list.filter((d) =>
+        [d.name, d.specialty, d.address].some((x) => (x || "").toLowerCase().includes(q))
       );
     }
-
-    // Filter by specialty
     if (selectedSpecialty) {
-      filtered = filtered.filter(doctor =>
-        doctor.specialty.toLowerCase().includes(selectedSpecialty.toLowerCase())
-      );
+      const s = selectedSpecialty.toLowerCase();
+      list = list.filter((d) => (d.specialty || "").toLowerCase().includes(s));
     }
-
-    // Filter by area
     if (selectedArea) {
-      filtered = filtered.filter(doctor =>
-        doctor.address.toLowerCase().includes(selectedArea.toLowerCase())
-      );
+      const a = selectedArea.toLowerCase();
+      list = list.filter((d) => (d.address || "").toLowerCase().includes(a));
     }
 
-    // Sort doctors
-    filtered.sort((a, b) => {
+    list.sort((a, b) => {
       switch (sortBy) {
         case "name":
           return a.name.localeCompare(b.name);
         case "rating":
-          return b.rating - a.rating;
+          return (b.rating || 0) - (a.rating || 0);
         case "experience":
-          return b.experience - a.experience;
+          return (b.experience || 0) - (a.experience || 0);
         case "available":
-          return a.availableSlots - b.availableSlots;
+          return (b.availableSlots || 0) - (a.availableSlots || 0);
         default:
           return 0;
       }
     });
 
-    setFilteredDoctors(filtered);
-  };
+    setFilteredDoctors(list);
+  }
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    filterDoctors();
-  };
+  const pages = useMemo(
+    () => Math.max(1, Math.ceil((doctors.length || 1) / size)),
+    [doctors.length, size]
+  );
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -177,17 +220,15 @@ export default function DoctorList() {
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">Danh sách bác sĩ</h1>
             </div>
-            <div className="text-sm text-gray-600">
-              Tìm thấy {filteredDoctors.length} kết quả
-            </div>
+            <div className="text-sm text-gray-600">Tìm thấy {filteredDoctors.length} kết quả</div>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        {/* Search and Filters */}
+        {/* Search + Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <form onSubmit={handleSearch} className="mb-4">
+          <form onSubmit={(e) => e.preventDefault()} className="mb-4">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
@@ -202,15 +243,15 @@ export default function DoctorList() {
 
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700">Nơi khám:</span>
+              <span className="text-sm font-medium text-gray-700">Chuyên khoa:</span>
               <select
                 value={selectedSpecialty}
                 onChange={(e) => setSelectedSpecialty(e.target.value)}
                 className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Tất cả chuyên khoa</option>
-                {specialties.map((specialty, index) => (
-                  <option key={index} value={specialty}>{specialty}</option>
+                {specialties.map((spec, idx) => (
+                  <option key={idx} value={spec}>{spec}</option>
                 ))}
               </select>
             </div>
@@ -223,8 +264,8 @@ export default function DoctorList() {
                 className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Tất cả khu vực</option>
-                {areas.map((area, index) => (
-                  <option key={index} value={area}>{area}</option>
+                {areas.map((a, idx) => (
+                  <option key={idx} value={a}>{a}</option>
                 ))}
               </select>
             </div>
@@ -254,7 +295,7 @@ export default function DoctorList() {
 
         {/* Doctors List */}
         <div className="space-y-4">
-          {loading ? (
+          {loading && doctors.length === 0 ? (
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               <span className="ml-3 text-gray-600">Đang tải danh sách bác sĩ...</span>
@@ -268,7 +309,7 @@ export default function DoctorList() {
             filteredDoctors.map((doctor) => (
               <div key={doctor.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-start space-x-6">
-                  {/* Doctor Avatar */}
+                  {/* Avatar */}
                   <div className="flex-shrink-0">
                     <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                       <img
@@ -276,59 +317,68 @@ export default function DoctorList() {
                         alt={doctor.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextElementSibling.style.display = 'flex';
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.nextElementSibling.style.display = "flex";
                         }}
                       />
-                      <div className="text-3xl" style={{display: 'none'}}>
-                        👨‍⚕️
-                      </div>
+                      <div className="text-3xl" style={{ display: "none" }}>👨‍⚕️</div>
                     </div>
                   </div>
 
-                  {/* Doctor Info */}
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {doctor.degree} {doctor.name}
+                          {doctor.degree ? `${doctor.degree} ${doctor.name}` : doctor.name}
                         </h3>
-                        
+
                         <div className="flex items-center space-x-4 mb-2">
                           <div className="flex items-center space-x-1">
                             <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                            <span className="text-sm font-medium text-gray-700">{doctor.rating.toFixed(1)}</span>
+                            <span className="text-sm font-medium text-gray-700">
+                              {Number(doctor.rating || 0).toFixed(1)}
+                            </span>
                           </div>
-                          <span className="text-sm text-gray-500">•</span>
-                          <span className="text-sm text-gray-600">{doctor.experience} năm kinh nghiệm</span>
+                          {doctor.experience ? (
+                            <>
+                              <span className="text-sm text-gray-500">•</span>
+                              <span className="text-sm text-gray-600">{doctor.experience} năm kinh nghiệm</span>
+                            </>
+                          ) : null}
                         </div>
 
                         <div className="mb-3">
                           <div className="flex flex-wrap gap-2">
-                            {doctor.specialty.split(',').map((spec, index) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                              >
-                                {spec.trim()}
-                              </span>
-                            ))}
+                            {(doctor.specialty || "")
+                              .split(",")
+                              .filter(Boolean)
+                              .map((spec, index) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                >
+                                  {spec.trim()}
+                                </span>
+                              ))}
                           </div>
                         </div>
 
-                        <div className="flex items-center text-sm text-gray-600 mb-2">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          <span>{doctor.address}</span>
-                        </div>
+                        {doctor.address && (
+                          <div className="flex items-center text-sm text-gray-600 mb-2">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            <span>{doctor.address}</span>
+                          </div>
+                        )}
 
                         <div className="flex items-center space-x-6 text-sm text-gray-600">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1" />
-                            <span>Có lịch {doctor.nextAvailable}</span>
+                            {doctor.nextAvailable && <span>Có lịch {doctor.nextAvailable}</span>}
                           </div>
                           <div className="flex items-center">
                             <Clock className="h-4 w-4 mr-1" />
-                            <span>{doctor.availableSlots} khung giờ trống</span>
+                            {doctor.availableSlots > 0 && <span>{doctor.availableSlots} khung giờ trống</span>}
                           </div>
                         </div>
                       </div>
@@ -350,14 +400,35 @@ export default function DoctorList() {
           )}
         </div>
 
-        {/* Load More Button (if needed) */}
-        {filteredDoctors.length > 0 && filteredDoctors.length >= 20 && (
-          <div className="text-center mt-8">
-            <button className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-200">
-              Xem thêm bác sĩ
-            </button>
+        {/* Load more */}
+        <div className="text-center mt-8">
+          <button
+            className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+            disabled={!hasMore || loading}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            {loading ? "Đang tải..." : hasMore ? "Xem thêm bác sĩ" : "Đã tải hết"}
+          </button>
+        </div>
+
+        {/* footer nhỏ */}
+        <div className="flex items-center justify-between mt-6">
+          <div className="text-sm text-gray-600">Trang {page + 1}/{pages}</div>
+          <div className="flex items-center gap-2">
+            <select
+              className="border rounded px-2 py-1"
+              value={size}
+              onChange={(e) => {
+                setPage(0);
+                setSize(Number(e.target.value));
+              }}
+            >
+              {[6, 12, 24].map((n) => (
+                <option key={n} value={n}>{n}/trang</option>
+              ))}
+            </select>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

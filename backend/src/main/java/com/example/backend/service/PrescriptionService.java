@@ -323,8 +323,15 @@ public class PrescriptionService {
         Prescription existingPrescription = prescriptionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Prescription not found with id: " + id));
 
-        // Update basic fields
+        // Update basic fields (notes)
         prescriptionMapper.updateEntity(existingPrescription, requestDto);
+
+        // Update medical record diagnosis if notes is provided (sync notes with diagnosis)
+        if (requestDto.getNotes() != null && existingPrescription.getMedicalRecord() != null) {
+            MedicalRecord medicalRecord = existingPrescription.getMedicalRecord();
+            medicalRecord.setDiagnosis(requestDto.getNotes());
+            medicalRecordRepository.save(medicalRecord);
+        }
 
         // Update medical record if changed
         if (requestDto.getRecordId() != null && 
@@ -334,8 +341,9 @@ public class PrescriptionService {
             existingPrescription.setMedicalRecord(medicalRecord);
         }
 
-        // Update prescription items
-        if (requestDto.getItems() != null) {
+        // Update prescription items only if items are provided and not empty (don't recreate if not needed)
+        // If items is null or empty, keep existing items unchanged
+        if (requestDto.getItems() != null && !requestDto.getItems().isEmpty()) {
             existingPrescription.getItems().clear();
             List<PrescriptionItem> newItems = new ArrayList<>();
             for (var itemDto : requestDto.getItems()) {
@@ -348,6 +356,8 @@ public class PrescriptionService {
                 item.setDosage(itemDto.getDosage());
                 item.setDuration(itemDto.getDuration());
                 item.setNote(itemDto.getNote());
+                // Set quantity if provided, otherwise default to 1
+                item.setQuantity(itemDto.getQuantity() != null ? itemDto.getQuantity() : 1);
                 newItems.add(item);
             }
             existingPrescription.setItems(newItems);
