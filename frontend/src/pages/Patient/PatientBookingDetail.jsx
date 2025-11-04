@@ -375,16 +375,24 @@ export default function PatientBookingDetail() {
           }
 
           const transformedDoctor = {
-            id: doctorData.doctorId || doctorData.id,
-            name: `${doctorData.user?.firstName || ''} ${doctorData.user?.lastName || ''}`.trim(),
-            specialty: doctorData.specialty || 'Chưa cập nhật',
-            experience: `${doctorData.experience || 'Nhiều'} năm kinh nghiệm`,
-            avatar: doctorData.user?.avatarUrl || '/api/placeholder/200/200',
-            rating: count > 0 ? Number(avg) : 0,
+            id: doctorData.doctorId ?? doctorData.id ?? null,
+            name: `${doctorData.user?.firstName ?? ""} ${doctorData.user?.lastName ?? ""}`.trim(),
+            specialty: doctorData.specialty ?? "",
+            // ADD: degree + working hours (dữ liệu thật nếu có)
+            degree: doctorData.degree ?? doctorData.title ?? "",
+            experience: typeof doctorData.experience === "number" ? doctorData.experience : null,
+            workingHours:
+              doctorData.workingHours ??
+              doctorData.workingHour ??
+              doctorData.workHours ??
+              doctorData.officeHours ??
+              doctorData.workSchedule ??
+              "",
+            avatar: doctorData.user?.avatarUrl || doctorData.avatarUrl || "",
+            rating: Number(count) > 0 ? Number(avg) : 0,
             reviewCount: Number(count || 0),
-            bio: doctorData.bio || 'Bác sĩ chuyên khoa với nhiều năm kinh nghiệm.',
-            price: doctorData.price || 'Liên hệ để biết giá',
-
+            bio: doctorData.bio ?? "",
+            price: typeof doctorData.price === "number" ? doctorData.price : null,
           };
           setDoctor(transformedDoctor);
 
@@ -781,23 +789,44 @@ export default function PatientBookingDetail() {
               </div>
               
               <div className="flex-1">
-                <h1 className="text-xl font-bold text-gray-900 mb-2">{doctor.name}</h1>
+                <h1 className="text-xl font-bold text-gray-900 mb-2">
+                 {doctor.degree ? `${doctor.degree} ${doctor.name}` : doctor.name}
+                </h1>
                 <div className="flex items-center gap-3 mb-3">
+                  {doctor.degree && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {doctor.degree}
+                    </span>
+                  )}
                   <div className="flex items-center gap-1">
                     <User className="h-3 w-3 text-blue-600" />
-                    <span className="text-xs text-gray-600">{doctor.experience}</span>
+                    {doctor.experience != null && (
+                      <span className="text-xs text-gray-600">{doctor.experience} năm kinh nghiệm</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <Star className="h-3 w-3 text-yellow-400 fill-current" />
                     <span className="text-xs font-medium">{doctor.rating}</span>
                     <span className="text-xs text-gray-500">({doctor.reviewCount})</span>
                   </div>
+                 {doctor.workingHours && (
+                   <div className="flex items-center gap-1">
+                     <Calendar className="h-3 w-3 text-purple-600" />
+                     <span className="text-xs text-gray-600">{doctor.workingHours}</span>
+                   </div>
+                 )}
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3 text-green-600" />
-                    <span className="text-xs text-gray-600">{doctor.price}</span>
+                    {doctor.price != null && (
+                      <span className="text-xs text-gray-600">
+                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(doctor.price)}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <p className="text-blue-600 font-medium text-sm mb-2">{doctor.specialty}</p>
+                {doctor.specialty && (
+                  <p className="text-blue-600 font-medium text-sm mb-2">{doctor.specialty}</p>
+                )}
                 
               </div>
             </div>
@@ -1038,16 +1067,24 @@ export default function PatientBookingDetail() {
                           </div>
                         </div>
                         <div>
-                          <h5 className="font-semibold text-gray-900">{doctor.name}</h5>
-                          <p className="text-sm text-blue-600">{doctor.specialty}</p>
+                          <h5 className="font-semibold text-gray-900">
+                           {doctor.degree ? `${doctor.degree} ${doctor.name}` : doctor.name}
+                          </h5>
+                          {doctor.specialty && <p className="text-sm text-blue-600">{doctor.specialty}</p>}
+                          {doctor.degree && <p className="text-xs text-gray-600 mt-0.5">{doctor.degree}</p>}
                         </div>
                       </div>
                       <div className="space-y-2 text-sm text-gray-600">
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4" />
-                          <span>{doctor.experience}</span>
+                          {doctor.experience != null && <span>{doctor.experience} năm kinh nghiệm</span>}
                         </div>
-                        
+                        {doctor.workingHours && (
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>Giờ làm việc: {doctor.workingHours}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1231,22 +1268,20 @@ export default function PatientBookingDetail() {
           {/* Doctor Introduction */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Giới thiệu</h2>
-            <p className="text-gray-700 leading-relaxed mb-4">{doctor.bio}</p>
+            {doctor.bio && (
+              <p className="text-gray-700 leading-relaxed mb-4">{doctor.bio}</p>
+            )}
           </div>
 
           {/* Specialties */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Chuyên khám</h2>
             <div className="flex flex-wrap gap-2">
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                {doctor.specialty}
-              </span>
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                Hô hấp
-              </span>
-              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-                Miễn dịch - Dị ứng
-              </span>
+              {doctor.specialty && (
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                  {doctor.specialty}
+                </span>
+              )}
             </div>
           </div>
 
