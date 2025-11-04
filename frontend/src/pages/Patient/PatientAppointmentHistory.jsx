@@ -22,6 +22,7 @@ import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import doctorApi from "../../api/doctorApi";
 import toast from "../../utils/toast";
+import { getFullAvatarUrl } from "../../utils/avatarUtils";
 
 // Rating Stars Component
 const RatingStars = ({ value, onChange, readonly }) => {
@@ -457,31 +458,48 @@ export default function PatientAppointmentHistory() {
   const getStatusBadge = (status) => {
     const statusConfig = {
       "Scheduled": {
-        class: "bg-blue-100 text-blue-800",
+        class: "bg-cyan-500 text-white",
         text: "Đã đặt lịch",
-        icon: CheckCircle
+        icon: CheckCircle,
+        color: '#0dcaf0'
+      },
+      "Confirmed": {
+        class: "bg-blue-600 text-white",
+        text: "Đã xác nhận",
+        icon: CheckCircle,
+        color: '#0d6efd'
       },
       "Completed": {
-        class: "bg-green-100 text-green-800",
+        class: "bg-green-600 text-white",
         text: "Hoàn thành",
-        icon: CheckCircle
+        icon: CheckCircle,
+        color: '#198754'
       },
       "Cancelled": {
-        class: "bg-red-100 text-red-800",
+        class: "bg-red-600 text-white",
         text: "Đã hủy",
-        icon: XCircle
+        icon: XCircle,
+        color: '#dc3545'
+      },
+      "Rejected": {
+        class: "bg-red-600 text-white",
+        text: "Từ chối",
+        icon: XCircle,
+        color: '#dc3545'
       },
       "NoShow": {
-        class: "bg-orange-100 text-orange-800",
+        class: "bg-yellow-400 text-gray-900",
         text: "Không đến",
-        icon: AlertCircle
+        icon: AlertCircle,
+        color: '#ffc107'
       }
     };
 
     const config = statusConfig[status] || {
-      class: "bg-gray-100 text-gray-800",
+      class: "bg-gray-500 text-white",
       text: status || "Không xác định",
-      icon: AlertCircle
+      icon: AlertCircle,
+      color: '#6c757d'
     };
 
     return config;
@@ -593,238 +611,305 @@ export default function PatientAppointmentHistory() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="w-full py-8"> 
-        <div className="max-w-6xl mx-auto">
-          {/* Filters */}
-          <div className="bg-white rounded-lg shadow-sm p-3 mb-2 border">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Bộ lọc</h2>
-              <button
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-4 w-4" />
-                {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
+      <div className="w-full py-4 sm:py-8"> 
+        <div className="max-w-[1600px] mx-auto px-2 sm:px-4">
+          {/* Appointments List */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 px-3 sm:px-6 py-3 sm:py-4 shadow-lg">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                <h2 className="text-lg sm:text-xl font-bold text-white mb-0 drop-shadow-sm">
+                  <Calendar className="h-5 w-5 sm:h-6 sm:w-6 inline mr-2" />
+                  Lịch hẹn của tôi
+                </h2>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                  <button
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-white/25 hover:bg-white/35 text-white rounded-lg transition-all text-sm sm:text-base font-semibold backdrop-blur-sm shadow-md hover:shadow-lg"
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
+                    <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="hidden xs:inline">Bộ lọc và Tìm kiếm</span>
+                    <span className="xs:hidden">Bộ lọc</span>
+                    {showFilters ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  <span className="bg-white/25 text-white px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold shadow-md backdrop-blur-sm text-center">
+                    {filteredAppointments.length} lịch hẹn
+                  </span>
+                </div>
+              </div>
             </div>
 
+            {/* Filters Section */}
             {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Search */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
-                  <div className="relative">
-                    <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      placeholder="Tìm theo tên bác sĩ, chuyên khoa..."
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+              <div className="border-b border-gray-200 bg-white">
+                <div className="px-3 sm:px-6 py-3 sm:py-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                    {/* Search */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <Search className="h-4 w-4 inline mr-1" />
+                        Tìm kiếm
+                      </label>
+                      <div className="relative">
+                        <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          placeholder="Tìm theo tên bác sĩ, chuyên khoa..."
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <CheckCircle className="h-4 w-4 inline mr-1" />
+                        Trạng thái
+                      </label>
+                      <select
+                        value={statusFilter}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                      >
+                        <option value="All">Tất cả trạng thái</option>
+                        <option value="Scheduled">Đã đặt lịch</option>
+                        <option value="Confirmed">Đã xác nhận</option>
+                        <option value="Completed">Hoàn thành</option>
+                        <option value="Cancelled">Đã hủy</option>
+                        <option value="Rejected">Từ chối</option>
+                        <option value="NoShow">Không đến</option>
+                      </select>
+                    </div>
+
+                    {/* Date Filter */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <Calendar className="h-4 w-4 inline mr-1" />
+                        Thời gian
+                      </label>
+                      <select
+                        value={dateFilter}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                        onChange={(e) => setDateFilter(e.target.value)}
+                      >
+                        <option value="All">Tất cả thời gian</option>
+                        <option value="Today">Hôm nay</option>
+                        <option value="Yesterday">Hôm qua</option>
+                        <option value="LastWeek">Tuần qua</option>
+                        <option value="LastMonth">Tháng qua</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
-
-                {/* Status Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
-                  <select
-                    value={statusFilter}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="All">Tất cả trạng thái</option>
-                    <option value="Scheduled">Đã đặt lịch</option>
-                    <option value="Completed">Hoàn thành</option>
-                    <option value="Cancelled">Đã hủy</option>
-                    <option value="NoShow">Không đến</option>
-                  </select>
-                </div>
-
-                {/* Date Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Thời gian</label>
-                  <select
-                    value={dateFilter}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    onChange={(e) => setDateFilter(e.target.value)}
-                  >
-                    <option value="All">Tất cả thời gian</option>
-                    <option value="Today">Hôm nay</option>
-                    <option value="Yesterday">Hôm qua</option>
-                    <option value="LastWeek">Tuần qua</option>
-                    <option value="LastMonth">Tháng qua</option>
-                  </select>
                 </div>
               </div>
             )}
-        </div>
-
-          {/* Appointments List */}
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Lịch hẹn ({filteredAppointments.length})
-              </h2>
-            </div>
 
             {paginatedAppointments.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Không có lịch hẹn nào</h3>
-                <p className="text-gray-600 mb-4">
+              <div className="text-center py-16 px-4">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
+                  <Calendar className="h-10 w-10 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Không có lịch hẹn nào</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
                   {filteredAppointments.length === 0 && appointments.length > 0
-                    ? "Không tìm thấy lịch hẹn phù hợp với bộ lọc"
-                    : "Bạn chưa có lịch hẹn nào"}
+                    ? "Không tìm thấy lịch hẹn phù hợp với bộ lọc bạn đã chọn. Vui lòng thử lại với bộ lọc khác."
+                    : "Bạn chưa có lịch hẹn nào. Hãy đặt lịch khám với bác sĩ ngay hôm nay!"}
                 </p>
                 {appointments.length === 0 && (
                   <button
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold shadow-lg hover:shadow-xl transition-all"
                     onClick={() => navigate('/doctors')}
                   >
+                    <Calendar className="h-5 w-5 inline mr-2" />
                     Đặt lịch ngay
                   </button>
                 )}
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {paginatedAppointments.map((appointment) => {
+                {paginatedAppointments.map((appointment, index) => {
                   const statusConfig = getStatusBadge(appointment.status);
                   const StatusIcon = statusConfig.icon;
                   const doctor = doctors[appointment.doctorId] || {};
-
+                  const isEven = index % 2 === 0;
                   return (
                     <React.Fragment key={appointment.appointmentId}>
-                      <div className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className={`p-3 sm:p-6 transition-all duration-200 border-l-4 border-gray-300 ${
+                        isEven ? 'bg-white' : 'bg-gray-50/50'
+                      }`}>
                         {/* Header: doctor + quick info */}
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
+                            <div className="relative flex-shrink-0">
+                              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-white shadow-md">
+                                {(doctor.user?.avatarUrl || doctor.avatarUrl || appointment.doctor?.avatarUrl) ? (
                                   <img
                                     alt={doctor.name || appointment.doctorName || 'Bác sĩ'}
                                     className="w-full h-full object-cover"
-                                    src={doctor.user?.avatarUrl || doctor.avatarUrl || appointment.doctor?.avatarUrl || ''}
-                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                    src={getFullAvatarUrl(doctor.user?.avatarUrl || doctor.avatarUrl || appointment.doctor?.avatarUrl)}
+                                    onError={(e) => { 
+                                      e.target.style.display = 'none';
+                                      if (e.target.nextSibling) {
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }
+                                    }}
                                   />
+                                ) : null}
+                                <div 
+                                  className="w-full h-full bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-lg"
+                                  style={{ display: (doctor.user?.avatarUrl || doctor.avatarUrl || appointment.doctor?.avatarUrl) ? 'none' : 'flex' }}
+                                >
+                                  {doctor.user?.firstName?.charAt(0) || doctor.name?.charAt(0) || appointment.doctorName?.charAt(0) || 'B'}
+                                  {doctor.user?.lastName?.charAt(0) || 'S'}
                                 </div>
-                                <div>
-                                  <h3 className="text-base font-semibold text-gray-900">
-                                    {doctor.user ? `${doctor.user.firstName} ${doctor.user.lastName}` : doctor.name || appointment.doctorName || 'Bác sĩ'}
-                                  </h3>
-
-                                  <div className="flex flex-col gap-1 mt-1">
-                                    {doctorRatings[appointment.doctorId] && (
-                                      <div className="flex items-center gap-1 text-xs text-gray-600">
-                                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                        <span>
-                                          {doctorRatings[appointment.doctorId].average.toFixed(1)} ({doctorRatings[appointment.doctorId].count} đánh giá)
+                              </div>
+                              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center">
+                                <CheckCircle className="h-3 w-3 text-white" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 truncate">
+                                {doctor.user ? `${doctor.user.firstName} ${doctor.user.lastName}` : doctor.name || appointment.doctorName || 'Bác sĩ'}
+                              </h3>
+                              <div className="flex flex-col gap-1 sm:gap-1.5">
+                                {doctorRatings[appointment.doctorId] && (
+                                  <div className="flex items-center gap-3 text-sm flex-wrap">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="flex items-center gap-1 bg-yellow-50 px-2 py-0.5 rounded">
+                                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                        <span className="font-semibold text-gray-700">
+                                          {doctorRatings[appointment.doctorId].average.toFixed(1)}
                                         </span>
                                       </div>
-                                    )}
-
+                                      <span className="text-gray-500 text-xs">
+                                        ({doctorRatings[appointment.doctorId].count} đánh giá)
+                                      </span>
+                                    </div>
+                                    
                                     {appointment.status === 'Completed' && (
-                                      <div className="flex items-center gap-2">
+                                      <>
                                         {reviews[appointment.appointmentId] ? (
-                                          <div className="flex items-center justify-between w-full">
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-xs text-gray-500">Đánh giá của bạn:</span>
-                                              <div className="flex items-center gap-1">
-                                                <RatingStars value={reviews[appointment.appointmentId].rating} readonly={true} />
-                                                <span className="text-xs text-gray-500">({reviews[appointment.appointmentId].comment || 'Chưa có nhận xét'})</span>
-                                              </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-medium text-gray-700">Đánh giá của bạn:</span>
+                                            <div className="flex items-center gap-1">
+                                              <RatingStars value={reviews[appointment.appointmentId].rating} readonly={true} />
                                             </div>
-                                            <button onClick={() => openEditReview(appointment, reviews[appointment.appointmentId])} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                                              Chỉnh sửa
+                                            <button onClick={() => openEditReview(appointment, reviews[appointment.appointmentId])} className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 ml-2">
+                                              <MessageCircle className="h-3 w-3" /> Chỉnh sửa
                                             </button>
                                           </div>
                                         ) : (
-                                          <button onClick={() => {
-                                            setAppointmentToReview(appointment);
-                                            setIsEditingReview(false);
-                                            setEditingReviewId(null);
-                                            setRating(0);
-                                            setReviewComment('');
-                                            setShowReviewModal(true);
-                                          }} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                                          <button onClick={() => { setAppointmentToReview(appointment); setShowReviewModal(true); }} className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
                                             <Star className="h-3 w-3" /> Thêm đánh giá của bạn
                                           </button>
                                         )}
-                                      </div>
+                                      </>
                                     )}
-
-                                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                                      <span className="font-medium">Mã lịch hẹn:</span>
-                                      <span className="font-mono">#{appointment.appointmentId}</span>
-                                    </div>
                                   </div>
+                                )}
+
+                                {!doctorRatings[appointment.doctorId] && appointment.status === 'Completed' && (
+                                  <div className="flex items-center gap-2">
+                                    {reviews[appointment.appointmentId] ? (
+                                      <div className="flex items-center justify-between w-full bg-blue-50 px-3 py-1.5 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-medium text-gray-700">Đánh giá của bạn:</span>
+                                          <div className="flex items-center gap-1">
+                                            <RatingStars value={reviews[appointment.appointmentId].rating} readonly={true} />
+                                          </div>
+                                        </div>
+                                        <button onClick={() => openEditReview(appointment, reviews[appointment.appointmentId])} className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">
+                                          <MessageCircle className="h-3 w-3" /> Chỉnh sửa
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button onClick={() => { setAppointmentToReview(appointment); setShowReviewModal(true); }} className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
+                                        <Star className="h-3 w-3" /> Thêm đánh giá của bạn
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                            <span className={`inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold shadow-sm ${statusConfig.class}`}>
+                              <StatusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span className="whitespace-nowrap">{statusConfig.text}</span>
+                            </span>
+                            {appointment.status === 'Scheduled' && (
+                              <button className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed" disabled={cancellingId === appointment.appointmentId} onClick={() => openCancelModal(appointment)}>
+                                <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="whitespace-nowrap">{cancellingId === appointment.appointmentId ? 'Đang hủy...' : 'Hủy lịch'}</span>
+                              </button>
+                            )}
+                            {appointment.status === 'Completed' && (
+                              <button className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md" onClick={() => { if (reviews[appointment.appointmentId]) openEditReview(appointment, reviews[appointment.appointmentId]); else { setAppointmentToReview(appointment); setShowReviewModal(true); } }}>
+                                <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="whitespace-nowrap">{reviews[appointment.appointmentId] ? 'Chỉnh sửa đánh giá' : 'Đánh giá'}</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Appointment Details */}
+                        <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                            {/* Ngày khám */}
+                            <div className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all">
+                              <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
+                                <Calendar className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs text-gray-500 font-medium mb-1 uppercase tracking-wide">Ngày khám</div>
+                                <div className="text-sm font-bold text-gray-900 leading-tight">{formatDate(appointment.startTime)}</div>
+                              </div>
+                            </div>
+
+                            {/* Giờ khám */}
+                            <div className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-sm transition-all">
+                              <div className="p-2 bg-indigo-50 rounded-lg flex-shrink-0">
+                                <Clock className="h-5 w-5 text-indigo-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs text-gray-500 font-medium mb-1 uppercase tracking-wide">Giờ khám</div>
+                                <div className="text-sm font-bold text-gray-900 leading-tight">{formatTime(appointment.startTime)}{appointment.endTime ? ` - ${formatTime(appointment.endTime)}` : ''}</div>
+                              </div>
+                            </div>
+
+                            {/* Phí khám */}
+                            {appointment.fee && (
+                              <div className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-green-300 hover:shadow-sm transition-all">
+                                <div className="p-2 bg-green-50 rounded-lg flex-shrink-0">
+                                  <span className="text-green-600 font-bold text-lg">₫</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs text-gray-500 font-medium mb-1 uppercase tracking-wide">Phí khám</div>
+                                  <div className="text-sm font-bold text-green-600 leading-tight">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(appointment.fee)}</div>
                                 </div>
                               </div>
+                            )}
 
-                              <div className="flex items-center gap-3">
-                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${statusConfig.class}`}>
-                                  <StatusIcon className="h-4 w-4" />
-                                  {statusConfig.text}
-                                </span>
-
-                                <div className="flex items-center gap-2">
-                                  {appointment.status === 'Scheduled' && (
-                                    <button className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium disabled:opacity-50" disabled={cancellingId === appointment.appointmentId} onClick={() => openCancelModal(appointment)}>
-                                      {cancellingId === appointment.appointmentId ? 'Đang hủy...' : 'Hủy lịch'}
+                            {/* Ghi chú */}
+                            {appointment.notes && (
+                              <div className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all md:col-span-2 lg:col-span-1">
+                                <div className="p-2 bg-gray-50 rounded-lg flex-shrink-0">
+                                  <FileText className="h-5 w-5 text-gray-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs text-gray-500 font-medium mb-1 uppercase tracking-wide">Ghi chú</div>
+                                  <div className="text-sm text-gray-700 leading-tight">
+                                    {expandedNotes[appointment.appointmentId] ? appointment.notes : (appointment.notes.length > 30 ? `${appointment.notes.substring(0,30)}...` : appointment.notes)}
+                                  </div>
+                                  {appointment.notes.length > 30 && (
+                                    <button onClick={() => toggleNotes(appointment.appointmentId)} className="mt-1 text-xs text-blue-600 hover:text-blue-700 font-semibold">
+                                      {expandedNotes[appointment.appointmentId] ? 'Thu gọn' : 'Xem thêm'}
                                     </button>
                                   )}
-
-                                  {appointment.status === 'Completed' && (
-                                    <div className="flex items-center gap-2">
-                                      {reviews[appointment.appointmentId] && <RatingStars value={reviews[appointment.appointmentId].rating} readonly={true} />}
-                                      <button className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium" onClick={() => {
-                                        if (reviews[appointment.appointmentId]) {
-                                          openEditReview(appointment, reviews[appointment.appointmentId]);
-                                        } else {
-                                          setAppointmentToReview(appointment);
-                                          setIsEditingReview(false);
-                                          setEditingReviewId(null);
-                                          setRating(0);
-                                          setReviewComment('');
-                                          setShowReviewModal(true);
-                                        }
-                                      }}>
-                                        {reviews[appointment.appointmentId] ? 'Chỉnh sửa đánh giá' : 'Đánh giá'}
-                                      </button>
-                                      {reviews[appointment.appointmentId] && (
-                                        <span className="text-sm text-gray-500">{new Date(reviews[appointment.appointmentId].createdAt).toLocaleDateString('vi-VN')}</span>
-                                      )}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
-                              <div className="md:col-span-4 flex items-center gap-2 text-gray-600">
-                                <Calendar className="h-4 w-4" />
-                                <span className="text-sm whitespace-nowrap">{formatDate(appointment.startTime)}</span>
-                              </div>
-                              <div className="md:col-span-3 flex items-center gap-2 text-gray-600">
-                                <Clock className="h-4 w-4" />
-                                <span className="text-sm">{formatTime(appointment.startTime)}{appointment.endTime ? ` - ${formatTime(appointment.endTime)}` : ''}</span>
-                              </div>
-                              {appointment.fee && (
-                                <div className="md:col-span-2 flex items-center gap-2 text-gray-600">
-                                  <span className="font-medium text-green-600 text-sm">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(appointment.fee)}</span>
-                                </div>
-                              )}
-                              {appointment.notes && (
-                                <div className="md:col-span-3 flex items-start gap-2 text-gray-500">
-                                  <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <span className="text-sm">{expandedNotes[appointment.appointmentId] ? appointment.notes : (appointment.notes.length > 50 ? `${appointment.notes.substring(0,50)}...` : appointment.notes)}</span>
-                                    {appointment.notes.length > 50 && <button onClick={() => toggleNotes(appointment.appointmentId)} className="ml-2 text-blue-600 hover:text-blue-700 text-xs font-medium">{expandedNotes[appointment.appointmentId] ? 'Thu gọn' : 'Xem thêm'}</button>}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -836,28 +921,30 @@ export default function PatientAppointmentHistory() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-700">
-                    Hiển thị {startIndex + 1} đến {Math.min(endIndex, filteredAppointments.length)} trong {filteredAppointments.length} lịch hẹn
+              <div className="px-3 sm:px-6 py-3 sm:py-5 bg-gray-50 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-xs sm:text-sm text-gray-600 font-medium text-center sm:text-left">
+                    Hiển thị <span className="font-bold text-gray-900">{startIndex + 1}</span> đến <span className="font-bold text-gray-900">{Math.min(endIndex, filteredAppointments.length)}</span> trong <span className="font-bold text-gray-900">{filteredAppointments.length}</span> lịch hẹn
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <button
-                      className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold border-2 border-gray-300 rounded-lg hover:bg-white hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:border-gray-300 disabled:hover:text-gray-500 transition-all"
                       disabled={currentPage === 1}
                       onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     >
-                      Trước
+                      <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
+                      <span className="hidden xs:inline">Trước</span>
                     </button>
-                    <span className="px-3 py-1 text-sm">
+                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold bg-blue-600 text-white rounded-lg whitespace-nowrap">
                       Trang {currentPage} / {totalPages}
                     </span>
                     <button
-                      className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold border-2 border-gray-300 rounded-lg hover:bg-white hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:border-gray-300 disabled:hover:text-gray-500 transition-all"
                       disabled={currentPage === totalPages}
                       onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     >
-                      Sau
+                      <span className="hidden xs:inline">Sau</span>
+                      <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 inline ml-1 rotate-180" />
                     </button>
                   </div>
                 </div>
@@ -869,46 +956,47 @@ export default function PatientAppointmentHistory() {
 
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-red-100 rounded-full">
-                  <AlertCircle className="h-6 w-6 text-red-600" />
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-full backdrop-blur-sm">
+                  <AlertCircle className="h-6 w-6 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Xác nhận hủy lịch hẹn</h3>
+                <h3 className="text-xl font-bold text-white mb-0">Xác nhận hủy lịch hẹn</h3>
               </div>
-
+            </div>
+            <div className="p-6">
               {appointmentToCancel && (
                 <div className="mb-6">
-                  <p className="text-gray-600 mb-4">
-                    Bạn có chắc chắn muốn hủy lịch hẹn với bác sĩ <strong>{appointmentToCancel.doctorName}</strong>?
+                  <p className="text-gray-700 mb-4 text-base">
+                    Bạn có chắc chắn muốn hủy lịch hẹn với bác sĩ <strong className="text-gray-900">{appointmentToCancel.doctorName}</strong>?
                   </p>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="font-medium text-gray-700">Ngày khám:</span>
-                        <p className="text-gray-900">{formatDate(appointmentToCancel.startTime)}</p>
+                        <span className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Ngày khám</span>
+                        <p className="text-gray-900 font-bold mt-1">{formatDate(appointmentToCancel.startTime)}</p>
                       </div>
                       <div>
-                        <span className="font-medium text-gray-700">Giờ khám:</span>
-                        <p className="text-gray-900">{formatTime(appointmentToCancel.startTime)}</p>
+                        <span className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Giờ khám</span>
+                        <p className="text-gray-900 font-bold mt-1">{formatTime(appointmentToCancel.startTime)}</p>
                       </div>
                     </div>
                   </div>
-
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      ⚠️ Lưu ý: Hành động này không thể hoàn tác. Bạn sẽ cần đặt lịch mới nếu muốn khám lại.
-                    </p>
+                  <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-yellow-800 font-medium">
+                        Lưu ý: Hành động này không thể hoàn tác. Bạn sẽ cần đặt lịch mới nếu muốn khám lại.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
-
               <div className="flex items-center gap-3">
                 <button
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 font-semibold transition-all"
                   onClick={() => {
                     setShowCancelModal(false);
                     setAppointmentToCancel(null);
@@ -917,13 +1005,13 @@ export default function PatientAppointmentHistory() {
                   Hủy bỏ
                 </button>
                 <button
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                  className="flex-1 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all font-bold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={cancellingId}
                   onClick={confirmCancel}
                 >
                   {cancellingId ? 'Đang hủy...' : 'Xác nhận hủy'}
                 </button>
-        </div>
+              </div>
             </div>
           </div>
         </div>
@@ -931,38 +1019,48 @@ export default function PatientAppointmentHistory() {
 
       {/* Review Modal */}
       {showReviewModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {isEditingReview ? 'Chỉnh sửa đánh giá' : 'Đánh giá bác sĩ'}
-              </h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Đánh giá của bạn
-                  </label>
-                  <RatingStars value={rating} onChange={setRating} />
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-full backdrop-blur-sm">
+                  <Star className="h-6 w-6 text-white fill-white" />
                 </div>
-
+                <h3 className="text-xl font-bold text-white mb-0">
+                  {isEditingReview ? 'Chỉnh sửa đánh giá' : 'Đánh giá bác sĩ'}
+                </h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Đánh giá của bạn <span className="text-red-500">*</span>
+                  </label>
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <RatingStars value={rating} onChange={setRating} />
+                    {rating === 0 && (
+                      <p className="text-xs text-yellow-700 mt-2">Vui lòng chọn số sao đánh giá</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Nhận xét
                   </label>
                   <textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
                     rows="4"
-                    placeholder="Chia sẻ trải nghiệm của bạn..."
+                    placeholder="Chia sẻ trải nghiệm của bạn về buổi khám..."
                   />
+                  <p className="text-xs text-gray-500 mt-1">Nhận xét của bạn giúp bác sĩ cải thiện chất lượng dịch vụ</p>
                 </div>
               </div>
-
               <div className="flex items-center gap-3 mt-6">
                 <button
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 font-semibold transition-all"
                   onClick={() => {
                     setShowReviewModal(false);
                     setAppointmentToReview(null);
@@ -975,11 +1073,21 @@ export default function PatientAppointmentHistory() {
                   Hủy bỏ
                 </button>
                 <button
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                   disabled={rating === 0 || submittingReview}
                   onClick={handleSubmitReview}
                 >
-                  {submittingReview ? (isEditingReview ? 'Đang cập nhật...' : 'Đang gửi...') : (isEditingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá')}
+                  {submittingReview ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 inline mr-2 animate-spin" />
+                      {isEditingReview ? 'Đang cập nhật...' : 'Đang gửi...'}
+                    </>
+                  ) : (
+                    <>
+                      <Star className="h-4 w-4 inline mr-2" />
+                      {isEditingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                    </>
+                  )}
                 </button>
               </div>
             </div>

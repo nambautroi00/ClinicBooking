@@ -14,7 +14,7 @@ const PrescriptionsManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [prescriptionToDelete, setPrescriptionToDelete] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ id: null, diagnosis: "", status: "new" });
+  const [editForm, setEditForm] = useState({ id: null, diagnosis: "" });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({ patientId: "", appointmentId: "", diagnosis: "", items: [{ medicineId: "", quantity: 1, dosage: "" }] });
 
@@ -29,12 +29,12 @@ const PrescriptionsManagement = () => {
       
       const prescriptionsData = (prescriptionsRes.data || []).map(prescription => ({
         id: prescription.prescriptionId, // Backend returns prescriptionId as the primary key
-        prescriptionId: prescription.prescriptionId ? `DT${String(prescription.prescriptionId).padStart(3, '0')}` : 'N/A',
+        prescriptionId: prescription.prescriptionId || 'N/A',
         patientId: prescription.patientId,
         patientName: prescription.patientName || 'Chưa có tên',
         doctorId: prescription.doctorId,
         doctorName: prescription.doctorName || 'Chưa có tên',
-        diagnosis: prescription.diagnosis || prescription.notes || 'Chưa có chẩn đoán',
+        diagnosis: prescription.notes || prescription.diagnosis || 'Chưa có chẩn đoán',
         prescriptionDate: prescription.createdAt || prescription.createdDate,
         totalAmount: prescription.totalAmount || 0,
         status: 'new', // Default status since backend doesn't have status field
@@ -99,33 +99,35 @@ const PrescriptionsManagement = () => {
   };
 
   const openEdit = (prescription) => {
-    setEditForm({ id: prescription.id, diagnosis: prescription.diagnosis || "", status: prescription.status || "new" });
+    setEditForm({ id: prescription.id, diagnosis: prescription.diagnosis || "" });
     setShowEditModal(true);
   };
 
   const handleSaveEdit = async () => {
     if (!editForm.id) return;
     try {
-      // Find the prescription being edited to get its current items
+      // Find the prescription being edited
       const currentPrescription = prescriptions.find(p => p.id === editForm.id);
+      if (!currentPrescription) {
+        toast.error('Không tìm thấy đơn thuốc');
+        return;
+      }
+      
+      // Only update notes (diagnosis), don't send items to avoid recreating them
+      // Backend will keep existing items unchanged when items is null/not provided
       const payload = {
-        notes: editForm.diagnosis, // Backend uses 'notes' field
-        items: currentPrescription ? currentPrescription.medicines.map(m => ({
-          medicineId: m.medicineId,
-          quantity: m.quantity,
-          dosage: m.dosage,
-          duration: m.duration,
-          note: m.instructions
-        })) : []
+        notes: editForm.diagnosis // Backend uses 'notes' field and syncs with MedicalRecord diagnosis
       };
       
+      console.log('📤 Updating prescription notes only:', editForm.id, payload);
       await prescriptionApi.updatePrescription(editForm.id, payload);
       setShowEditModal(false);
       toast.success("Cập nhật đơn thuốc thành công");
-      loadPrescriptions();
+      // Reload prescriptions to see the changes
+      await loadPrescriptions();
     } catch (err) {
-      console.error('Lỗi cập nhật đơn thuốc:', err);
-      toast.error('Không thể cập nhật đơn thuốc');
+      console.error('❌ Lỗi cập nhật đơn thuốc:', err);
+      toast.error(err.response?.data?.message || 'Không thể cập nhật đơn thuốc');
     }
   };
 
@@ -290,13 +292,11 @@ const PrescriptionsManagement = () => {
                   <th>Ngày Kê</th>
                   <th>Số Thuốc</th>
                   <th>Tổng Tiền</th>
-                  <th>Trạng Thái</th>
                   <th>Thao Tác</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPrescriptions.map(prescription => {
-                  const statusConfig = getStatusBadge(prescription.status);
                   return (
                     <tr key={prescription.id}>
                       <td>
@@ -324,11 +324,6 @@ const PrescriptionsManagement = () => {
                         <strong className="text-success">
                           {(prescription.totalAmount || 0).toLocaleString('vi-VN')} ₫
                         </strong>
-                      </td>
-                      <td>
-                        <Badge bg={statusConfig.variant}>
-                          {statusConfig.text}
-                        </Badge>
                       </td>
                       <td>
                         <div className="d-flex gap-2">
@@ -488,20 +483,12 @@ const PrescriptionsManagement = () => {
                 type="text"
                 value={editForm.diagnosis}
                 onChange={(e) => setEditForm(prev => ({ ...prev, diagnosis: e.target.value }))}
+                placeholder="Nhập chẩn đoán"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Trạng thái</Form.Label>
-              <Form.Select
-                value={editForm.status}
-                onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="new">Mới</option>
-                <option value="pending">Chờ xử lý</option>
-                <option value="completed">Hoàn thành</option>
-                <option value="cancelled">Hủy</option>
-              </Form.Select>
-            </Form.Group>
+            <Alert variant="info" className="mt-3">
+              <small>Lưu ý: Chỉ có thể cập nhật chẩn đoán. Để thay đổi thuốc, vui lòng tạo đơn thuốc mới.</small>
+            </Alert>
           </Form>
         </Modal.Body>
         <Modal.Footer>
