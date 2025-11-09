@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import doctorScheduleApi from "../../api/doctorScheduleApi";
 import doctorApi from "../../api/doctorApi";
 import appointmentApi from "../../api/appointmentApi";
+import paymentApi from "../../api/paymentApi";
 import Cookies from "js-cookie";
 
 const DoctorDashboard = () => {
@@ -65,10 +66,11 @@ const DoctorDashboard = () => {
     try {
       setLoading(true);
       
-      // Load schedules and appointments in parallel with timeout
-      const [schedulesRes, appointmentsRes] = await Promise.allSettled([
+      // Load schedules, appointments, and payments in parallel with timeout
+      const [schedulesRes, appointmentsRes, paymentsRes] = await Promise.allSettled([
         withTimeout(doctorScheduleApi.getSchedulesByDoctor(doctorId), 8000),
         withTimeout(appointmentApi.getAppointmentsByDoctor(doctorId), 8000),
+        withTimeout(paymentApi.getPaymentsByDoctorId(doctorId), 8000),
       ]);
 
       // Extract data with fallback to empty arrays
@@ -78,6 +80,22 @@ const DoctorDashboard = () => {
       const appointments = appointmentsRes.status === 'fulfilled'
         ? (appointmentsRes.value?.data || appointmentsRes.value || [])
         : [];
+      const payments = paymentsRes.status === 'fulfilled'
+        ? (paymentsRes.value?.data || paymentsRes.value || [])
+        : [];
+
+      // Debug logging - detailed
+      console.log('📋 Total appointments loaded:', appointments.length);
+      const appointmentsWithPatients = appointments.filter(apt => apt.patientId);
+      console.log('📋 Appointments with patients:', appointmentsWithPatients.length);
+      console.log('📋 All appointments with patients:', appointmentsWithPatients);
+      console.log('📋 Appointments status breakdown:', {
+        scheduled: appointments.filter(apt => apt.status === 'Scheduled').length,
+        confirmed: appointments.filter(apt => apt.status === 'Confirmed').length,
+        available: appointments.filter(apt => apt.status === 'Available').length,
+        completed: appointments.filter(apt => apt.status === 'Completed').length,
+        cancelled: appointments.filter(apt => apt.status === 'Cancelled').length,
+      });
 
       const today = new Date().toISOString().split("T")[0];
       const now = new Date();
@@ -92,47 +110,81 @@ const DoctorDashboard = () => {
         (apt) => apt.startTime?.split("T")[0] === today && apt.status !== "Cancelled"
       );
 
-      // Calculate revenue from completed appointments
-      const completedAppointments = appointments.filter((apt) => apt.status === "Completed");
-      
-      // Today's revenue
-      const todayCompleted = completedAppointments.filter(
-        (apt) => apt.startTime?.split("T")[0] === today
+      // Calculate revenue from paid payments (not from appointments)
+      // Filter only paid/successful payments
+      const paidPayments = payments.filter(p => 
+        p.status === 'PAID' || p.status === 'SUCCESS' || p.status === 'COMPLETED'
       );
-      const todayRevenue = todayCompleted.reduce((sum, apt) => {
-        return sum + (apt.fee ? Number(apt.fee) : 0);
-      }, 0);
 
-      // Monthly revenue (current month)
-      const monthlyCompleted = completedAppointments.filter((apt) => {
-        if (!apt.startTime) return false;
-        const aptDate = new Date(apt.startTime);
-        return aptDate.getMonth() === currentMonth && aptDate.getFullYear() === currentYear;
+      // Today's revenue from payments
+      const todayPaid = paidPayments.filter(p => {
+        if (!p.paidAt && !p.createdAt) return false;
+        const paymentDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
+        return paymentDate.toISOString().split("T")[0] === today;
       });
-      const monthlyRevenue = monthlyCompleted.reduce((sum, apt) => {
-        return sum + (apt.fee ? Number(apt.fee) : 0);
+      const todayRevenue = todayPaid.reduce((sum, p) => {
+        return sum + (p.amount ? Number(p.amount) : 0);
       }, 0);
 
-      // Total revenue (all completed appointments)
-      const totalRevenue = completedAppointments.reduce((sum, apt) => {
-        return sum + (apt.fee ? Number(apt.fee) : 0);
+      // Monthly revenue from payments (current month)
+      const monthlyPaid = paidPayments.filter(p => {
+        if (!p.paidAt && !p.createdAt) return false;
+        const paymentDate = p.paidAt ? new Date(p.paidAt) : new Date(p.createdAt);
+        return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+      });
+      const monthlyRevenue = monthlyPaid.reduce((sum, p) => {
+        return sum + (p.amount ? Number(p.amount) : 0);
       }, 0);
+
+      // Total revenue from all paid payments
+      const totalRevenue = paidPayments.reduce((sum, p) => {
+        return sum + (p.amount ? Number(p.amount) : 0);
+      }, 0);
+
+      // Calculate completed appointments (for stats display)
+      const completedAppointments = appointments.filter((apt) => apt.status === "Completed");
 
       // Filter and sort patient appointments (only appointments with patients, not empty slots)
+      // "Lịch hẹn bệnh nhân" = những lịch hẹn đã có người đặt
+      // Logic giống hệt trang "Xem tất cả" - chỉ filter patientId !== null
       const upcomingAppointmentsList = appointments
         .filter((apt) => {
-          // Chỉ lấy appointments có bệnh nhân đã đặt
-          if (!apt.patientId || !apt.patientName) return false;
-          if (!apt.startTime || apt.status === "Cancelled" || apt.status === "Completed") return false;
-          const aptDate = new Date(apt.startTime);
-          return aptDate > now;
+          // Chỉ lấy appointments có patientId (đã có người đặt) - giống hệt trang "Xem tất cả"
+          return apt.patientId !== null && apt.patientId !== undefined;
         })
         .sort((a, b) => {
-          const dateA = new Date(a.startTime);
-          const dateB = new Date(b.startTime);
-          return dateA - dateB;
+          // Sắp xếp: tương lai trước, sau đó đến quá khứ gần đây
+          const dateA = new Date(a.startTime || 0);
+          const dateB = new Date(b.startTime || 0);
+          const isAFuture = dateA > now;
+          const isBFuture = dateB > now;
+          
+          // Tương lai luôn ưu tiên hơn quá khứ
+          if (isAFuture && !isBFuture) return -1;
+          if (!isAFuture && isBFuture) return 1;
+          
+          // Cùng loại (cùng tương lai hoặc cùng quá khứ) thì sắp xếp theo thời gian giảm dần (mới nhất trước)
+          return dateB - dateA;
         })
         .slice(0, 5);
+
+      // Debug logging
+      console.log('📋 Upcoming appointments filtered:', upcomingAppointmentsList.length);
+      console.log('📋 Upcoming appointments list:', upcomingAppointmentsList);
+      
+      // If no upcoming appointments, show all appointments with patients (for debugging)
+      if (upcomingAppointmentsList.length === 0) {
+        const allWithPatients = appointments.filter(apt => apt.patientId && apt.patientId !== null);
+        console.log('⚠️ No upcoming appointments found. All appointments with patients:', allWithPatients);
+        console.log('⚠️ Current time:', now);
+        console.log('⚠️ Sample appointment times:', allWithPatients.slice(0, 3).map(apt => ({
+          id: apt.appointmentId,
+          startTime: apt.startTime,
+          patientName: apt.patientName,
+          status: apt.status,
+          isFuture: new Date(apt.startTime) > now
+        })));
+      }
 
       // Get unique patients
       const uniquePatients = new Set(
