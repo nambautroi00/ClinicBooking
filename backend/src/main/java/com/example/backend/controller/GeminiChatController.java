@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.backend.dto.ChatbotResponseDto;
 import com.example.backend.dto.GeminiRequest;
 import com.example.backend.service.GeminiService;
 
@@ -39,7 +40,7 @@ public class GeminiChatController {
      * @return AI response
      */
     @PostMapping
-    public ResponseEntity<Map<String, String>> chat(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request) {
         System.out.println("=== GEMINI CHAT CONTROLLER: Request received ===");
         System.out.println("Request body: " + request);
         log.info("Received Gemini chat request");
@@ -49,30 +50,35 @@ public class GeminiChatController {
             System.out.println("User message: " + userMessage);
             
             if (userMessage == null || userMessage.trim().isEmpty()) {
-                Map<String, String> errorResponse = new HashMap<>();
+                Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("error", "Message cannot be empty");
                 return ResponseEntity.badRequest().body(errorResponse);
             }
             
-            String aiResponse = geminiService.getChatResponse(userMessage);
+            ChatbotResponseDto aiResponse = geminiService.getChatResponse(userMessage);
 
-            Map<String, String> response = new HashMap<>();
-            response.put("message", aiResponse);
+            Map<String, Object> response = new HashMap<>();
             response.put("status", "success");
             response.put("provider", "gemini");
+            response.put("model", geminiService.getModelName());
+            response.put("response", aiResponse.getResponse());
+            response.put("needsMoreInfo", aiResponse.isNeedsMoreInfo());
+            response.put("followUpQuestion", aiResponse.getFollowUpQuestion());
+            response.put("department", aiResponse.getDepartment());
+            response.put("doctors", aiResponse.getDoctors());
 
             return ResponseEntity.ok(response);
             
         } catch (IllegalStateException e) {
             log.error("Configuration error: {}", e.getMessage());
-            Map<String, String> errorResponse = new HashMap<>();
+            Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Gemini chatbot service is not configured properly");
             errorResponse.put("details", e.getMessage());
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
             
         } catch (Exception e) {
             log.error("Error processing Gemini chat request: {}", e.getMessage(), e);
-            Map<String, String> errorResponse = new HashMap<>();
+            Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("error", "Failed to process chat request");
             errorResponse.put("details", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
@@ -135,7 +141,7 @@ public class GeminiChatController {
         response.put("status", "ok");
         response.put("service", "AI Chatbot");
         response.put("provider", "Google Gemini");
-        response.put("model", "gemini-pro");
+        response.put("model", geminiService.getModelName());
         return ResponseEntity.ok(response);
     }
 }
