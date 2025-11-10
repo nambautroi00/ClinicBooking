@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import Header from '../layout/Header';
 import { useNavigate } from 'react-router-dom';
 import { sendMessageToBot } from '../../api/chatApi';
 import doctorApi from '../../api/doctorApi';
+import { getFullAvatarUrl } from '../../utils/avatarUtils';
 
 const STORAGE_KEYS = {
   messages: 'clinic_chat_messages',
@@ -12,11 +13,11 @@ const STORAGE_KEYS = {
 
 const DOCTOR_REQUEST_PATTERNS = [
   'tìm bác sĩ',
-  'tim bac si',
+  'tim Bac si',
   'đặt bác sĩ',
-  'dat bac si',
+  'dat Bac si',
   'xem bác sĩ',
-  'chon bac si'
+  'chon Bac si'
 ];
 
 const SYMPTOM_KEYWORDS = [
@@ -270,7 +271,7 @@ const ChatBot = () => {
           createMessage(
             `Khoa gợi ý hiện tại là ${departmentName}${
               departmentReason ? ` (vì ${departmentReason})` : ''
-            }. Bạn có muốn mình tìm bác sĩ của khoa này không? Chỉ cần nhắn “tìm bác sĩ ${
+            }. Bạn có muốn mình tìm bác sĩ củĐa khoa này không? Chỉ cần nhắn “tìm bác sĩ ${
               departmentName || ''
             }” hoặc mô tả thêm triệu chứng nhé.`
           )
@@ -308,17 +309,41 @@ const ChatBot = () => {
       return null;
     }
 
+    const buildDoctorAvatar = (doctor, fallbackName) => {
+      const safeName =
+        fallbackName && fallbackName.trim().length > 0 ? fallbackName : 'Doctor';
+      const potentialSources = [
+        doctor.avatarUrl,
+        doctor.avatarPath,
+        doctor.avatar,
+        doctor.user?.avatarUrl,
+        doctor.user?.avatarPath,
+        doctor.user?.avatar && `/api/files/avatar/${doctor.user.avatar}`
+      ].filter(Boolean);
+
+      for (const source of potentialSources) {
+        const fullUrl = getFullAvatarUrl(source);
+        if (fullUrl) {
+          return fullUrl;
+        }
+      }
+
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        safeName
+      )}&background=2563EB&color=fff`;
+    };
+
     const normalizeDoctor = (doctor) => {
       const doctorId = doctor.id || doctor.doctorId;
       const fullName =
         doctor.fullName ||
         `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim() ||
-        'Bác sĩ';
+        'Bac si';
       const dept =
         doctor.departmentName ||
         doctor.department?.departmentName ||
         departmentName ||
-        'Đa khoa';
+        'Da khoa';
       const rating =
         Number(
           doctor.rating ??
@@ -327,32 +352,23 @@ const ChatBot = () => {
             doctor.averageScore ??
             0
         ) || 0;
-      let avatar =
-        doctor.avatarUrl ||
-        (doctor.user?.avatar
-          ? `http://localhost:8080/api/files/avatar/${doctor.user.avatar}`
-          : null) ||
-        doctor.user?.avatarUrl ||
-        null;
-      if (!avatar) {
-        avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          fullName
-        )}&background=2563EB&color=fff`;
-      }
+      const avatar = buildDoctorAvatar(doctor, fullName);
 
       return {
         ...doctor,
         doctorId,
         fullName,
         departmentLabel: dept,
-        specialty: doctor.specialty || 'Chuyên khoa tổng quát',
+        specialty: doctor.specialty || 'Chuyen khoa tong quat',
         rating,
         avatar,
-        degree: doctor.degree || doctor.user?.degree || 'Bác sĩ',
+        degree: doctor.degree || doctor.user?.degree || 'Bac si',
         experience: doctor.workExperience || '',
         hospital: doctor.user?.address || ''
       };
     };
+
+
 
     const sortedDoctors = doctors
       .map(normalizeDoctor)
@@ -383,9 +399,6 @@ const ChatBot = () => {
               ⭐ {doctor.rating.toFixed(1)}
             </div>
           )}
-        </div>
-        <div style={styles.doctorMeta}>
-          {doctor.hospital || `Phụ trách khoa ${doctor.departmentLabel}`}
         </div>
         <div style={styles.tagGroup}>
           {doctor.specialty && <span style={styles.tag}>{doctor.specialty}</span>}
