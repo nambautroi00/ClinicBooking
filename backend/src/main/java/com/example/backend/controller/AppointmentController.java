@@ -127,4 +127,10 @@ public class AppointmentController {
         AppointmentDTO.Response updated = appointmentService.cancelAppointment(id);
         return ResponseEntity.ok(updated);
     }
+
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<String> permanentDelete(@PathVariable("id") Long id) {
+        appointmentService.permanentDelete(id);
+        return ResponseEntity.ok("Đã xóa khung giờ thành công");
+    }
 }

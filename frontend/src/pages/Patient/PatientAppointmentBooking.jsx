@@ -4,6 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 import doctorApi from "../../api/doctorApi";
 import reviewApi from "../../api/reviewApi";
 
+// Thêm hằng số base URL (sửa theo backend của bạn nếu khác)
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+
 export default function PatientAppointmentBooking() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,13 +70,27 @@ export default function PatientAppointmentBooking() {
           const transformedDoctors = rawDocs.map(doctor => {
             const id = doctor.doctorId || doctor.id;
             const r = ratingMap[id] || { avg: 0, count: 0 };
+
+            // Xử lý avatar: nếu backend trả về đường dẫn tương đối thì ghép base URL
+            let avatar = doctor.user?.avatarUrl;
+            if (avatar) {
+              // Nếu đã là absolute (http/https) giữ nguyên
+              if (!/^https?:\/\//i.test(avatar)) {
+                // Đảm bảo có dấu / ở giữa
+                avatar = avatar.startsWith("/") ? `${API_BASE_URL}${avatar}` : `${API_BASE_URL}/${avatar}`;
+              }
+            } else {
+              // Fallback ảnh mặc định (đặt file này vào public/images/default-doctor.png)
+              avatar = "/images/default-doctor.png";
+            }
+
             return {
               id,
-              name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim(),
+              name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim() || 'Bác sĩ',
               specialty: doctor.specialty || 'Chưa cập nhật',
-              rating: r.count > 0 ? r.avg : 0,
+              rating: r.count > 0 ? r.avg.toFixed(1) : 0,
               reviewCount: r.count || 0,
-              avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
+              avatar,
               experience: `${doctor.experience || 'Nhiều'} năm kinh nghiệm`,
               department: doctor.department?.departmentName || 'Chưa phân khoa'
             };
@@ -106,15 +123,29 @@ export default function PatientAppointmentBooking() {
       setLoading(true);
       const searchResponse = await doctorApi.searchDoctors(searchQuery);
       if (searchResponse.data) {
-        const transformedDoctors = searchResponse.data.map(doctor => ({
-          id: doctor.doctorId || doctor.id,
-          name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim(),
-          specialty: doctor.specialty || 'Chưa cập nhật',
-          rating: 4.5,
-          avatar: doctor.user?.avatarUrl || '/api/placeholder/150/150',
-          experience: `${doctor.experience || 'Nhiều'} năm kinh nghiệm`,
-          department: doctor.department?.departmentName || 'Chưa phân khoa'
-        }));
+        const transformedDoctors = searchResponse.data.map(doctor => {
+          // Chuẩn hóa avatar
+          let avatar = doctor.user?.avatarUrl;
+          if (avatar) {
+            if (!/^https?:\/\//i.test(avatar)) {
+              avatar = avatar.startsWith("/")
+                ? `${API_BASE_URL}${avatar}`
+                : `${API_BASE_URL}/${avatar}`;
+            }
+          } else {
+            avatar = "/images/default-doctor.png";
+          }
+
+          return {
+            id: doctor.doctorId || doctor.id,
+            name: `${doctor.user?.lastName || ''} ${doctor.user?.firstName || ''}`.trim(),
+            specialty: doctor.specialty || 'Chưa cập nhật',
+            rating: 4.5,
+            avatar,
+            experience: `${doctor.experience || 'Nhiều'} năm kinh nghiệm`,
+            department: doctor.department?.departmentName || 'Chưa phân khoa'
+          };
+        });
         setDoctors(transformedDoctors);
       }
     } catch (error) {
@@ -301,14 +332,11 @@ export default function PatientAppointmentBooking() {
                       <img
                         src={doctor.avatar}
                         alt={doctor.name}
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         onError={(e) => {
-                          e.target.onerror = null; // Prevent infinite loop
-                          e.target.style.display = 'none'; // Hide the broken image
-                          const fallbackSpan = e.target.nextElementSibling; // Get the sibling span
-                          if (fallbackSpan) {
-                            fallbackSpan.style.display = 'flex'; // Show the emoji
-                          }
+                          e.target.onerror = null;
+                          e.target.src = "/images/default-doctor.png"; // Đảm bảo có file này
                         }}
                       />
                       {/* Fallback emoji, initially hidden if doctor.avatar exists */}
