@@ -64,6 +64,6 @@ payos:
 # Google Gemini Configuration
 gemini:
   api:
-    key: AIzaSyAnA2mbXB0PJAU1LS6rEH6a1hHvJXeDEJ4
+    key: AIzaSyA0F8_yUtzdGWH_H1eKmmx4yrOUrimOTtI
     url: https://generativelanguage.googleapis.com/v1beta/models
-  model: gemini-pro
+  model: gemini-2.0-flash

@@ -1,21 +1,35 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.ChatbotResponseDto;
 import com.example.backend.dto.GeminiRequest;
 import com.example.backend.model.Department;
+import com.example.backend.model.Doctor;
 import com.example.backend.repository.DepartmentRepository;
+import com.example.backend.repository.DoctorRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Service for integrating with Google Gemini API
@@ -29,6 +43,7 @@ public class GeminiService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final DepartmentRepository departmentRepository;
+    private final DoctorRepository doctorRepository;
     
     @Value("${gemini.api.key:}")
     private String apiKey;
@@ -36,111 +51,89 @@ public class GeminiService {
     @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models}")
     private String apiUrl;
     
-    @Value("${gemini.model:gemini-1.5-flash}")
+    @Value("${gemini.model:gemini-2.0-flash}")
     private String model;
     
     private static final Double DEFAULT_TEMPERATURE = 0.7;
-    private static final Integer DEFAULT_MAX_TOKENS = 500;
+    private static final Integer DEFAULT_MAX_TOKENS = 1024;
     
     /**
-     * Send a chat message to Google Gemini and get a response
-     * 
+     * Send a chat message to Google Gemini and get a structured response
+     *
      * @param userMessage The user's message
-     * @return The AI's response
+     * @return Structured response containing advice, department and doctors
      */
-    public String getChatResponse(String userMessage) {
-        System.out.println("=== GEMINI SERVICE: getChatResponse called ===");
-        System.out.println("User message: " + userMessage);
-        log.info("Sending message to Gemini: {}", userMessage);
-        
+    public ChatbotResponseDto getChatResponse(String userMessage) {
+        log.info("Sending message to Gemini (model={}): {}", model, userMessage);
+
         if (apiKey == null || apiKey.isEmpty()) {
             log.error("Gemini API key is not configured");
             throw new IllegalStateException("Gemini API key is not configured. Please set GEMINI_API_KEY in application.yml");
         }
-        
+
+        List<Department> departments = loadDepartmentsForPrompt();
+
         try {
-            // Build the request with system prompt for clinic booking context
-            GeminiRequest request = buildRequest(userMessage);
-            
-            // Log request for debugging
-            try {
-                String requestJson = objectMapper.writeValueAsString(request);
-                System.out.println("=== GEMINI API REQUEST ===");
-                System.out.println("Request JSON: " + requestJson);
-                log.info("=== Gemini API Request ===");
-                log.info("Request JSON: {}", requestJson);
-            } catch (Exception e) {
-                System.err.println("Failed to serialize request: " + e.getMessage());
-                log.warn("Failed to serialize request for logging: {}", e.getMessage());
+            ObjectNode payload = buildChatPayload(userMessage, departments);
+            String rawApiResponse = callGeminiApi(payload);
+            String aiResponse = extractPrimaryText(rawApiResponse);
+
+            if (aiResponse != null && !aiResponse.isBlank()) {
+                log.info("Received response from Gemini");
+                return buildStructuredResponse(aiResponse, userMessage, departments);
             }
-            
-            // Build URL with API key
-            String url = String.format("%s/%s:generateContent?key=%s", apiUrl, model, apiKey);
-            log.info("Gemini API URL: {}", url.replace(apiKey, "***"));
-            log.info("Model: {}", model);
-            log.info("API Key configured: {}", apiKey != null && !apiKey.isEmpty() ? "Yes" : "No");
-            
-            // Set headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            // Create HTTP entity
-            HttpEntity<GeminiRequest> entity = new HttpEntity<>(request, headers);
-            
-            // Make API call
-            ResponseEntity<GeminiRequest.GeminiResponse> response = restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                entity,
-                GeminiRequest.GeminiResponse.class
-            );
-            
-            // Extract and return the response
-            GeminiRequest.GeminiResponse responseBody = response.getBody();
-            if (responseBody != null && 
-                responseBody.getCandidates() != null && 
-                !responseBody.getCandidates().isEmpty()) {
-                
-                GeminiRequest.GeminiResponse.Candidate candidate = responseBody.getCandidates().get(0);
-                if (candidate.getContent() != null && 
-                    candidate.getContent().getParts() != null && 
-                    !candidate.getContent().getParts().isEmpty()) {
-                    
-                    String aiResponse = candidate.getContent().getParts().get(0).getText();
-                    log.info("Received response from Gemini: {}", aiResponse);
-                    return aiResponse;
-                }
+
+            log.warn("Empty response from Gemini API");
+            return buildFallbackDto(userMessage);
+
+        } catch (HttpClientErrorException e) {
+            handleClientError(e);
+            return buildFallbackDto(userMessage);
+        } catch (HttpServerErrorException e) {
+            log.error("HTTP Server Error calling Gemini API ({}): {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            return buildFallbackDto(userMessage);
+        } catch (RestClientException e) {
+            log.error("Network error calling Gemini API: {}", e.getMessage(), e);
+            return buildFallbackDto(userMessage);
+        } catch (Exception e) {
+            log.error("Unexpected error calling Gemini API: {}", e.getMessage(), e);
+            return buildFallbackDto(userMessage);
+        }
+    }
+    
+    /**
+     * Send a chat message with conversation history
+     * 
+     * @param contents List of previous messages in the conversation
+     * @return The AI's response
+     */
+        public String getChatResponseWithHistory(List<GeminiRequest.Content> contents) {
+        log.info("Sending conversation with {} messages to Gemini", contents.size());
+
+        String userMessage = extractLastUserMessage(contents);
+
+        if (apiKey == null || apiKey.isEmpty()) {
+            log.error("Gemini API key is not configured");
+            throw new IllegalStateException("Gemini API key is not configured. Please set GEMINI_API_KEY in application.yml");
+        }
+
+        List<Department> departments = loadDepartmentsForPrompt();
+
+        try {
+            ObjectNode payload = buildHistoryPayload(contents, departments);
+            String rawApiResponse = callGeminiApi(payload);
+            String aiResponse = extractPrimaryText(rawApiResponse);
+
+            if (aiResponse != null && !aiResponse.isBlank()) {
+                log.info("Received response from Gemini");
+                return aiResponse;
             }
-            
+
             log.warn("Empty response from Gemini API");
             return generateFallbackResponse(userMessage);
-            
+
         } catch (HttpClientErrorException e) {
-            String errorBody = e.getResponseBodyAsString();
-            System.err.println("=== GEMINI API CLIENT ERROR ===");
-            System.err.println("Status Code: " + e.getStatusCode());
-            System.err.println("Error Body: " + errorBody);
-            System.err.println("Headers: " + e.getResponseHeaders());
-            log.error("HTTP Client Error calling Gemini API ({}): {}", e.getStatusCode(), errorBody);
-            log.error("Error details - Status: {}, Body: {}, Headers: {}", 
-                e.getStatusCode(), errorBody, e.getResponseHeaders());
-            
-            // Check for specific error messages
-            if (errorBody != null) {
-                String errorLower = errorBody.toLowerCase();
-                if (errorLower.contains("api_key_invalid") || errorLower.contains("api key not valid") 
-                    || errorLower.contains("invalid api key") || errorLower.contains("invalid_key")) {
-                    log.error("API Key validation failed - check application.yml configuration");
-                    return generateFallbackResponse(userMessage);
-                } else if (errorLower.contains("permission_denied") || errorLower.contains("permission denied")) {
-                    return generateFallbackResponse(userMessage);
-                } else if (errorLower.contains("quota_exceeded") || errorLower.contains("quota exceeded")) {
-                    return generateFallbackResponse(userMessage);
-                } else if (errorLower.contains("invalid") || errorLower.contains("bad request")) {
-                    log.error("Invalid request format - check request JSON structure");
-                    return generateFallbackResponse(userMessage);
-                }
-            }
+            handleClientError(e);
             return generateFallbackResponse(userMessage);
         } catch (HttpServerErrorException e) {
             log.error("HTTP Server Error calling Gemini API ({}): {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
@@ -153,24 +146,178 @@ public class GeminiService {
             return generateFallbackResponse(userMessage);
         }
     }
-    
-    /**
-     * Send a chat message with conversation history
-     * 
-     * @param contents List of previous messages in the conversation
-     * @return The AI's response
-     */
-    public String getChatResponseWithHistory(List<GeminiRequest.Content> contents) {
-        log.info("Sending conversation with {} messages to Gemini", contents.size());
-        
-        // Extract user message from contents for fallback
+
+    private List<Department> loadDepartmentsForPrompt() {
+        try {
+            return departmentRepository.findAll();
+        } catch (Exception e) {
+            log.warn("Failed to load departments for chatbot context: {}", e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    private ObjectNode buildChatPayload(String userMessage, List<Department> departments) {
+        String departmentsInfo = buildDepartmentsInfo(departments);
+        if (departmentsInfo.isBlank()) {
+            departmentsInfo = "Danh sach khoa tam thoi khong kha dung.";
+        }
+        String systemPrompt = buildSystemPrompt(departmentsInfo);
+
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.set("system_instruction", buildSystemInstructionNode(systemPrompt));
+        payload.set("contents", buildSingleTurnContent(userMessage));
+        payload.set("generationConfig", buildGenerationConfig());
+        return payload;
+    }
+
+    private ObjectNode buildHistoryPayload(List<GeminiRequest.Content> history, List<Department> departments) {
+        String departmentsInfo = buildDepartmentsInfo(departments);
+        if (departmentsInfo.isBlank()) {
+            departmentsInfo = "Danh sach khoa tam thoi khong kha dung.";
+        }
+        String systemPrompt = buildSystemPrompt(departmentsInfo);
+
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.set("system_instruction", buildSystemInstructionNode(systemPrompt));
+        payload.set("contents", convertHistoryToContents(history));
+        payload.set("generationConfig", buildGenerationConfig());
+        return payload;
+    }
+
+    private ArrayNode buildSingleTurnContent(String userMessage) {
+        ArrayNode contents = objectMapper.createArrayNode();
+        ObjectNode user = objectMapper.createObjectNode();
+        user.put("role", "user");
+        user.set("parts", buildTextParts(userMessage));
+        contents.add(user);
+        return contents;
+    }
+
+    private ArrayNode convertHistoryToContents(List<GeminiRequest.Content> history) {
+        ArrayNode contentsNode = objectMapper.createArrayNode();
+        if (history == null || history.isEmpty()) {
+            return contentsNode;
+        }
+
+        for (GeminiRequest.Content content : history) {
+            if (content == null || content.getParts() == null) {
+                continue;
+            }
+            ObjectNode contentNode = objectMapper.createObjectNode();
+            contentNode.put("role", content.getRole() == null ? "user" : content.getRole());
+
+            ArrayNode partsNode = objectMapper.createArrayNode();
+            for (GeminiRequest.Part part : content.getParts()) {
+                if (part != null && part.getText() != null) {
+                    ObjectNode textNode = objectMapper.createObjectNode();
+                    textNode.put("text", part.getText());
+                    partsNode.add(textNode);
+                }
+            }
+
+            if (partsNode.size() > 0) {
+                contentNode.set("parts", partsNode);
+                contentsNode.add(contentNode);
+            }
+        }
+        return contentsNode;
+    }
+
+    private ObjectNode buildSystemInstructionNode(String prompt) {
+        ObjectNode instruction = objectMapper.createObjectNode();
+        instruction.set("parts", buildTextParts(prompt));
+        return instruction;
+    }
+
+    private ArrayNode buildTextParts(String text) {
+        ArrayNode parts = objectMapper.createArrayNode();
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("text", text);
+        parts.add(node);
+        return parts;
+    }
+
+    private ObjectNode buildGenerationConfig() {
+        ObjectNode genConfig = objectMapper.createObjectNode();
+        genConfig.put("temperature", DEFAULT_TEMPERATURE);
+        genConfig.put("maxOutputTokens", DEFAULT_MAX_TOKENS);
+        return genConfig;
+    }
+
+    private String callGeminiApi(ObjectNode payload) throws JsonProcessingException {
+        String url = String.format("%s/%s:generateContent?key=%s", apiUrl, model, apiKey);
+        String requestJson = objectMapper.writeValueAsString(payload);
+        log.debug("=== Gemini API Payload === {}", requestJson);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(requestJson, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+            url,
+            HttpMethod.POST,
+            entity,
+            String.class
+        );
+
+        return response.getBody();
+    }
+
+    private String extractPrimaryText(String responseJson) {
+        if (responseJson == null || responseJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isArray()) {
+                for (JsonNode candidate : candidates) {
+                    JsonNode content = candidate.path("content");
+                    JsonNode parts = content.path("parts");
+                    if (parts.isArray()) {
+                        for (JsonNode part : parts) {
+                            JsonNode textNode = part.path("text");
+                            if (!textNode.isMissingNode()) {
+                                return textNode.asText();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to parse Gemini response JSON: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void handleClientError(HttpClientErrorException e) {
+        String errorBody = e.getResponseBodyAsString();
+        log.error("HTTP Client Error calling Gemini API ({}): {}", e.getStatusCode(), errorBody);
+
+        if (errorBody == null) {
+            return;
+        }
+
+        String errorLower = errorBody.toLowerCase();
+        if (errorLower.contains("api_key_invalid") || errorLower.contains("api key not valid")
+            || errorLower.contains("invalid api key") || errorLower.contains("invalid_key")) {
+            log.error("API Key validation failed - check application.yml configuration");
+        } else if (errorLower.contains("invalid") || errorLower.contains("bad request")) {
+            log.error("Invalid request format - check request JSON structure");
+        } else if (errorLower.contains("permission_denied")) {
+            log.error("Gemini permission denied - ensure model access is enabled");
+        } else if (errorLower.contains("quota") || errorLower.contains("exceeded")) {
+            log.error("Gemini quota exceeded - please review usage limits");
+        }
+    }
+
+    private String extractLastUserMessage(List<GeminiRequest.Content> contents) {
         String userMessage = "";
         try {
             if (contents != null && !contents.isEmpty()) {
-                // Get the last user message
                 for (int i = contents.size() - 1; i >= 0; i--) {
                     GeminiRequest.Content content = contents.get(i);
-                    if (content != null && "user".equals(content.getRole()) && 
+                    if (content != null && "user".equals(content.getRole()) &&
                         content.getParts() != null && !content.getParts().isEmpty()) {
                         GeminiRequest.Part part = content.getParts().get(0);
                         if (part != null && part.getText() != null) {
@@ -181,175 +328,37 @@ public class GeminiService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to extract user message from contents: {}", e.getMessage());
+            log.warn("Failed to extract user message from conversation history: {}", e.getMessage());
         }
-        
-        if (apiKey == null || apiKey.isEmpty()) {
-            log.error("Gemini API key is not configured");
-            throw new IllegalStateException("Gemini API key is not configured. Please set GEMINI_API_KEY in application.yml");
-        }
-        
-        try {
-            // Build the request with conversation history
-            GeminiRequest request = GeminiRequest.builder()
-                .contents(contents)
-                .generationConfig(GeminiRequest.GenerationConfig.builder()
-                    .temperature(DEFAULT_TEMPERATURE)
-                    .maxOutputTokens(DEFAULT_MAX_TOKENS)
-                    .build())
-                .build();
-            
-            // Log request for debugging
-            try {
-                String requestJson = objectMapper.writeValueAsString(request);
-                log.info("=== Gemini API Request (with history) ===");
-                log.info("Request JSON: {}", requestJson);
-            } catch (Exception e) {
-                log.warn("Failed to serialize request for logging: {}", e.getMessage());
-            }
-            
-            // Build URL with API key
-            String url = String.format("%s/%s:generateContent?key=%s", apiUrl, model, apiKey);
-            log.info("Gemini API URL: {}", url.replace(apiKey, "***"));
-            log.info("Model: {}", model);
-            
-            // Set headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            // Create HTTP entity
-            HttpEntity<GeminiRequest> entity = new HttpEntity<>(request, headers);
-            
-            // Make API call
-            ResponseEntity<GeminiRequest.GeminiResponse> response = restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                entity,
-                GeminiRequest.GeminiResponse.class
-            );
-            
-            // Extract and return the response
-            GeminiRequest.GeminiResponse responseBody = response.getBody();
-            if (responseBody != null && 
-                responseBody.getCandidates() != null && 
-                !responseBody.getCandidates().isEmpty()) {
-                
-                GeminiRequest.GeminiResponse.Candidate candidate = responseBody.getCandidates().get(0);
-                if (candidate.getContent() != null && 
-                    candidate.getContent().getParts() != null && 
-                    !candidate.getContent().getParts().isEmpty()) {
-                    
-                    String aiResponse = candidate.getContent().getParts().get(0).getText();
-                    log.info("Received response from Gemini");
-                    return aiResponse;
-                }
-            }
-            
-            log.warn("Empty response from Gemini API");
-            return generateFallbackResponse(userMessage);
-            
-        } catch (HttpClientErrorException e) {
-            String errorBody = e.getResponseBodyAsString();
-            System.err.println("=== GEMINI API CLIENT ERROR ===");
-            System.err.println("Status Code: " + e.getStatusCode());
-            System.err.println("Error Body: " + errorBody);
-            System.err.println("Headers: " + e.getResponseHeaders());
-            log.error("HTTP Client Error calling Gemini API ({}): {}", e.getStatusCode(), errorBody);
-            log.error("Error details - Status: {}, Body: {}, Headers: {}", 
-                e.getStatusCode(), errorBody, e.getResponseHeaders());
-            
-            // Check for specific error messages
-            if (errorBody != null) {
-                String errorLower = errorBody.toLowerCase();
-                if (errorLower.contains("api_key_invalid") || errorLower.contains("api key not valid") 
-                    || errorLower.contains("invalid api key") || errorLower.contains("invalid_key")) {
-                    log.error("API Key validation failed - check application.yml configuration");
-                    return generateFallbackResponse(userMessage);
-                } else if (errorLower.contains("permission_denied") || errorLower.contains("permission denied")) {
-                    return generateFallbackResponse(userMessage);
-                } else if (errorLower.contains("quota_exceeded") || errorLower.contains("quota exceeded")) {
-                    return generateFallbackResponse(userMessage);
-                } else if (errorLower.contains("invalid") || errorLower.contains("bad request")) {
-                    log.error("Invalid request format - check request JSON structure");
-                    return generateFallbackResponse(userMessage);
-                }
-            }
-            return generateFallbackResponse(userMessage);
-        } catch (HttpServerErrorException e) {
-            log.error("HTTP Server Error calling Gemini API ({}): {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
-            return generateFallbackResponse(userMessage);
-        } catch (RestClientException e) {
-            log.error("Network error calling Gemini API: {}", e.getMessage(), e);
-            return generateFallbackResponse(userMessage);
-        } catch (Exception e) {
-            log.error("Unexpected error calling Gemini API: {}", e.getMessage(), e);
-            return generateFallbackResponse(userMessage);
-        }
+        return userMessage;
     }
-    
-    /**
-     * Build a Gemini request with clinic booking system context
-     */
-    private GeminiRequest buildRequest(String userMessage) {
-        List<GeminiRequest.Content> contents = new ArrayList<>();
-        
-        // Get list of departments from database with error handling
-        String departmentsInfo = "";
-        try {
-            List<Department> departments = departmentRepository.findAll();
-            departmentsInfo = buildDepartmentsInfo(departments);
-        } catch (Exception e) {
-            log.warn("Failed to load departments from database: {}", e.getMessage());
-            departmentsInfo = "Unable to load department information at this time.";
-        }
-        
-        // System prompt embedded in the first user message with full functionality
-        String contextualMessage = buildSystemPrompt(departmentsInfo);
-        
-        contextualMessage += "\nUser question: " + userMessage;
-        
-        // Create user content with system context
-        GeminiRequest.Content userContent = GeminiRequest.Content.builder()
-            .role("user")
-            .parts(List.of(GeminiRequest.Part.builder()
-                .text(contextualMessage)
-                .build()))
-            .build();
-        
-        contents.add(userContent);
-        
-        return GeminiRequest.builder()
-            .contents(contents)
-            .generationConfig(GeminiRequest.GenerationConfig.builder()
-                .temperature(DEFAULT_TEMPERATURE)
-                .maxOutputTokens(1000) // Increased to handle doctor lists
-                .build())
-            .build();
-    }
-    
+
     /**
      * Build department information string for the AI prompt
      */
     private String buildDepartmentsInfo(List<Department> departments) {
         StringBuilder info = new StringBuilder();
-        info.append("Các khoa khám bệnh:\n");
-        
+        info.append("Danh sach khoa dang hoat dong, luu y su dung dung ten tu danh sach nay:\n");
+
+        if (departments == null || departments.isEmpty()) {
+            info.append("- Thong tin khoa tam thoi khong kha dung.\n");
+            return info.toString();
+        }
+
         for (Department dept : departments) {
-            if (dept.getStatus() == Department.DepartmentStatus.ACTIVE) {
-                info.append("- ").append(dept.getDepartmentName());
-                // Only include description if it exists and is not too long
+            if (dept != null && dept.getStatus() == Department.DepartmentStatus.ACTIVE) {
+                info.append("- [ID: ").append(dept.getId()).append("] ").append(dept.getDepartmentName());
                 if (dept.getDescription() != null && !dept.getDescription().isEmpty()) {
                     String desc = dept.getDescription();
-                    // Limit description to first 50 characters
-                    if (desc.length() > 50) {
-                        desc = desc.substring(0, 47) + "...";
+                    if (desc.length() > 60) {
+                        desc = desc.substring(0, 57) + "...";
                     }
                     info.append(": ").append(desc);
                 }
                 info.append("\n");
             }
         }
-        
+
         return info.toString();
     }
     
@@ -358,55 +367,264 @@ public class GeminiService {
      */
     private String buildSystemPrompt(String departmentsInfo) {
         StringBuilder prompt = new StringBuilder();
-        
-        prompt.append("You are a helpful AI assistant for a Clinic Booking web application. ");
-        prompt.append("Your role is to assist users with clinic information, appointments, and guidance.\n\n");
-        
-        prompt.append("=== YOUR CAPABILITIES ===\n\n");
-        
-        prompt.append("A. BOOKING GUIDANCE & SUPPORT\n");
-        prompt.append("When users ask about booking appointments:\n");
-        prompt.append("- Guide them through the booking process step by step\n");
-        prompt.append("- Explain how to select a doctor and time slot\n");
-        prompt.append("- Clarify if they can book for family members\n");
-        prompt.append("- Mention that they need to login first\n");
-        prompt.append("- Suggest checking available slots through the booking system\n\n");
-        
-        prompt.append("B. BASIC CLINIC INFORMATION\n");
-        prompt.append("Provide information about:\n");
-        prompt.append("- Operating hours: Monday-Saturday 7:00 AM - 8:00 PM, Sunday 8:00 AM - 5:00 PM\n");
-        prompt.append("- Health insurance: We accept health insurance cards\n");
-        prompt.append("- Location: Check our website for clinic address\n");
-        prompt.append("- Services: All medical specialties are available\n");
-        prompt.append("- For specific doctor information: Check doctor profiles on our website\n\n");
-        
-        prompt.append("C. MEDICAL DEPARTMENT RECOMMENDATIONS\n");
-        prompt.append("When users describe symptoms or ask which department to visit:\n");
-        prompt.append("Analyze their symptoms and recommend the appropriate department(s) from this list:\n\n");
-        prompt.append(departmentsInfo);
-        prompt.append("\n⚠️ IMPORTANT: Always include this disclaimer:\n");
-        prompt.append("\"Thông tin chỉ mang tính tham khảo, anh/chị nên gặp bác sĩ để được chẩn đoán chính xác.\"\n\n");
-        
-        prompt.append("D. APPOINTMENT MANAGEMENT\n");
-        prompt.append("When users ask to check, cancel, or reschedule appointments:\n");
-        prompt.append("- Guide them to login to their account\n");
-        prompt.append("- Explain how to view appointments in their profile\n");
-        prompt.append("- For canceling: Mention they can do it from their appointment list\n");
-        prompt.append("- For rescheduling: Suggest canceling current appointment and booking a new one\n");
-        prompt.append("- Remind them to check appointment details carefully\n\n");
-        
-        prompt.append("=== RESPONSE GUIDELINES ===\n");
-        prompt.append("- Be friendly, professional, and helpful\n");
-        prompt.append("- Respond in Vietnamese\n");
-        prompt.append("- Keep responses concise but informative\n");
-        prompt.append("- Use **bold** for important information like department names\n");
-        prompt.append("- If you don't know specific information, politely direct them to contact the clinic\n");
-        prompt.append("- Never provide medical diagnoses - only guidance on which department to visit\n");
-        prompt.append("- Always prioritize patient safety and professional medical consultation\n\n");
-        
+
+        prompt.append("You are a Vietnamese medical triage assistant for the Clinic Booking application. ");
+        prompt.append("Always be empathetic, concise, and safety-focused. ");
+        prompt.append("Use the provided department list to guide patients to the most relevant department.\n\n");
+
+        prompt.append("=== TRIAGE RULES ===\n");
+        prompt.append("1. When symptoms are clear, suggest the most likely condition (informal, not a diagnosis) and the department that should examine it.\n");
+        prompt.append("2. If the information is insufficient, ask ONE targeted follow-up question and set status to NEED_MORE_INFO. Once you have enough data, set status to COMPLETE.\n");
+        prompt.append("3. Always include the safety disclaimer: \"Thông tin chỉ mang tính tham khảo, anh/chị nên gặp bác sĩ để được chẩn đoán chính xác.\"\n");
+        prompt.append("4. Never invent department names. Pick EXACTLY from this directory:\n\n");
+        prompt.append(departmentsInfo).append("\n");
+
+        prompt.append("=== BOOKING & GENERAL SUPPORT ===\n");
+        prompt.append("- Hướng dẫn người dùng đăng nhập, chọn bác sĩ/khoa, chọn giờ khám và xác nhận lịch.\n");
+        prompt.append("- Giải thích cách xem, hủy hoặc đặt lại lịch khám trong hồ sơ cá nhân.\n");
+        prompt.append("- Cung cấp thông tin hoạt động: Thứ 2-7 (7:00-20:00), Chủ nhật (8:00-17:00), nhận thẻ BHYT.\n\n");
+
+        prompt.append("=== RESPONSE FORMAT (STRICT JSON) ===\n");
+        prompt.append("Always answer ONLY in compact JSON (no Markdown, no prose outside JSON). Keys:\n");
+        prompt.append("{\n");
+        prompt.append("  \"response\": \"Giải thích bằng tiếng Việt, nêu triệu chứng, tình trạng nghi ngờ, hướng dẫn và nhắc lịch\",\n");
+        prompt.append("  \"status\": \"COMPLETE\" or \"NEED_MORE_INFO\",\n");
+        prompt.append("  \"department\": {\n");
+        prompt.append("      \"name\": \"Tên khoa chính xác\",\n");
+        prompt.append("      \"reason\": \"Vì sao nên đến khoa này\",\n");
+        prompt.append("      \"suspectedCondition\": \"Bệnh/triệu chứng nghi ngờ\"\n");
+        prompt.append("  },\n");
+        prompt.append("  \"followUpQuestion\": \"Câu hỏi thêm nếu cần\"\n");
+        prompt.append("}\n");
+        prompt.append("- When status is NEED_MORE_INFO, department can be null if you truly cannot decide yet.\n");
+        prompt.append("- When status is COMPLETE, department.name must match exactly one entry from the directory above.\n");
+
         return prompt.toString();
     }
     
+    private ChatbotResponseDto buildStructuredResponse(String rawResponse, String userMessage, List<Department> departments) {
+        if (rawResponse == null || rawResponse.isBlank()) {
+            return buildFallbackDto(userMessage);
+        }
+
+        String cleanedPayload = cleanJsonPayload(rawResponse);
+        if (cleanedPayload.isBlank()) {
+            return ChatbotResponseDto.builder()
+                .response(rawResponse)
+                .needsMoreInfo(false)
+                .doctors(Collections.emptyList())
+                .build();
+        }
+
+        if (!looksLikeJson(cleanedPayload)) {
+            return ChatbotResponseDto.builder()
+                .response(cleanedPayload)
+                .needsMoreInfo(false)
+                .doctors(Collections.emptyList())
+                .build();
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(cleanedPayload);
+
+            String responseText = root.path("response").asText(null);
+            String status = root.path("status").asText("");
+            boolean needsMoreInfo = root.path("needsMoreInfo").asBoolean(false)
+                || "NEED_MORE_INFO".equalsIgnoreCase(status)
+                || "FOLLOW_UP".equalsIgnoreCase(status);
+
+            String followUp = root.path("followUpQuestion").asText(null);
+            if ((followUp == null || followUp.isBlank()) && needsMoreInfo) {
+                followUp = root.path("nextQuestion").asText(null);
+            }
+
+            JsonNode departmentNode = root.path("department");
+            String aiDeptName = null;
+            String reason = null;
+            String suspectedCondition = null;
+            if (departmentNode != null && !departmentNode.isMissingNode() && !departmentNode.isNull()) {
+                if (departmentNode.isTextual()) {
+                    aiDeptName = departmentNode.asText();
+                } else if (departmentNode.isObject()) {
+                    aiDeptName = departmentNode.path("name").asText(null);
+                    if (aiDeptName == null || aiDeptName.isBlank()) {
+                        aiDeptName = departmentNode.path("department").asText(null);
+                    }
+                    reason = departmentNode.path("reason").asText(null);
+                    if (reason == null || reason.isBlank()) {
+                        reason = departmentNode.path("explanation").asText(null);
+                    }
+                    suspectedCondition = departmentNode.path("suspectedCondition").asText(null);
+                    if (suspectedCondition == null || suspectedCondition.isBlank()) {
+                        suspectedCondition = departmentNode.path("condition").asText(null);
+                    }
+                }
+            }
+
+            ChatbotResponseDto.DepartmentInfo departmentInfo = resolveDepartmentInfo(
+                aiDeptName,
+                reason,
+                suspectedCondition,
+                departments
+            );
+
+            List<ChatbotResponseDto.DoctorInfo> doctorInfos = Collections.emptyList();
+            if (!needsMoreInfo && departmentInfo != null && departmentInfo.getId() != null) {
+                doctorInfos = fetchDoctorsForDepartment(departmentInfo.getId(), departmentInfo.getName());
+            }
+
+            return ChatbotResponseDto.builder()
+                .response(responseText != null && !responseText.isBlank() ? responseText.trim() : rawResponse)
+                .needsMoreInfo(needsMoreInfo)
+                .followUpQuestion(followUp)
+                .department(departmentInfo)
+                .doctors(doctorInfos)
+                .build();
+
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to parse structured Gemini response, falling back to plain text. Error: {}", e.getMessage());
+            return ChatbotResponseDto.builder()
+                .response(rawResponse.trim())
+                .needsMoreInfo(false)
+                .doctors(Collections.emptyList())
+                .build();
+        }
+    }
+
+    private boolean looksLikeJson(String payload) {
+        String trimmed = payload.trim();
+        return trimmed.startsWith("{") || trimmed.startsWith("[");
+    }
+
+    private String cleanJsonPayload(String aiResponse) {
+        if (aiResponse == null) {
+            return "";
+        }
+        String cleaned = aiResponse.trim();
+        if (cleaned.startsWith("```")) {
+            cleaned = cleaned.replace("```json", "")
+                .replace("```JSON", "")
+                .replace("```", "")
+                .trim();
+        }
+        return cleaned;
+    }
+
+    private ChatbotResponseDto.DepartmentInfo resolveDepartmentInfo(
+        String aiDeptName,
+        String reason,
+        String suspectedCondition,
+        List<Department> departments
+    ) {
+        if (aiDeptName == null || aiDeptName.isBlank()) {
+            return null;
+        }
+
+        Department matched = matchDepartmentByName(aiDeptName, departments);
+        if (matched == null) {
+            return ChatbotResponseDto.DepartmentInfo.builder()
+                .name(aiDeptName.trim())
+                .aiProvidedName(aiDeptName.trim())
+                .reason(reason)
+                .suspectedCondition(suspectedCondition)
+                .build();
+        }
+
+        return ChatbotResponseDto.DepartmentInfo.builder()
+            .id(matched.getId())
+            .name(matched.getDepartmentName())
+            .description(matched.getDescription())
+            .reason(reason)
+            .suspectedCondition(suspectedCondition)
+            .aiProvidedName(aiDeptName.trim())
+            .build();
+    }
+
+    private Department matchDepartmentByName(String aiDeptName, List<Department> departments) {
+        if (aiDeptName == null || departments == null) {
+            return null;
+        }
+
+        String normalizedTarget = normalizeText(aiDeptName);
+        if (normalizedTarget.isBlank()) {
+            return null;
+        }
+
+        for (Department dept : departments) {
+            if (dept != null && dept.getDepartmentName() != null) {
+                if (normalizeText(dept.getDepartmentName()).equals(normalizedTarget)) {
+                    return dept;
+                }
+            }
+        }
+
+        for (Department dept : departments) {
+            if (dept != null && dept.getDepartmentName() != null) {
+                String normalizedDept = normalizeText(dept.getDepartmentName());
+                if (!normalizedDept.isBlank() &&
+                    (normalizedTarget.contains(normalizedDept) || normalizedDept.contains(normalizedTarget))) {
+                    return dept;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return normalized.replaceAll("[^a-zA-Z0-9 ]", "").toLowerCase().trim();
+    }
+
+    private List<ChatbotResponseDto.DoctorInfo> fetchDoctorsForDepartment(Long departmentId, String departmentName) {
+        if (departmentId == null) {
+            return Collections.emptyList();
+        }
+
+        try {
+            List<Doctor> doctors = doctorRepository.findByDepartmentWithUserAndRole(departmentId);
+            if (doctors == null || doctors.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            return doctors.stream()
+                .map(doctor -> ChatbotResponseDto.DoctorInfo.builder()
+                    .id(doctor.getDoctorId())
+                    .fullName(buildDoctorFullName(doctor))
+                    .specialty(doctor.getSpecialty())
+                    .avatarUrl(doctor.getUser() != null ? doctor.getUser().getAvatarUrl() : null)
+                    .departmentId(departmentId)
+                    .departmentName(departmentName)
+                    .build())
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("Failed to load doctors for department {}: {}", departmentId, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private String buildDoctorFullName(Doctor doctor) {
+        if (doctor == null || doctor.getUser() == null) {
+            return "Bác sĩ";
+        }
+        String first = doctor.getUser().getFirstName() != null ? doctor.getUser().getFirstName() : "";
+        String last = doctor.getUser().getLastName() != null ? doctor.getUser().getLastName() : "";
+        String fullName = (first + " " + last).trim();
+        return fullName.isEmpty() ? "Bác sĩ" : fullName;
+    }
+
+    private ChatbotResponseDto buildFallbackDto(String userMessage) {
+        return ChatbotResponseDto.builder()
+            .response(generateFallbackResponse(userMessage))
+            .needsMoreInfo(false)
+            .doctors(Collections.emptyList())
+            .build();
+    }
+
     /**
      * Generate a fallback response when AI service is unavailable
      * Provides basic department recommendations based on common symptoms
@@ -536,4 +754,10 @@ public class GeminiService {
         return "Cảm ơn bạn đã liên hệ. Hiện tại dịch vụ chatbot AI đang gặp sự cố. " +
                "Vui lòng liên hệ trực tiếp với phòng khám qua hotline hoặc website để được tư vấn về các khoa khám bệnh phù hợp.";
     }
+    
+    public String getModelName() {
+        return model;
+    }
 }
+
+
