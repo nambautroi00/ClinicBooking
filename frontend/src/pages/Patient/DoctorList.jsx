@@ -3,6 +3,7 @@ import { Search, MapPin, Filter, Star, Calendar, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getDoctors as apiGetDoctors } from "../../api/doctorApi";
 import reviewApi from "../../api/reviewApi";
+import { normalizeAvatar } from "../../utils/avatarUtils";
 
 export default function DoctorList() {
   const [doctors, setDoctors] = useState([]);
@@ -77,19 +78,21 @@ export default function DoctorList() {
           "";
         const specialty = doctor.specialty ?? depName ?? "";
 
+        const rawAvatar = user.avatarUrl || doctor.avatarUrl;
+        const avatar = normalizeAvatar(rawAvatar);
+
         return {
           id,
           name: fullName,
           specialty,
           rating: Number(doctor.avgRating ?? doctor.averageRating ?? 0),
-          reviewCount: Number(doctor.reviewCount ?? 0),
-          avatar: user.avatarUrl || doctor.avatarUrl || "/images/default-doctor.png",
+            reviewCount: Number(doctor.reviewCount ?? 0),
+          avatar,
           experience: Number(doctor.experience ?? doctor.yearsOfExperience ?? 0),
           degree: doctor.degree ?? doctor.title ?? "",
           address: user.address ?? doctor.address ?? "",
           availableSlots: Number(doctor.availableSlots ?? 0),
           nextAvailable: doctor.nextAvailable ?? doctor.nextAvailableDate ?? "",
-          // Working hours từ các field có thể có của backend
           workingHours:
             doctor.workingHours ??
             doctor.workingHour ??
@@ -316,12 +319,8 @@ export default function DoctorList() {
                         src={doctor.avatar}
                         alt={doctor.name}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.nextElementSibling.style.display = "flex";
-                        }}
+                        onError={(e) => { e.currentTarget.src = "/images/default-doctor.png"; }}
                       />
-                      <div className="text-3xl" style={{ display: "none" }}>👨‍⚕️</div>
                     </div>
                   </div>
 

@@ -3,6 +3,8 @@
  */
 import config from '../config/config';
 
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+
 /**
  * Convert relative avatar URL to full URL
  * @param {string} avatarUrl - The avatar URL (can be relative or absolute)
@@ -44,4 +46,20 @@ export const getAvatarPlaceholder = (name) => {
   }
   
   return words[0][0].toUpperCase();
-};
+}
+
+/**
+ * Normalize avatar URL to a standard format
+ * @param {string} raw - The raw avatar URL
+ * @returns {string} - Normalized avatar URL
+ */
+export function normalizeAvatar(raw) {
+  if (!raw || typeof raw !== "string" || !raw.trim())
+    return "/images/default-doctor.png";
+  const v = raw.trim();
+  if (/^https?:\/\//i.test(v)) return v;
+  if (v.startsWith("/images/") || v.startsWith("/assets/")) return v;
+  if (v.startsWith("/uploads") || v.startsWith("/avatars") || v.startsWith("/files"))
+    return `${API_BASE_URL}${v}`;
+  return v.startsWith("/") ? v : `/${v}`;
+}
