@@ -27,47 +27,51 @@ const DoctorScheduleManagement = () => {
     });
   const getStatusBadge = (status) => {
     const statusConfig = {
-      Available: { 
-        class: "badge bg-success text-white rounded-pill px-3 py-2", 
-        text: "Có sẵn", 
-        icon: "bi bi-check-circle-fill" 
+      Available: {
+        class: "badge bg-success text-white rounded-pill px-3 py-2",
+        text: "Có sẵn",
+        icon: "bi bi-check-circle-fill",
       },
-      Completed: { 
-        class: "badge bg-primary text-white rounded-pill px-3 py-2", 
-        text: "Hoàn thành", 
-        icon: "bi bi-check2-all" 
-      }
+      Completed: {
+        class: "badge bg-primary text-white rounded-pill px-3 py-2",
+        text: "Hoàn thành",
+        icon: "bi bi-check2-all",
+      },
     };
-    
-    const config = statusConfig[status] || { 
-      class: "badge bg-secondary text-white rounded-pill px-3 py-2", 
-      text: status || "Không xác định", 
-      icon: "bi bi-question-circle-fill" 
+
+    const config = statusConfig[status] || {
+      class: "badge bg-secondary text-white rounded-pill px-3 py-2",
+      text: status || "Không xác định",
+      icon: "bi bi-question-circle-fill",
     };
-    
+
     return config;
   };
 
   // CRUD schedule
   const handleDeleteSchedule = async (scheduleId) => {
     // Tìm schedule để kiểm tra có appointments không
-    const schedule = schedules.find(s => s.scheduleId === scheduleId);
-    const hasAppointments = schedule?.status === "Available" && (schedule?.appointmentCount > 0);
-    
-    const confirmMessage = hasAppointments 
+    const schedule = schedules.find((s) => s.scheduleId === scheduleId);
+    const hasAppointments =
+      schedule?.status === "Available" && schedule?.appointmentCount > 0;
+
+    const confirmMessage = hasAppointments
       ? "Bạn có chắc chắn muốn xóa lịch trình này?\n\n⚠️ CẢNH BÁO: Tất cả appointments liên quan sẽ bị hủy!"
       : "Bạn có chắc chắn muốn xóa lịch trình này?";
-    
+
     if (window.confirm(confirmMessage)) {
       try {
         await doctorScheduleApi.deleteSchedule(scheduleId);
-        
+
         if (hasAppointments) {
-          window.toast && window.toast.warning("Đã xóa lịch trình và hủy tất cả appointments liên quan");
+          window.toast &&
+            window.toast.warning(
+              "Đã xóa lịch trình và hủy tất cả appointments liên quan"
+            );
         } else {
           window.toast && window.toast.success("Đã xóa lịch trình thành công");
         }
-        
+
         loadSchedules();
       } catch (err) {
         setError(
@@ -93,31 +97,35 @@ const DoctorScheduleManagement = () => {
     try {
       const year = date.getFullYear();
       const month = date.getMonth();
-      
+
       // Validate date
       if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
-        console.error('Invalid date for getDaysInMonth:', date);
+        console.error("Invalid date for getDaysInMonth:", date);
         return [];
       }
-      
+
       // Get first day of the month
       const firstDayOfMonth = new Date(year, month, 1);
-      
+
       // Calculate the starting date (Sunday of the week containing the first day)
       const dayOfWeek = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
       const startDate = new Date(year, month, 1 - dayOfWeek);
-      
+
       const days = [];
-      
+
       // Generate 42 days (6 weeks × 7 days) - Create new Date objects each time
       for (let i = 0; i < 42; i++) {
-        const dayDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+        const dayDate = new Date(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate() + i
+        );
         days.push(dayDate);
       }
-      
+
       return days;
     } catch (error) {
-      console.error('Error in getDaysInMonth:', error);
+      console.error("Error in getDaysInMonth:", error);
       return [];
     }
   };
@@ -125,8 +133,8 @@ const DoctorScheduleManagement = () => {
   const getSchedulesForDate = (date) => {
     // Use local timezone to avoid UTC day-shift issues (which hid Mondays)
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     const dateStr = `${year}-${month}-${day}`;
     return schedules.filter((schedule) => schedule.workDate === dateStr);
   };
@@ -141,24 +149,27 @@ const DoctorScheduleManagement = () => {
   };
 
   const navigateMonth = (direction) => {
-    setCurrentDate(prev => {
+    setCurrentDate((prev) => {
       try {
         // Navigate to the first day of the target month
         const targetMonth = prev.getMonth() + direction;
         const targetYear = prev.getFullYear();
-        
+
         // Create new date for the target month
         const newMonthDate = new Date(targetYear, targetMonth, 1);
-        
+
         // Validate the new date
         if (isNaN(newMonthDate.getTime())) {
-          console.error('Invalid date created during navigation:', { targetYear, targetMonth });
+          console.error("Invalid date created during navigation:", {
+            targetYear,
+            targetMonth,
+          });
           return prev; // Return previous date if invalid
         }
-        
+
         return newMonthDate;
       } catch (error) {
-        console.error('Error in navigateMonth:', error);
+        console.error("Error in navigateMonth:", error);
         return prev; // Return previous date if error
       }
     });
@@ -167,108 +178,133 @@ const DoctorScheduleManagement = () => {
   // Bulk create schedules for a week
   const handleBulkCreateSchedules = async (bulkData) => {
     if (!doctorId) return;
-    
-    try {
-      const { startDate, endDate, startTime, endTime, notes, daysOfWeek, shifts } = bulkData;
-      const schedules = [];
-      
-      // Generate schedules for each selected day of the week (use local time parsing)
-      const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
-      const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
-      const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
-      const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
-      
-      // Normalize selected days to numbers (defensive against string values)
-      const selectedDays = (daysOfWeek || []).map(Number);
 
-      // Create a new date object for each iteration to avoid mutation
-      let currentDate = new Date(start);
-      
-      while (currentDate <= end) {
-        const dayOfWeek = currentDate.getDay();
-        // Use local timezone to avoid UTC shifting a day backward
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const day = String(currentDate.getDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
-        
-        // Check if this day is selected
-        if (selectedDays.includes(dayOfWeek)) {
-          // If shifts are selected, create schedule for each shift
-          if (shifts && shifts.length > 0) {
-            shifts.forEach(shiftValue => {
-              const shift = shiftOptions.find(s => s.value === shiftValue);
-              if (shift) {
-                // Use custom time if available, otherwise use default
-                const customStartTime = bulkData[`${shiftValue}StartTime`] || shift.startTime;
-                const customEndTime = bulkData[`${shiftValue}EndTime`] || shift.endTime;
-                
-                const scheduleData = {
-                  doctorId,
-                  workDate: dateStr,
-                  startTime: customStartTime,
-                  endTime: customEndTime,
-                  notes: `${notes} (${shift.label})`,
-                  status: 'Available'
-                };
-                
-                schedules.push(scheduleData);
-              }
-            });
-          } else {
-            // Fallback to original time if no shifts selected
-            const scheduleData = {
-              doctorId,
-              workDate: dateStr,
-              startTime,
-              endTime,
-              notes,
-              status: 'Available'
-            };
-            
-            schedules.push(scheduleData);
+    try {
+      let schedules = [];
+
+      // Check if data comes from new InteractiveCalendarScheduler (has schedules array)
+      if (bulkData.schedules && Array.isArray(bulkData.schedules)) {
+        // New format: array of schedules already prepared
+        schedules = bulkData.schedules.map((schedule) => ({
+          ...schedule,
+          doctorId,
+          status: "Available",
+        }));
+      } else {
+        // Old format: generate schedules from date range + daysOfWeek + shifts
+        const {
+          startDate,
+          endDate,
+          startTime,
+          endTime,
+          notes,
+          daysOfWeek,
+          shifts,
+        } = bulkData;
+
+        // Generate schedules for each selected day of the week (use local time parsing)
+        const [sYear, sMonth, sDay] = startDate.split("-").map(Number);
+        const [eYear, eMonth, eDay] = endDate.split("-").map(Number);
+        const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+        const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
+
+        // Normalize selected days to numbers (defensive against string values)
+        const selectedDays = (daysOfWeek || []).map(Number);
+
+        // Create a new date object for each iteration to avoid mutation
+        let currentDate = new Date(start);
+
+        while (currentDate <= end) {
+          const dayOfWeek = currentDate.getDay();
+          // Use local timezone to avoid UTC shifting a day backward
+          const year = currentDate.getFullYear();
+          const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+          const day = String(currentDate.getDate()).padStart(2, "0");
+          const dateStr = `${year}-${month}-${day}`;
+
+          // Check if this day is selected
+          if (selectedDays.includes(dayOfWeek)) {
+            // If shifts are selected, create schedule for each shift
+            if (shifts && shifts.length > 0) {
+              shifts.forEach((shiftValue) => {
+                const shift = shiftOptions.find((s) => s.value === shiftValue);
+                if (shift) {
+                  // Use custom time if available, otherwise use default
+                  const customStartTime =
+                    bulkData[`${shiftValue}StartTime`] || shift.startTime;
+                  const customEndTime =
+                    bulkData[`${shiftValue}EndTime`] || shift.endTime;
+
+                  const scheduleData = {
+                    doctorId,
+                    workDate: dateStr,
+                    startTime: customStartTime,
+                    endTime: customEndTime,
+                    notes: `${notes} (${shift.label})`,
+                    status: "Available",
+                  };
+
+                  schedules.push(scheduleData);
+                }
+              });
+            } else {
+              // Fallback to original time if no shifts selected
+              const scheduleData = {
+                doctorId,
+                workDate: dateStr,
+                startTime,
+                endTime,
+                notes,
+                status: "Available",
+              };
+
+              schedules.push(scheduleData);
+            }
           }
+
+          // Move to next day by creating a new Date object
+          currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
         }
-        
-        // Move to next day by creating a new Date object
-        currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
-    }
-      
+      }
+
       // Create all schedules using Promise.allSettled to handle partial failures
       const results = await Promise.allSettled(
-        schedules.map(schedule => doctorScheduleApi.createSchedule(schedule))
+        schedules.map((schedule) => doctorScheduleApi.createSchedule(schedule))
       );
-      
+
       // Count successes and failures
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      
+      const successful = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+
       // Close modal immediately
       setShowBulkForm(false);
-      
+
       // Use requestAnimationFrame to ensure modal is fully unmounted before reload
       requestAnimationFrame(() => {
         setTimeout(() => {
-      loadSchedules();
-          
+          loadSchedules();
+
           // Show appropriate message based on results
           if (window.toast) {
             if (failed === 0) {
               // All succeeded
-              window.toast.success(`Đã tạo ${successful} lịch trình thành công!`);
+              window.toast.success(
+                `Đã tạo ${successful} lịch trình thành công!`
+              );
             } else if (successful === 0) {
               // All failed
-              const firstError = results.find(r => r.status === 'rejected');
-              const errorMsg = firstError?.reason?.response?.data?.message || 
-                              firstError?.reason?.message || 
-                              'Validation failed';
+              const firstError = results.find((r) => r.status === "rejected");
+              const errorMsg =
+                firstError?.reason?.response?.data?.message ||
+                firstError?.reason?.message ||
+                "Validation failed";
               setError(`Không thể tạo lịch trình: ${errorMsg}`);
               window.toast.error(`Không thể tạo lịch trình: ${errorMsg}`);
             } else {
               // Partial success
               window.toast.warning(
                 `Đã tạo ${successful} lịch trình thành công, ${failed} lịch trình thất bại. ` +
-                `Một số lịch trình có thể không hợp lệ (ví dụ: ngày trong quá khứ).`
+                  `Một số lịch trình có thể không hợp lệ (ví dụ: ngày trong quá khứ).`
               );
               // Don't set error for partial success
               setError(null);
@@ -276,13 +312,18 @@ const DoctorScheduleManagement = () => {
           }
         }, 0);
       });
-      
     } catch (err) {
       // This catch block should rarely be hit now since we use allSettled
-      console.error('Unexpected error in bulk create:', err);
-      setError("Không thể tạo lịch trình hàng loạt: " + (err.response?.data?.message || err.message));
+      console.error("Unexpected error in bulk create:", err);
+      setError(
+        "Không thể tạo lịch trình hàng loạt: " +
+          (err.response?.data?.message || err.message)
+      );
       if (window.toast) {
-        window.toast.error("Không thể tạo lịch trình hàng loạt: " + (err.response?.data?.message || err.message));
+        window.toast.error(
+          "Không thể tạo lịch trình hàng loạt: " +
+            (err.response?.data?.message || err.message)
+        );
       }
     }
   };
@@ -297,10 +338,22 @@ const DoctorScheduleManagement = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
-  // Shift options for bulk creation
+  // Shift options for bulk creation (only morning and afternoon)
   const shiftOptions = [
-    { value: 'morning', label: 'Ca sáng', startTime: '08:00', endTime: '12:00', icon: 'bi bi-sunrise' },
-    { value: 'afternoon', label: 'Ca chiều', startTime: '13:00', endTime: '17:00', icon: 'bi bi-sunset' }
+    {
+      value: "morning",
+      label: "Ca sáng",
+      startTime: "08:00",
+      endTime: "12:00",
+      icon: "bi bi-sunrise",
+    },
+    {
+      value: "afternoon",
+      label: "Ca chiều",
+      startTime: "13:00",
+      endTime: "17:00",
+      icon: "bi bi-sunset",
+    },
   ];
 
   // Load schedules (appointment counts are now included from backend)
@@ -359,34 +412,40 @@ const DoctorScheduleManagement = () => {
     <div className="w-100" style={{ minHeight: "100vh" }}>
       <div className="row justify-content-center" style={{ margin: 0 }}>
         <div className="col-lg-12">
-          <div className="card shadow rounded-4 border w-100" style={{ marginBottom: "2rem" }}>
-            <div className="card-header bg-white rounded-top-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 py-4 px-4">
+          <div
+            className="card shadow rounded-4 border w-100"
+            style={{ marginBottom: "1rem" }}
+          >
+            <div className="card-header bg-white rounded-top-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 py-3 px-3">
               <div className="d-flex align-items-center gap-3">
                 <span
                   className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
-                  style={{ width: 48, height: 48 }}
+                  style={{ width: 44, height: 44 }}
                 >
                   <i
                     className="bi bi-calendar3"
-                    style={{ fontSize: "2rem" }}
+                    style={{ fontSize: "1.6rem" }}
                   ></i>
                 </span>
                 <div>
-                  <h3 className="mb-1 fw-bold">Lịch làm việc</h3>
-                  <p className="mb-0 text-muted" style={{ fontSize: "1rem" }}>
+                  <h2 className="mb-1 fw-bold" style={{ fontSize: "1.5rem" }}>
+                    Lịch làm việc
+                  </h2>
+                  <p className="mb-0 text-muted" style={{ fontSize: "0.9rem" }}>
                     Quản lý lịch trình cá nhân của bạn
                   </p>
                 </div>
               </div>
               <div className="d-flex gap-2 flex-wrap">
+                {/* Quick Create Button */}
                 <button
                   className="btn btn-success btn-sm"
                   onClick={() => setShowBulkForm(true)}
-                  title="Tạo lịch trình cho cả tuần"
                 >
-                  <i className="bi bi-calendar-week"></i> Tạo lịch làm việc
+                  <i className="bi bi-lightning-charge-fill me-1"></i>
+                  Tạo lịch làm việc
                 </button>
-                
+
                 <button
                   className="btn btn-outline-primary btn-sm"
                   onClick={() => {
@@ -399,17 +458,16 @@ const DoctorScheduleManagement = () => {
                 </button>
               </div>
             </div>
-            
-            
-            <div className="card-body px-4 py-4">
+
+            <div className="card-body px-2 py-2">
               {error && (
                 <div className="alert alert-danger" role="alert">
                   {error}
-              </div>
+                </div>
               )}
-              
+
               {/* Calendar View Only */}
-              <CalendarView 
+              <CalendarView
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
                 selectedDate={selectedDate}
@@ -433,9 +491,9 @@ const DoctorScheduleManagement = () => {
       </div>
       {/* Schedule Details Modal */}
       {showScheduleModal && selectedDate && (
-        <div 
-          className="modal fade show" 
-          style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+        <div
+          className="modal fade show"
+          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
         >
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
@@ -444,32 +502,37 @@ const DoctorScheduleManagement = () => {
                   <i className="bi bi-calendar3 me-2"></i>
                   {formatDate(selectedDate.toISOString())}
                 </h5>
-                        <button
-                          type="button"
+                <button
+                  type="button"
                   className="btn-close btn-close-white"
-                          onClick={() => {
+                  onClick={() => {
                     setShowScheduleModal(false);
                     setSelectedDate(null);
-                          }}
+                  }}
                 ></button>
               </div>
-              
+
               <div className="modal-body">
                 {getSchedulesForDate(selectedDate).length === 0 ? (
                   <div className="text-center py-4">
-                    <i className="bi bi-calendar-x text-muted" style={{ fontSize: "3rem" }}></i>
+                    <i
+                      className="bi bi-calendar-x text-muted"
+                      style={{ fontSize: "3rem" }}
+                    ></i>
                     <h5 className="mt-3 text-muted">Không có lịch trình nào</h5>
-                    <p className="text-muted">Ngày này chưa có lịch trình được đặt</p>
-                        <button
+                    <p className="text-muted">
+                      Ngày này chưa có lịch trình được đặt
+                    </p>
+                    {/* <button
                       className="btn btn-primary"
-                          onClick={() => {
+                      onClick={() => {
                         setShowScheduleModal(false);
                         setShowBulkForm(true);
-                          }}
-                        >
+                      }}
+                    >
                       <i className="bi bi-calendar-week me-1"></i>
                       Tạo cho cả tuần
-                        </button>
+                    </button> */}
                   </div>
                 ) : (
                   <div className="row g-3">
@@ -483,44 +546,54 @@ const DoctorScheduleManagement = () => {
                                 <div className="d-flex align-items-center gap-3">
                                   <i className="bi bi-clock text-primary"></i>
                                   <span className="fw-bold">
-                                    {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
+                                    {formatTime(schedule.startTime)} -{" "}
+                                    {formatTime(schedule.endTime)}
                                   </span>
                                 </div>
                                 <div className="d-flex align-items-center gap-2">
-                                  <span className={statusConfig.class} style={{ fontSize: "12px" }}>
-                                    <i className={`${statusConfig.icon} me-1`}></i>
+                                  <span
+                                    className={statusConfig.class}
+                                    style={{ fontSize: "12px" }}
+                                  >
+                                    <i
+                                      className={`${statusConfig.icon} me-1`}
+                                    ></i>
                                     {statusConfig.text}
                                   </span>
                                   <div className="btn-group btn-group-sm">
-                        <button
+                                    <button
                                       className="btn btn-outline-primary"
-                          onClick={() => {
+                                      onClick={() => {
                                         setShowScheduleModal(false);
                                         setEditingSchedule(schedule);
-                          }}
+                                      }}
                                       title="Chỉnh sửa"
-                        >
+                                    >
                                       <i className="bi bi-pencil"></i>
-                        </button>
-                        <button
+                                    </button>
+                                    <button
                                       className="btn btn-outline-danger"
-                          onClick={() => {
-                                        handleDeleteSchedule(schedule.scheduleId);
+                                      onClick={() => {
+                                        handleDeleteSchedule(
+                                          schedule.scheduleId
+                                        );
                                         setShowScheduleModal(false);
-                          }}
+                                      }}
                                       title="Xóa"
-                        >
+                                    >
                                       <i className="bi bi-trash"></i>
-                        </button>
-                </div>
-              </div>
-            </div>
-            
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
                               <div className="row g-3 text-sm">
                                 <div className="col-md-6">
                                   <div className="d-flex align-items-center gap-2">
                                     <i className="bi bi-calendar-check text-primary"></i>
-                                    <span className="text-muted">Appointments:</span>
+                                    <span className="text-muted">
+                                      Appointments:
+                                    </span>
                                     <span className="fw-bold text-primary">
                                       {schedule.appointmentCount || 0}
                                     </span>
@@ -531,12 +604,16 @@ const DoctorScheduleManagement = () => {
                                     <div className="d-flex align-items-start gap-2">
                                       <i className="bi bi-sticky text-muted"></i>
                                       <div>
-                                        <small className="text-muted">Ghi chú:</small>
-                                        <p className="mb-0 small">{schedule.notes}</p>
+                                        <small className="text-muted">
+                                          Ghi chú:
+                                        </small>
+                                        <p className="mb-0 small">
+                                          {schedule.notes}
+                                        </p>
                                       </div>
                                     </div>
-                </div>
-              )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -546,54 +623,56 @@ const DoctorScheduleManagement = () => {
                   </div>
                 )}
               </div>
-              
+
               <div className="modal-footer">
-                        <button
-                          type="button"
+                <button
+                  type="button"
                   className="btn btn-secondary"
-                          onClick={() => {
+                  onClick={() => {
                     setShowScheduleModal(false);
                     setSelectedDate(null);
-                          }}
-                        >
+                  }}
+                >
                   Đóng
-                        </button>
-                        <button
-                          type="button"
+                </button>
+                {/* <button
+                  type="button"
                   className="btn btn-primary"
-                          onClick={() => {
+                  onClick={() => {
                     setShowScheduleModal(false);
                     setShowBulkForm(true);
-                          }}
-                        >
+                  }}
+                >
                   <i className="bi bi-calendar-week me-1"></i>
                   Tạo cho cả tuần
-                        </button>
-                </div>
-                                </div>
-                              </div>
+                </button> */}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Bulk Create Modal */}
+      {/* Interactive Calendar Scheduler Modal */}
       {showBulkForm && (
-        <BulkScheduleForm
+        <InteractiveCalendarScheduler
           onSubmit={handleBulkCreateSchedules}
           onClose={() => setShowBulkForm(false)}
           shiftOptions={shiftOptions}
+          existingSchedules={schedules}
         />
       )}
-
 
       {/* Modal cho form sửa lịch trình */}
       {editingSchedule && (
         <DoctorScheduleForm
           schedule={editingSchedule}
-          onSubmit={(data) => handleUpdateSchedule(editingSchedule.scheduleId, data)}
+          onSubmit={(data) =>
+            handleUpdateSchedule(editingSchedule.scheduleId, data)
+          }
           onClose={() => setEditingSchedule(null)}
         />
       )}
-              </div>
+    </div>
   );
 };
 
@@ -614,58 +693,70 @@ const CalendarView = ({
   getStatusBadge,
   handleDeleteSchedule,
   setEditingSchedule,
-  setShowScheduleModal
+  setShowScheduleModal,
 }) => {
   // Add error handling for currentDate
   if (!currentDate || isNaN(currentDate.getTime())) {
-    console.error('Invalid currentDate in CalendarView:', currentDate);
-                                  return (
+    console.error("Invalid currentDate in CalendarView:", currentDate);
+    return (
       <div className="alert alert-danger">
         <i className="bi bi-exclamation-triangle me-2"></i>
         Lỗi hiển thị lịch. Vui lòng làm mới trang.
-            </div>
+      </div>
     );
   }
 
   const days = getDaysInMonth(currentDate);
-  const weekDays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-  
+  const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
   return (
     <div className="calendar-container">
       {/* Calendar Header */}
       <div className="calendar-header">
-              <div className="d-flex align-items-center justify-content-between mb-2">
+        <div className="d-flex align-items-center justify-content-between mb-2">
           <div className="d-flex align-items-center gap-2">
-                  <button
+            <button
               className="btn btn-outline-primary btn-sm rounded-circle"
               onClick={() => navigateMonth(-1)}
-              style={{ width: '32px', height: '32px', padding: 0 }}
-                  >
-              <i className="bi bi-chevron-left" style={{ fontSize: '0.8rem' }}></i>
-                  </button>
-            <h5 className="mb-0 fw-bold text-dark" style={{ fontSize: '1rem' }}>
-              {currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+              style={{ width: "30px", height: "30px", padding: 0 }}
+            >
+              <i
+                className="bi bi-chevron-left"
+                style={{ fontSize: "0.8rem" }}
+              ></i>
+            </button>
+            <h5
+              className="mb-0 fw-bold text-dark"
+              style={{ fontSize: "0.95rem" }}
+            >
+              {currentDate.toLocaleDateString("vi-VN", {
+                month: "long",
+                year: "numeric",
+              })}
             </h5>
-                    <button
+            <button
               className="btn btn-outline-primary btn-sm rounded-circle"
               onClick={() => navigateMonth(1)}
-              style={{ width: '32px', height: '32px', padding: 0 }}
-                    >
-              <i className="bi bi-chevron-right" style={{ fontSize: '0.8rem' }}></i>
-                    </button>
-                </div>
-                
-                  <button 
-            className="btn btn-primary btn-sm px-2"
+              style={{ width: "30px", height: "30px", padding: 0 }}
+            >
+              <i
+                className="bi bi-chevron-right"
+                style={{ fontSize: "0.8rem" }}
+              ></i>
+            </button>
+          </div>
+
+          <button
+            className="btn btn-primary btn-sm px-2 py-1"
             onClick={() => setCurrentDate(new Date())}
-            style={{ fontSize: '0.75rem' }}
-                  >
+            style={{ fontSize: "0.75rem" }}
+          >
             <i className="bi bi-calendar-day me-1"></i>
             Hôm nay
-                  </button>
-              </div>
-            </div>
-            
+          </button>
+        </div>
+      </div>
+
       {/* Calendar Grid */}
       <div className="calendar-grid">
         {/* Week day headers */}
@@ -673,102 +764,117 @@ const CalendarView = ({
           {weekDays.map((day) => (
             <div key={day} className="calendar-weekday">
               <span className="fw-semibold text-muted">{day}</span>
-                </div>
+            </div>
           ))}
-                  </div>
+        </div>
 
         {/* Calendar days */}
         <div className="calendar-days">
-          {days && days.length > 0 ? days.map((day, index) => {
-            if (!day || isNaN(day.getTime())) {
-              return <div key={`empty-${index}`} className="calendar-day-empty"></div>;
-            }
+          {days && days.length > 0 ? (
+            days.map((day, index) => {
+              if (!day || isNaN(day.getTime())) {
+                return (
+                  <div
+                    key={`empty-${index}`}
+                    className="calendar-day-empty"
+                  ></div>
+                );
+              }
 
-            const daySchedules = getSchedulesForDate(day);
-            const isCurrentDay = isToday(day);
-            const isSelectedDay = isSelected(day);
-            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                    
-                    return (
-              <div
-                key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}-${index}`}
-                className={`calendar-day ${
-                  isCurrentDay ? 'calendar-day-today' : ''
-                } ${isSelectedDay ? 'calendar-day-selected' : ''} ${
-                  !isCurrentMonth ? 'calendar-day-other-month' : ''
-                }`}
-                onClick={() => {
-                  setSelectedDate(day);
-                  setShowScheduleModal(true);
-                }}
-              >
-                <div className="calendar-day-content">
-                  {/* Day number */}
-                  <div className="calendar-day-header">
-                    <span className={`calendar-day-number ${
-                      isCurrentDay ? 'text-white' : 
-                      isSelectedDay ? 'text-primary' : 
-                      !isCurrentMonth ? 'text-muted' :
-                      'text-dark'
-                    }`}>
-                      {day.getDate()}
-                    </span>
-                    {daySchedules.length > 0 && (
-                      <span className="calendar-day-badge">
-                        {daySchedules.length}
+              const daySchedules = getSchedulesForDate(day);
+              const isCurrentDay = isToday(day);
+              const isSelectedDay = isSelected(day);
+              const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+
+              return (
+                <div
+                  key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}-${index}`}
+                  className={`calendar-day ${
+                    isCurrentDay ? "calendar-day-today" : ""
+                  } ${isSelectedDay ? "calendar-day-selected" : ""} ${
+                    !isCurrentMonth ? "calendar-day-other-month" : ""
+                  }`}
+                  onClick={() => {
+                    setSelectedDate(day);
+                    setShowScheduleModal(true);
+                  }}
+                >
+                  <div className="calendar-day-content">
+                    {/* Day number */}
+                    <div className="calendar-day-header">
+                      <span
+                        className={`calendar-day-number ${
+                          isCurrentDay
+                            ? "text-white"
+                            : isSelectedDay
+                            ? "text-primary"
+                            : !isCurrentMonth
+                            ? "text-muted"
+                            : "text-dark"
+                        }`}
+                      >
+                        {day.getDate()}
                       </span>
-                    )}
-                              </div>
-                              
-                  {/* Schedule indicators */}
-                  <div className="calendar-day-schedules">
-                    {daySchedules.slice(0, 2).map((schedule) => {
-                                  const statusConfig = getStatusBadge(schedule.status);
-                                  return (
-                        <div
-                          key={schedule.scheduleId}
-                          className={`calendar-schedule-item ${
-                            schedule.status === 'Available' 
-                              ? 'schedule-available' 
-                              : 'schedule-completed'
-                          }`}
-                          title={`${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`}
-                        >
-                                  {formatTime(schedule.startTime)}
-                                </div>
-                      );
-                    })}
-                    {daySchedules.length > 2 && (
-                      <div className="calendar-schedule-more">
-                        +{daySchedules.length - 2} khác
-                              </div>
-                    )}
-                                </div>
-                                </div>
-              </div>
-            );
-          }) : (
+                    </div>
+
+                    {/* Schedule indicators */}
+                    <div className="calendar-day-schedules">
+                      {daySchedules.slice(0, 2).map((schedule) => {
+                        // Determine if it's morning or afternoon shift based on start time
+                        const startHour = parseInt(
+                          schedule.startTime.split(":")[0]
+                        );
+                        const shiftLabel = startHour < 12 ? "Sáng" : "Chiều";
+
+                        return (
+                          <div
+                            key={schedule.scheduleId}
+                            className={`calendar-schedule-item ${
+                              schedule.status === "Available"
+                                ? "schedule-available"
+                                : "schedule-completed"
+                            }`}
+                            title={`${shiftLabel}: ${formatTime(
+                              schedule.startTime
+                            )} - ${formatTime(schedule.endTime)}`}
+                          >
+                            {shiftLabel}: {formatTime(schedule.startTime)} -{" "}
+                            {formatTime(schedule.endTime)}
+                          </div>
+                        );
+                      })}
+                      {daySchedules.length > 2 && (
+                        <div className="calendar-schedule-more">
+                          +{daySchedules.length - 2} khác
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
             <div className="alert alert-warning text-center py-4">
               <i className="bi bi-calendar-x me-2"></i>
               Không thể tải dữ liệu lịch. Vui lòng thử lại.
             </div>
           )}
-                              </div>
-                            </div>
+        </div>
+      </div>
 
       <style jsx>{`
         .calendar-container {
           background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+          border-radius: 8px;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
           overflow: hidden;
           border: 1px solid #e9ecef;
-          max-width: 95%;
+          max-width: 100%;
           margin: 0 auto;
         }
 
         .calendar-header {
-          padding: 12px 16px 0 16px;
+          padding: 10px 14px 0 14px;
           background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         }
 
@@ -800,7 +906,7 @@ const CalendarView = ({
           display: grid;
           grid-template-columns: repeat(7, 1fr);
           grid-template-rows: repeat(6, 1fr);
-          min-height: 180px;
+          min-height: 260px;
         }
 
         .calendar-day {
@@ -809,7 +915,7 @@ const CalendarView = ({
           cursor: pointer;
           transition: all 0.2s ease;
           position: relative;
-          min-height: 30px;
+          min-height: 43px;
         }
 
         .calendar-day:hover {
@@ -819,12 +925,12 @@ const CalendarView = ({
         }
 
         .calendar-day-today {
-          background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+          background: linear-gradient(135deg, #4d94ff 0%, #3d84f5 100%);
           color: white;
         }
 
         .calendar-day-today:hover {
-          background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
+          background: linear-gradient(135deg, #3d84f5 0%, #2d74e5 100%);
         }
 
         .calendar-day-selected {
@@ -844,7 +950,7 @@ const CalendarView = ({
         }
 
         .calendar-day-content {
-          padding: 1px;
+          padding: 2px;
           height: 100%;
           display: flex;
           flex-direction: column;
@@ -854,7 +960,7 @@ const CalendarView = ({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 1px;
+          margin-bottom: 2px;
         }
 
         .calendar-day-number {
@@ -882,18 +988,19 @@ const CalendarView = ({
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 0px;
+          gap: 3px;
         }
 
         .calendar-schedule-item {
-          padding: 0px 1px;
+          padding: 1px 2px;
           border-radius: 2px;
-          font-size: 0.6rem;
+          font-size: 0.7rem;
           font-weight: 500;
           text-align: center;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          line-height: 1.2;
         }
 
         .schedule-available {
@@ -935,356 +1042,612 @@ const CalendarView = ({
           .calendar-day {
             min-height: 25px;
           }
-          
+
           .calendar-day-content {
             padding: 1px 0px;
           }
-          
+
           .calendar-day-number {
             font-size: 0.65rem;
           }
-          
+
           .calendar-schedule-item {
             font-size: 0.55rem;
             padding: 0px 0px;
           }
         }
       `}</style>
-                            </div>
+    </div>
   );
 };
 
-// Bulk Schedule Form Component
-const BulkScheduleForm = ({ onSubmit, onClose, shiftOptions }) => {
-  const [formData, setFormData] = useState({
-    startDate: '',
-    endDate: '',
-    notes: '',
-    daysOfWeek: [],
-    shifts: [] // Thêm ca làm việc
-  });
-
+// Interactive Calendar Scheduler Component
+const InteractiveCalendarScheduler = ({
+  onSubmit,
+  onClose,
+  shiftOptions,
+  existingSchedules = [],
+}) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDays, setSelectedDays] = useState({}); // { '2025-11-15': { morning: true, afternoon: true } }
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const weekDays = [
-    { value: 0, label: 'Chủ nhật', short: 'CN' },
-    { value: 1, label: 'Thứ 2', short: 'T2' },
-    { value: 2, label: 'Thứ 3', short: 'T3' },
-    { value: 3, label: 'Thứ 4', short: 'T4' },
-    { value: 4, label: 'Thứ 5', short: 'T5' },
-    { value: 5, label: 'Thứ 6', short: 'T6' },
-    { value: 6, label: 'Thứ 7', short: 'T7' }
-  ];
+  // Custom time for shifts
+  const [morningStartTime, setMorningStartTime] = useState("08:00");
+  const [morningEndTime, setMorningEndTime] = useState("12:00");
+  const [afternoonStartTime, setAfternoonStartTime] = useState("13:00");
+  const [afternoonEndTime, setAfternoonEndTime] = useState("17:00");
 
+  // Get days in month
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
+
+    const days = [];
+
+    // Add empty cells for days before month starts
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+
+    // Add all days in month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+
+    return days;
+  };
+
+  // Navigation
+  const goToPreviousMonth = () => {
+    setCurrentDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+    );
+  };
+
+  const goToNextMonth = () => {
+    setCurrentDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+    );
+  };
+
+  // Toggle day selection
+  const toggleDay = (date) => {
+    if (!date) return;
+
+    // Use local timezone to avoid UTC day-shift issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
+
+    setSelectedDays((prev) => {
+      if (prev[dateStr]) {
+        // Already selected, remove it
+        const newSelected = { ...prev };
+        delete newSelected[dateStr];
+        return newSelected;
+      } else {
+        // Not selected, add with default morning & afternoon only
+        return {
+          ...prev,
+          [dateStr]: {
+            morning: true,
+            afternoon: true,
+          },
+        };
+      }
+    });
+  };
+
+  // Toggle shift for a specific day
+  const toggleShift = (dateStr, shiftType, e) => {
+    e.stopPropagation(); // Prevent day toggle
+
+    setSelectedDays((prev) => ({
+      ...prev,
+      [dateStr]: {
+        ...prev[dateStr],
+        [shiftType]: !prev[dateStr][shiftType],
+      },
+    }));
+  };
+
+  // Check if date is in the past
+  const isPastDate = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  // Check if date is today
+  const isToday = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  // Get existing schedules for a specific date
+  const getSchedulesForDate = (date) => {
+    if (!date) return [];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
+    return existingSchedules.filter(
+      (schedule) => schedule.workDate === dateStr
+    );
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (formData.daysOfWeek.length === 0) {
-      alert('Vui lòng chọn ít nhất một ngày trong tuần');
+
+    // Validate time inputs
+    if (
+      !morningStartTime ||
+      !morningEndTime ||
+      !afternoonStartTime ||
+      !afternoonEndTime
+    ) {
+      alert("Vui lòng nhập đầy đủ giờ làm việc cho các ca");
       return;
     }
 
-    if (formData.shifts.length === 0) {
-      alert('Vui lòng chọn ít nhất một ca làm việc');
+    // Validate time format (HH:MM)
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (
+      !timeRegex.test(morningStartTime) ||
+      !timeRegex.test(morningEndTime) ||
+      !timeRegex.test(afternoonStartTime) ||
+      !timeRegex.test(afternoonEndTime)
+    ) {
+      alert("Giờ không hợp lệ. Vui lòng kiểm tra lại");
       return;
     }
 
-    if (new Date(formData.startDate) > new Date(formData.endDate)) {
-      alert('Ngày bắt đầu không được sau ngày kết thúc');
+    // Validate morning shift times
+    if (morningStartTime >= morningEndTime) {
+      alert("Giờ kết thúc ca sáng phải sau giờ bắt đầu");
       return;
     }
+
+    // Validate afternoon shift times
+    if (afternoonStartTime >= afternoonEndTime) {
+      alert("Giờ kết thúc ca chiều phải sau giờ bắt đầu");
+      return;
+    }
+
+    if (Object.keys(selectedDays).length === 0) {
+      alert("Vui lòng chọn ít nhất một ngày và một ca làm việc");
+      return;
+    }
+
+    // Show confirmation modal
+    setShowConfirmation(true);
+  };
+
+  // Handle confirmed submission
+  const handleConfirmedSubmit = async () => {
+    // Convert selectedDays to API format
+    const schedulesToCreate = [];
+
+    Object.entries(selectedDays).forEach(([dateStr, shifts]) => {
+      // morning
+      if (shifts.morning) {
+        schedulesToCreate.push({
+          workDate: dateStr,
+          startTime: morningStartTime,
+          endTime: morningEndTime,
+          notes: "",
+        });
+      }
+
+      // afternoon
+      if (shifts.afternoon) {
+        schedulesToCreate.push({
+          workDate: dateStr,
+          startTime: afternoonStartTime,
+          endTime: afternoonEndTime,
+          notes: "",
+        });
+      }
+    });
+
+    // Debug log
+    console.log("Schedules to create:", schedulesToCreate);
 
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit({ schedules: schedulesToCreate });
+      onClose();
     } catch (error) {
-      console.error('Error creating bulk schedules:', error);
+      console.error("Error creating schedules:", error);
+      alert("Có lỗi xảy ra khi tạo lịch trình");
     } finally {
       setIsSubmitting(false);
+      setShowConfirmation(false);
     }
   };
 
-  const toggleDayOfWeek = (dayValue) => {
-    setFormData(prev => ({
-      ...prev,
-      daysOfWeek: prev.daysOfWeek.includes(dayValue)
-        ? prev.daysOfWeek.filter(d => d !== dayValue)
-        : [...prev.daysOfWeek, dayValue]
-    }));
-  };
+  // Format month/year display
+  const monthNames = [
+    "Tháng 1",
+    "Tháng 2",
+    "Tháng 3",
+    "Tháng 4",
+    "Tháng 5",
+    "Tháng 6",
+    "Tháng 7",
+    "Tháng 8",
+    "Tháng 9",
+    "Tháng 10",
+    "Tháng 11",
+    "Tháng 12",
+  ];
 
-  const toggleShift = (shiftValue) => {
-    setFormData(prev => ({
-      ...prev,
-      shifts: prev.shifts.includes(shiftValue)
-        ? prev.shifts.filter(s => s !== shiftValue)
-        : [...prev.shifts, shiftValue]
-    }));
-  };
+  const days = getDaysInMonth(currentDate);
+  const selectedCount = Object.keys(selectedDays).length;
+  const totalShifts = Object.values(selectedDays).reduce((sum, shifts) => {
+    return sum + Object.values(shifts).filter((v) => v === true).length;
+  }, 0);
 
   return (
-    <div 
-      className="modal fade show" 
-      style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+    <div
+      className="modal fade show"
+      style={{
+        display: "block",
+        backgroundColor: "rgba(0,0,0,0.5)",
+        zIndex: 1050,
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
         }
-                                    }}
-                                  >
-      <div className="modal-dialog modal-lg" onClick={(e) => e.stopPropagation()}>
+      }}
+    >
+      <div
+        className="modal-dialog modal-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-content">
           {/* Modal Header */}
-          <div className="modal-header bg-success text-white">
-            <h5 className="modal-title">
-              <i className="bi bi-calendar-week me-2"></i>
-              Tạo lịch làm việc 
-            </h5>
-                                  <button
+          <div
+            className="modal-header bg-gradient text-white py-2"
+            style={{
+              background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+            }}
+          >
+            <div>
+              <h5 className="modal-title mb-0">
+                <i className="bi bi-calendar-week me-2"></i>
+                Tạo lịch làm việc
+              </h5>
+            </div>
+            <button
               type="button"
               className="btn-close btn-close-white"
               onClick={onClose}
             ></button>
-                            </div>
+          </div>
 
           {/* Modal Body */}
           <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="row g-3">
-                {/* Date Range */}
-                <div className="col-md-6">
-                  <label className="form-label">
-                    <i className="bi bi-calendar-date me-1"></i>
-                    Ngày bắt đầu *
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    required
-                    value={formData.startDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                  />
-                                </div>
-                <div className="col-md-6">
-                  <label className="form-label">
-                    <i className="bi bi-calendar-date me-1"></i>
-                    Ngày kết thúc *
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    required
-                    value={formData.endDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                  />
-                              </div>
+            <div
+              className="modal-body p-3"
+              style={{ maxHeight: "calc(100vh - 150px)", overflowY: "auto" }}
+            >
+              {/* Month Navigation */}
+              <div className="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={goToPreviousMonth}
+                >
+                  <i className="bi bi-chevron-left"></i>
+                </button>
 
+                <div className="text-center">
+                  <h5 className="mb-0 fw-bold text-primary">
+                    {monthNames[currentDate.getMonth()]}{" "}
+                    {currentDate.getFullYear()}
+                  </h5>
+                </div>
 
-                {/* Days of Week */}
-                <div className="col-12">
-                  <label className="form-label">
-                    <i className="bi bi-calendar-week me-1"></i>
-                    Ngày trong tuần *
-                  </label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {weekDays.map((day) => (
-                      <button
-                        key={day.value}
-                        type="button"
-                        onClick={() => toggleDayOfWeek(day.value)}
-                        className={`btn ${
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={goToNextMonth}
+                >
+                  <i className="bi bi-chevron-right"></i>
+                </button>
+              </div>
 
-                          formData.daysOfWeek.includes(day.value)
-                            ? 'btn-success'
-                            : 'btn-outline-success'
+              {/* Calendar Grid */}
+              <div className="calendar-grid-container mb-3">
+                {/* Weekday Headers */}
+                <div
+                  className="calendar-weekdays d-grid mb-2"
+                  style={{ gridTemplateColumns: "repeat(7, 1fr)", gap: "6px" }}
+                >
+                  {["CN", "T2", "T3", "T4", "T5", "T6", "T7"].map((day) => (
+                    <div
+                      key={day}
+                      className="text-center fw-bold text-muted py-1"
+                      style={{ fontSize: "0.85rem" }}
+                    >
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days */}
+                <div
+                  className="calendar-days d-grid"
+                  style={{
+                    gridTemplateColumns: "repeat(7, 1fr)",
+                    gap: "6px",
+                    minHeight: "380px",
+                  }}
+                >
+                  {days.map((date, index) => {
+                    if (!date) {
+                      return (
+                        <div
+                          key={`empty-${index}`}
+                          className="calendar-day-empty"
+                        ></div>
+                      );
+                    }
+
+                    // Use local timezone to avoid UTC day-shift issues
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, "0");
+                    const day = String(date.getDate()).padStart(2, "0");
+                    const dateStr = `${year}-${month}-${day}`;
+
+                    const isSelected = !!selectedDays[dateStr];
+                    const isPast = isPastDate(date);
+                    const isTodayDate = isToday(date);
+                    const daySchedules = getSchedulesForDate(date);
+                    const hasSchedules = daySchedules.length > 0;
+
+                    return (
+                      <div
+                        key={dateStr}
+                        className={`calendar-day-cell border rounded ${
+                          isSelected
+                            ? "border-success border-3"
+                            : hasSchedules
+                            ? "border-warning border-2"
+                            : "border-secondary"
+                        } ${isPast ? "bg-light text-muted" : "bg-white"} ${
+                          isTodayDate ? "border-primary border-2" : ""
                         }`}
-                        style={{ minWidth: '80px' }}
+                        style={{
+                          cursor: isPast ? "not-allowed" : "pointer",
+                          minHeight: "80px",
+                          padding: "4px 6px",
+                          transition:
+                            "background-color 0.05s ease, border-color 0.05s ease",
+                          backgroundColor: isSelected
+                            ? "#f0fdf4"
+                            : hasSchedules
+                            ? "#fffbeb"
+                            : "white",
+                        }}
+                        onClick={() => !isPast && toggleDay(date)}
                       >
-                        <div className="fw-bold">{day.label}</div>
-                                  </button>
-                    ))}
-                                </div>
-                  
-                              </div>
-
-                {/* Ca làm việc */}
-                <div className="col-12">
-                  <label className="form-label">
-                    <i className="bi bi-clock-history me-1"></i>
-                    Ca làm việc *
-                  </label>
-                  <div className="row g-2">
-                    {shiftOptions.map((shift) => (
-                      <div key={shift.value} className="col-md-6">
-                                  <button
-                          type="button"
-                          onClick={() => toggleShift(shift.value)}
-                          className={`btn w-100 ${
-                            formData.shifts.includes(shift.value)
-                              ? 'btn-primary'
-                              : 'btn-outline-primary'
-                          }`}
-                        >
-                          <div className="d-flex align-items-center">
-                            <i className={`${shift.icon} me-2`}></i>
-                            <div className="text-start">
-                              <div className="fw-bold">{shift.label}</div>
-                              <small className="text-muted">{shift.startTime} - {shift.endTime}</small>
-                                </div>
-                              </div>
-                        </button>
-                      </div>
-                    ))}
-                            </div>
+                        {/* Day Number */}
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                          <div className="d-flex align-items-center gap-1">
+                            <span
+                              className={`fw-bold ${
+                                isTodayDate ? "text-primary" : ""
+                              }`}
+                              style={{ fontSize: "0.85rem" }}
+                            >
+                              {date.getDate()}
+                            </span>
                           </div>
-
-                {/* Thời gian tùy chỉnh cho ca */}
-                {formData.shifts.length > 0 && (
-                  <div className="col-12">
-                    <div className="row g-3">
-                      {formData.shifts.map((shiftValue) => {
-                        const shift = shiftOptions.find(s => s.value === shiftValue);
-                        return (
-                          <div key={shiftValue} className="col-md-6">
-                            <div className="card border-0 shadow-sm">
-                              <div className="card-header bg-light border-0 py-3">
-                                <div className="d-flex align-items-center">
-                                  <i className={`${shift.icon} me-2 text-primary`}></i>
-                                  <span className="fw-bold text-dark">{shift.label}</span>
-                                  <span className="badge bg-primary ms-auto">
-                                    {formData[`${shiftValue}StartTime`] || shift.startTime} - {formData[`${shiftValue}EndTime`] || shift.endTime}
-                              </span>
-                                </div>
-                                </div>
-                              <div className="card-body py-3">
-                                <div className="row g-2">
-                                  <div className="col-6">
-                                    <label className="form-label small text-muted">Giờ bắt đầu</label>
-                                    <input
-                                      type="time"
-                                      className="form-control form-control-sm border-primary"
-                                      value={formData[`${shiftValue}StartTime`] || shift.startTime}
-                                      onChange={(e) => setFormData(prev => ({
-                                        ...prev,
-                                        [`${shiftValue}StartTime`]: e.target.value
-                                      }))}
-                                    />
-                              </div>
-                              <div className="col-6">
-                                    <label className="form-label small text-muted">Giờ kết thúc</label>
-                                    <input
-                                      type="time"
-                                      className="form-control form-control-sm border-primary"
-                                      value={formData[`${shiftValue}EndTime`] || shift.endTime}
-                                      onChange={(e) => setFormData(prev => ({
-                                        ...prev,
-                                        [`${shiftValue}EndTime`]: e.target.value
-                                      }))}
-                                    />
-                                </div>
-                                </div>
-                              </div>
-                            </div>
-                            </div>
-                        );
-                      })}
-                            </div>
-                  </div>
-                )}
-
-                            {/* Notes */}
-                <div className="col-12">
-                  <label className="form-label">
-                    <i className="bi bi-sticky me-1"></i>
-                    Ghi chú
-                  </label>
-                  <textarea
-                    className="form-control"
-                    rows={3}
-                    placeholder="Ghi chú cho tất cả lịch trình..."
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  />
-                                </div>
-
-                {/* Preview */}
-                {formData.startDate && formData.endDate && formData.daysOfWeek.length > 0 && formData.shifts.length > 0 && (
-                  <div className="col-12">
-                    <div className="card border-success">
-                      <div className="card-header bg-success text-white">
-                        <h6 className="mb-0">
-                          <i className="bi bi-eye me-2"></i>
-                          Xem trước lịch trình
-                        </h6>
-                      </div>
-                      <div className="card-body">
-                        <div className="row g-3">
-                          <div className="col-md-6">
-                            <div className="d-flex align-items-center mb-2">
-                              <i className="bi bi-calendar-range text-success me-2"></i>
-                              <strong>Khoảng thời gian:</strong>
-                            </div>
-                            <p className="ms-4 mb-0 text-muted">
-                              {formData.startDate} đến {formData.endDate}
-                                </p>
-                              </div>
-                          <div className="col-md-6">
-                            <div className="d-flex align-items-center mb-2">
-                              <i className="bi bi-calendar-week text-success me-2"></i>
-                              <strong>Ngày trong tuần:</strong>
-                          </div>                     
-                            <p className="ms-4 mb-0 text-muted">
-                              {formData.daysOfWeek.map(day => 
-                                weekDays.find(d => d.value === day)?.label
-                              ).join(', ')}
-                            </p>
+                          {isSelected && (
+                            <i
+                              className="bi bi-check-circle-fill text-success"
+                              style={{ fontSize: "0.9rem" }}
+                            ></i>
+                          )}
                         </div>
-                          <div className="col-12">
-                            <div className="d-flex align-items-center mb-2">
-                              <i className="bi bi-clock-history text-success me-2"></i>
-                              <strong>Ca làm việc:</strong>
-                            </div>
-                            <div className="ms-4">
-                              {formData.shifts.map(shiftValue => {
-                                const shift = shiftOptions.find(s => s.value === shiftValue);
-                                const customStartTime = formData[`${shiftValue}StartTime`] || shift.startTime;
-                                const customEndTime = formData[`${shiftValue}EndTime`] || shift.endTime;
-                                return (
-                                  <div key={shiftValue} className="d-flex align-items-center mb-1">
-                                    <i className={`${shift.icon} me-2 text-primary`}></i>
-                                    <span className="me-2">{shift.label}:</span>
-                                    <span className="badge bg-primary">
-                                      {customStartTime} - {customEndTime}
-                                    </span>
-                  </div>
+
+                        {/* Existing Schedules Info (if any and not selected) */}
+                        {!isSelected && hasSchedules && (
+                          <div className="mb-1" style={{ fontSize: "0.85rem" }}>
+                            {daySchedules.slice(0, 2).map((schedule, idx) => (
+                              <div
+                                key={idx}
+                                className="text-muted d-flex align-items-center mb-1"
+                                style={{ lineHeight: "1.4" }}
+                              >
+                                <i
+                                  className="bi bi-clock me-1"
+                                  style={{ fontSize: "0.8rem" }}
+                                ></i>
+                                <span className="fw-semibold">
+                                  {schedule.startTime?.substring(0, 5)}-
+                                  {schedule.endTime?.substring(0, 5)}
+                                </span>
+                              </div>
+                            ))}
+                            {daySchedules.length > 2 && (
+                              <div
+                                className="text-muted fst-italic"
+                                style={{ fontSize: "0.7rem" }}
+                              >
+                                +{daySchedules.length - 2}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Shift Tags (only if day is selected) */}
+                        {isSelected && selectedDays[dateStr] && (
+                          <div className="shift-tags d-flex flex-column gap-1">
+                            {selectedDays[dateStr].morning && (
+                              <div
+                                className="shift-tag d-flex align-items-center justify-content-between py-1 px-2 rounded"
+                                onClick={(e) =>
+                                  toggleShift(dateStr, "morning", e)
+                                }
+                                style={{
+                                  cursor: "pointer",
+                                  backgroundColor: "#dcfce7",
+                                  border: "1px solid #86efac",
+                                  fontSize: "0.65rem",
+                                }}
+                              >
+                                <span className="text-success fw-semibold">
+                                  <i className="bi bi-brightness-high me-1"></i>
+                                  Sáng
+                                </span>
+                                <i className="bi bi-x-circle text-success"></i>
+                              </div>
+                            )}
+
+                            {selectedDays[dateStr].afternoon && (
+                              <div
+                                className="shift-tag d-flex align-items-center justify-content-between py-1 px-2 rounded"
+                                onClick={(e) =>
+                                  toggleShift(dateStr, "afternoon", e)
+                                }
+                                style={{
+                                  cursor: "pointer",
+                                  backgroundColor: "#dbeafe",
+                                  border: "1px solid #93c5fd",
+                                  fontSize: "0.65rem",
+                                }}
+                              >
+                                <span className="text-primary fw-semibold">
+                                  <i className="bi bi-moon-stars me-1"></i>Chiều
+                                </span>
+                                <i className="bi bi-x-circle text-primary"></i>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
-            </div>
-                          <div className="col-12">
-                            <div className="alert alert-success mb-0">
-                              <div className="d-flex align-items-center">
-                                <i className="bi bi-calculator me-2"></i>
-                                <strong>Tổng số lịch trình sẽ tạo:</strong>
-                                <span className="badge bg-success ms-2 fs-6">
-                                  {formData.daysOfWeek.length * formData.shifts.length} lịch
-                                </span>
-          </div>
-        </div>
-      </div>
+              </div>
+
+              {/* Shift Time Configuration */}
+              <div className="card border-0 shadow-sm mb-3">
+                <div className="card-body p-3">
+                  <h6 className="fw-bold mb-3">
+                    <i className="bi bi-clock text-primary me-2"></i>
+                    Cấu hình giờ làm việc
+                  </h6>
+
+                  <div className="row g-3">
+                    {/* Morning Shift */}
+                    <div className="col-md-6">
+                      <div className="border rounded p-3 bg-light">
+                        <label className="form-label fw-bold mb-2">
+                          <i className="bi bi-sunrise text-warning me-1"></i>
+                          Ca sáng
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <label className="form-label small text-muted mb-1">
+                              Bắt đầu
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={morningStartTime}
+                              onChange={(e) =>
+                                setMorningStartTime(e.target.value)
+                              }
+                              step="300"
+                              required
+                            />
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label small text-muted mb-1">
+                              Kết thúc
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={morningEndTime}
+                              onChange={(e) =>
+                                setMorningEndTime(e.target.value)
+                              }
+                              step="300"
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Afternoon Shift */}
+                    <div className="col-md-6">
+                      <div className="border rounded p-3 bg-light">
+                        <label className="form-label fw-bold mb-2">
+                          <i className="bi bi-sun text-info me-1"></i>
+                          Ca chiều
+                        </label>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <label className="form-label small text-muted mb-1">
+                              Bắt đầu
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={afternoonStartTime}
+                              onChange={(e) =>
+                                setAfternoonStartTime(e.target.value)
+                              }
+                              step="300"
+                              required
+                            />
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label small text-muted mb-1">
+                              Kết thúc
+                            </label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={afternoonEndTime}
+                              onChange={(e) =>
+                                setAfternoonEndTime(e.target.value)
+                              }
+                              step="300"
+                              required
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="modal-footer">
+            <div className="modal-footer bg-light border-top-0 py-2">
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary px-3"
                 onClick={onClose}
               >
                 <i className="bi bi-x-circle me-1"></i>
@@ -1292,28 +1655,295 @@ const BulkScheduleForm = ({ onSubmit, onClose, shiftOptions }) => {
               </button>
               <button
                 type="submit"
-                className="btn btn-success"
-                disabled={isSubmitting || formData.daysOfWeek.length === 0 || formData.shifts.length === 0}
+                className="btn btn-success px-3 shadow"
+                disabled={isSubmitting || selectedCount === 0}
               >
                 {isSubmitting ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <span
+                      className="spinner-border spinner-border-sm me-2"
+                      role="status"
+                    ></span>
                     Đang tạo...
                   </>
                 ) : (
                   <>
-                    <i className="bi bi-check-circle me-1"></i>
-                    Tạo lịch trình
+                    <i className="bi bi-check-circle-fill me-1"></i>
+                    Tạo {totalShifts} lịch
                   </>
-      )}
+                )}
               </button>
             </div>
           </form>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div
+          className="modal fade show"
+          style={{
+            display: "block",
+            backgroundColor: "rgba(0,0,0,0.75)",
+            zIndex: 1060,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowConfirmation(false);
+            }
+          }}
+        >
+          <div
+            className="modal-dialog modal-dialog-centered modal-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header bg-white border-bottom py-3">
+                <h5
+                  className="modal-title fw-bold mb-0 text-dark"
+                  style={{ fontSize: "1.1rem" }}
+                >
+                  <i className="bi bi-clipboard-check me-2 text-primary"></i>
+                  Xác nhận tạo lịch
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowConfirmation(false)}
+                  disabled={isSubmitting}
+                ></button>
+              </div>
+
+              <div className="modal-body p-4">
+                {/* Summary Card */}
+                <div className="border rounded p-3 mb-3 bg-light">
+                  <div className="d-flex align-items-center justify-content-center gap-5">
+                    <div className="text-center">
+                      <div className="text-muted small mb-1">Số ngày</div>
+                      <div className="d-flex align-items-center gap-2">
+                        <i className="bi bi-calendar3 text-primary"></i>
+                        <span className="fw-bold fs-4 text-dark">
+                          {selectedCount}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        width: "1px",
+                        height: "40px",
+                        background: "#dee2e6",
+                      }}
+                    ></div>
+                    <div className="text-center">
+                      <div className="text-muted small mb-1">Số ca</div>
+                      <div className="d-flex align-items-center gap-2">
+                        <i className="bi bi-clock text-primary"></i>
+                        <span className="fw-bold fs-4 text-dark">
+                          {totalShifts}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Warning Alert */}
+                <div
+                  className="alert alert-info border-0 d-flex align-items-start mb-3 py-2"
+                  style={{ fontSize: "0.9rem" }}
+                >
+                  <i
+                    className="bi bi-info-circle-fill me-2"
+                    style={{ fontSize: "1.1rem" }}
+                  ></i>
+                  <div>
+                    Lịch trình sẽ được lưu vào hệ thống và bệnh nhân có thể đặt
+                    hẹn.
+                  </div>
+                </div>
+
+                <h6
+                  className="fw-bold mb-2 text-dark"
+                  style={{ fontSize: "0.95rem" }}
+                >
+                  Chi tiết lịch trình:
+                </h6>
+
+                {/* Schedule Details Table */}
+                <div
+                  className="table-responsive"
+                  style={{
+                    maxHeight: "320px",
+                    overflowY: "auto",
+                    borderRadius: "6px",
+                    border: "1px solid #dee2e6",
+                  }}
+                >
+                  <table className="table table-sm table-hover mb-0">
+                    <thead
+                      className="bg-light"
+                      style={{
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 10,
+                      }}
+                    >
+                      <tr>
+                        <th
+                          className="text-center text-muted"
+                          style={{
+                            fontSize: "0.85rem",
+                            padding: "10px 6px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Ngày
+                        </th>
+                        <th
+                          className="text-center text-muted"
+                          style={{
+                            fontSize: "0.85rem",
+                            padding: "10px 6px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Ca
+                        </th>
+                        <th
+                          className="text-center text-muted"
+                          style={{
+                            fontSize: "0.85rem",
+                            padding: "10px 6px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Giờ
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(selectedDays)
+                        .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                        .map(([dateStr, shifts]) => {
+                          const shiftsArray = [];
+                          if (shifts.morning) {
+                            shiftsArray.push({
+                              type: "Ca sáng",
+                              time: `${morningStartTime} - ${morningEndTime}`,
+                            });
+                          }
+                          if (shifts.afternoon) {
+                            shiftsArray.push({
+                              type: "Ca chiều",
+                              time: `${afternoonStartTime} - ${afternoonEndTime}`,
+                            });
+                          }
+
+                          const date = new Date(dateStr);
+                          const weekdays = [
+                            "CN",
+                            "T2",
+                            "T3",
+                            "T4",
+                            "T5",
+                            "T6",
+                            "T7",
+                          ];
+                          const weekday = weekdays[date.getDay()];
+
+                          return shiftsArray.map((shift, idx) => (
+                            <tr
+                              key={`${dateStr}-${idx}`}
+                              className="border-bottom"
+                              style={{
+                                borderTop:
+                                  idx === 0 ? "2px solid #dee2e6" : "none",
+                              }}
+                            >
+                              {idx === 0 && (
+                                <td
+                                  rowSpan={shiftsArray.length}
+                                  className="align-middle text-center bg-light"
+                                  style={{
+                                    padding: "10px 6px",
+                                    fontWeight: "500",
+                                    fontSize: "0.85rem",
+                                    borderRight: "2px solid #dee2e6",
+                                  }}
+                                >
+                                  <div className="text-muted small mb-1">
+                                    {weekday}
+                                  </div>
+                                  <div className="fw-bold text-dark">
+                                    {date.getDate()}/{date.getMonth() + 1}
+                                  </div>
+                                </td>
+                              )}
+                              <td
+                                className="align-middle text-center"
+                                style={{ padding: "10px 6px" }}
+                              >
+                                <span
+                                  className="text-dark"
+                                  style={{ fontSize: "0.85rem" }}
+                                >
+                                  {shift.type}
+                                </span>
+                              </td>
+                              <td
+                                className="align-middle text-center"
+                                style={{
+                                  padding: "10px 6px",
+                                  fontSize: "0.85rem",
+                                }}
+                              >
+                                <span className="text-dark">{shift.time}</span>
+                              </td>
+                            </tr>
+                          ));
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="modal-footer bg-light border-0 p-3">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowConfirmation(false)}
+                  disabled={isSubmitting}
+                >
+                  <i className="bi bi-x-circle me-1"></i>
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConfirmedSubmit}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                      ></span>
+                      Đang tạo...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-check-circle me-2"></i>
+                      Xác nhận tạo {totalShifts} ca
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 
 export default DoctorScheduleManagement;

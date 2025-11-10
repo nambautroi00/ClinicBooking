@@ -425,6 +425,22 @@ public class AppointmentService {
         return response;
     }
     
+    public void permanentDelete(Long appointmentId) {
+        Appointment entity = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc hẹn với ID: " + appointmentId));
+        
+        // Kiểm tra xem appointment có bệnh nhân chưa
+        if (entity.getPatient() != null) {
+            throw new IllegalStateException("Không thể xóa khung giờ đã có bệnh nhân đặt lịch. Vui lòng hủy lịch hẹn thay vì xóa.");
+        }
+        
+        // Xóa thực sự khỏi database
+        appointmentRepository.delete(entity);
+        log.info("Đã xóa vĩnh viễn appointment ID: {}", appointmentId);
+    }
+    
 }
+
+
 
 

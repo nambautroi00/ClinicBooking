@@ -10,7 +10,7 @@ const appointmentApi = {
   bulkCreateAppointments: (doctorId, appointments) => {
     return axiosClient.post("/appointments/bulk", {
       doctorId,
-      appointments
+      appointments,
     });
   },
 
@@ -39,9 +39,14 @@ const appointmentApi = {
     return axiosClient.delete(`/appointments/${appointmentId}`);
   },
 
-  // Xóa lịch hẹn
+  // Xóa lịch hẹn (cancel - chỉ đổi status)
   deleteAppointment: (appointmentId) => {
     return axiosClient.delete(`/appointments/${appointmentId}`);
+  },
+
+  // Xóa vĩnh viễn khung giờ trống (permanent delete - xóa khỏi database)
+  permanentDeleteAppointment: (appointmentId) => {
+    return axiosClient.delete(`/appointments/${appointmentId}/permanent`);
   },
 
   // Lấy lịch hẹn theo ngày
@@ -68,12 +73,17 @@ const appointmentApi = {
 
   // Tạo payment cho appointment
   createPaymentForAppointment: (appointmentId, paymentData) => {
-    return axiosClient.post(`/appointments/${appointmentId}/create-payment`, paymentData);
+    return axiosClient.post(
+      `/appointments/${appointmentId}/create-payment`,
+      paymentData
+    );
   },
 
   // Kiểm tra xem có appointment nào giữa patient và doctor không
   checkAppointmentBetweenPatientAndDoctor: (patientId, doctorId) => {
-    return axiosClient.get(`/appointments/by-patient-and-doctor?patientId=${patientId}&doctorId=${doctorId}`);
+    return axiosClient.get(
+      `/appointments/by-patient-and-doctor?patientId=${patientId}&doctorId=${doctorId}`
+    );
   },
 };
 
