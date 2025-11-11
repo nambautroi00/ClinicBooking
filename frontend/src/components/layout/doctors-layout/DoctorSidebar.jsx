@@ -117,6 +117,12 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
       label: "Kê đơn thuốc",
       description: "Tạo đơn thuốc mới",
     },
+    {
+      path: "/doctor/referrals",
+      icon: "bi-clipboard2-pulse",
+      label: "Chỉ định Cận Lâm Sàng",
+      description: "Xét nghiệm & chẩn đoán hình ảnh",
+    },
   ];
 
   return (

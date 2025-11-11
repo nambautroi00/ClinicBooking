@@ -31,6 +31,8 @@ import DoctorPrescriptions from "../pages/Doctor/DoctorPrescriptions";
 import PrescriptionForm from "../pages/Doctor/PrescriptionForm";
 import MedicalRecords from "../pages/Doctor/MedicalRecords";
 import DoctorReviews from "../pages/Doctor/DoctorReviews";
+import DoctorReferrals from "../pages/Doctor/DoctorReferrals";
+import ReferralDetail from "../pages/Doctor/ReferralDetail";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
@@ -131,6 +133,8 @@ const AppRoutes = () => {
         <Route path="profile" element={<DoctorProfile />} />
         <Route path="reviews" element={<DoctorReviews />} />
         <Route path="reiview" element={<DoctorReviews />} />
+        <Route path="referrals" element={<DoctorReferrals />} />
+        <Route path="referrals/:id" element={<ReferralDetail />} />
       </Route>
 
       {/* Admin (protected) */}

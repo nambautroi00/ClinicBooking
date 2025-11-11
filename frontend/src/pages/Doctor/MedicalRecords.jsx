@@ -232,20 +232,32 @@ const MedicalRecords = () => {
       {/* Header */}
       <Row className="mb-4">
         <Col>
-          <Card className="shadow-sm">
-            <Card.Body>
+          <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
+            <Card.Body className="p-4">
               <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h2 className="text-primary mb-1">
-                    <FileText className="me-2" size={32} />
-                    Hồ Sơ Bệnh Án
-                  </h2>
-                  <p className="text-muted mb-0">Quản lý hồ sơ khám bệnh và điều trị</p>
+                <div className="d-flex align-items-center mb-2">
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '16px'
+                  }}>
+                    <FileText size={24} color="white" />
+                  </div>
+                  <div>
+                    <h2 className="mb-0" style={{fontSize: '1.75rem', fontWeight: 700, color: '#1f2937'}}>
+                      Hồ Sơ Bệnh Án
+                    </h2>
+                    <p className="text-muted mb-0" style={{fontSize: '0.9rem'}}>Quản lý hồ sơ khám bệnh và điều trị</p>
+                  </div>
                 </div>
-                <Button variant="primary" onClick={handleNewRecord}>
-                  <Plus className="me-2" size={18} />
-                  Tạo Bệnh Án Mới
-                </Button>
+                <div>
+                  {/* keep create button aligned with search below for better balance */}
+                </div>
               </div>
             </Card.Body>
           </Card>
@@ -253,36 +265,68 @@ const MedicalRecords = () => {
       </Row>
 
       {/* Stats Cards */}
-      <Row className="mb-4">
+      <Row className="mb-4 g-3">
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #0d6efd"}}>
-            <Card.Body>
-              <h3 className="text-primary">{medicalRecords.length}</h3>
-              <p className="text-muted mb-0">Tổng Bệnh Án</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 120}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
+                <FileText size={22} color="rgba(255,255,255,0.95)" />
+              </div>
+              <h6 className="mb-1" style={{fontWeight: 600}}>Tổng Bệnh Án</h6>
+              <h2 className="mb-0" style={{fontWeight:700}}>{medicalRecords.length}</h2>
+              <small style={{opacity: 0.9}}>Hồ sơ bệnh án</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #198754"}}>
-            <Card.Body>
-              <h3 className="text-success">{medicalRecords.filter(r => r.status === 'completed').length}</h3>
-              <p className="text-muted mb-0">Đã Hoàn Thành</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 120}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.95}}>
+                <span role="img" aria-label="done">✅</span>
+              </div>
+              <h6 className="mb-1" style={{fontWeight: 600}}>Đã Hoàn Thành</h6>
+              <h2 className="mb-0" style={{fontWeight:700}}>{medicalRecords.filter(r => r.status === 'completed').length}</h2>
+              <small style={{opacity: 0.9}}>Hoàn tất điều trị</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #ffc107"}}>
-            <Card.Body>
-              <h3 className="text-warning">{medicalRecords.filter(r => r.status === 'in-progress').length}</h3>
-              <p className="text-muted mb-0">Đang Điều Trị</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 120}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.95}}>
+                <span role="img" aria-label="treat">⏳</span>
+              </div>
+              <h6 className="mb-1" style={{fontWeight: 600}}>Đang Điều Trị</h6>
+              <h2 className="mb-0" style={{fontWeight:700}}>{medicalRecords.filter(r => r.status === 'in-progress').length}</h2>
+              <small style={{opacity: 0.9}}>Đang theo dõi</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #dc3545"}}>
-            <Card.Body>
-              <h3 className="text-primary">{medicalRecords.filter(r => r.status === 'new').length}</h3>
-              <p className="text-muted mb-0">Mới</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 120}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.95}}>
+                <span role="img" aria-label="new">✨</span>
+              </div>
+              <h6 className="mb-1" style={{fontWeight: 600}}>Mới</h6>
+              <h2 className="mb-0" style={{fontWeight:700}}>{medicalRecords.filter(r => r.status === 'new').length}</h2>
+              <small style={{opacity: 0.9}}>Hồ sơ mới</small>
             </Card.Body>
           </Card>
         </Col>
@@ -290,31 +334,43 @@ const MedicalRecords = () => {
 
       {/* Search and Filter */}
       <Row className="mb-4">
-        <Col md={8}>
+        <Col md={9}>
           <div className="position-relative">
-            <Search className="position-absolute" size={18} style={{left: "12px", top: "12px", color: "#6c757d"}} />
+            <Search className="position-absolute" size={20} style={{left: "16px", top: "14px", color: "#9ca3af"}} />
             <Form.Control
               type="text"
               placeholder="Tìm kiếm theo tên bệnh nhân, mã BN, chẩn đoán..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{paddingLeft: "45px"}}
+              style={{
+                paddingLeft: "48px",
+                height: '48px',
+                borderRadius: '12px',
+                border: '1px solid #e5e7eb',
+                fontSize: '0.95rem'
+              }}
             />
           </div>
         </Col>
-        <Col md={4}>
-          <Form.Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">Tất cả trạng thái</option>
-            <option value="new">Mới</option>
-            <option value="in-progress">Đang điều trị</option>
-            <option value="completed">Hoàn thành</option>
-          </Form.Select>
+        <Col md={3} className="d-flex align-items-center justify-content-end">
+          <div style={{width: '100%', display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center'}}>
+            <Form.Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{height: '48px', borderRadius: '12px', minWidth: 150, maxWidth: 220, flex: '0 0 auto'}}>
+              <option value="all">Tất cả trạng thái</option>
+              <option value="new">Mới</option>
+              <option value="in-progress">Đang điều trị</option>
+              <option value="completed">Hoàn thành</option>
+            </Form.Select>
+            <Button variant="primary" onClick={handleNewRecord} style={{height: '48px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', minWidth: 150}}>
+              <Plus className="me-2" size={18} />
+              Tạo Bệnh Án Mới
+            </Button>
+          </div>
         </Col>
       </Row>
 
       {/* Medical Records Table */}
-      <Card className="shadow-sm">
-        <Card.Body>
+      <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
+        <Card.Body className="p-0">
           {loading ? (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">

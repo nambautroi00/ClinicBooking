@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, Container, Row, Col, Table, Modal, Badge, Alert, Tabs, Tab } from "react-bootstrap";
-import { FileText, Eye, Calendar, TestTube, Camera, Download, User, Stethoscope, Pill, Clock } from "lucide-react";
+import { FileText, Eye, Calendar, TestTube, Camera, Download, User, Stethoscope, Pill, Clock, Search } from "lucide-react";
 import medicalRecordApi from "../../api/medicalRecordApi";
 import patientApi from "../../api/patientApi";
 
@@ -11,6 +11,8 @@ const PatientMedicalRecords = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [patientId, setPatientId] = useState(null);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   // Lấy patientId từ localStorage và API
   useEffect(() => {
@@ -111,6 +113,18 @@ const PatientMedicalRecords = () => {
     }
   }, [patientId, loadMedicalRecords]);
 
+  // Filtered list based on search and status filter
+  const filteredRecords = (medicalRecords || []).filter(record => {
+    const raw = (searchTerm || '').toString().trim().toLowerCase();
+    if (filterStatus && filterStatus !== 'all' && record.status !== filterStatus) return false;
+    if (!raw) return true;
+    return (
+      (String(record.recordId) || '').toLowerCase().includes(raw) ||
+      (record.doctorName || '').toLowerCase().includes(raw) ||
+      (record.diagnosis || '').toLowerCase().includes(raw)
+    );
+  });
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       active: { variant: "primary", text: "Đang điều trị" },
@@ -143,27 +157,121 @@ const PatientMedicalRecords = () => {
       {/* Header */}
       <Row className="mb-4">
         <Col>
-          <Card>
-            <Card.Header>
+          <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
+            <Card.Body className="p-4">
               <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <h4 className="mb-0">
-                        <FileText className="me-2" size={24} />
-                        Hồ Sơ Bệnh Án Của Tôi
-                      </h4>
-                      <small className="text-muted">Xem lịch sử khám bệnh và hồ sơ y tế</small>
-                    </div>
+                <div className="d-flex align-items-center mb-2">
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '16px'
+                  }}>
+                    <FileText size={24} color="white" />
                   </div>
-                </Card.Header>
-              </Card>
-            </Col>
+                  <div>
+                    <h2 className="mb-0" style={{fontSize: '1.75rem', fontWeight: 700, color: '#1f2937'}}>
+                      Hồ Sơ Bệnh Án
+                    </h2>
+                    <p className="text-muted mb-0" style={{fontSize: '0.9rem'}}>Quản lý hồ sơ khám bệnh và điều trị</p>
+                  </div>
+                </div>
+                <div>
+                  {/* No create button for patient view; keep space for balance */}
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Stats Cards */}
+      <Row className="mb-4 g-3">
+        <Col md={3}>
+          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
+            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
+                <FileText size={20} color="#0d6efd" />
+              </div>
+              <h6 style={{fontWeight: 600}}>Tổng Bệnh Án</h6>
+              <h3 className="mt-2 text-primary">{medicalRecords.length}</h3>
+              <small className="text-muted">Hồ sơ bệnh án</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
+            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
+                <span role="img" aria-label="done">✅</span>
+              </div>
+              <h6 style={{fontWeight: 600}}>Đã Hoàn Thành</h6>
+              <h3 className="mt-2 text-success">{medicalRecords.filter(r => r.status === 'completed').length}</h3>
+              <small className="text-muted">Hoàn tất điều trị</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
+            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
+                <span role="img" aria-label="treat">⏳</span>
+              </div>
+              <h6 style={{fontWeight: 600}}>Đang Điều Trị</h6>
+              <h3 className="mt-2 text-warning">{medicalRecords.filter(r => r.status === 'active').length}</h3>
+              <small className="text-muted">Đang theo dõi</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
+            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
+              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
+                <span role="img" aria-label="new">✨</span>
+              </div>
+              <h6 style={{fontWeight: 600}}>Mới</h6>
+              <h3 className="mt-2 text-primary">{medicalRecords.filter(r => r.status === 'new').length}</h3>
+              <small className="text-muted">Hồ sơ mới</small>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Search */}
+      <Row className="mb-4">
+        <Col md={9}>
+          <div className="position-relative">
+            <Search className="position-absolute" size={20} style={{left: "16px", top: "14px", color: "#9ca3af"}} />
+            <input
+              className="form-control"
+              type="text"
+              placeholder="Tìm kiếm theo mã hồ sơ, bác sĩ hoặc chẩn đoán..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{paddingLeft: '48px', height: '48px', borderRadius: '12px', border: '1px solid #e5e7eb'}}
+            />
+          </div>
+        </Col>
+        <Col md={3} className="d-flex align-items-center justify-content-end">
+          <select className="form-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{height: '48px', borderRadius: '12px'}}>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="completed">Hoàn thành</option>
+            <option value="active">Đang điều trị</option>
+            <option value="followup">Cần tái khám</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+        </Col>
       </Row>
 
       {/* Medical Records Cards */}
       <Row>
         <Col>
           {loading ? (
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
               <Card.Body>
                 <div className="text-center py-5">
                   <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
@@ -174,7 +282,7 @@ const PatientMedicalRecords = () => {
               </Card.Body>
             </Card>
           ) : error ? (
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
               <Card.Body>
                 <Alert variant="danger" className="text-center border-0">
                   <FileText size={48} className="mb-3 text-danger" />
@@ -192,46 +300,31 @@ const PatientMedicalRecords = () => {
                 </Alert>
               </Card.Body>
             </Card>
-          ) : medicalRecords.length === 0 ? (
-            <Card className="shadow-sm">
+          ) : filteredRecords.length === 0 ? (
+            <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
               <Card.Body>
-                <Alert variant="info" className="text-center border-0 mb-0">
+                <Alert variant="info" className="text-center m-4" style={{backgroundColor: '#e6f7fb', borderRadius: 8}}>
                   <FileText size={48} className="mb-3 text-muted" />
-                  <h5>Chưa có hồ sơ bệnh án nào</h5>
-                  <p className="mb-0">Bạn chưa có lịch sử khám bệnh nào trong hệ thống.</p>
+                  <h5>Không tìm thấy hồ sơ bệnh án nào</h5>
+                  <p className="mb-0">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
                 </Alert>
               </Card.Body>
             </Card>
           ) : (
             <Row className="g-4">
-              {medicalRecords.map((record) => (
+              {filteredRecords.map((record) => (
                 <Col key={record.id} md={6} lg={4}>
                   <Card 
-                    className="h-100 shadow-sm border-0 hover-card"
-                    style={{ 
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-5px)';
-                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                    }}
+                    className="h-100 shadow-sm border-0"
+                    style={{ borderRadius: 12, cursor: 'pointer', transition: 'all 0.22s ease' }}
+                    onClick={() => handleViewRecord(record)}
                   >
-                    <Card.Header className="bg-primary text-white border-0">
+                    <div style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderTopLeftRadius: 12, borderTopRightRadius: 12, padding: '12px 16px'}}>
                       <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <h6 className="mb-0 text-white">
-                            <FileText className="me-2" size={18} />
-                            Hồ sơ #{record.recordId}
-                          </h6>
-                        </div>
+                        <h6 className="mb-0 text-white">Hồ sơ #{record.recordId}</h6>
                         {getStatusBadge(record.status)}
                       </div>
-                    </Card.Header>
+                    </div>
                     <Card.Body>
                       <div className="mb-3">
                         <div className="d-flex align-items-center mb-2">
@@ -243,7 +336,7 @@ const PatientMedicalRecords = () => {
                           <small>{record.visitDate ? new Date(record.visitDate).toLocaleDateString('vi-VN') : 'N/A'}</small>
                         </div>
                       </div>
-                      
+
                       <div className="mb-3">
                         <div className="d-flex align-items-start">
                           <Stethoscope size={16} className="me-2 text-success mt-1" />
@@ -272,7 +365,7 @@ const PatientMedicalRecords = () => {
                         </div>
                         <button
                           className="btn btn-sm btn-outline-primary"
-                          onClick={() => handleViewRecord(record)}
+                          onClick={(e) => { e.stopPropagation(); handleViewRecord(record); }}
                           title="Xem chi tiết"
                         >
                           <Eye size={14} className="me-1" />

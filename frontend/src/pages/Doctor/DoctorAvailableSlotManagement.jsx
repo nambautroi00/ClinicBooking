@@ -695,8 +695,8 @@ const DoctorAvailableSlotManagement = () => {
 
                   .calendar-day {
                     background: white;
-                    min-height: 80px;
-                    padding: 6px;
+                    min-height: 100px;
+                    padding: 8px;
                     cursor: pointer;
                     transition: all 0.2s ease;
                     position: relative;
@@ -704,6 +704,7 @@ const DoctorAvailableSlotManagement = () => {
 
                   .calendar-day:hover {
                     background: #f8f9fa;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
                   }
 
                   .calendar-day.other-month {
@@ -718,24 +719,25 @@ const DoctorAvailableSlotManagement = () => {
 
                   .day-number {
                     font-weight: 600;
-                    font-size: 0.8rem;
-                    margin-bottom: 2px;
+                    font-size: 0.95rem;
+                    margin-bottom: 6px;
                   }
 
                   .day-slots {
                     display: flex;
                     flex-direction: column;
-                    gap: 1px;
+                    gap: 4px;
                   }
 
                   .slot-indicator {
                     background: #718096;
                     color: white;
-                    padding: 1px 4px;
-                    border-radius: 8px;
-                    font-size: 0.6rem;
+                    padding: 4px 8px;
+                    border-radius: 6px;
+                    font-size: 0.75rem;
                     text-align: center;
-                    font-weight: 500;
+                    font-weight: 600;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
                   }
 
                   .slot-indicator.booked {
@@ -758,8 +760,8 @@ const DoctorAvailableSlotManagement = () => {
                     }
 
                     .calendar-day {
-                      min-height: 60px;
-                      padding: 3px;
+                      min-height: 70px;
+                      padding: 4px;
                     }
 
                     .weekday {
@@ -768,12 +770,12 @@ const DoctorAvailableSlotManagement = () => {
                     }
 
                     .day-number {
-                      font-size: 0.7rem;
+                      font-size: 0.8rem;
                     }
 
                     .slot-indicator {
-                      font-size: 0.5rem;
-                      padding: 1px 3px;
+                      font-size: 0.65rem;
+                      padding: 3px 6px;
                     }
                   }
                 `}</style>
