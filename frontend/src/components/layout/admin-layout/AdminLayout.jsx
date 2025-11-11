@@ -1,128 +1,229 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import AdminHeader from "./AdminHeader";
 import "./AdminLayout.css";
 
+const FULL_SIDEBAR_WIDTH = 260;
+const COLLAPSED_SIDEBAR_WIDTH = 72;
+const EXPANDED_HEADER_HEIGHT = 80;
+const COMPACT_HEADER_HEIGHT = 56;
+
 const AdminLayout = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(EXPANDED_HEADER_HEIGHT);
+
+  // Resize: auto thu gọn khi hẹp
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 1180) setSidebarCollapsed(true);
+      else setSidebarCollapsed(false);
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Sync với biến header động (đã set ở AdminHeader)
+  useEffect(() => {
+    const syncHeaderVar = () => {
+      const h = getComputedStyle(document.documentElement)
+        .getPropertyValue("--current-header-height")
+        .trim()
+        .replace("px", "");
+      const num = parseInt(h || EXPANDED_HEADER_HEIGHT, 10);
+      if (!isNaN(num)) setHeaderHeight(num);
+    };
+    syncHeaderVar();
+    window.addEventListener("scroll", syncHeaderVar, { passive: true });
+    return () => window.removeEventListener("scroll", syncHeaderVar);
+  }, []);
+
+  // Thu gọn theo cuộn sâu (thêm tùy biến)
+  useEffect(() => {
+    const onScrollCollapse = () => {
+      const y = window.scrollY;
+      if (y > 240 && !sidebarCollapsed && window.innerWidth >= 1180) {
+        setSidebarCollapsed(true);
+      } else if (y < 120 && sidebarCollapsed && window.innerWidth >= 1180) {
+        setSidebarCollapsed(false);
+      }
+    };
+    window.addEventListener("scroll", onScrollCollapse, { passive: true });
+    return () => window.removeEventListener("scroll", onScrollCollapse);
+  }, [sidebarCollapsed]);
+
+  const sidebarWidth = sidebarCollapsed ? COLLAPSED_SIDEBAR_WIDTH : FULL_SIDEBAR_WIDTH;
+
   return (
-    <div className="container-fluid">
-      <AdminHeader />
-      <div style={{height: '70px'}}></div>
-      <div className="row">
-        {/* Sidebar Navigation */}
-        <nav className="bg-primary sidebar" style={{position: 'fixed', top: '0px', left: 0,  width: '260px', zIndex: 1029}}>
-          <div className="pt-4" style={{height: '100%', overflowY: 'auto'}}>
-            
-            <ul className="nav flex-column px-3">
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin" 
-                  end 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-speedometer2 me-3 fs-5" /> 
-                  <span className="fw-semibold">Dashboard</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/users" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-people me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý người dùng</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/departments" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-diagram-3 me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý khoa</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/appointments" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-calendar-check me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý lịch hẹn</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/articles" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-file-earmark-text me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý bài viết</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/reviews" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-chat-dots me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý đánh giá</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/medicines" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-capsule me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý thuốc</span>
-                </NavLink>
-              </li>
-              
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/prescriptions" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-file-medical me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý đơn thuốc</span>
-                </NavLink>
-              </li>
-
-              <li className="nav-item mb-2">
-                <NavLink 
-                  to="/admin/payments" 
-                  className={({ isActive }) => `nav-link text-white d-flex align-items-center py-3 px-3 rounded ${isActive ? "active" : "hover-bg-light"}`}
-                  style={{transition: 'all 0.3s ease', textDecoration: 'none'}}
-                >
-                  <i className="bi bi-credit-card me-3 fs-5" /> 
-                  <span className="fw-semibold">Quản lý thanh toán</span>
-                </NavLink>
-              </li>
-            </ul>
-          </div>
-        </nav>
-
-        <main className="admin-main col-md-9 ms-sm-auto col-lg-10">
-          <div className="content-card p-4">
-            <Outlet />
-          </div>
-        </main>
+    <div className={"admin-shell" + (sidebarCollapsed ? " sidebar-collapsed" : "")}>
+      {/* Header full width */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: headerHeight,
+          zIndex: 1100,
+        }}
+      >
+        <AdminHeader
+          onToggleSidebar={() => setSidebarCollapsed((s) => !s)}
+          sidebarCollapsed={sidebarCollapsed}
+        />
       </div>
+
+      {/* Sidebar dưới header */}
+      <nav
+        className="bg-primary sidebar"
+        style={{
+          position: "fixed",
+          top: headerHeight,
+          left: 0,
+          width: sidebarWidth,
+          height: `calc(100vh - ${headerHeight}px)`,
+          zIndex: 1090,
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
+          transition: "width .25s",
+        }}
+      >
+        <ul className="nav flex-column px-3 mt-3 mb-3 side-nav-list">
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin"
+              end
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-speedometer2 me-2 icon" />
+              <span className="label">Dashboard</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/users"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-people me-2 icon" />
+              <span className="label">Người dùng</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/departments"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-diagram-3 me-2 icon" />
+              <span className="label">Khoa</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/appointments"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-calendar-check me-2 icon" />
+              <span className="label">Lịch hẹn</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/articles"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-file-earmark-text me-2 icon" />
+              <span className="label">Bài viết</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/reviews"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-chat-dots me-2 icon" />
+              <span className="label">Đánh giá</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/medicines"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-capsule me-2 icon" />
+              <span className="label">Thuốc</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/prescriptions"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-file-medical me-2 icon" />
+              <span className="label">Đơn thuốc</span>
+            </NavLink>
+          </li>
+          <li className="nav-item mb-1">
+            <NavLink
+              to="/admin/payments"
+              className={({ isActive }) =>
+                `nav-link d-flex align-items-center px-3 py-2 rounded-2 side-link ${
+                  isActive ? "active" : ""
+                }`
+              }
+            >
+              <i className="bi bi-credit-card me-2 icon" />
+              <span className="label">Thanh toán</span>
+            </NavLink>
+          </li>
+        </ul>
+      </nav>
+
+      {/* Main */}
+      <main
+        className="admin-main"
+        style={{
+          marginLeft: sidebarWidth,
+          paddingTop: headerHeight + 16,
+          transition: "margin-left .25s, padding-top .25s",
+        }}
+      >
+        <div className="content-card p-4">
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 };

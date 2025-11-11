@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Card, Container, Row, Col, Button, Form, Alert } from "react-bootstrap";
-import { Pill, Plus, User, Search, ArrowLeft, Save } from "lucide-react";
+import { Card, Container, Row, Col, Button, Form, Alert, Modal } from "react-bootstrap";
+import { Pill, Plus, User, Search, ArrowLeft, Save, Clipboard } from "lucide-react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import prescriptionApi from "../../api/prescriptionApi";
 import medicineApi from "../../api/medicineApi";
 import patientApi from "../../api/patientApi";
 import appointmentApi from "../../api/appointmentApi";
+import referralApi from "../../api/referralApi";
+import departmentApi from "../../api/departmentApi";
 import Cookies from 'js-cookie';
 
 const PrescriptionForm = () => {
@@ -42,10 +44,19 @@ const PrescriptionForm = () => {
     instructions: ''
   });
 
+  // Clinical Referral Modal State
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [referralData, setReferralData] = useState({
+    toDepartmentId: '',
+    notes: ''
+  });
+
   useEffect(() => {
     loadMedicines();
     loadPatients();
     loadAppointments();
+    loadDepartments();
   }, []);
 
   // Debug: Log why save button is disabled
@@ -247,6 +258,127 @@ const PrescriptionForm = () => {
       }
       
       setAppointments([]);
+    }
+  };
+
+  // Load departments for clinical referral
+  const loadDepartments = async () => {
+    try {
+      const response = await departmentApi.getAllDepartmentsList();
+      console.log('✅ Loaded departments:', response.data);
+      
+      // Extract departments from paginated response
+      const depts = response.data?.content || response.data || [];
+      setDepartments(depts);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+      // Fallback departments if API fails
+      setDepartments([
+        { id: 1, departmentId: 1, departmentName: 'Khoa Xét nghiệm' },
+        { id: 2, departmentId: 2, departmentName: 'Khoa Chẩn đoán hình ảnh' },
+        { id: 3, departmentId: 3, departmentName: 'Khoa X-quang' },
+        { id: 4, departmentId: 4, departmentName: 'Khoa Siêu âm' },
+      ]);
+    }
+  };
+
+  // Handle creating clinical referral
+  const handleCreateReferral = async () => {
+    console.log('🔍 Starting referral creation...');
+    console.log('🔍 Current formData:', formData);
+    console.log('🔍 Current referralData:', referralData);
+    console.log('🔍 appointmentId from params:', appointmentId);
+    console.log('🔍 appointmentInfo from state:', appointmentInfo);
+
+    if (!referralData.toDepartmentId) {
+      alert('Vui lòng chọn khoa thực hiện');
+      return;
+    }
+
+    if (!referralData.notes.trim()) {
+      alert('Vui lòng nhập yêu cầu cận lâm sàng');
+      return;
+    }
+
+    // Try to resolve appointmentId from multiple sources
+    const resolvedAppointmentId = formData.selectedAppointmentId || 
+                                   appointmentId || 
+                                   appointmentInfo?.appointmentId || 
+                                   appointmentInfo?.id;
+    
+    console.log('🔍 Resolved appointment ID:', resolvedAppointmentId);
+
+    if (!resolvedAppointmentId) {
+      alert('❌ Không tìm thấy thông tin lịch hẹn.\n\nVui lòng:\n1. Chọn lịch hẹn từ dropdown\n2. Hoặc mở form này từ trang "Lịch hẹn bệnh nhân"');
+      return;
+    }
+
+    // Validate appointmentId is a valid number
+    const parsedAppointmentId = parseInt(resolvedAppointmentId);
+    if (isNaN(parsedAppointmentId) || parsedAppointmentId <= 0) {
+      console.error('❌ Invalid appointment ID:', resolvedAppointmentId);
+      alert(`❌ ID lịch hẹn không hợp lệ: ${resolvedAppointmentId}`);
+      return;
+    }
+
+    // Validate departmentId
+    const parsedDepartmentId = parseInt(referralData.toDepartmentId);
+    if (isNaN(parsedDepartmentId) || parsedDepartmentId <= 0) {
+      console.error('❌ Invalid department ID:', referralData.toDepartmentId);
+      alert(`❌ ID khoa không hợp lệ: ${referralData.toDepartmentId}`);
+      return;
+    }
+
+    try {
+      const requestData = {
+        appointmentId: parsedAppointmentId,
+        toDepartmentId: parsedDepartmentId,
+        notes: referralData.notes.trim()
+      };
+
+      console.log('📋 Creating referral with data:', requestData);
+      console.log('📋 Request payload:', JSON.stringify(requestData, null, 2));
+
+      const response = await referralApi.createReferral(requestData);
+      console.log('✅ Referral created successfully:', response);
+      
+      alert('✅ Đã tạo chỉ định cận lâm sàng thành công!');
+      setShowReferralModal(false);
+      setReferralData({ toDepartmentId: '', notes: '' });
+      
+      // Update appointment status to REFERRED
+      try {
+        await appointmentApi.updateAppointment(parsedAppointmentId, { status: 'REFERRED' });
+        console.log('✅ Appointment status updated to REFERRED');
+      } catch (e) {
+        console.warn('⚠️ Không thể cập nhật trạng thái appointment:', e);
+        // Don't show error to user as referral was created successfully
+      }
+    } catch (error) {
+      console.error('❌ Error creating referral:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      
+      let errorMessage = '❌ Không thể tạo chỉ định.\n\n';
+      
+      if (error.response?.data?.message) {
+        errorMessage += `Lỗi: ${error.response.data.message}\n\n`;
+      }
+      
+      if (error.response?.status === 400) {
+        errorMessage += 'Có thể do:\n';
+        errorMessage += '• Lịch hẹn không tồn tại hoặc đã bị xóa\n';
+        errorMessage += '• Khoa được chỉ định không tồn tại\n';
+        errorMessage += '• Bác sĩ chưa được xác thực\n\n';
+        errorMessage += `AppointmentId: ${parsedAppointmentId}\n`;
+        errorMessage += `DepartmentId: ${parsedDepartmentId}`;
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        errorMessage += 'Bạn không có quyền tạo chỉ định.\nVui lòng đăng nhập lại.';
+      } else {
+        errorMessage += 'Vui lòng thử lại hoặc liên hệ IT hỗ trợ.';
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -694,16 +826,30 @@ const PrescriptionForm = () => {
           {/* Diagnosis */}
           <Card className="mb-4">
             <Card.Header>
-              <h6 className="mb-0">Chẩn đoán</h6>
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">Chẩn đoán sơ bộ</h6>
+                <Button 
+                  variant="outline-info" 
+                  size="sm"
+                  onClick={() => setShowReferralModal(true)}
+                  disabled={!formData.patientId && !patientInfo}
+                >
+                  <Clipboard size={16} className="me-1" />
+                  Tạo Chỉ định CLS
+                </Button>
+              </div>
             </Card.Header>
             <Card.Body>
               <Form.Control
                 as="textarea"
                 rows={3}
-                placeholder="Nhập chẩn đoán bệnh..."
+                placeholder="Nhập chẩn đoán sơ bộ (triệu chứng, dấu hiệu lâm sàng...)&#10;Sau khi nhập chẩn đoán, bạn có thể tạo chỉ định cận lâm sàng nếu cần."
                 value={formData.diagnosis}
                 onChange={(e) => setFormData(prev => ({...prev, diagnosis: e.target.value}))}
               />
+              <small className="text-muted mt-2 d-block">
+                💡 <strong>Gợi ý:</strong> Nhập triệu chứng ban đầu. Nếu cần xét nghiệm/chẩn đoán hình ảnh, nhấn "Tạo Chỉ định CLS"
+              </small>
             </Card.Body>
           </Card>
 
@@ -967,6 +1113,61 @@ const PrescriptionForm = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Clinical Referral Modal */}
+      <Modal show={showReferralModal} onHide={() => setShowReferralModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <Clipboard size={24} className="me-2 text-info" />
+            Tạo Chỉ định Cận Lâm Sàng
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="info">
+            <strong>📋 Thông tin bệnh nhân:</strong> {formData.patientName || patientInfo?.name || 'N/A'}
+          </Alert>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Chọn khoa thực hiện <span className="text-danger">*</span></Form.Label>
+            <Form.Select
+              value={referralData.toDepartmentId}
+              onChange={(e) => setReferralData(prev => ({...prev, toDepartmentId: e.target.value}))}
+            >
+              <option value="">-- Chọn khoa --</option>
+              {departments.map(dept => (
+                <option key={dept.id} value={dept.departmentId || dept.id}>
+                  {dept.departmentName}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Yêu cầu cận lâm sàng <span className="text-danger">*</span></Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              placeholder="Nhập chi tiết yêu cầu xét nghiệm hoặc chẩn đoán hình ảnh...&#10;Ví dụ:&#10;- Xét nghiệm công thức máu&#10;- Chụp X-quang phổi&#10;- Siêu âm bụng tổng quát"
+              value={referralData.notes}
+              onChange={(e) => setReferralData(prev => ({...prev, notes: e.target.value}))}
+            />
+          </Form.Group>
+
+          <Alert variant="warning">
+            <strong>⚠️ Lưu ý:</strong> Sau khi tạo chỉ định, trạng thái lịch hẹn sẽ chuyển sang "REFERRED". 
+            Bệnh nhân sẽ đến khoa được chỉ định để thực hiện xét nghiệm/chẩn đoán.
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowReferralModal(false)}>
+            Hủy
+          </Button>
+          <Button variant="primary" onClick={handleCreateReferral}>
+            <Clipboard size={18} className="me-1" />
+            Tạo Chỉ Định
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

@@ -1,32 +1,23 @@
 import axiosClient from './axiosClient';
 
-const fileUploadApi = {
-  uploadImage: (file, id = null, type = 'article') => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type); // Luôn gửi type để backend biết
-    
-    if (id) {
-      if (type === 'doctor') {
-        formData.append('doctorId', id);
-      } else if (type === 'user') {
-        formData.append('userId', id);
-      } else if (type === 'message') {
-        formData.append('messageId', id);
-      } else {
-        formData.append('articleId', id);
-      }
-    }
+// Upload file chung
+function uploadFile(formData) {
+  return axiosClient.post('/files/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
 
-    return axiosClient.post('/files/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
+// Upload ảnh avatar chuyên biệt (nếu backend có)
+function uploadAvatar(formData) {
+  return axiosClient.post('/files/upload/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export default {
+  uploadFile,
+  uploadAvatar,
 };
-
-export default fileUploadApi;
 
 
 
