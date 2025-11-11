@@ -1,205 +1,241 @@
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import userApi from "../../../api/userApi";
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { getFullAvatarUrl } from '../../../utils/avatarUtils';
 
-const AdminHeader = () => {
+export default function AdminHeader({ onToggleSidebar, sidebarCollapsed }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('user')) || null; } catch { return null; }
+  });
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [loadingRefresh, setLoadingRefresh] = useState(false);
+
+  // --- Scroll states ---
+  const [compact, setCompact] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [lastY, setLastY] = useState(0);
 
   useEffect(() => {
-    // Lấy thông tin user từ localStorage
-    const loadUserData = () => {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
-      }
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 10);
+      setCompact(y > 80);
+      // Ẩn khi cuộn xuống (scroll down) vượt 160px, hiện lại khi cuộn lên
+      if (y > 160 && y > lastY + 5) setHidden(true);
+      else if (y < lastY - 5) setHidden(false);
+
+      // Cập nhật biến CSS cho layout (để main có đúng padding-top)
+      const currentHeight = y > 80 ? 56 : 80; // 80 expanded, 56 compact
+      document.documentElement.style.setProperty('--current-header-height', currentHeight + 'px');
+      setLastY(y);
     };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // Khởi tạo biến lúc load
+    document.documentElement.style.setProperty('--current-header-height', '80px');
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [lastY]);
 
-    // Load initial data
-    loadUserData();
-
-    // Listen for changes in localStorage
-    const handleStorageChange = () => {
-      loadUserData();
+  // Đồng bộ user
+  useEffect(() => {
+    const syncUser = () => {
+      try { setUser(JSON.parse(localStorage.getItem('user')) || null); } catch { setUser(null); }
     };
-
-    // Listen for custom events when user data is updated
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('userChanged', handleStorageChange);
-
+    window.addEventListener('storage', syncUser);
+    window.addEventListener('userChanged', syncUser);
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('userChanged', handleStorageChange);
+      window.removeEventListener('storage', syncUser);
+      window.removeEventListener('userChanged', syncUser);
     };
   }, []);
 
-  // Function to refresh user data from API
   const refreshUserData = async () => {
+    if (!user?.id) return;
     try {
-      const currentUser = JSON.parse(localStorage.getItem('user'));
-      if (currentUser) {
-        const response = await userApi.getUserById(currentUser.id);
-        if (response.data) {
-          setUser(response.data);
-          // Update localStorage with fresh data
-          localStorage.setItem('user', JSON.stringify(response.data));
-          // Dispatch custom event to notify other components
-          window.dispatchEvent(new CustomEvent('userChanged'));
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing user data:', error);
+      setLoadingRefresh(true);
+      // Gọi API nếu có
+    } catch (e) {
+      console.error('Refresh user error', e);
+    } finally {
+      setLoadingRefresh(false);
     }
   };
 
-  const handleLogout = () => {
-    // Xóa token và user data
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
-    // Chuyển về trang login
-    navigate('/login');
-  };
-
-  const handleProfileClick = () => {
-    // Refresh user data before showing modal
-    refreshUserData();
+  const handleOpenProfile = async () => {
+    await refreshUserData();
     setShowProfileModal(true);
   };
 
-  const closeProfileModal = () => {
-    setShowProfileModal(false);
+  const handleLogout = async () => {
+    try { /* await userApi?.logout?.(); */ } catch {}
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.dispatchEvent(new Event('userChanged'));
+    navigate('/login');
   };
+
+  const avatar = getFullAvatarUrl(user?.avatarUrl);
+  const displayName = user
+    ? (user.firstName || '') + ' ' + (user.lastName || '')
+    : 'Admin';
 
   return (
     <>
-    <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm border-0 fixed-top py-0" style={{height: '70px', zIndex: 1030}}>
-      <div className="container-fluid px-4 h-100 d-flex align-items-center">
-        <Link to="/admin" className="navbar-brand d-flex align-items-center">
-          <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style={{width: '50px', height: '50px'}}>
-            <i className="bi bi-hospital text-white fs-4" />
-          </div>
-          <div>
-            <span className="fw-bold text-dark fs-4">Clinic Admin</span>
-            <br />
-            <small className="text-muted fs-6">Hệ thống quản trị</small>
-          </div>
-        </Link>
+      <header
+        className={
+          'admin-header d-flex align-items-center justify-content-between px-0' +
+          (compact ? ' compact' : '') +
+          (hidden ? ' hidden' : '') +
+          (scrolled ? ' scrolled' : '')
+        }
+      >
+        <div className="admin-header__brand">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="toggle-side-btn"
+            aria-label="Toggle sidebar"
+          >
+            <i className={"bi " + (sidebarCollapsed ? "bi-list" : "bi-arrow-bar-left")}></i>
+          </button>
+          <Link to="/admin" className="admin-header__logo" title="Trang quản trị">
+            <span className="admin-header__logo-icon">🏥</span>
+            <span className="admin-header__logo-text">
+              <strong>Clinic Admin</strong>
+              <em>Quản trị</em>
+            </span>
+          </Link>
+        </div>
 
-        <div className="d-flex align-items-center gap-2 ms-auto">
-          <button 
-            className="btn btn-outline-primary d-flex align-items-center px-3"
-            style={{ minWidth: '160px' }}
-            onClick={handleProfileClick}
+        <div className="admin-header__actions">
+          <button
+            type="button"
+            onClick={handleOpenProfile}
+            className="ah-btn ah-btn-light ah-avatar-btn"
             title="Xem hồ sơ"
           >
-            <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style={{width: '32px', height: '32px'}}>
-              <i className="bi bi-person text-white" style={{fontSize: '0.9rem'}} />
-            </div>
-            <span className="fw-semibold text-truncate d-none d-lg-inline" style={{maxWidth: '100px'}}>
-              {user ? user.firstName + ' ' + user.lastName : 'Admin'}
+            <span className="ah-avatar">
+              <img
+                src={avatar}
+                alt="avatar"
+                onError={(e) => { e.currentTarget.src = '/images/default-doctor.png'; }}
+              />
             </span>
+            <span className="ah-text" title={displayName.trim() || 'Tài khoản'}>
+              {displayName.trim() || 'Tài khoản'}
+            </span>
+            {loadingRefresh && <span className="ah-loading">…</span>}
           </button>
 
-          <button 
-            className="btn btn-outline-danger d-flex align-items-center px-3"
-            style={{ minWidth: '140px' }}
+          <Link
+            to="/admin/profile"
+            className="ah-btn ah-btn-outline"
+            title="Chỉnh sửa thông tin"
+            onClick={() => setShowProfileModal(false)}
+          >
+            Chỉnh sửa
+          </Link>
+
+          <button
             onClick={handleLogout}
+            className="ah-btn ah-btn-danger"
             title="Đăng xuất"
           >
-            <i className="bi bi-box-arrow-right" />
-            <span className="fw-semibold d-none d-lg-inline ms-2">Đăng xuất</span>
+            Đăng xuất
           </button>
         </div>
-      </div>
-    </nav>
+      </header>
 
-    {/* Profile Modal */}
-    {showProfileModal && (
-      <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">Thông tin cá nhân</h5>
-              <button 
-                type="button" 
-                className="btn-close" 
-                onClick={closeProfileModal}
-              ></button>
+      {showProfileModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+        >
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <h5 className="font-semibold text-sm">Thông tin cá nhân</h5>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setShowProfileModal(false)}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
             </div>
-            <div className="modal-body">
+            <div className="p-4">
               {user ? (
-                <div className="row">
-                  <div className="col-md-4 text-center mb-3">
-                    <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style={{width: '80px', height: '80px'}}>
-                      <i className="bi bi-person text-white fs-2" />
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 mb-3">
+                      <img
+                        src={avatar}
+                        alt="avatar"
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.src = '/images/default-doctor.png'; }}
+                      />
                     </div>
-                    <h6 className="fw-bold">{user.firstName} {user.lastName}</h6>
-                    <span className="badge bg-primary">{user.role?.name || 'Admin'}</span>
+                    <div className="font-semibold text-base">{displayName || '—'}</div>
+                    <div className="text-xs text-gray-500">{user.email || 'Chưa có email'}</div>
+                    <span className="mt-2 inline-block rounded bg-blue-100 text-blue-700 px-2 py-0.5 text-[11px] font-medium">
+                      {user.role?.name || 'Admin'}
+                    </span>
                   </div>
-                  <div className="col-md-8">
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Email</label>
-                      <div className="form-control-plaintext">{user.email}</div>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Họ và tên</label>
-                      <div className="form-control-plaintext">{user.firstName} {user.lastName}</div>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Số điện thoại</label>
-                      <div className="form-control-plaintext">{user.phone || 'Chưa cập nhật'}</div>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Địa chỉ</label>
-                      <div className="form-control-plaintext">{user.address || 'Chưa cập nhật'}</div>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Trạng thái</label>
-                      <div>
-                        <span className={`badge ${user.status === 'ACTIVE' ? 'bg-success' : 'bg-danger'}`}>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <Info label="Số điện thoại" value={user.phone} />
+                    <Info
+                      label="Trạng thái"
+                      value={
+                        <span
+                          className={`px-2 py-0.5 rounded text-[11px] font-medium ${
+                            user.status === 'ACTIVE'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-600'
+                          }`}
+                        >
                           {user.status === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}
                         </span>
-                      </div>
-                    </div>
+                      }
+                    />
+                    <Info label="Địa chỉ" value={user.address} className="col-span-2" />
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-4">
-                  <i className="bi bi-person-circle text-muted" style={{fontSize: '3rem'}}></i>
-                  <p className="text-muted mt-2">Không có thông tin người dùng</p>
+                <div className="py-8 text-center text-sm text-gray-500">
+                  Không có thông tin người dùng
                 </div>
               )}
             </div>
-            <div className="modal-footer">
-              <button 
-                type="button" 
-                className="btn btn-secondary" 
-                onClick={closeProfileModal}
+            <div className="px-4 py-3 border-t flex justify-end gap-2">
+              <button
+                className="px-3 py-1.5 text-sm rounded border hover:bg-gray-50"
+                onClick={() => setShowProfileModal(false)}
               >
                 Đóng
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary"
-                onClick={() => {
-                  closeProfileModal();
-                  navigate('/admin/profile');
-                }}
+              <Link
+                to="/admin/profile"
+                className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-500"
+                onClick={() => setShowProfileModal(false)}
               >
                 Chỉnh sửa
-              </button>
+              </Link>
             </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </>
   );
-};
+}
 
-export default AdminHeader;
-
-
-
+function Info({ label, value, className = '' }) {
+  return (
+    <div className={`flex flex-col gap-0.5 ${className}`}>
+      <span className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">{label}</span>
+      <span className="text-gray-800 text-sm break-words">
+        {value || <span className="text-gray-400">Chưa cập nhật</span>}
+      </span>
+    </div>
+  );
+}
