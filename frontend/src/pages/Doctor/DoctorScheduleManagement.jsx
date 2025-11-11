@@ -905,23 +905,25 @@ const CalendarView = ({
         .calendar-days {
           display: grid;
           grid-template-columns: repeat(7, 1fr);
-          grid-template-rows: repeat(6, 1fr);
-          min-height: 260px;
+          grid-auto-rows: minmax(60px, auto);
+          min-height: 360px;
         }
 
         .calendar-day {
-          border-right: 1px solid #e9ecef;
-          border-bottom: 1px solid #e9ecef;
+          border-right: 1px solid #dee2e6;
+          border-bottom: 1px solid #dee2e6;
           cursor: pointer;
           transition: all 0.2s ease;
           position: relative;
-          min-height: 43px;
+          min-height: 50px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .calendar-day:hover {
           background: #f8f9fa;
           transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+          z-index: 1;
         }
 
         .calendar-day-today {
@@ -946,11 +948,12 @@ const CalendarView = ({
         .calendar-day-empty {
           border-right: 1px solid #e9ecef;
           border-bottom: 1px solid #e9ecef;
-          min-height: 30px;
+          min-height: 60px;
+          background: #fafbfc;
         }
 
         .calendar-day-content {
-          padding: 2px;
+          padding: 4px;
           height: 100%;
           display: flex;
           flex-direction: column;
@@ -960,23 +963,24 @@ const CalendarView = ({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 2px;
+          margin-bottom: 4px;
         }
 
         .calendar-day-number {
           font-weight: 600;
-          font-size: 0.7rem;
+          font-size: 0.8rem;
         }
 
         .calendar-day-badge {
-          background: rgba(255, 255, 255, 0.9);
+          background: rgba(255, 255, 255, 0.95);
           color: #0d6efd;
-          border-radius: 3px;
-          padding: 0px 2px;
-          font-size: 0.6rem;
+          border-radius: 4px;
+          padding: 2px 5px;
+          font-size: 0.7rem;
           font-weight: 600;
-          min-width: 10px;
+          min-width: 18px;
           text-align: center;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .calendar-day-today .calendar-day-badge {
@@ -988,31 +992,33 @@ const CalendarView = ({
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 3px;
+          gap: 5px;
         }
 
         .calendar-schedule-item {
-          padding: 1px 2px;
-          border-radius: 2px;
-          font-size: 0.7rem;
+          padding: 4px 6px;
+          border-radius: 4px;
+          font-size: 0.85rem;
           font-weight: 500;
           text-align: center;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          line-height: 1.2;
+          line-height: 1.3;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+          border: 1px solid transparent;
         }
 
         .schedule-available {
           background: #d1edff;
           color: #0d6efd;
-          border: 1px solid #b3d7ff;
+          border: 1px solid #90c9f5;
         }
 
         .schedule-completed {
           background: #d4edda;
           color: #155724;
-          border: 1px solid #c3e6cb;
+          border: 1px solid #a3d9b1;
         }
 
         .calendar-day-today .schedule-available {
@@ -1028,32 +1034,37 @@ const CalendarView = ({
         }
 
         .calendar-schedule-more {
-          font-size: 0.55rem;
+          font-size: 0.65rem;
           color: #6c757d;
           text-align: center;
           font-style: italic;
+          margin-top: 2px;
         }
 
         .calendar-day-today .calendar-schedule-more {
-          color: rgba(255, 255, 255, 0.8);
+          color: rgba(255, 255, 255, 0.9);
         }
 
         @media (max-width: 768px) {
+          .calendar-days {
+            min-height: 300px;
+          }
+
           .calendar-day {
-            min-height: 25px;
+            min-height: 50px;
           }
 
           .calendar-day-content {
-            padding: 1px 0px;
+            padding: 4px;
           }
 
           .calendar-day-number {
-            font-size: 0.65rem;
+            font-size: 0.75rem;
           }
 
           .calendar-schedule-item {
-            font-size: 0.55rem;
-            padding: 0px 0px;
+            font-size: 0.7rem;
+            padding: 2px 4px;
           }
         }
       `}</style>
