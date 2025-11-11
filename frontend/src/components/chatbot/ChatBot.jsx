@@ -338,12 +338,12 @@ const ChatBot = () => {
       const fullName =
         doctor.fullName ||
         `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim() ||
-        'Bac si';
+        'Bác Sĩ';
       const dept =
         doctor.departmentName ||
         doctor.department?.departmentName ||
         departmentName ||
-        'Da khoa';
+        'Đa khoa';
       const rating =
         Number(
           doctor.rating ??
@@ -359,10 +359,10 @@ const ChatBot = () => {
         doctorId,
         fullName,
         departmentLabel: dept,
-        specialty: doctor.specialty || 'Chuyen khoa tong quat',
+        specialty: doctor.specialty || 'Chuyên Khoa Tổng Quát',
         rating,
         avatar,
-        degree: doctor.degree || doctor.user?.degree || 'Bac si',
+        degree: doctor.degree || doctor.user?.degree || 'Bác Sĩ',
         experience: doctor.workExperience || '',
         hospital: doctor.user?.address || ''
       };
