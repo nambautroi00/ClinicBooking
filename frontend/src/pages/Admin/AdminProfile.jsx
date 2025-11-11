@@ -159,13 +159,10 @@ const AdminProfile = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       setError('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
       return;
     }
-
-    // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       setError('Kích thước file không được vượt quá 5MB');
       return;
@@ -174,19 +171,34 @@ const AdminProfile = () => {
     try {
       setUploading(true);
       setError('');
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fileUploadApi.uploadFile(formData);
-      
-      if (response.data && response.data.url) {
-        setFormData(prev => ({
-          ...prev,
-          avatarUrl: response.data.url
-        }));
-        setSuccess('Upload ảnh thành công!');
+      setSuccess('');
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      // Gọi đúng hàm
+      const response = await fileUploadApi.uploadFile(fd);
+      console.log('[Upload] raw response:', response);
+
+      // Chuẩn hóa lấy url
+      const data = response?.data;
+      const url =
+        data?.url ||
+        data?.fileUrl ||
+        data?.path ||
+        data?.avatarUrl ||
+        data?.data?.url ||
+        data?.data?.fileUrl;
+
+      if (!url) {
+        setError('Phản hồi upload không chứa trường url hợp lệ.');
+        return;
       }
+
+      setFormData(prev => ({ ...prev, avatarUrl: url }));
+      setSuccess('Upload ảnh thành công!');
+      // Reset input
+      e.target.value = '';
     } catch (error) {
       console.error('Error uploading file:', error);
       setError('Lỗi khi upload ảnh: ' + (error.response?.data?.message || error.message));
@@ -258,11 +270,12 @@ const AdminProfile = () => {
                       onClick={editing ? () => setShowAvatarModal(true) : undefined}
                     >
                       {formData.avatarUrl ? (
-                        <img 
-                          src={getFullAvatarUrl(formData.avatarUrl)} 
-                          alt="Avatar" 
+                        <img
+                          src={getFullAvatarUrl(formData.avatarUrl)}
+                          alt="Avatar"
                           className="w-100 h-100"
                           style={{ objectFit: 'cover' }}
+                          onError={(e) => { e.currentTarget.src = '/images/default-doctor.png'; }}
                         />
                       ) : (
                         <div className="w-100 h-100 bg-primary d-flex align-items-center justify-content-center">

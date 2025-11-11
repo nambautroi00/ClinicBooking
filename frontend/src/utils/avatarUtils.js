@@ -3,16 +3,20 @@
  */
 import config from '../config/config';
 
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
 /**
  * Convert relative avatar URL to full URL
  * @param {string} avatarUrl - The avatar URL (can be relative or absolute)
  * @returns {string} - Full URL for the avatar
  */
-export const getFullAvatarUrl = (avatarUrl) => {
-  return config.helpers.getAvatarUrl(avatarUrl);
-};
+export function getFullAvatarUrl(raw) {
+  if (!raw) return '/images/default-doctor.png';
+  const v = String(raw).trim();
+  if (/^https?:\/\//i.test(v)) return v;
+  if (v.startsWith('/images/')) return v;
+  return v.startsWith('/') ? `${API_BASE_URL}${v}` : `${API_BASE_URL}/${v}`;
+}
 
 /**
  * Check if avatar URL is valid
