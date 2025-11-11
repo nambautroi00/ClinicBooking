@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
   Calendar,
@@ -470,7 +470,7 @@ export default function PatientAppointmentHistory() {
         color: '#0d6efd'
       },
       "Completed": {
-        class: "bg-green-600 text-white",
+        class: "bg-green-50 text-green-600 border border-green-600",
         text: "Hoàn thành",
         icon: CheckCircle,
         color: '#198754'
@@ -769,9 +769,12 @@ export default function PatientAppointmentHistory() {
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 truncate">
-                                {doctor.user ? `${doctor.user.firstName} ${doctor.user.lastName}` : doctor.name || appointment.doctorName || 'Bác sĩ'}
-                              </h3>
+                              <Link 
+                                to={`/patient/booking/${appointment.doctorId}`}
+                                className="text-base sm:text-lg font-bold text-gray-900 mb-1 truncate block hover:text-blue-600 transition-colors cursor-pointer"
+                              >
+                                {doctor.user ? `${doctor.user.lastName} ${doctor.user.firstName} ` : doctor.name || appointment.doctorName || 'Bác sĩ'}
+                              </Link>
                               <div className="flex flex-col gap-1 sm:gap-1.5">
                                 {doctorRatings[appointment.doctorId] && (
                                   <div className="flex items-center gap-3 text-sm flex-wrap">
@@ -845,9 +848,8 @@ export default function PatientAppointmentHistory() {
                               </button>
                             )}
                             {appointment.status === 'Completed' && (
-                              <button className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md" onClick={() => { if (reviews[appointment.appointmentId]) openEditReview(appointment, reviews[appointment.appointmentId]); else { setAppointmentToReview(appointment); setShowReviewModal(true); } }}>
-                                <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-                                <span className="whitespace-nowrap">{reviews[appointment.appointmentId] ? 'Chỉnh sửa đánh giá' : 'Đánh giá'}</span>
+                              <button className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-white bg-blue-300 hover:bg-blue-400 rounded-lg transition-all text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md" onClick={() => { if (reviews[appointment.appointmentId]) openEditReview(appointment, reviews[appointment.appointmentId]); else { setAppointmentToReview(appointment); setShowReviewModal(true); } }}>
+                                <span className="whitespace-nowrap">{reviews[appointment.appointmentId] ? 'Chỉnh sửa' : 'Đánh giá'}</span>
                               </button>
                             )}
                           </div>
@@ -1021,7 +1023,7 @@ export default function PatientAppointmentHistory() {
       {showReviewModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+            <div className="bg-gradient-to-r from-blue-300 to-indigo-300 px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/20 rounded-full backdrop-blur-sm">
                   <Star className="h-6 w-6 text-white fill-white" />
@@ -1051,7 +1053,7 @@ export default function PatientAppointmentHistory() {
                   <textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-300 transition-all resize-none"
                     rows="4"
                     placeholder="Chia sẻ trải nghiệm của bạn về buổi khám..."
                   />
@@ -1073,7 +1075,7 @@ export default function PatientAppointmentHistory() {
                   Hủy bỏ
                 </button>
                 <button
-                  className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+                  className="flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-300 to-indigo-300 text-white rounded-lg hover:from-blue-400 hover:to-indigo-400 font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                   disabled={rating === 0 || submittingReview}
                   onClick={handleSubmitReview}
                 >
@@ -1084,8 +1086,7 @@ export default function PatientAppointmentHistory() {
                     </>
                   ) : (
                     <>
-                      <Star className="h-4 w-4 inline mr-2" />
-                      {isEditingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                      {isEditingReview ? 'Chỉnh sửa' : 'Đánh giá'}
                     </>
                   )}
                 </button>
