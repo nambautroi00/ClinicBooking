@@ -16,7 +16,7 @@ const MedicinesManagement = () => {
     strength: '',
     category: '',
     price: '',
-    unit: 'viên'
+    // unit removed per admin requirement
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [medicineToDelete, setMedicineToDelete] = useState(null);
@@ -43,7 +43,8 @@ const MedicinesManagement = () => {
       setLoading(true);
       const response = await medicineApi.getAll();
       console.log('API response:', response.data);
-      const medicinesData = (response.data || []).map(medicine => ({
+      const medicinesData = (response.data || []).map((medicine, i) => ({
+        seq: i + 1,
         id: medicine.medicineId, // sử dụng medicineId làm id
         medicineId: medicine.medicineId,
         name: medicine.name,
@@ -51,107 +52,60 @@ const MedicinesManagement = () => {
         category: medicine.note || 'Chưa phân loại', // sử dụng note làm category
         manufacturer: medicine.manufacturer || 'Chưa cập nhật',
         price: medicine.unitPrice || 0,
-        unit: medicine.unit || 'Viên',
         expiryDate: medicine.expiryDate || '2025-12-31',
         description: medicine.note || medicine.description || ''
       }));
       setMedicines(medicinesData);
     } catch (error) {
-      console.error('Lỗi khi tải danh sách thuốc:', error);
-      console.warn('MedicinesManagement: backend unavailable, using mock data.');
-      
-      // Mock data for testing when backend is not available
-      const mockMedicines = [
-        {
-          id: 1,
-          medicineId: 'MED001',
-          name: 'Paracetamol 500mg',
-          strength: '500mg',
-          category: 'Thuốc giảm đau',
-          manufacturer: 'Traphaco',
-          price: 15000,
-          unit: 'Viên',
-          expiryDate: '2025-12-31',
-          description: 'Thuốc giảm đau, hạ sốt'
-        },
-        {
-          id: 2,
-          medicineId: 'MED002',
-          name: 'Amoxicillin 250mg',
-          strength: '250mg',
-          category: 'Kháng sinh',
-          manufacturer: 'Imexpharm',
-          price: 25000,
-          unit: 'Viên',
-          expiryDate: '2026-06-30',
-          description: 'Kháng sinh điều trị nhiễm khuẩn'
-        },
-        {
-          id: 3,
-          medicineId: 'MED003',
-          name: 'Vitamin C 1000mg',
-          strength: '1000mg',
-          category: 'Vitamin',
-          manufacturer: 'DHG Pharma',
-          price: 120000,
-          unit: 'Viên',
-          expiryDate: '2025-09-15',
-          description: 'Bổ sung vitamin C'
-        },
-        {
-          id: 4,
-          medicineId: 'MED004',
-          name: 'Aspirin 81mg',
-          strength: '81mg',
-          category: 'Thuốc tim mạch',
-          manufacturer: 'Pymepharco',
-          price: 35000,
-          unit: 'Viên',
-          expiryDate: '2025-11-20',
-          description: 'Thuốc chống đông máu'
-        },
-        {
-          id: 5,
-          medicineId: 'MED005',
-          name: 'Omeprazole 20mg',
-          strength: '20mg',
-          category: 'Thuốc tiêu hóa',
-          manufacturer: 'Boston',
-          price: 45000,
-          unit: 'Viên',
-          expiryDate: '2025-08-10',
-          description: 'Thuốc điều trị loét dạ dày'
-        },
-        {
-          id: 6,
-          medicineId: 'MED006',
-          name: 'Cephalexin 500mg',
-          strength: '500mg',
-          category: 'Kháng sinh',
-          manufacturer: 'Mediplantex',
-          price: 55000,
-          unit: 'Viên',
-          expiryDate: '2026-03-25',
-          description: 'Kháng sinh nhóm Cephalosporin'
-        }
-      ];
-      
-      setMedicines(mockMedicines);
+        console.error('Lỗi khi tải danh sách thuốc:', error);
+        // Notify user and show empty list when backend fails
+        try { toast.error('Không thể tải danh sách thuốc từ backend. Vui lòng kiểm tra kết nối.'); } catch (e) { /* ignore */ }
+        setMedicines([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredMedicines = medicines.filter(medicine =>
-    (medicine.name || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (medicine.medicineId || '').toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (medicine.category || '').toString().toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMedicines = (medicines || []).filter((medicine, idx) => {
+    const raw = (searchTerm || '').toString().trim();
+    if (!raw) return true;
+
+    // If input contains only digits, commas, hyphens and spaces, treat as STT list/range
+    // Examples supported: "12" (exact STT 12), "1,2,5", "1-5", "1,3-5,8"
+    if (/^[\d,\-\s]+$/.test(raw)) {
+      const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+      const sttSet = new Set();
+      for (const part of parts) {
+        if (part.includes('-')) {
+          const [aStr, bStr] = part.split('-').map(x => x.trim());
+          const a = Number(aStr);
+          const b = Number(bStr);
+          if (!Number.isNaN(a) && !Number.isNaN(b)) {
+            const start = Math.min(a, b);
+            const end = Math.max(a, b);
+            for (let k = start; k <= end; k++) sttSet.add(k);
+          }
+        } else {
+          const n = Number(part);
+          if (!Number.isNaN(n)) sttSet.add(n);
+        }
+      }
+
+      return sttSet.has(idx + 1);
+    }
+
+    // Fallback: text search in name or category
+    const lower = raw.toLowerCase();
+    return (
+      (medicine.name || '').toString().toLowerCase().includes(lower) ||
+      (medicine.category || '').toString().toLowerCase().includes(lower)
+    );
+  });
 
   const handleAddNew = () => {
     setSelectedMedicine(null);
     setModalData({
-      medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên'
+      medicineId: '', name: '', strength: '', category: '', price: ''
     });
     setShowModal(true);
   };
@@ -164,7 +118,6 @@ const MedicinesManagement = () => {
       strength: medicine.strength || '',
       category: medicine.category || '',
       price: medicine.price || '',
-      unit: medicine.unit || 'viên',
     });
     setShowModal(true);
   };
@@ -219,7 +172,7 @@ const MedicinesManagement = () => {
       // backend expects category in `note` field in current mapping, include it so updates persist
       note: (modalData.category || '').trim() || undefined,
       unitPrice: priceNumber || 0,
-      unit: modalData.unit || 'viên',
+      // unit removed from admin payload
     };
 
     try {
@@ -230,10 +183,10 @@ const MedicinesManagement = () => {
         await medicineApi.create(payload);
         toast.success('Thêm thuốc thành công');
       }
-      setShowModal(false);
-      // reset
-  setSelectedMedicine(null);
-      setModalData({ medicineId: '', name: '', strength: '', category: '', price: '', unit: 'viên' });
+    setShowModal(false);
+    // reset
+    setSelectedMedicine(null);
+    setModalData({ medicineId: '', name: '', strength: '', category: '', price: '' });
       loadMedicines();
     } catch (error) {
       console.error('Lỗi khi lưu thuốc:', error);
@@ -246,33 +199,72 @@ const MedicinesManagement = () => {
       {/* Header */}
       <Row className="mb-4">
         <Col>
-          <Card className="shadow-sm">
-            <Card.Body>
+          <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
+            <Card.Body className="p-4">
               <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h2 className="text-primary mb-1">
-                    <Package className="me-2" size={32} />
-                    Quản Lý Thuốc
-                  </h2>
-                  <p className="text-muted mb-0">Quản lý kho thuốc và thông tin thuốc</p>
+                  <div className="d-flex align-items-center mb-2">
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '16px'
+                    }}>
+                      <Package size={24} color="white" />
+                    </div>
+                    <div>
+                      <h2 className="mb-0" style={{fontSize: '1.75rem', fontWeight: 700, color: '#1f2937'}}>
+                        Quản Lý Thuốc
+                      </h2>
+                      <p className="text-muted mb-0" style={{fontSize: '0.9rem'}}>Quản lý kho thuốc và thông tin thuốc</p>
+                    </div>
+                  </div>
                 </div>
-                <Button variant="primary" onClick={handleAddNew}>
-                  <Plus className="me-2" size={18} />
-                  Thêm Thuốc Mới
-                </Button>
               </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Stats Cards (only showing total) */}
-      <Row className="mb-4">
-        <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #0d6efd"}}>
-            <Card.Body>
-              <h3 className="text-primary">{medicines.length}</h3>
-              <p className="text-muted mb-0">Tổng Loại Thuốc</p>
+      {/* Stats Cards: removed "Giá Trị Kho" per request; two cards now for balance */}
+      <Row className="mb-4 g-3">
+        <Col md={6}>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 140}}>
+              <div style={{position: 'absolute', top: 16, right: 16, opacity: 0.9}}>
+                <Package size={28} color="rgba(255,255,255,0.95)" />
+              </div>
+              <div className="mb-3">
+                <h6 className="mb-1" style={{fontWeight: 600}}>Tổng Loại Thuốc</h6>
+              </div>
+              <h2 className="mb-1" style={{fontSize: '2.5rem', fontWeight: 700}}>{medicines.length}</h2>
+              <small style={{opacity: 0.95}}>Loại thuốc khác nhau</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6}>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 140}}>
+              <div style={{position: 'absolute', top: 16, right: 16, opacity: 0.95, fontSize: 20}}>
+                <span role="img" aria-label="list">📋</span>
+              </div>
+              <div className="mb-3">
+                <h6 className="mb-1" style={{fontWeight: 600}}>Danh Mục</h6>
+              </div>
+              <h2 className="mb-1" style={{fontSize: '2.5rem', fontWeight: 700}}>{categoryOptions.length}</h2>
+              <small style={{opacity: 0.95}}>Loại thuốc khác nhau</small>
             </Card.Body>
           </Card>
         </Col>
@@ -280,23 +272,47 @@ const MedicinesManagement = () => {
 
       {/* Search */}
       <Row className="mb-4">
-        <Col md={8}>
+        <Col md={9}>
           <div className="position-relative">
-            <Search className="position-absolute" size={18} style={{left: "12px", top: "12px", color: "#6c757d"}} />
+            <Search className="position-absolute" size={20} style={{left: "16px", top: "14px", color: "#9ca3af"}} />
             <Form.Control
               type="text"
-              placeholder="Tìm kiếm theo tên thuốc, mã thuốc, loại thuốc..."
+              placeholder="Tìm kiếm theo STT, tên thuốc hoặc loại thuốc..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{paddingLeft: "45px"}}
+              style={{
+                paddingLeft: "48px",
+                height: '48px',
+                borderRadius: '12px',
+                border: '1px solid #e5e7eb',
+                fontSize: '0.95rem'
+              }}
             />
           </div>
+        </Col>
+        <Col md={3} className="d-flex align-items-center justify-content-end">
+          <Button 
+            variant="primary" 
+            onClick={handleAddNew}
+            style={{
+              height: '48px',
+              borderRadius: '12px',
+              paddingLeft: '18px',
+              paddingRight: '18px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center'
+            }}
+          >
+            <Plus className="me-2" size={18} />
+            Thêm Thuốc Mới
+          </Button>
         </Col>
       </Row>
 
       {/* Medicines Table */}
-      <Card className="shadow-sm">
-        <Card.Body>
+      <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
+        <Card.Body className="p-0">
           {loading ? (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
@@ -311,47 +327,79 @@ const MedicinesManagement = () => {
               <p className="mb-0">Thử thay đổi từ khóa tìm kiếm hoặc kiểm tra kết nối backend</p>
             </Alert>
           ) : (
-            <Table responsive hover>
-              <thead className="table-light">
+            <Table responsive hover className="align-middle">
+              <thead style={{backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6'}}>
                 <tr>
-                  <th>Mã Thuốc</th>
-                  <th>Tên Thuốc</th>
-                  <th>Hàm lượng</th>
-                  <th>Loại</th>
-                  <th>Đơn Giá</th>
-                  {/* Bỏ cột tồn kho */}
-                  <th>Thao Tác</th>
+                  <th style={{width: 60, fontWeight: 600}}>STT</th>
+                  <th style={{fontWeight: 600}}>Tên Thuốc</th>
+                  <th style={{fontWeight: 600}}>Hàm Lượng</th>
+                  <th style={{fontWeight: 600}}>Dạng</th>
+                  <th style={{fontWeight: 600}}>Loại</th>
+                  <th style={{fontWeight: 600}}>Đơn Giá</th>
+                  <th style={{fontWeight: 600, textAlign: 'center'}}>Thao Tác</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredMedicines.map(medicine => (
-                  <tr key={medicine.id}>
+                {filteredMedicines.map((medicine, index) => (
+                  <tr key={medicine.id} style={{borderBottom: '1px solid #f0f0f0'}}>
                     <td>
-                      <strong className="text-primary">{medicine.medicineId}</strong>
+                      <strong className="text-primary">{medicine.seq || (index + 1)}</strong>
                     </td>
                     <td>
                       <div>
-                        <strong>{medicine.name}</strong>
-                        <br />
-                        <small className="text-muted">{medicine.description}</small>
+                        <strong style={{fontSize: '0.95rem'}}>{medicine.name}</strong>
+                        {medicine.description && (
+                          <div>
+                            <small className="text-muted">{medicine.description}</small>
+                          </div>
+                        )}
                       </div>
                     </td>
-                    <td>{medicine.strength || '-'}</td>
-                    <td>{medicine.category || 'N/A'}</td>
                     <td>
-                      <strong className="text-success">
+                      <span className="badge bg-light text-dark" style={{fontWeight: 500}}>
+                        {medicine.strength || '-'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="badge" style={{
+                        backgroundColor: '#e3f2fd',
+                        color: '#1976d2',
+                        fontWeight: 500,
+                        padding: '6px 12px',
+                        borderRadius: '6px'
+                      }}>
+                        Viên nén
+                      </span>
+                    </td>
+                    <td>
+                      <span className="badge" style={{
+                        backgroundColor: medicine.category?.includes('kháng sinh') ? '#ffebee' :
+                                       medicine.category?.includes('giảm đau') ? '#e3f2fd' :
+                                       medicine.category?.includes('vitamin') ? '#f3e5f5' :
+                                       medicine.category?.includes('tiêu hóa') ? '#fff3e0' : '#e8f5e9',
+                        color: medicine.category?.includes('kháng sinh') ? '#c62828' :
+                               medicine.category?.includes('giảm đau') ? '#1565c0' :
+                               medicine.category?.includes('vitamin') ? '#6a1b9a' :
+                               medicine.category?.includes('tiêu hóa') ? '#e65100' : '#2e7d32',
+                        fontWeight: 500,
+                        padding: '6px 12px',
+                        borderRadius: '6px'
+                      }}>
+                        {medicine.category || 'N/A'}
+                      </span>
+                    </td>
+                    <td>
+                      <strong className="text-success" style={{fontSize: '0.95rem'}}>
                         {(medicine.price || 0).toLocaleString('vi-VN')} ₫
                       </strong>
-                      <br />
-                      <small className="text-muted">/{medicine.unit || 'đơn vị'}</small>
                     </td>
-                    {/* Bỏ hiển thị tồn kho */}
-                    <td>
+                    <td style={{textAlign: 'center'}}>
                       <Button 
                         variant="outline-primary" 
                         size="sm" 
                         className="me-2"
                         onClick={() => handleEdit(medicine)}
+                        style={{borderRadius: '8px'}}
                       >
                         <Edit size={14} />
                       </Button>
@@ -359,6 +407,7 @@ const MedicinesManagement = () => {
                         variant="outline-danger" 
                         size="sm"
                         onClick={() => handleDeleteClick(medicine)}
+                        style={{borderRadius: '8px'}}
                       >
                         <Trash2 size={14} />
                       </Button>
@@ -446,18 +495,7 @@ const MedicinesManagement = () => {
                   />
                 </Form.Group>
               </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Đơn vị</Form.Label>
-                  <Form.Select value={modalData.unit} onChange={(e) => setModalData(prev => ({...prev, unit: e.target.value}))}>
-                    <option value="viên">viên</option>
-                    <option value="chai">chai</option>
-                    <option value="ống">ống</option>
-                    <option value="hộp">hộp</option>
-                    <option value="gói">gói</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
+              {/* unit select removed from admin modal */}
             </Row>
             {/* manufacturer removed - not required */}
           </Form>

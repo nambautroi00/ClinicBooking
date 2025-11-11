@@ -192,20 +192,30 @@ const PrescriptionsManagement = () => {
       {/* Header */}
       <Row className="mb-4">
         <Col>
-          <Card className="shadow-sm">
-            <Card.Body>
+          <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
+            <Card.Body className="p-4">
               <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h2 className="text-primary mb-1">
-                    <FileText className="me-2" size={32} />
-                    Quản Lý Đơn Thuốc
-                  </h2>
-                  <p className="text-muted mb-0">Xem và quản lý các đơn thuốc đã được kê</p>
-                </div>
-                <div>
-                  <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-                    Tạo đơn thuốc
-                  </Button>
+                  <div className="d-flex align-items-center mb-2">
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '16px'
+                    }}>
+                      <FileText size={24} color="white" />
+                    </div>
+                    <div>
+                      <h2 className="mb-0" style={{fontSize: '1.75rem', fontWeight: 700, color: '#1f2937'}}>
+                        Quản Lý Đơn Thuốc
+                      </h2>
+                      <p className="text-muted mb-0" style={{fontSize: '0.9rem'}}>Xem và quản lý các đơn thuốc đã được kê</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Card.Body>
@@ -214,36 +224,76 @@ const PrescriptionsManagement = () => {
       </Row>
 
       {/* Stats Cards */}
-      <Row className="mb-4">
+      <Row className="mb-4 g-3">
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #0d6efd"}}>
-            <Card.Body>
-              <h3 className="text-primary">{prescriptions.length}</h3>
-              <p className="text-muted mb-0">Tổng Đơn Thuốc</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 140}}>
+              <div style={{position: 'absolute', top: 16, right: 16, opacity: 0.9}}>
+                <FileText size={28} color="rgba(255,255,255,0.95)" />
+              </div>
+              <div className="mb-3">
+                <h6 className="mb-1" style={{fontWeight: 600}}>Tổng Đơn Thuốc</h6>
+              </div>
+              <h2 className="mb-1" style={{fontSize: '2.5rem', fontWeight: 700}}>{prescriptions.length}</h2>
+              <small style={{opacity: 0.95}}>Đơn thuốc trong hệ thống</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #198754"}}>
-            <Card.Body>
-              <h3 className="text-success">{prescriptions.filter(p => p.status === 'completed').length}</h3>
-              <p className="text-muted mb-0">Đã Hoàn Thành</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 140}}>
+              <div style={{position: 'absolute', top: 16, right: 16, opacity: 0.95, fontSize: 20}}>
+                <span role="img" aria-label="check">✅</span>
+              </div>
+              <div className="mb-3">
+                <h6 className="mb-1" style={{fontWeight: 600}}>Đã Hoàn Thành</h6>
+              </div>
+              <h2 className="mb-1" style={{fontSize: '2.5rem', fontWeight: 700}}>{prescriptions.filter(p => p.status === 'completed').length}</h2>
+              <small style={{opacity: 0.95}}>Đơn đã xử lý xong</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #ffc107"}}>
-            <Card.Body>
-              <h3 className="text-warning">{prescriptions.filter(p => p.status === 'pending').length}</h3>
-              <p className="text-muted mb-0">Chờ Xử Lý</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 140}}>
+              <div style={{position: 'absolute', top: 16, right: 16, opacity: 0.95, fontSize: 20}}>
+                <span role="img" aria-label="clock">⏳</span>
+              </div>
+              <div className="mb-3">
+                <h6 className="mb-1" style={{fontWeight: 600}}>Chờ Xử Lý</h6>
+              </div>
+              <h2 className="mb-1" style={{fontSize: '2.5rem', fontWeight: 700}}>{prescriptions.filter(p => p.status === 'pending').length}</h2>
+              <small style={{opacity: 0.95}}>Đơn đang chờ duyệt</small>
             </Card.Body>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="text-center shadow-sm border-0" style={{borderLeft: "4px solid #dc3545"}}>
-            <Card.Body>
-              <h3 className="text-primary">{prescriptions.filter(p => p.status === 'new').length}</h3>
-              <p className="text-muted mb-0">Mới</p>
+          <Card className="border-0 shadow-sm" style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            color: 'white',
+            borderRadius: '16px'
+          }}>
+            <Card.Body className="p-4" style={{position: 'relative', minHeight: 140}}>
+              <div style={{position: 'absolute', top: 16, right: 16, opacity: 0.95, fontSize: 20}}>
+                <span role="img" aria-label="new">✨</span>
+              </div>
+              <div className="mb-3">
+                <h6 className="mb-1" style={{fontWeight: 600}}>Mới</h6>
+              </div>
+              <h2 className="mb-1" style={{fontSize: '2.5rem', fontWeight: 700}}>{prescriptions.filter(p => p.status === 'new').length}</h2>
+              <small style={{opacity: 0.95}}>Đơn mới tạo</small>
             </Card.Body>
           </Card>
         </Col>
@@ -251,23 +301,47 @@ const PrescriptionsManagement = () => {
 
       {/* Search */}
       <Row className="mb-4">
-        <Col md={8}>
+        <Col md={9}>
           <div className="position-relative">
-            <Search className="position-absolute" size={18} style={{left: "12px", top: "12px", color: "#6c757d"}} />
+            <Search className="position-absolute" size={20} style={{left: "16px", top: "14px", color: "#9ca3af"}} />
             <Form.Control
               type="text"
               placeholder="Tìm kiếm theo tên bệnh nhân, mã đơn thuốc, chẩn đoán..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{paddingLeft: "45px"}}
+              style={{
+                paddingLeft: "48px",
+                height: '48px',
+                borderRadius: '12px',
+                border: '1px solid #e5e7eb',
+                fontSize: '0.95rem'
+              }}
             />
           </div>
+        </Col>
+        <Col md={3} className="d-flex align-items-center justify-content-end">
+          <Button 
+            variant="primary" 
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              height: '48px',
+              borderRadius: '12px',
+              paddingLeft: '18px',
+              paddingRight: '18px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center'
+            }}
+          >
+            <FileText className="me-2" size={18} />
+            Tạo đơn thuốc
+          </Button>
         </Col>
       </Row>
 
       {/* Prescriptions Table */}
-      <Card className="shadow-sm">
-        <Card.Body>
+      <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
+        <Card.Body className="p-0">
           {loading ? (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
@@ -276,62 +350,76 @@ const PrescriptionsManagement = () => {
               <p className="mt-2 text-muted">Đang tải dữ liệu...</p>
             </div>
           ) : filteredPrescriptions.length === 0 ? (
-            <Alert variant="info" className="text-center">
+            <Alert variant="info" className="text-center m-4">
               <FileText size={48} className="mb-3 text-muted" />
               <h5>Không tìm thấy đơn thuốc nào</h5>
               <p className="mb-0">Thử thay đổi từ khóa tìm kiếm</p>
             </Alert>
           ) : (
-            <Table responsive hover>
-              <thead className="table-light">
+            <Table responsive hover className="align-middle">
+              <thead style={{backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6'}}>
                 <tr>
-                  <th>Mã Đơn</th>
-                  <th>Bệnh Nhân</th>
-                  <th>Bác Sĩ</th>
-                  <th>Chẩn Đoán</th>
-                  <th>Ngày Kê</th>
-                  <th>Số Thuốc</th>
-                  <th>Tổng Tiền</th>
-                  <th>Thao Tác</th>
+                  <th style={{fontWeight: 600}}>Mã Đơn</th>
+                  <th style={{fontWeight: 600}}>Bệnh Nhân</th>
+                  <th style={{fontWeight: 600}}>Bác Sĩ</th>
+                  <th style={{fontWeight: 600}}>Chẩn Đoán</th>
+                  <th style={{fontWeight: 600}}>Ngày Kê</th>
+                  <th style={{fontWeight: 600}}>Số Thuốc</th>
+                  <th style={{fontWeight: 600}}>Tổng Tiền</th>
+                  <th style={{fontWeight: 600, textAlign: 'center'}}>Thao Tác</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPrescriptions.map(prescription => {
                   return (
-                    <tr key={prescription.id}>
+                    <tr key={prescription.id} style={{borderBottom: '1px solid #f0f0f0'}}>
                       <td>
-                        <strong className="text-primary">{prescription.prescriptionId}</strong>
+                        <strong className="text-primary" style={{fontSize: '0.95rem'}}>{prescription.prescriptionId}</strong>
                       </td>
                       <td>
                         <div>
-                          <strong>{prescription.patientName}</strong>
-                          <br />
-                          <small className="text-muted">{prescription.patientId}</small>
+                          <strong style={{fontSize: '0.95rem'}}>{prescription.patientName}</strong>
+                          <div>
+                            <small className="text-muted">{prescription.patientId}</small>
+                          </div>
                         </div>
                       </td>
-                      <td>{prescription.doctorName}</td>
-                      <td>{prescription.diagnosis}</td>
+                      <td>
+                        <span style={{fontSize: '0.95rem'}}>{prescription.doctorName}</span>
+                      </td>
+                      <td>
+                        <span style={{fontSize: '0.9rem'}}>{prescription.diagnosis}</span>
+                      </td>
                       <td>
                         <div className="d-flex align-items-center">
                           <Calendar size={14} className="me-1 text-muted" />
-                          {new Date(prescription.prescriptionDate).toLocaleDateString('vi-VN')}
+                          <span style={{fontSize: '0.9rem'}}>{new Date(prescription.prescriptionDate).toLocaleDateString('vi-VN')}</span>
                         </div>
                       </td>
                       <td>
-                        <Badge bg="info">{prescription.medicines.length} loại</Badge>
+                        <span className="badge" style={{
+                          backgroundColor: '#e3f2fd',
+                          color: '#1976d2',
+                          fontWeight: 500,
+                          padding: '6px 12px',
+                          borderRadius: '6px'
+                        }}>
+                          {prescription.medicines.length} loại
+                        </span>
                       </td>
                       <td>
-                        <strong className="text-success">
+                        <strong className="text-success" style={{fontSize: '0.95rem'}}>
                           {(prescription.totalAmount || 0).toLocaleString('vi-VN')} ₫
                         </strong>
                       </td>
-                      <td>
-                        <div className="d-flex gap-2">
+                      <td style={{textAlign: 'center'}}>
+                        <div className="d-flex gap-2 justify-content-center">
                           <Button
                             variant="outline-primary"
                             size="sm"
                             onClick={() => handleViewPrescription(prescription)}
                             title="Xem chi tiết"
+                            style={{borderRadius: '8px'}}
                           >
                             <Eye size={14} />
                           </Button>
@@ -340,6 +428,7 @@ const PrescriptionsManagement = () => {
                             size="sm"
                             onClick={() => openEdit(prescription)}
                             title="Chỉnh sửa"
+                            style={{borderRadius: '8px'}}
                           >
                             Sửa
                           </Button>
@@ -348,6 +437,7 @@ const PrescriptionsManagement = () => {
                             size="sm"
                             onClick={() => handleExportPrescription(prescription.id)}
                             title="Xuất PDF"
+                            style={{borderRadius: '8px'}}
                           >
                             PDF
                           </Button>
@@ -356,6 +446,7 @@ const PrescriptionsManagement = () => {
                             size="sm"
                             onClick={() => handleDeleteClick(prescription)}
                             title="Xóa đơn thuốc"
+                            style={{borderRadius: '8px'}}
                           >
                             <Trash2 size={14} />
                           </Button>

@@ -267,17 +267,7 @@ const DoctorPrescriptions = () => {
           to { transform: rotate(360deg); }
         }
       `}</style>
-      {/* Debug Info */}
-      <Row className="mb-2">
-        <Col>
-          <small className="text-muted">
-            🎯 Route: {location.pathname} | 
-            👨‍⚕️ Doctor ID: {doctorId || 'N/A'} | 
-            📋 Prescriptions: {prescriptions.length} | 
-            🔄 Loading: {loading ? 'Yes' : 'No'}
-          </small>
-        </Col>
-      </Row>
+     
 
       {/* Success Message */}
       {showSuccessMessage && (
@@ -293,137 +283,130 @@ const DoctorPrescriptions = () => {
         </Row>
       )}
 
-      {/* Header */}
+      {/* Modern Header */}
       <Row className="mb-4">
         <Col>
-          <Card>
-            <Card.Header>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h4 className="mb-0">
-                    <Pill className="me-2" size={24} />
-                    Quản Lý Đơn Thuốc
-                    <Badge bg="primary" className="ms-2">{filteredPrescriptions.length}</Badge>
-                  </h4>
-                  <small className="text-muted">
-                    Danh sách đơn thuốc đã kê cho bệnh nhân
-                    {prescriptions.length > 0 && (
-                      <span className="ms-2">
-                        • Tổng {prescriptions.length} đơn thuốc
-                      </span>
-                    )}
-                  </small>
+          <Card style={{border: 'none', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)'}}>
+            <Card.Body className="p-3 d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center">
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: 'linear-gradient(135deg,#48bb78 0%,#3182ce 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12
+                }}>
+                  <Pill size={26} color="white" />
                 </div>
-                <div className="d-flex gap-2">
-                  <Button 
-                    variant="outline-secondary" 
-                    onClick={() => loadPrescriptions()}
-                    disabled={loading}
-                    title="Làm mới danh sách"
-                  >
-                    <RefreshCw className={`me-1 ${loading ? 'spin' : ''}`} size={16} />
-                    {loading ? 'Đang tải...' : 'Làm mới'}
-                  </Button>
-                    {/* Đã xoá nút test */}
-                    <Link to="/doctor/prescriptions/new">
-                      <Button variant="success">
-                        <Plus className="me-2" size={18} />
-                        Kê Đơn Thuốc Mới
-                      </Button>
-                    </Link>
+                <div>
+                  <h4 style={{margin: 0, fontWeight: 700, color: '#1a202c'}}>Quản Lý Đơn Thuốc <Badge bg="primary" className="ms-2">{filteredPrescriptions.length}</Badge></h4>
+                  <small style={{color: '#718096'}}>Danh sách đơn thuốc đã kê cho bệnh nhân{prescriptions.length > 0 ? ` • Tổng ${prescriptions.length} đơn thuốc` : ''}</small>
                 </div>
               </div>
-            </Card.Header>
+              <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                <Button 
+                  variant="outline-secondary" 
+                  onClick={() => loadPrescriptions()}
+                  disabled={loading}
+                  title="Làm mới danh sách"
+                  style={{height: 44, minWidth: 120, borderRadius: 12, padding: '0 16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}
+                >
+                  <RefreshCw className={`me-1 ${loading ? 'spin' : ''}`} size={16} />
+                  <span style={{fontSize: 14}}>{loading ? 'Đang tải...' : 'Làm mới'}</span>
+                </Button>
+                <Link to="/doctor/prescriptions/new" style={{textDecoration: 'none'}}>
+                  <Button variant="success" style={{height: 44, minWidth: 160, borderRadius: 12, padding: '0 18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <Plus className="me-2" size={18} />
+                    <span style={{fontSize: 15, fontWeight: 600}}>Kê Đơn Thuốc Mới</span>
+                  </Button>
+                </Link>
+              </div>
+            </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Filters */}
+      {/* Search */}
       <Row className="mb-4">
-        <Col md={8}>
+        <Col md={8} lg={7}>
           <div className="position-relative">
-            <Search className="position-absolute" size={18} style={{left: "12px", top: "12px", color: "#6c757d"}} />
+            <Search className="position-absolute" size={18} style={{left: 14, top: 12, color: '#a0aec0'}} />
             <Form.Control
               type="text"
               placeholder="Tìm kiếm theo tên bệnh nhân, mã đơn thuốc, chẩn đoán..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{paddingLeft: "45px"}}
+              style={{paddingLeft: 48, height: 48, borderRadius: 12, border: '2px solid #e2e8f0'}}
             />
           </div>
         </Col>
       </Row>
 
-      {/* Prescriptions Table */}
+      {/* Prescriptions List */}
       <Row>
         <Col>
-          <Card>
-            <Card.Header>
-              <h6 className="mb-0">Danh Sách Đơn Thuốc</h6>
-            </Card.Header>
+          <Card style={{borderRadius: 12, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'}}>
             <Card.Body>
+              <h6 style={{marginBottom: 16, fontWeight: 600, color: '#1a202c'}}>Danh Sách Đơn Thuốc</h6>
               {loading ? (
                 <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
+                  <div className="spinner-border text-primary" role="status" style={{width: 40, height: 40}}>
                     <span className="visually-hidden">Loading...</span>
                   </div>
                   <p className="mt-2 text-muted">Đang tải danh sách đơn thuốc...</p>
                 </div>
               ) : filteredPrescriptions.length === 0 ? (
-                <Alert variant="info" className="text-center">
-                  <Pill size={48} className="mb-3 text-muted" />
-                  <h5>Không có đơn thuốc nào</h5>
-                  <p>Chưa có đơn thuốc nào phù hợp với tiêu chí tìm kiếm.</p>
-                </Alert>
+                <div style={{background: '#dff6fb', borderRadius: 10, padding: '36px', textAlign: 'center'}}>
+                  <Pill size={56} style={{color: '#2b6cb0', marginBottom: 12}} />
+                  <h5 style={{marginBottom: 6, color: '#1a202c'}}>Không có đơn thuốc nào</h5>
+                  <p style={{margin: 0, color: '#4a5568'}}>Chưa có đơn thuốc nào phù hợp với tiêu chí tìm kiếm.</p>
+                </div>
               ) : (
-                <Table responsive hover>
-                  <thead className="table-light">
-                    <tr>
-                      <th>Mã đơn thuốc</th>
-                      <th>Bệnh nhân</th>
-                      <th>Chẩn đoán</th>
-                      <th>Tổng tiền</th>
-                      <th>Ngày kê</th>
-                      <th className="text-center">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPrescriptions.map((prescription) => (
-                      <tr key={prescription.prescriptionId || prescription.id}>
-                        <td className="fw-bold text-primary">
-                          {prescription.prescriptionId || prescription.id}
-                        </td>
-                        <td>
-                          <div>
-                            <strong>{prescription.patientName}</strong>
-                            <br />
-                            <small className="text-muted">ID: {prescription.patientId}</small>
-                          </div>
-                        </td>
-                        <td>{prescription.diagnosis}</td>
-                        <td className="fw-bold text-success">
-                          {prescription.totalAmount?.toLocaleString('vi-VN')} ₫
-                        </td>
-                        <td>
-                          <Calendar size={14} className="me-1" />
-                          {prescription.createdDate || prescription.createdAt 
-                            ? new Date(prescription.createdDate || prescription.createdAt).toLocaleDateString('vi-VN')
-                            : 'N/A'}
-                        </td>
-                        <td className="text-center">
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => handleViewPrescription(prescription)}
-                            title="Xem chi tiết"
-                          >
-                            <Eye size={14} />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                <div>
+                  {/* Keep table for now, but with subtle rounded container */}
+                  <div style={{overflowX: 'auto'}}>
+                    <Table responsive hover className="mb-0" style={{borderRadius: 8, overflow: 'hidden'}}>
+                      <thead className="table-light">
+                        <tr>
+                          <th>Mã đơn</th>
+                          <th>Bệnh nhân</th>
+                          <th>Chẩn đoán</th>
+                          <th>Tổng tiền</th>
+                          <th>Ngày kê</th>
+                          <th className="text-center">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPrescriptions.map((prescription) => (
+                          <tr key={prescription.prescriptionId || prescription.id}>
+                            <td className="fw-bold text-primary">{prescription.prescriptionId || prescription.id}</td>
+                            <td>
+                              <div>
+                                <strong>{prescription.patientName}</strong>
+                                <br />
+                                <small className="text-muted">ID: {prescription.patientId}</small>
+                              </div>
+                            </td>
+                            <td style={{maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{prescription.diagnosis}</td>
+                            <td className="fw-bold text-success">{prescription.totalAmount?.toLocaleString('vi-VN')} ₫</td>
+                            <td>
+                              <Calendar size={14} className="me-1" />
+                              {prescription.createdDate || prescription.createdAt ? new Date(prescription.createdDate || prescription.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                            </td>
+                            <td className="text-center">
+                              <Button variant="outline-primary" size="sm" onClick={() => handleViewPrescription(prescription)} title="Xem chi tiết">
+                                <Eye size={14} />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                </div>
               )}
             </Card.Body>
           </Card>
