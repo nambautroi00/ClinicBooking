@@ -55,29 +55,49 @@ const DoctorScheduleManagement = () => {
     const hasAppointments =
       schedule?.status === "Available" && schedule?.appointmentCount > 0;
 
-    const confirmMessage = hasAppointments
-      ? "Bạn có chắc chắn muốn xóa lịch trình này?\n\n⚠️ CẢNH BÁO: Tất cả appointments liên quan sẽ bị hủy!"
-      : "Bạn có chắc chắn muốn xóa lịch trình này?";
+    // Không cho phép xóa nếu có appointments
+    if (hasAppointments) {
+      setErrorDetails({
+        title: "Không thể xóa lịch trình!",
+        message: "Vui lòng hủy tất cả appointments trước khi xóa lịch trình.",
+        appointmentCount: schedule.appointmentCount,
+        scheduleInfo: schedule, // Thêm thông tin schedule để hiển thị
+      });
+      setShowErrorModal(true);
+      return;
+    }
+
+    const confirmMessage = "Bạn có chắc chắn muốn xóa lịch trình này?";
 
     if (window.confirm(confirmMessage)) {
       try {
         await doctorScheduleApi.deleteSchedule(scheduleId);
-
-        if (hasAppointments) {
-          window.toast &&
-            window.toast.warning(
-              "Đã xóa lịch trình và hủy tất cả appointments liên quan"
-            );
-        } else {
-          window.toast && window.toast.success("Đã xóa lịch trình thành công");
-        }
-
+        window.toast && window.toast.success("Đã xóa lịch trình thành công");
         loadSchedules();
       } catch (err) {
-        setError(
-          "Không thể xóa lịch trình: " +
-            (err.response?.data?.message || err.message)
-        );
+        const errorMessage = err.response?.data?.message || err.message;
+
+        // Kiểm tra nếu là lỗi constraint reference
+        if (
+          errorMessage.includes("REFERENCE constraint") ||
+          errorMessage.includes("FKkr1qrelwp1w32wm4qhonpqd8y") ||
+          errorMessage.includes("appointments")
+        ) {
+          setErrorDetails({
+            title: "Không thể xóa lịch trình!",
+            message:
+              "Lịch trình này đã có cuộc hẹn. Vui lòng hủy tất cả appointments trước khi xóa lịch trình.",
+            appointmentCount: 0,
+            scheduleInfo: schedule,
+          });
+        } else {
+          setErrorDetails({
+            title: "Có lỗi xảy ra!",
+            message: errorMessage,
+            appointmentCount: 0,
+          });
+        }
+        setShowErrorModal(true);
       }
     }
   };
@@ -298,7 +318,12 @@ const DoctorScheduleManagement = () => {
                 firstError?.reason?.response?.data?.message ||
                 firstError?.reason?.message ||
                 "Validation failed";
-              setError(`Không thể tạo lịch trình: ${errorMsg}`);
+              setErrorDetails({
+                title: "Không thể tạo lịch trình",
+                message: errorMsg,
+                appointmentCount: 0,
+              });
+              setShowErrorModal(true);
               window.toast.error(`Không thể tạo lịch trình: ${errorMsg}`);
             } else {
               // Partial success
@@ -306,8 +331,6 @@ const DoctorScheduleManagement = () => {
                 `Đã tạo ${successful} lịch trình thành công, ${failed} lịch trình thất bại. ` +
                   `Một số lịch trình có thể không hợp lệ (ví dụ: ngày trong quá khứ).`
               );
-              // Don't set error for partial success
-              setError(null);
             }
           }
         }, 0);
@@ -315,10 +338,12 @@ const DoctorScheduleManagement = () => {
     } catch (err) {
       // This catch block should rarely be hit now since we use allSettled
       console.error("Unexpected error in bulk create:", err);
-      setError(
-        "Không thể tạo lịch trình hàng loạt: " +
-          (err.response?.data?.message || err.message)
-      );
+      setErrorDetails({
+        title: "Không thể tạo lịch trình hàng loạt",
+        message: err.response?.data?.message || err.message,
+        appointmentCount: 0,
+      });
+      setShowErrorModal(true);
       if (window.toast) {
         window.toast.error(
           "Không thể tạo lịch trình hàng loạt: " +
@@ -330,7 +355,13 @@ const DoctorScheduleManagement = () => {
 
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorDetails, setErrorDetails] = useState({
+    title: "",
+    message: "",
+    appointmentCount: 0,
+    scheduleInfo: null,
+  });
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [doctorId, setDoctorId] = useState(null);
   const [showBulkForm, setShowBulkForm] = useState(false);
@@ -361,15 +392,16 @@ const DoctorScheduleManagement = () => {
     if (!doctorId) return;
     try {
       setLoading(true);
-      setError(null);
       const response = await doctorScheduleApi.getSchedulesByDoctor(doctorId);
       // Backend now includes appointmentCount in response
       setSchedules(response.data || []);
     } catch (err) {
-      setError(
-        "Không thể tải lịch trình: " +
-          (err.response?.data?.message || err.message)
-      );
+      setErrorDetails({
+        title: "Không thể tải lịch trình",
+        message: err.response?.data?.message || err.message,
+        appointmentCount: 0,
+      });
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
@@ -460,12 +492,6 @@ const DoctorScheduleManagement = () => {
             </div>
 
             <div className="card-body px-2 py-2">
-              {error && (
-                <div className="alert alert-danger" role="alert">
-                  {error}
-                </div>
-              )}
-
               {/* Calendar View Only */}
               <CalendarView
                 currentDate={currentDate}
@@ -671,6 +697,119 @@ const DoctorScheduleManagement = () => {
           }
           onClose={() => setEditingSchedule(null)}
         />
+      )}
+
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div
+          className="modal fade show"
+          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={() => setShowErrorModal(false)}
+        >
+          <div
+            className="modal-dialog modal-dialog-centered"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content border-0 shadow-lg">
+              <div className="modal-header bg-danger text-white border-0">
+                <h5 className="modal-title d-flex align-items-center gap-2">
+                  <i className="bi bi-exclamation-triangle-fill"></i>
+                  {errorDetails.title}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setShowErrorModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body p-4">
+                {errorDetails.appointmentCount > 0 &&
+                errorDetails.scheduleInfo ? (
+                  <div>
+                    {/* Thông tin lịch trình */}
+                    <div className="card bg-light border-warning mb-3">
+                      <div className="card-header bg-warning bg-opacity-10 border-bottom border-warning">
+                        <h6 className="mb-0 d-flex align-items-center gap-2">
+                          <i className="bi bi-calendar3 text-warning"></i>
+                          <strong>Thông tin lịch trình</strong>
+                        </h6>
+                      </div>
+                      <div className="card-body">
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <div className="d-flex align-items-start gap-2">
+                              <i className="bi bi-calendar-event text-primary mt-1"></i>
+                              <div>
+                                <small className="text-muted d-block">
+                                  Ngày làm việc
+                                </small>
+                                <strong>
+                                  {formatDate(
+                                    errorDetails.scheduleInfo.workDate
+                                  )}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <div className="d-flex align-items-start gap-2">
+                              <i className="bi bi-clock text-primary mt-1"></i>
+                              <div>
+                                <small className="text-muted d-block">
+                                  Giờ làm việc
+                                </small>
+                                <strong>
+                                  {formatTime(
+                                    errorDetails.scheduleInfo.startTime
+                                  )}{" "}
+                                  -{" "}
+                                  {formatTime(
+                                    errorDetails.scheduleInfo.endTime
+                                  )}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cảnh báo có appointments */}
+                    <div className="alert alert-danger d-flex align-items-start gap-3 mb-3">
+                      <i className="bi bi-exclamation-triangle-fill fs-3 mt-1"></i>
+                      <div className="flex-grow-1">
+                        <h6 className="alert-heading fw-bold mb-2">
+                          Lịch trình này có {errorDetails.appointmentCount} lịch
+                          hẹn đã đặt!
+                        </h6>
+                        <p className="mb-2">
+                          Không thể xóa lịch trình khi còn các cuộc hẹn với bệnh
+                          nhân.
+                        </p>
+                        <hr className="my-2" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="d-flex align-items-start gap-3">
+                    <i className="bi bi-exclamation-circle fs-3 text-danger"></i>
+                    <p className="mb-0">{errorDetails.message}</p>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer border-0">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowErrorModal(false)}
+                >
+                  <i className="bi bi-x-circle me-2"></i>
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
