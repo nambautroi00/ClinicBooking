@@ -1,7 +1,9 @@
 package com.example.backend.dto;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +27,12 @@ public class ChatbotResponseDto {
 
     @Builder.Default
     private List<DoctorInfo> doctors = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> symptomKeywords = new ArrayList<>();
+
+    @Builder.Default
+    private Map<String, Object> schemaPayload = Collections.emptyMap();
 
     @Data
     @Builder

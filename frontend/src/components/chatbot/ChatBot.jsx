@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Header from '../layout/Header';
 import { useNavigate } from 'react-router-dom';
 import { sendMessageToBot } from '../../api/chatApi';
@@ -12,39 +12,239 @@ const STORAGE_KEYS = {
 };
 
 const DOCTOR_REQUEST_PATTERNS = [
-  'tìm bác sĩ',
-  'tim Bac si',
-  'đặt bác sĩ',
-  'dat Bac si',
-  'xem bác sĩ',
-  'chon Bac si'
+  'tim bac si',
+  'tim bac sy',
+  'xem bac si',
+  'chon bac si',
+  'dat bac si',
+  'dat bac sy',
+  'dat lich',
+  'tim bac si giup'
 ];
 
 const SYMPTOM_KEYWORDS = [
-  'đau đầu',
-  'chóng mặt',
-  'mất ngủ',
-  'sốt cao',
-  'ho',
-  'khó thở',
-  'tức ngực',
-  'đau ngực',
-  'tiêu chảy',
-  'đau bụng',
-  'đau xương',
-  'sưng khớp',
-  'phát ban',
-  'ngứa',
-  'đau mắt',
-  'mệt mỏi',
-  'buồn nôn'
+  { match: 'dau dau', label: 'Đau đầu' },
+  { match: 'chong mat', label: 'Chóng mặt' },
+  { match: 'mat ngu', label: 'Mất ngủ' },
+  { match: 'sot cao', label: 'Sốt cao' },
+  { match: 'ho', label: 'Ho' },
+  { match: 'kho tho', label: 'Khó thở' },
+  { match: 'tuc nguc', label: 'Tức ngực' },
+  { match: 'dau nguc', label: 'Đau ngực' },
+  { match: 'tieu chay', label: 'Tiêu chảy' },
+  { match: 'dau bung', label: 'Đau bụng' },
+  { match: 'dau xuong', label: 'Đau xương' },
+  { match: 'sung khop', label: 'Sưng khớp' },
+  { match: 'phat ban', label: 'Phát ban' },
+  { match: 'ngua', label: 'Ngứa' },
+  { match: 'dau mat', label: 'Đau mắt' },
+  { match: 'met moi', label: 'Mệt mỏi' },
+  { match: 'buon non', label: 'Buồn nôn' }
 ];
+const SAFETY_NOTICE = 'Thông tin chỉ mang tính tham khảo, không thay thế tư vấn y khoa trực tiếp.';
+const ALLOWED_LIKELIHOODS = ['common', 'possible', 'rare', 'rule_out'];
 
-const createMessage = (text, sender = 'bot') => ({
+const LIKELIHOOD_LABELS = {
+  common: 'Phổ biến',
+  possible: 'Có thể',
+  rare: 'Hiếm gặp',
+  rule_out: 'Cần loại trừ'
+};
+
+const LIKELIHOOD_COLORS = {
+  common: { bg: '#dcfce7', color: '#166534' },
+  possible: { bg: '#e0f2fe', color: '#075985' },
+  rare: { bg: '#fef3c7', color: '#92400e' },
+  rule_out: { bg: '#fee2e2', color: '#b91c1c' }
+};
+
+const normalizeVietnamese = (value = '') =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd');
+
+const safeString = (value, fallback = '') => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return fallback;
+};
+
+const ensureStringArray = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => safeString(item))
+    .filter((item) => Boolean(item));
+};
+
+const ensurePossibleCauses = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((cause) => {
+      const name = safeString(cause?.name);
+      if (!name) return null;
+      const likelihoodRaw = safeString(cause?.likelihood).toLowerCase();
+      const likelihood = ALLOWED_LIKELIHOODS.includes(likelihoodRaw)
+        ? likelihoodRaw
+        : 'possible';
+      return { name, likelihood };
+    })
+    .filter(Boolean);
+};
+
+const buildSchemaPayload = (rawPayload, fallbackInput = '') => {
+  if (!rawPayload) return null;
+
+  let source = rawPayload;
+  if (typeof rawPayload === 'string') {
+    try {
+      source = JSON.parse(rawPayload);
+    } catch (error) {
+      console.warn('Failed to parse AI schema payload', error);
+      return null;
+    }
+  }
+
+  if (typeof source !== 'object' || Array.isArray(source) || source === null) {
+    return null;
+  }
+
+  const recommended =
+    typeof source.recommended_department === 'object' && source.recommended_department !== null
+      ? source.recommended_department
+      : {};
+
+  const doctorQueryRaw =
+    typeof source.doctor_query === 'object' && source.doctor_query !== null
+      ? source.doctor_query
+      : {};
+  const filtersRaw =
+    typeof doctorQueryRaw.filters === 'object' && doctorQueryRaw.filters !== null
+      ? doctorQueryRaw.filters
+      : {};
+
+  const normalized = {
+    input: safeString(source.input, fallbackInput),
+    intents: ensureStringArray(source.intents),
+    symptoms: ensureStringArray(source.symptoms),
+    possibleCauses: ensurePossibleCauses(source.possible_causes),
+    relatedConditions: ensureStringArray(source.related_conditions),
+    redFlags: ensureStringArray(source.red_flags),
+    selfCare: ensureStringArray(source.self_care),
+    recommendedDepartment: {
+      code: safeString(recommended.code),
+      name: safeString(recommended.name || recommended.department || ''),
+      confidence: Number(recommended.confidence) || 0,
+      alternatives: Array.isArray(recommended.alternatives)
+        ? recommended.alternatives
+            .map((alt) => ({
+              code: safeString(alt?.code),
+              name: safeString(alt?.name)
+            }))
+            .filter((alt) => alt.code || alt.name)
+        : []
+    },
+    doctorQuery: {
+      departmentCode:
+        safeString(doctorQueryRaw.department_code) || safeString(recommended.code),
+      filters: {
+        location: safeString(filtersRaw.location),
+        ratingMin: Number(filtersRaw.rating_min) || 0
+      }
+    },
+    messageToUserMarkdown:
+      safeString(source.message_to_user_markdown) ||
+      safeString(source.message_to_user) ||
+      '',
+    nextQuestions: ensureStringArray(source.next_questions),
+    safetyNotice: SAFETY_NOTICE
+  };
+
+  if (!normalized.messageToUserMarkdown && normalized.symptoms.length > 0) {
+    normalized.messageToUserMarkdown = `Mình ghi nhận các triệu chứng: ${normalized.symptoms.join(', ')}.`;
+  }
+
+  return normalized;
+};
+
+const hasInsightDetails = (payload) => {
+  if (!payload) return false;
+  return (
+    payload.intents.length > 0 ||
+    payload.symptoms.length > 0 ||
+    payload.possibleCauses.length > 0 ||
+    payload.relatedConditions.length > 0 ||
+    payload.redFlags.length > 0 ||
+    payload.selfCare.length > 0 ||
+    Boolean(payload.recommendedDepartment.name) ||
+    payload.nextQuestions.length > 0 ||
+    Boolean(payload.doctorQuery.departmentCode)
+  );
+};
+
+const escapeHtml = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+const formatMarkdownText = (value) => {
+  const escaped = escapeHtml(value || '');
+  const withBold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const bulletPattern = /(^|\n)\*\s+([^\n]+)/g;
+  const withBullets = withBold.replace(
+    bulletPattern,
+    (match, prefix, item) => `${prefix}&bull; ${item.trim()}`
+  );
+  return withBullets.replace(/\n/g, '<br/>');
+};
+
+const createMessage = (text, sender = 'bot', extra = {}) => ({
   text,
   sender,
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
+  ...extra
 });
+
+const createMarkdownMessage = (markdownText, sender = 'bot') =>
+  createMessage(formatMarkdownText(markdownText || ''), sender, {
+    isMarkdown: true,
+    rawText: markdownText || ''
+  });
+
+const stripBasicHtml = (value = '') =>
+  value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const buildHistoryPayload = (historyMessages = []) => {
+  if (!Array.isArray(historyMessages)) return [];
+  return historyMessages
+    .filter((msg) => !msg.type)
+    .slice(-6)
+    .map((msg) => {
+      const baseText = safeString(msg.rawText) ||
+        (msg.isMarkdown ? stripBasicHtml(msg.text) : safeString(msg.text));
+      if (!baseText) {
+        return null;
+      }
+      return {
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: baseText
+      };
+    })
+    .filter(Boolean);
+};
 
 const loadFromStorage = (key, fallback) => {
   if (typeof window === 'undefined') return fallback;
@@ -67,11 +267,9 @@ const ChatBot = () => {
     if (stored && Array.isArray(stored) && stored.length > 0) {
       return stored;
     }
-    return [
-      createMessage(
-        'Xin chào! Tôi là trợ lý đặt lịch khám của Clinic Booking. Bạn mô tả triệu chứng để mình tư vấn nhé.'
-      )
-    ];
+    const greeting =
+      'Xin chào! Mình là trợ lý y khoa của Clinic Booking. Bạn hãy mô tả triệu chứng hoặc nhu cầu để được tư vấn nhé.';
+    return [createMessage(greeting, 'bot', { rawText: greeting })];
   });
 
   const [symptomKeywords, setSymptomKeywords] = useState(() =>
@@ -116,15 +314,27 @@ const ChatBot = () => {
     }
   }, [lastDepartment]);
 
-  const extractKeywords = (message) => {
-    const lower = message.toLowerCase();
-    const matched = SYMPTOM_KEYWORDS.filter((keyword) => lower.includes(keyword));
-    if (matched.length === 0) return;
+  const mergeSymptomKeywords = (candidates = []) => {
+    const sanitized = candidates.map((item) => safeString(item)).filter(Boolean);
+    if (sanitized.length === 0) return;
 
     setSymptomKeywords((prev) => {
-      const next = Array.from(new Set([...prev, ...matched]));
-      return next.slice(-15);
+      const next = [...prev];
+      sanitized.forEach((item) => {
+        if (!next.includes(item)) {
+          next.push(item);
+        }
+      });
+      return next.slice(-20);
     });
+  };
+
+  const extractKeywords = (message) => {
+    const normalized = normalizeVietnamese(message || '');
+    const matched = SYMPTOM_KEYWORDS.filter(({ match }) => normalized.includes(match)).map(
+      ({ label }) => label
+    );
+    mergeSymptomKeywords(matched);
   };
 
   const formatTime = (timestamp) =>
@@ -202,21 +412,18 @@ const ChatBot = () => {
     if (!inputMessage.trim()) return;
 
     const sanitized = inputMessage.trim();
-    const lowerMessage = sanitized.toLowerCase();
-    const userMessage = {
-      text: sanitized,
-      sender: 'user',
-      timestamp: new Date().toISOString()
-    };
+    const normalizedInput = normalizeVietnamese(sanitized);
+    const userMessage = createMessage(sanitized, 'user', { rawText: sanitized });
+    const historyPayload = buildHistoryPayload([...messages, userMessage]);
 
     pushMessages(userMessage);
     setInputMessage('');
     setIsLoading(true);
 
-    extractKeywords(lowerMessage);
+    extractKeywords(sanitized);
 
     const userWantsDoctors = DOCTOR_REQUEST_PATTERNS.some((pattern) =>
-      lowerMessage.includes(pattern)
+      normalizedInput.includes(pattern)
     );
 
     if (userWantsDoctors) {
@@ -226,18 +433,45 @@ const ChatBot = () => {
     }
 
     try {
-      const reply = await sendMessageToBot(sanitized);
+      const reply = await sendMessageToBot({
+        message: sanitized,
+        keywords: symptomKeywords,
+        history: historyPayload
+      });
       const botPayload = [];
+      const structured = buildSchemaPayload(reply?.schemaPayload || reply?.response, sanitized);
 
-      botPayload.push(
-        createMessage(
+      if (Array.isArray(reply?.symptomKeywords)) {
+        mergeSymptomKeywords(reply.symptomKeywords);
+      }
+
+      if (structured) {
+        mergeSymptomKeywords(structured.symptoms);
+
+        if (structured.messageToUserMarkdown) {
+          botPayload.push(createMarkdownMessage(structured.messageToUserMarkdown));
+        }
+
+        if (hasInsightDetails(structured)) {
+          botPayload.push({
+            text: '',
+            sender: 'bot',
+            timestamp: new Date().toISOString(),
+            type: 'insight',
+            payload: structured
+          });
+        }
+      }
+
+      if (botPayload.length === 0) {
+        const fallbackText =
           reply?.response ||
-            'Xin lỗi, hiện tại mình chưa thể phản hồi. Bạn vui lòng thử lại trong giây lát nhé.'
-        )
-      );
+          'Xin lỗi, hiện tại mình chưa thể phản hồi. Bạn vui lòng thử lại trong giây lát nhé.';
+        botPayload.push(createMessage(fallbackText, 'bot', { rawText: fallbackText }));
+      }
 
       if (reply?.needsMoreInfo && reply?.followUpQuestion) {
-        botPayload.push(createMessage(reply.followUpQuestion));
+        botPayload.push(createMessage(reply.followUpQuestion, 'bot', { rawText: reply.followUpQuestion }));
       }
 
       if (reply?.department) {
@@ -249,13 +483,10 @@ const ChatBot = () => {
       const departmentReason = reply?.department?.reason;
 
       if (!reply?.needsMoreInfo && doctors.length > 0) {
-        botPayload.push(
-          createMessage(
-            `Mình đã tìm thấy ${doctors.length} bác sĩ phù hợp${
-              departmentName ? ` cho khoa ${departmentName}` : ''
-            }:`
-          )
-        );
+        const doctorIntro = `Mình đã tìm thấy ${doctors.length} bác sĩ phù hợp${
+          departmentName ? ` cho khoa ${departmentName}` : ''
+        }:`;
+        botPayload.push(createMessage(doctorIntro, 'bot', { rawText: doctorIntro }));
         botPayload.push({
           text: '',
           sender: 'bot',
@@ -267,22 +498,23 @@ const ChatBot = () => {
       }
 
       if (departmentName && doctors.length === 0) {
-        botPayload.push(
-          createMessage(
-            `Khoa gợi ý hiện tại là ${departmentName}${
-              departmentReason ? ` (vì ${departmentReason})` : ''
-            }. Bạn có muốn mình tìm bác sĩ củĐa khoa này không? Chỉ cần nhắn “tìm bác sĩ ${
-              departmentName || ''
-            }” hoặc mô tả thêm triệu chứng nhé.`
-          )
-        );
+        const deptHint = `Khoa gợi ý hiện tại là ${departmentName}${
+          departmentReason ? ` (vì ${departmentReason})` : ''
+        }. Bạn có muốn mình tìm bác sĩ của khoa này không? Chỉ cần nhắn “tìm bác sĩ ${
+          departmentName || ''
+        }” hoặc mô tả thêm triệu chứng nhé.`;
+        botPayload.push(createMessage(deptHint, 'bot', { rawText: deptHint }));
       }
 
       pushMessages(botPayload);
     } catch (error) {
       console.error('Error sending message:', error);
+      const fallbackError = error.message || 'Đã có lỗi xảy ra, bạn vui lòng thử lại sau.';
       pushMessages(
-        createMessage(error.message || 'Đã có lỗi xảy ra, bạn vui lòng thử lại sau.', 'bot')
+        createMessage(fallbackError, 'bot', {
+          isError: true,
+          rawText: fallbackError
+        })
       );
     } finally {
       setIsLoading(false);
@@ -302,6 +534,141 @@ const ChatBot = () => {
     } else {
       navigate('/doctors');
     }
+  };
+
+  const MedicalInsightCard = ({ payload }) => {
+    if (!payload) return null;
+
+    const {
+      input,
+      intents = [],
+      symptoms = [],
+      possibleCauses = [],
+      relatedConditions = [],
+      redFlags = [],
+      selfCare = [],
+      recommendedDepartment = {},
+      doctorQuery = {},
+      nextQuestions = [],
+      safetyNotice = SAFETY_NOTICE
+    } = payload;
+
+    const renderChipSection = (title, items) =>
+      Array.isArray(items) && items.length > 0 ? (
+        <div style={styles.insightSection}>
+          <div style={styles.insightSectionTitle}>{title}</div>
+          <div style={styles.chipGroup}>
+            {items.map((item, idx) => (
+              <span key={`${title}-${idx}`} style={styles.chip}>
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null;
+
+    const renderListSection = (title, items, variant = 'default') =>
+      Array.isArray(items) && items.length > 0 ? (
+        <div style={styles.insightSection}>
+          <div style={styles.insightSectionTitle}>{title}</div>
+          <ul style={styles.list}>
+            {items.map((item, idx) => (
+              <li
+                key={`${title}-${idx}`}
+                style={variant === 'warning' ? styles.redFlagItem : styles.listItem}
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null;
+
+    const renderPossibleCauses = () =>
+      Array.isArray(possibleCauses) && possibleCauses.length > 0 ? (
+        <div style={styles.insightSection}>
+          <div style={styles.insightSectionTitle}>Nguyên nhân có thể</div>
+          <ul style={styles.list}>
+            {possibleCauses.map((cause, idx) => (
+              <li key={`cause-${idx}`} style={styles.listItem}>
+                <div style={styles.causeRow}>
+                  <span>{cause.name}</span>
+                  <span style={styles.likelihoodChip(cause.likelihood)}>
+                    {LIKELIHOOD_LABELS[cause.likelihood] || cause.likelihood}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null;
+
+    const confidencePercentage = typeof recommendedDepartment.confidence === 'number'
+      ? Math.round(Math.min(Math.max(recommendedDepartment.confidence, 0), 1) * 100)
+      : 0;
+    const filters = doctorQuery?.filters || {};
+
+    return (
+      <div style={styles.insightCard}>
+        <div style={styles.insightHeader}>
+          <div>
+            <div style={styles.insightTitle}>Phân tích y khoa</div>
+            <div style={styles.insightSubtitle}>
+              Người dùng: {input || 'Chưa xác định'}
+            </div>
+          </div>
+          <div style={styles.insightBadge}>AI schema</div>
+        </div>
+
+        {renderChipSection('Ý định', intents)}
+        {renderChipSection('Triệu chứng chính', symptoms)}
+        {renderPossibleCauses()}
+        {renderChipSection('Bệnh liên quan', relatedConditions)}
+        {renderListSection('Dấu hiệu cần lưu ý', redFlags, 'warning')}
+        {renderListSection('Gợi ý tự chăm sóc', selfCare)}
+        {renderListSection('Câu hỏi tiếp theo', nextQuestions)}
+
+        {(recommendedDepartment?.name || recommendedDepartment?.code) && (
+          <div style={styles.departmentCard}>
+            <div style={styles.insightSectionTitle}>Khoa gợi ý</div>
+            <div style={styles.departmentName}>
+              {recommendedDepartment.name || 'Chưa xác định'}
+            </div>
+            <div style={styles.departmentMeta}>
+              Mã: {recommendedDepartment.code || 'N/A'} · Độ tin cậy: {confidencePercentage}%
+            </div>
+            {Array.isArray(recommendedDepartment.alternatives) &&
+              recommendedDepartment.alternatives.length > 0 && (
+                <>
+                  <div style={styles.altTitle}>Phương án khác</div>
+                  <div style={styles.chipGroup}>
+                    {recommendedDepartment.alternatives.map((alt, idx) => (
+                      <span key={`alt-${idx}`} style={styles.altChip}>
+                        {alt.name || alt.code}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+          </div>
+        )}
+
+        {(doctorQuery?.departmentCode || filters.location || filters.ratingMin) && (
+          <div style={styles.doctorQueryCard}>
+            <div style={styles.insightSectionTitle}>Tìm bác sĩ phù hợp</div>
+            <div style={styles.doctorQueryText}>
+              Mã khoa ưu tiên: <strong>{doctorQuery.departmentCode || 'Chưa có'}</strong>
+            </div>
+            <div style={styles.doctorFilters}>
+              <span>Vị trí: {filters.location || 'Bất kỳ'}</span>
+              <span>Đánh giá tối thiểu: {filters.ratingMin || 0}</span>
+            </div>
+          </div>
+        )}
+
+        {safetyNotice && <div style={styles.safetyNotice}>{safetyNotice}</div>}
+      </div>
+    );
   };
 
   const DoctorTable = ({ doctors, departmentName }) => {
@@ -475,9 +842,21 @@ const ChatBot = () => {
                 <div style={{ maxWidth: msg.type === 'doctors' ? '100%' : '70%' }}>
                   {msg.type === 'doctors' ? (
                     <DoctorTable doctors={msg.doctors} departmentName={msg.departmentName} />
+                  ) : msg.type === 'insight' ? (
+                    <>
+                      <MedicalInsightCard payload={msg.payload} />
+                      <div style={styles.timestamp}>{formatTime(msg.timestamp)}</div>
+                    </>
                   ) : (
                     <>
-                      <div style={styles.message(msg.sender, msg.isError)}>{msg.text}</div>
+                      {msg.isMarkdown ? (
+                        <div
+                          style={styles.message(msg.sender, msg.isError)}
+                          dangerouslySetInnerHTML={{ __html: msg.text }}
+                        />
+                      ) : (
+                        <div style={styles.message(msg.sender, msg.isError)}>{msg.text}</div>
+                      )}
                       <div style={styles.timestamp}>{formatTime(msg.timestamp)}</div>
                     </>
                   )}
@@ -571,6 +950,149 @@ const styles = {
     borderRadius: '16px',
     boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
     border: '1px solid #e5e7eb'
+  },
+  insightCard: {
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '18px',
+    padding: '18px',
+    boxShadow: '0 8px 22px rgba(15,23,42,0.08)',
+    marginTop: '6px'
+  },
+  insightHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px'
+  },
+  insightTitle: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#0f172a'
+  },
+  insightSubtitle: {
+    fontSize: '13px',
+    color: '#475569',
+    marginTop: '4px'
+  },
+  insightBadge: {
+    padding: '6px 12px',
+    borderRadius: '999px',
+    backgroundColor: '#dbeafe',
+    color: '#1d4ed8',
+    fontSize: '12px',
+    fontWeight: '600'
+  },
+  insightSection: {
+    marginTop: '12px'
+  },
+  insightSectionTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#0f172a',
+    marginBottom: '6px'
+  },
+  chipGroup: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  chip: {
+    backgroundColor: '#e0f2fe',
+    color: '#0369a1',
+    borderRadius: '999px',
+    padding: '6px 12px',
+    fontSize: '12px',
+    fontWeight: '600'
+  },
+  list: {
+    margin: 0,
+    paddingLeft: '18px',
+    color: '#1f2937',
+    fontSize: '14px',
+    lineHeight: 1.5
+  },
+  listItem: {
+    marginBottom: '4px'
+  },
+  redFlagItem: {
+    marginBottom: '4px',
+    color: '#b91c1c',
+    fontWeight: '600'
+  },
+  causeRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '12px',
+    alignItems: 'center'
+  },
+  likelihoodChip: (type = 'possible') => {
+    const palette = LIKELIHOOD_COLORS[type] || LIKELIHOOD_COLORS.possible;
+    return {
+      backgroundColor: palette.bg,
+      color: palette.color,
+      borderRadius: '10px',
+      fontSize: '12px',
+      padding: '2px 8px',
+      fontWeight: '600'
+    };
+  },
+  departmentCard: {
+    marginTop: '12px',
+    padding: '12px',
+    borderRadius: '14px',
+    backgroundColor: '#fff',
+    border: '1px solid #e5e7eb'
+  },
+  departmentName: {
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#0f172a'
+  },
+  departmentMeta: {
+    fontSize: '13px',
+    color: '#475569',
+    marginTop: '4px'
+  },
+  altTitle: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#0f172a',
+    marginTop: '10px',
+    marginBottom: '6px'
+  },
+  altChip: {
+    backgroundColor: '#ede9fe',
+    color: '#5b21b6',
+    borderRadius: '999px',
+    padding: '4px 10px',
+    fontSize: '12px',
+    fontWeight: '600'
+  },
+  doctorQueryCard: {
+    marginTop: '12px',
+    padding: '12px',
+    borderRadius: '14px',
+    border: '1px dashed #93c5fd',
+    backgroundColor: '#eff6ff'
+  },
+  doctorQueryText: {
+    fontSize: '14px',
+    color: '#1f2937'
+  },
+  doctorFilters: {
+    marginTop: '6px',
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    fontSize: '13px',
+    color: '#475569'
+  },
+  safetyNotice: {
+    marginTop: '12px',
+    fontSize: '12px',
+    color: '#6b7280',
+    fontStyle: 'italic'
   },
   messageWrapper: (sender) => ({
     display: 'flex',
