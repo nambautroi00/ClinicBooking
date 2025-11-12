@@ -173,15 +173,12 @@ const AdminProfile = () => {
       setError('');
       setSuccess('');
 
-      const fd = new FormData();
-      fd.append('file', file);
-
-      // Gọi đúng hàm
-      const response = await fileUploadApi.uploadFile(fd);
+  // Gọi upload thống nhất
+  const response = await fileUploadApi.upload(file, null, 'user');
       console.log('[Upload] raw response:', response);
 
       // Chuẩn hóa lấy url
-      const data = response?.data;
+  const data = response?.data;
       const url =
         data?.url ||
         data?.fileUrl ||

@@ -118,10 +118,10 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
       description: "Tạo đơn thuốc mới",
     },
     {
-      path: "/doctor/referrals",
-      icon: "bi-clipboard2-pulse",
-      label: "Chỉ định Cận Lâm Sàng",
-      description: "Xét nghiệm & chẩn đoán hình ảnh",
+      path: "/doctor/department-referrals",
+      icon: "bi-clipboard-check",
+      label: "Xử lý Chỉ định CLS",
+      description: "Cập nhật kết quả cận lâm sàng",
     },
   ];
 

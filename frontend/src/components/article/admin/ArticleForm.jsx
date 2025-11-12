@@ -94,7 +94,7 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
     try {
       // Nếu là bài viết mới (chưa có ID), upload không cần ID
       // Nếu là bài viết đã có ID, gửi articleId để backend đổi tên file
-      const response = await fileUploadApi.uploadImage(file, article?.articleId || null, 'article');
+  const response = await fileUploadApi.upload(file, article?.articleId || null, 'article');
       if (response.data.success) {
         setFormData(prev => ({
           ...prev,
