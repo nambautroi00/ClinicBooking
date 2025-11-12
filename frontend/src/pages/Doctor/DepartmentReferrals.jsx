@@ -1,0 +1,557 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import referralApi from '../../api/referralApi';
+import doctorApi from '../../api/doctorApi';
+
+const DepartmentReferrals = () => {
+  const [referrals, setReferrals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('PENDING');
+  const [doctorInfo, setDoctorInfo] = useState(null);
+  const [selectedReferral, setSelectedReferral] = useState(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [resultData, setResultData] = useState({
+    resultText: '',
+    resultFileUrl: '',
+    status: 'DONE'
+  });
+  const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const doctorId = user.doctorId || localStorage.getItem('doctorId');
+
+  useEffect(() => {
+    if (doctorId) {
+      loadDoctorInfo();
+    } else {
+      console.error('❌ No doctorId found');
+      setLoading(false);
+    }
+  }, [doctorId]);
+
+  const loadDoctorInfo = async () => {
+    try {
+      console.log('🔍 Loading doctor info for ID:', doctorId);
+      const response = await doctorApi.getDoctorById(doctorId);
+      console.log('✅ Doctor info loaded:', response.data);
+      console.log('📌 Doctor department:', response.data?.department);
+      
+      setDoctorInfo(response.data);
+      
+      // Department model uses 'id' field, not 'departmentId'
+      const deptId = response.data?.department?.id;
+      
+      if (deptId) {
+        console.log('🏥 Department ID found:', deptId);
+        console.log('🏥 Department Name:', response.data.department.departmentName);
+        loadReferrals(deptId);
+      } else {
+        console.error('❌ Doctor has no department assigned');
+        console.error('❌ Doctor data:', response.data);
+        alert('❌ Bác sĩ chưa được phân công vào khoa nào.\n\nVui lòng liên hệ quản trị viên để được phân công khoa.');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('❌ Error loading doctor info:', error);
+      console.error('❌ Error response:', error.response);
+      alert('Không thể tải thông tin bác sĩ: ' + (error.response?.data?.message || error.message));
+      setLoading(false);
+    }
+  };
+
+  const loadReferrals = async (departmentId) => {
+    try {
+      setLoading(true);
+      console.log('📊 Loading referrals for department ID:', departmentId);
+      console.log('📊 Current filter:', filter);
+      
+      // Load all referrals or only pending based on filter
+      const response = filter === 'ALL' 
+        ? await referralApi.getReferralsByDepartment(departmentId)
+        : await referralApi.getPendingReferrals(departmentId);
+      
+      console.log('✅ Referrals API response:', response);
+      console.log('✅ Response data type:', typeof response.data);
+      console.log('✅ Response data is array?', Array.isArray(response.data));
+      console.log('✅ Raw response data (first 500 chars):', JSON.stringify(response.data).substring(0, 500));
+      
+      // Ensure response.data is an array
+      let referralsData = [];
+      
+      if (Array.isArray(response.data)) {
+        // Already an array - use directly
+        referralsData = response.data;
+        console.log('✅ Data is already an array');
+      } else if (typeof response.data === 'string') {
+        // Backend returned JSON string - parse it
+        try {
+          console.log('🔄 Attempting to parse JSON string...');
+          const parsed = JSON.parse(response.data);
+          referralsData = Array.isArray(parsed) ? parsed : [];
+          console.log('✅ Parsed JSON string to array, length:', referralsData.length);
+        } catch (e) {
+          console.error('❌ Failed to parse JSON string:', e.message);
+          console.error('❌ First 200 chars of string:', response.data.substring(0, 200));
+          referralsData = [];
+        }
+      } else if (response.data && typeof response.data === 'object') {
+        // If it's an object, try to extract array from common properties
+        console.log('🔄 Data is object, checking for array properties...');
+        referralsData = response.data.content || response.data.data || [];
+      }
+      
+      console.log('✅ Number of referrals:', referralsData.length);
+      
+      if (referralsData.length > 0) {
+        console.log('📋 Sample referral (first 3):', referralsData.slice(0, 3));
+        console.log('📋 First referral toDepartment:', referralsData[0]?.toDepartment);
+        console.log('📋 First referral fromDoctor:', referralsData[0]?.fromDoctor);
+        console.log('📋 First referral appointment:', referralsData[0]?.appointment);
+        console.log('📋 First referral status:', referralsData[0]?.status);
+      }
+      
+      const validReferrals = referralsData.filter(r => r && r.referralId);
+      console.log('✅ Valid referrals after filter:', validReferrals.length);
+      setReferrals(validReferrals);
+    } catch (error) {
+      console.error('❌ Error loading referrals:', error);
+      console.error('❌ Error response:', error.response);
+      alert('Không thể tải danh sách chỉ định: ' + (error.response?.data?.message || error.message));
+      setReferrals([]); // Set empty array on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateResult = (referral) => {
+    setSelectedReferral(referral);
+    setResultData({
+      resultText: referral.resultText || '',
+      resultFileUrl: referral.resultFileUrl || '',
+      status: referral.status === 'PENDING' ? 'IN_PROGRESS' : referral.status
+    });
+    setShowUpdateModal(true);
+  };
+
+  const handleSubmitResult = async () => {
+    if (!selectedReferral) return;
+
+    if (!resultData.resultText.trim()) {
+      alert('Vui lòng nhập kết quả cận lâm sàng');
+      return;
+    }
+
+    try {
+      const payload = {
+        performedByDoctorId: doctorId,
+        resultText: resultData.resultText.trim(),
+        resultFileUrl: resultData.resultFileUrl.trim() || null,
+        status: resultData.status
+      };
+
+      console.log('📤 Submitting result:', payload);
+      
+      await referralApi.updateResult(selectedReferral.referralId, payload);
+      
+      alert('✅ Đã cập nhật kết quả thành công!');
+      setShowUpdateModal(false);
+      setSelectedReferral(null);
+      setResultData({ resultText: '', resultFileUrl: '', status: 'DONE' });
+      
+      // Reload referrals
+      if (doctorInfo?.department?.id) {
+        loadReferrals(doctorInfo.department.id);
+      }
+    } catch (error) {
+      console.error('❌ Error updating result:', error);
+      alert('Không thể cập nhật kết quả: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleUpdateStatus = async (referralId, newStatus) => {
+    try {
+      await referralApi.updateStatus(referralId, newStatus);
+      alert(`✅ Đã cập nhật trạng thái thành ${newStatus}`);
+      
+      if (doctorInfo?.department?.id) {
+        loadReferrals(doctorInfo.department.id);
+      }
+    } catch (error) {
+      console.error('❌ Error updating status:', error);
+      alert('Không thể cập nhật trạng thái');
+    }
+  };
+
+  const safeReferrals = Array.isArray(referrals) ? referrals : [];
+  
+  const filteredReferrals = filter === 'ALL' 
+    ? safeReferrals 
+    : safeReferrals.filter(r => r.status === filter);
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      PENDING: { bg: 'warning', icon: 'hourglass-split', text: 'Chờ thực hiện' },
+      IN_PROGRESS: { bg: 'primary', icon: 'arrow-repeat', text: 'Đang thực hiện' },
+      DONE: { bg: 'success', icon: 'check-circle-fill', text: 'Đã hoàn thành' },
+      CANCELLED: { bg: 'danger', icon: 'x-circle-fill', text: 'Đã hủy' },
+    };
+    const config = statusConfig[status] || statusConfig.PENDING;
+    return (
+      <span className={`badge bg-${config.bg} text-white`}>
+        <i className={`bi bi-${config.icon} me-1`}></i>
+        {config.text}
+      </span>
+    );
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-fluid py-4">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h3 className="mb-1">
+            <i className="bi bi-clipboard-pulse text-primary me-2"></i>
+            Chỉ định Cận Lâm Sàng - {doctorInfo?.department?.departmentName || 'Khoa'}
+          </h3>
+          <p className="text-muted mb-0">
+            Xử lý các chỉ định từ bác sĩ chính và cập nhật kết quả
+          </p>
+        </div>
+        <button 
+          className="btn btn-outline-secondary"
+          onClick={() => navigate('/doctor/dashboard')}
+        >
+          <i className="bi bi-arrow-left me-2"></i>
+          Quay lại
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm bg-warning bg-opacity-10">
+            <div className="card-body">
+              <h6 className="text-muted mb-1">Chờ thực hiện</h6>
+              <h3 className="mb-0 text-warning">
+                {safeReferrals.filter(r => r.status === 'PENDING').length}
+              </h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm bg-primary bg-opacity-10">
+            <div className="card-body">
+              <h6 className="text-muted mb-1">Đang thực hiện</h6>
+              <h3 className="mb-0 text-primary">
+                {safeReferrals.filter(r => r.status === 'IN_PROGRESS').length}
+              </h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm bg-success bg-opacity-10">
+            <div className="card-body">
+              <h6 className="text-muted mb-1">Đã hoàn thành</h6>
+              <h3 className="mb-0 text-success">
+                {safeReferrals.filter(r => r.status === 'DONE').length}
+              </h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm bg-info bg-opacity-10">
+            <div className="card-body">
+              <h6 className="text-muted mb-1">Tổng chỉ định</h6>
+              <h3 className="mb-0 text-info">{safeReferrals.length}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body p-3">
+          <ul className="nav nav-pills">
+            {['PENDING', 'IN_PROGRESS', 'DONE', 'ALL'].map(status => (
+              <li key={status} className="nav-item">
+                <button
+                  className={`nav-link ${filter === status ? 'active' : ''}`}
+                  onClick={() => {
+                    setFilter(status);
+                    if (doctorInfo?.department?.departmentId) {
+                      loadReferrals(doctorInfo.department.departmentId);
+                    }
+                  }}
+                >
+                  {status === 'ALL' ? '🗂️ Tất cả' : 
+                   status === 'PENDING' ? '⏳ Chờ thực hiện' :
+                   status === 'IN_PROGRESS' ? '🔄 Đang thực hiện' : 
+                   '✅ Đã hoàn thành'}
+                  <span className="badge bg-light text-dark ms-2">
+                    {status === 'ALL' 
+                      ? safeReferrals.length 
+                      : safeReferrals.filter(r => r.status === status).length}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Referrals List */}
+      {filteredReferrals.length === 0 ? (
+        <div className="card border-0 shadow-sm">
+          <div className="card-body text-center py-5">
+            <i className="bi bi-inbox text-muted" style={{ fontSize: '4rem' }}></i>
+            <h5 className="text-muted mt-3">Không có chỉ định nào</h5>
+            <p className="text-muted">Các chỉ định từ bác sĩ chính sẽ hiển thị tại đây</p>
+          </div>
+        </div>
+      ) : (
+        <div className="row g-3">
+          {filteredReferrals.map(referral => (
+            <div key={referral.referralId} className="col-md-6 col-xl-4">
+              <div className="card border-0 shadow-sm h-100">
+                <div className="card-body">
+                  {/* Header with Status */}
+                  <div className="d-flex justify-content-between align-items-start mb-3">
+                    <div className="flex-grow-1">
+                      <small className="text-muted d-block">
+                        <i className="bi bi-calendar3 me-1"></i>
+                        {formatDateTime(referral.createdAt)}
+                      </small>
+                      <small className="text-muted d-block">
+                        <i className="bi bi-hash me-1"></i>
+                        ID: {referral.referralId}
+                      </small>
+                    </div>
+                    {getStatusBadge(referral.status)}
+                  </div>
+
+                  {/* From Doctor */}
+                  <div className="border-start border-4 border-warning ps-3 mb-3">
+                    <small className="text-muted d-block mb-1">Bác sĩ chỉ định:</small>
+                    <div className="fw-bold">
+                      <i className="bi bi-person-badge text-warning me-2"></i>
+                      BS. {referral.fromDoctor?.user?.lastName} {referral.fromDoctor?.user?.firstName}
+                    </div>
+                    <small className="text-muted">
+                      {referral.fromDoctor?.department?.departmentName || 'N/A'}
+                    </small>
+                  </div>
+
+                  {/* Patient Info */}
+                  <div className="border-start border-4 border-info ps-3 mb-3">
+                    <small className="text-muted d-block mb-1">Bệnh nhân:</small>
+                    <div className="fw-bold text-dark">
+                      <i className="bi bi-person-fill me-2 text-info"></i>
+                      {referral.appointment?.patient?.user?.lastName} {referral.appointment?.patient?.user?.firstName}
+                    </div>
+                    <small className="text-muted d-block">
+                      <i className="bi bi-telephone me-1"></i>
+                      {referral.appointment?.patient?.user?.phone || 'N/A'}
+                    </small>
+                  </div>
+
+                  {/* Request Notes */}
+                  {referral.notes && (
+                    <div className="mb-3">
+                      <small className="text-muted d-block mb-1 fw-bold">
+                        <i className="bi bi-clipboard-check me-1"></i>
+                        Yêu cầu khám:
+                      </small>
+                      <p className="mb-0 small bg-light p-2 rounded" style={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                      }}>
+                        {referral.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Result (if exists) */}
+                  {referral.resultText && (
+                    <div className="mb-3">
+                      <small className="text-success d-block mb-1 fw-bold">
+                        <i className="bi bi-check-circle me-1"></i>
+                        Kết quả:
+                      </small>
+                      <p className="mb-0 small bg-success bg-opacity-10 p-2 rounded text-dark">
+                        {referral.resultText}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="border-top pt-3 mt-3">
+                    {referral.status === 'PENDING' && (
+                      <div className="d-grid gap-2">
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleUpdateStatus(referral.referralId, 'IN_PROGRESS')}
+                        >
+                          <i className="bi bi-play-circle me-2"></i>
+                          Bắt đầu thực hiện
+                        </button>
+                        <button
+                          className="btn btn-outline-primary btn-sm"
+                          onClick={() => handleUpdateResult(referral)}
+                        >
+                          <i className="bi bi-pencil-square me-2"></i>
+                          Nhập kết quả
+                        </button>
+                      </div>
+                    )}
+
+                    {referral.status === 'IN_PROGRESS' && (
+                      <div className="d-grid gap-2">
+                        <button
+                          className="btn btn-success btn-sm"
+                          onClick={() => handleUpdateResult(referral)}
+                        >
+                          <i className="bi bi-check-circle me-2"></i>
+                          Cập nhật kết quả
+                        </button>
+                      </div>
+                    )}
+
+                    {referral.status === 'DONE' && (
+                      <div>
+                        <small className="text-success d-block mb-2">
+                          <i className="bi bi-check-circle-fill me-1"></i>
+                          Đã hoàn thành: {formatDateTime(referral.completedAt)}
+                        </small>
+                        {referral.performedByDoctor && (
+                          <small className="text-muted d-block">
+                            <i className="bi bi-person me-1"></i>
+                            Thực hiện bởi: BS. {referral.performedByDoctor.user?.lastName}
+                          </small>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Update Result Modal */}
+      {showUpdateModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-clipboard-plus me-2"></i>
+                  Cập nhật Kết quả Cận Lâm Sàng
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShowUpdateModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {selectedReferral && (
+                  <>
+                    {/* Patient Info */}
+                    <div className="alert alert-info mb-3">
+                      <strong>Bệnh nhân:</strong> {selectedReferral.appointment?.patient?.user?.lastName} {selectedReferral.appointment?.patient?.user?.firstName}
+                      <br />
+                      <strong>Yêu cầu:</strong> {selectedReferral.notes}
+                    </div>
+
+                    {/* Result Text */}
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">
+                        <i className="bi bi-file-text me-2"></i>
+                        Kết quả khám / Kết luận <span className="text-danger">*</span>
+                      </label>
+                      <textarea
+                        className="form-control"
+                        rows="6"
+                        placeholder="Nhập kết quả chi tiết của xét nghiệm / chẩn đoán hình ảnh..."
+                        value={resultData.resultText}
+                        onChange={(e) => setResultData({ ...resultData, resultText: e.target.value })}
+                      />
+                      <small className="text-muted">
+                        Ví dụ: "Kết quả X-quang phổi: Phổi trong sạch, không có tổn thương..."
+                      </small>
+                    </div>
+
+                    {/* Result File URL (Optional) */}
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">
+                        <i className="bi bi-link-45deg me-2"></i>
+                        Link file kết quả (nếu có)
+                      </label>
+                      <input
+                        type="url"
+                        className="form-control"
+                        placeholder="https://..."
+                        value={resultData.resultFileUrl}
+                        onChange={(e) => setResultData({ ...resultData, resultFileUrl: e.target.value })}
+                      />
+                      <small className="text-muted">
+                        Link hình ảnh X-quang, siêu âm, hoặc file PDF kết quả xét nghiệm
+                      </small>
+                    </div>
+
+                    {/* Status */}
+                    <div className="mb-3">
+                      <label className="form-label fw-bold">
+                        <i className="bi bi-flag me-2"></i>
+                        Trạng thái
+                      </label>
+                      <select
+                        className="form-select"
+                        value={resultData.status}
+                        onChange={(e) => setResultData({ ...resultData, status: e.target.value })}
+                      >
+                        <option value="IN_PROGRESS">Đang thực hiện</option>
+                        <option value="DONE">Hoàn thành (gửi kết quả cho bác sĩ chính)</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowUpdateModal(false)}>
+                  <i className="bi bi-x-circle me-2"></i>
+                  Hủy
+                </button>
+                <button type="button" className="btn btn-success" onClick={handleSubmitResult}>
+                  <i className="bi bi-check-circle me-2"></i>
+                  Lưu kết quả
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DepartmentReferrals;

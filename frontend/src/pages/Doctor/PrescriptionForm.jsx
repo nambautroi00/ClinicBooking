@@ -8,6 +8,7 @@ import patientApi from "../../api/patientApi";
 import appointmentApi from "../../api/appointmentApi";
 import referralApi from "../../api/referralApi";
 import departmentApi from "../../api/departmentApi";
+import ReferralResults from "../../components/ReferralResults";
 import Cookies from 'js-cookie';
 
 const PrescriptionForm = () => {
@@ -51,6 +52,10 @@ const PrescriptionForm = () => {
     toDepartmentId: '',
     notes: ''
   });
+
+  // Clinical Referral Results State
+  const [referralResults, setReferralResults] = useState([]);
+  const [loadingReferrals, setLoadingReferrals] = useState(false);
 
   useEffect(() => {
     loadMedicines();
@@ -281,6 +286,32 @@ const PrescriptionForm = () => {
       ]);
     }
   };
+
+  // Load clinical referral results for this appointment
+  const loadReferralResults = async (apptId) => {
+    if (!apptId) return;
+    
+    try {
+      setLoadingReferrals(true);
+      console.log('📊 Loading referral results for appointment:', apptId);
+      const response = await referralApi.getReferralsByAppointment(apptId);
+      console.log('✅ Referral results loaded:', response.data);
+      setReferralResults(response.data || []);
+    } catch (error) {
+      console.error('❌ Error loading referral results:', error);
+      setReferralResults([]);
+    } finally {
+      setLoadingReferrals(false);
+    }
+  };
+
+  // Load referral results when appointmentId changes
+  useEffect(() => {
+    const apptId = appointmentId || formData.selectedAppointmentId;
+    if (apptId) {
+      loadReferralResults(apptId);
+    }
+  }, [appointmentId, formData.selectedAppointmentId]);
 
   // Handle creating clinical referral
   const handleCreateReferral = async () => {
@@ -937,6 +968,14 @@ const PrescriptionForm = () => {
               </small>
             </Card.Body>
           </Card>
+
+          {/* Clinical Referral Results */}
+          {(appointmentId || formData.selectedAppointmentId) && (
+            <ReferralResults 
+              referrals={referralResults} 
+              loading={loadingReferrals} 
+            />
+          )}
 
           {/* Add Medicine Card */}
           <Card className="mb-3" style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
