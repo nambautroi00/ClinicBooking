@@ -172,22 +172,16 @@ const buildSchemaPayload = (rawPayload, fallbackInput = '') => {
     normalized.messageToUserMarkdown = `Mình ghi nhận các triệu chứng: ${normalized.symptoms.join(', ')}.`;
   }
 
-  return normalized;
-};
+  if (normalized.symptoms.length > 0 && normalized.redFlags.length > 0) {
+    const redFlagSet = new Set(
+      normalized.redFlags.map((flag) => normalizeVietnamese(flag || ''))
+    );
+    normalized.symptoms = normalized.symptoms.filter(
+      (symptom) => !redFlagSet.has(normalizeVietnamese(symptom || ''))
+    );
+  }
 
-const hasInsightDetails = (payload) => {
-  if (!payload) return false;
-  return (
-    payload.intents.length > 0 ||
-    payload.symptoms.length > 0 ||
-    payload.possibleCauses.length > 0 ||
-    payload.relatedConditions.length > 0 ||
-    payload.redFlags.length > 0 ||
-    payload.selfCare.length > 0 ||
-    Boolean(payload.recommendedDepartment.name) ||
-    payload.nextQuestions.length > 0 ||
-    Boolean(payload.doctorQuery.departmentCode)
-  );
+  return normalized;
 };
 
 const escapeHtml = (value) => {
@@ -213,21 +207,83 @@ const formatMarkdownText = (value) => {
   return withBullets.replace(/\n/g, '<br/>');
 };
 
-const createMessage = (text, sender = 'bot', extra = {}) => ({
-  text,
-  sender,
-  timestamp: new Date().toISOString(),
-  ...extra
-});
+const createMessage = (text, sender = 'bot', extra = {}) => {
+  const { rawText, animate, ...rest } = extra;
+  return {
+    text,
+    sender,
+    timestamp: new Date().toISOString(),
+    rawText: rawText ?? text,
+    animate: animate ?? sender === 'bot',
+    ...rest
+  };
+};
 
 const createMarkdownMessage = (markdownText, sender = 'bot') =>
   createMessage(formatMarkdownText(markdownText || ''), sender, {
     isMarkdown: true,
-    rawText: markdownText || ''
+    rawText: markdownText || '',
+    animate: true
   });
 
 const stripBasicHtml = (value = '') =>
   value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const sanitizeStoredMessages = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    ...item,
+    animate: false,
+    rawText:
+      typeof item.rawText === 'string'
+        ? item.rawText
+        : item.isMarkdown
+        ? stripBasicHtml(item.text || '')
+        : item.text || ''
+  }));
+};
+
+const TypewriterMessage = ({ msg }) => {
+  const source = msg.rawText || '';
+  const [visibleText, setVisibleText] = useState(msg.animate ? '' : source);
+  const [isDone, setIsDone] = useState(!msg.animate);
+
+  useEffect(() => {
+    if (!msg.animate || !source) {
+      setVisibleText(source);
+      setIsDone(true);
+      return;
+    }
+
+    setVisibleText('');
+    setIsDone(false);
+    let index = 0;
+    const baseSpeed = Math.max(15, Math.min(40, 1500 / Math.max(source.length, 1)));
+    const interval = setInterval(() => {
+      index += 1;
+      setVisibleText(source.slice(0, index));
+      if (index >= source.length) {
+        clearInterval(interval);
+        setIsDone(true);
+      }
+    }, baseSpeed);
+
+    return () => clearInterval(interval);
+  }, [source, msg.animate, msg.timestamp]);
+
+  if (msg.isMarkdown) {
+    const htmlContent = isDone ? msg.text : formatMarkdownText(visibleText);
+    return (
+      <div
+        style={styles.message(msg.sender, msg.isError)}
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
+    );
+  }
+
+  const finalText = isDone ? msg.text : visibleText;
+  return <div style={styles.message(msg.sender, msg.isError)}>{finalText}</div>;
+};
 
 const buildHistoryPayload = (historyMessages = []) => {
   if (!Array.isArray(historyMessages)) return [];
@@ -246,6 +302,63 @@ const buildHistoryPayload = (historyMessages = []) => {
       };
     })
     .filter(Boolean);
+};
+
+const buildInsightMarkdown = (payload) => {
+  if (!payload) return '';
+
+  const parts = [];
+  const joinList = (items, prefix = '**', suffix = '**') =>
+    items.length > 0 ? `${prefix}${items.join(', ')}${suffix}` : '';
+  const bulletList = (items) => items.map((item) => `- ${item}`).join('\n');
+
+  if (payload.symptoms.length > 0) {
+    parts.push(`**Triệu chứng chính:** ${payload.symptoms.join(', ')}`);
+  }
+
+  if (payload.possibleCauses.length > 0) {
+    const causes = payload.possibleCauses
+      .map((cause) => `${cause.name} (${LIKELIHOOD_LABELS[cause.likelihood] || cause.likelihood})`)
+      .join(', ');
+    parts.push(`**Nguyên nhân có thể:** ${causes}`);
+  }
+
+  if (payload.relatedConditions.length > 0) {
+    parts.push(`**Bệnh liên quan:** ${payload.relatedConditions.join(', ')}`);
+  }
+
+  if (payload.redFlags.length > 0) {
+    parts.push(`**Bạn cần đi khám ngay nếu:**\n${bulletList(payload.redFlags)}`);
+  }
+
+  if (payload.selfCare.length > 0) {
+    parts.push(`**Gợi ý tự chăm sóc:**\n${bulletList(payload.selfCare)}`);
+  }
+
+  if (payload.recommendedDepartment?.name || payload.recommendedDepartment?.code) {
+    const { name, code, confidence } = payload.recommendedDepartment;
+    const percent =
+      typeof confidence === 'number' ? ` (độ tin cậy ${Math.round(confidence * 100)}%)` : '';
+    parts.push(
+      `**Khoa gợi ý:** ${name || 'Chưa xác định'}${code ? ` (${code})` : ''}${percent}`
+    );
+    if (Array.isArray(payload.recommendedDepartment.alternatives) && payload.recommendedDepartment.alternatives.length > 0) {
+      parts.push(
+        `**Phương án khác:** ${payload.recommendedDepartment.alternatives
+          .map((alt) => alt.name || alt.code)
+          .filter(Boolean)
+          .join(', ')}`
+      );
+    }
+  }
+
+  if (payload.nextQuestions.length > 0) {
+    parts.push(`**Câu hỏi tiếp theo:**\n${bulletList(payload.nextQuestions)}`);
+  }
+
+
+  if (parts.length === 0) return '';
+  return `**Phân tích y khoa**\n${parts.join('\n\n')}`;
 };
 
 const loadFromStorage = (key, fallback) => {
@@ -305,7 +418,7 @@ const ChatBot = () => {
   const [messages, setMessages] = useState(() => {
     const stored = loadFromStorage(STORAGE_KEYS.messages, null);
     if (stored && Array.isArray(stored) && stored.length > 0) {
-      return stored;
+      return sanitizeStoredMessages(stored);
     }
     return [createGreetingMessage(initialUserName)];
   });
@@ -324,6 +437,7 @@ const ChatBot = () => {
   const [isSendHovered, setIsSendHovered] = useState(false);
   const [userName, setUserName] = useState(initialUserName);
   const [awaitingName, setAwaitingName] = useState(() => !initialUserName);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -489,25 +603,14 @@ const ChatBot = () => {
       const botPayload = [];
       const structured = buildSchemaPayload(reply?.schemaPayload || reply?.response, sanitized);
 
-      if (Array.isArray(reply?.symptomKeywords)) {
-        mergeSymptomKeywords(reply.symptomKeywords);
-      }
-
       if (structured) {
         mergeSymptomKeywords(structured.symptoms);
-
-        if (structured.messageToUserMarkdown) {
-          botPayload.push(createMarkdownMessage(structured.messageToUserMarkdown));
-        }
-
-        if (hasInsightDetails(structured)) {
-          botPayload.push({
-            text: '',
-            sender: 'bot',
-            timestamp: new Date().toISOString(),
-            type: 'insight',
-            payload: structured
-          });
+        const insightText = buildInsightMarkdown(structured);
+        const combinedMessage = [structured.messageToUserMarkdown, insightText]
+          .filter(Boolean)
+          .join('\n\n');
+        if (combinedMessage) {
+          botPayload.push(createMarkdownMessage(combinedMessage));
         }
       }
 
@@ -587,12 +690,6 @@ const ChatBot = () => {
   };
 
   const resetConversation = () => {
-    const confirmClear =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm('Xóa toàn bộ hội thoại và bắt đầu lại?');
-    if (!confirmClear) return;
-
     const profileName = getNameFromUserProfile();
     const greeting = createGreetingMessage(profileName);
     setMessages([greeting]);
@@ -611,147 +708,11 @@ const ChatBot = () => {
         localStorage.removeItem(STORAGE_KEYS.userName);
       }
     }
+    setIsResetModalOpen(false);
   };
 
-  const MedicalInsightCard = ({ payload }) => {
-    if (!payload) return null;
-
-    const {
-      input,
-      intents = [],
-      symptoms = [],
-      possibleCauses = [],
-      relatedConditions = [],
-      redFlags = [],
-      selfCare = [],
-      recommendedDepartment = {},
-      doctorQuery = {},
-      nextQuestions = [],
-      safetyNotice = SAFETY_NOTICE
-    } = payload;
-
-    const renderChipSection = (title, items) =>
-      Array.isArray(items) && items.length > 0 ? (
-        <div style={styles.insightSection}>
-          <div style={styles.insightSectionTitle}>{title}</div>
-          <div style={styles.chipGroup}>
-            {items.map((item, idx) => (
-              <span key={`${title}-${idx}`} style={styles.chip}>
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null;
-
-    const renderListSection = (title, items, variant = 'default') => {
-      if (!Array.isArray(items) || items.length === 0) {
-        return null;
-      }
-
-      const containerStyle =
-        variant === 'warning'
-          ? { ...styles.insightSection, ...styles.warningSection }
-          : styles.insightSection;
-      const listStyle = variant === 'warning' ? styles.warningList : styles.list;
-      const itemStyle = variant === 'warning' ? styles.redFlagItem : styles.listItem;
-
-      return (
-        <div style={containerStyle}>
-          <div style={styles.insightSectionTitle}>{title}</div>
-          <ul style={listStyle}>
-            {items.map((item, idx) => (
-              <li key={`${title}-${idx}`} style={itemStyle}>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
-    };
-
-    const renderPossibleCauses = () =>
-      Array.isArray(possibleCauses) && possibleCauses.length > 0 ? (
-        <div style={styles.insightSection}>
-          <div style={styles.insightSectionTitle}>Nguyên nhân có thể</div>
-          <ul style={styles.list}>
-            {possibleCauses.map((cause, idx) => (
-              <li key={`cause-${idx}`} style={styles.listItem}>
-                <div style={styles.causeRow}>
-                  <span>{cause.name}</span>
-                  <span style={styles.likelihoodChip(cause.likelihood)}>
-                    {LIKELIHOOD_LABELS[cause.likelihood] || cause.likelihood}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null;
-
-    const confidencePercentage = typeof recommendedDepartment.confidence === 'number'
-      ? Math.round(Math.min(Math.max(recommendedDepartment.confidence, 0), 1) * 100)
-      : 0;
-    const filters = doctorQuery?.filters || {};
-
-    return (
-      <div style={styles.insightCard}>
-        <div style={styles.insightHeader}>
-          <div>
-            <div style={styles.insightTitle}>Phân tích y khoa</div>
-          </div>
-          <div style={styles.insightBadge}>AI schema</div>
-        </div>
-
-        {renderChipSection('Ý định', intents)}
-        {renderChipSection('Triệu chứng chính', symptoms)}
-        {renderPossibleCauses()}
-        {renderChipSection('Bệnh liên quan', relatedConditions)}
-        {renderListSection('Bạn cần đi khám ngay nếu:', redFlags, 'warning')}
-        {renderListSection('Gợi ý tự chăm sóc', selfCare)}
-        
-        {(recommendedDepartment?.name || recommendedDepartment?.code) && (
-          <div style={styles.departmentCard}>
-            <div style={styles.insightSectionTitle}>Khoa gợi ý</div>
-            <div style={styles.departmentName}>
-              {recommendedDepartment.name || 'Chưa xác định'}
-            </div>
-            <div style={styles.departmentMeta}>
-              · Độ tin cậy: {confidencePercentage}%
-            </div>
-            {Array.isArray(recommendedDepartment.alternatives) &&
-              recommendedDepartment.alternatives.length > 0 && (
-                <>
-                  <div style={styles.altTitle}>Phương án khác</div>
-                  <div style={styles.chipGroup}>
-                    {recommendedDepartment.alternatives.map((alt, idx) => (
-                      <span key={`alt-${idx}`} style={styles.altChip}>
-                        {alt.name || alt.code}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-          </div>
-        )}
-
-        {(doctorQuery?.departmentCode || filters.location || filters.ratingMin) && (
-          <div style={styles.doctorQueryCard}>
-            <div style={styles.insightSectionTitle}>Tìm bác sĩ phù hợp</div>
-            <div style={styles.doctorQueryText}>
-              Mã khoa ưu tiên: <strong>{doctorQuery.departmentCode || 'Chưa có'}</strong>
-            </div>
-            <div style={styles.doctorFilters}>
-              <span>Vị trí: {filters.location || 'Bất kỳ'}</span>
-              <span>Đánh giá tối thiểu: {filters.ratingMin || 0}</span>
-            </div>
-          </div>
-        )}
-
-        {safetyNotice && <div style={styles.safetyNotice}>{safetyNotice}</div>}
-      </div>
-    );
-  };
+  const openResetModal = () => setIsResetModalOpen(true);
+  const closeResetModal = () => setIsResetModalOpen(false);
 
   const DoctorTable = ({ doctors, departmentName }) => {
     if (!doctors || doctors.length === 0) {
@@ -923,7 +884,7 @@ const ChatBot = () => {
             </div>
             <span style={styles.verifiedDot}>✓</span>
           </div>
-          <button style={styles.resetButton} onClick={resetConversation}>
+          <button style={styles.resetButton} onClick={openResetModal}>
             Bắt đầu mới
           </button>
         </div>
@@ -939,15 +900,15 @@ const ChatBot = () => {
           <div style={styles.chatContainer}>
             {messages.map((msg, index) => (
               <div key={index} style={styles.messageWrapper(msg.sender)}>
-                {msg.sender === 'bot' && msg.type !== 'doctors' && msg.type !== 'insight' && (
+                {msg.sender === 'bot' && msg.type !== 'doctors' && (
                   <img src={BOT_AVATAR} alt="AI trợ lý" style={styles.botAvatar} />
                 )}
                 <div style={{ maxWidth: msg.type === 'doctors' ? '100%' : '70%' }}>
                   {msg.type === 'doctors' ? (
                     <DoctorTable doctors={msg.doctors} departmentName={msg.departmentName} />
-                  ) : msg.type === 'insight' ? (
+                  ) : msg.animate && msg.sender === 'bot' ? (
                     <>
-                      <MedicalInsightCard payload={msg.payload} />
+                      <TypewriterMessage msg={msg} />
                       <div style={styles.timestamp}>{formatTime(msg.timestamp)}</div>
                     </>
                   ) : (
@@ -1006,6 +967,25 @@ const ChatBot = () => {
             </button>
           </div>
         </div>
+
+        {isResetModalOpen && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modalCard}>
+              <div style={styles.modalTitle}>Bắt đầu cuộc trò chuyện mới?</div>
+              <p style={styles.modalText}>
+                Toàn bộ lịch sử tin nhắn hiện tại sẽ bị xóa. Bạn có chắc muốn làm mới trợ lý y khoa?
+              </p>
+              <div style={styles.modalActions}>
+                <button style={styles.modalCancel} onClick={closeResetModal}>
+                  Hủy
+                </button>
+                <button style={styles.modalConfirm} onClick={resetConversation}>
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -1111,6 +1091,61 @@ const styles = {
     transition: 'background-color 0.2s, transform 0.2s',
     boxShadow: '0 8px 16px rgba(37,99,235,0.3)'
   },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(15,23,42,0.35)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 30,
+    padding: '16px'
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: '420px',
+    backgroundColor: '#fff',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 20px 50px rgba(15,23,42,0.2)',
+    textAlign: 'center'
+  },
+  modalTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: '12px'
+  },
+  modalText: {
+    fontSize: '15px',
+    color: '#475569',
+    lineHeight: 1.5,
+    marginBottom: '20px'
+  },
+  modalActions: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px'
+  },
+  modalCancel: {
+    padding: '10px 18px',
+    borderRadius: '999px',
+    border: '1px solid #cbd5f5',
+    backgroundColor: '#fff',
+    color: '#475569',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  modalConfirm: {
+    padding: '10px 22px',
+    borderRadius: '999px',
+    border: 'none',
+    backgroundColor: '#2563eb',
+    color: '#fff',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 8px 16px rgba(37,99,235,0.35)'
+  },
   chatContainer: {
     flex: 1,
     overflowY: 'auto',
@@ -1120,163 +1155,6 @@ const styles = {
     gap: '16px',
     backgroundColor: 'transparent',
     minHeight: 0
-  },
-  insightCard: {
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: '18px',
-    padding: '18px',
-    boxShadow: '0 8px 22px rgba(15,23,42,0.08)',
-    marginTop: '6px'
-  },
-  insightHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px'
-  },
-  insightTitle: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#0f172a'
-  },
-  insightSubtitle: {
-    fontSize: '13px',
-    color: '#475569',
-    marginTop: '4px'
-  },
-  insightBadge: {
-    padding: '6px 12px',
-    borderRadius: '999px',
-    backgroundColor: '#dbeafe',
-    color: '#1d4ed8',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  insightSection: {
-    marginTop: '12px'
-  },
-  insightSectionTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#0f172a',
-    marginBottom: '6px'
-  },
-  chipGroup: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px'
-  },
-  chip: {
-    backgroundColor: '#e0f2fe',
-    color: '#0369a1',
-    borderRadius: '999px',
-    padding: '6px 12px',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  list: {
-    margin: 0,
-    paddingLeft: '18px',
-    color: '#1f2937',
-    fontSize: '14px',
-    lineHeight: 1.5
-  },
-  warningSection: {
-    backgroundColor: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: '12px',
-    padding: '12px',
-    marginTop: '12px'
-  },
-  warningList: {
-    margin: 0,
-    paddingLeft: '18px',
-    color: '#b91c1c',
-    fontSize: '14px',
-    lineHeight: 1.5
-  },
-  listItem: {
-    marginBottom: '4px'
-  },
-  redFlagItem: {
-    marginBottom: '4px',
-    color: '#b91c1c',
-    fontWeight: '600'
-  },
-  causeRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: '12px',
-    alignItems: 'center'
-  },
-  likelihoodChip: (type = 'possible') => {
-    const palette = LIKELIHOOD_COLORS[type] || LIKELIHOOD_COLORS.possible;
-    return {
-      backgroundColor: palette.bg,
-      color: palette.color,
-      borderRadius: '10px',
-      fontSize: '12px',
-      padding: '2px 8px',
-      fontWeight: '600'
-    };
-  },
-  departmentCard: {
-    marginTop: '12px',
-    padding: '12px',
-    borderRadius: '14px',
-    backgroundColor: '#fff',
-    border: '1px solid #e5e7eb'
-  },
-  departmentName: {
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#0f172a'
-  },
-  departmentMeta: {
-    fontSize: '13px',
-    color: '#475569',
-    marginTop: '4px'
-  },
-  altTitle: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#0f172a',
-    marginTop: '10px',
-    marginBottom: '6px'
-  },
-  altChip: {
-    backgroundColor: '#ede9fe',
-    color: '#5b21b6',
-    borderRadius: '999px',
-    padding: '4px 10px',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  doctorQueryCard: {
-    marginTop: '12px',
-    padding: '12px',
-    borderRadius: '14px',
-    border: '1px dashed #93c5fd',
-    backgroundColor: '#eff6ff'
-  },
-  doctorQueryText: {
-    fontSize: '14px',
-    color: '#1f2937'
-  },
-  doctorFilters: {
-    marginTop: '6px',
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap',
-    fontSize: '13px',
-    color: '#475569'
-  },
-  safetyNotice: {
-    marginTop: '12px',
-    fontSize: '12px',
-    color: '#6b7280',
-    fontStyle: 'italic'
   },
   messageWrapper: (sender) => ({
     display: 'flex',
