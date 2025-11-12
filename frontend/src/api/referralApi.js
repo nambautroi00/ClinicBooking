@@ -43,6 +43,10 @@ const referralApi = {
   },
 
   // Common
+  getReferralById: (referralId) => {
+    return axiosClient.get(`/clinical-referrals/${referralId}`);
+  },
+
   getReferral: (referralId) => {
     return axiosClient.get(`/clinical-referrals/${referralId}`);
   },

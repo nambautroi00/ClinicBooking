@@ -4,8 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +25,6 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class SystemNotificationService {
 
     private final SystemNotificationRepository systemNotificationRepository;
@@ -35,6 +34,7 @@ public class SystemNotificationService {
     /**
      * Tạo notification mới
      */
+    @Transactional
     public SystemNotificationDTO.Response createNotification(SystemNotificationDTO.Create dto) {
         Appointment appointment = null;
         

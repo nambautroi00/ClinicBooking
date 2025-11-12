@@ -13,18 +13,38 @@ import com.example.backend.model.ClinicalReferralStatus;
 @Repository
 public interface ClinicalReferralRepository extends JpaRepository<ClinicalReferral, Long> {
     
-    List<ClinicalReferral> findByToDepartment_IdOrderByCreatedAtDesc(Long departmentId);
+    @Query("SELECT r FROM ClinicalReferral r " +
+           "LEFT JOIN FETCH r.toDepartment " +
+           "LEFT JOIN FETCH r.fromDoctor fd " +
+           "LEFT JOIN FETCH fd.user " +
+           "LEFT JOIN FETCH fd.department " +
+           "LEFT JOIN FETCH r.appointment a " +
+           "LEFT JOIN FETCH a.patient p " +
+           "LEFT JOIN FETCH p.user " +
+           "WHERE r.toDepartment.id = :departmentId " +
+           "ORDER BY r.createdAt DESC")
+    List<ClinicalReferral> findByToDepartment_IdOrderByCreatedAtDesc(@Param("departmentId") Long departmentId);
+    
+    @Query("SELECT r FROM ClinicalReferral r " +
+           "LEFT JOIN FETCH r.toDepartment " +
+           "LEFT JOIN FETCH r.fromDoctor fd " +
+           "LEFT JOIN FETCH fd.user " +
+           "LEFT JOIN FETCH fd.department " +
+           "LEFT JOIN FETCH r.appointment a " +
+           "LEFT JOIN FETCH a.patient p " +
+           "LEFT JOIN FETCH p.user " +
+           "WHERE r.toDepartment.id = :departmentId AND r.status = :status " +
+           "ORDER BY r.createdAt DESC")
+    List<ClinicalReferral> findByToDepartment_IdAndStatusOrderByCreatedAtDesc(
+        @Param("departmentId") Long departmentId, 
+        @Param("status") ClinicalReferralStatus status
+    );
     
     List<ClinicalReferral> findByAppointment_AppointmentIdOrderByCreatedAtDesc(Long appointmentId);
     
     List<ClinicalReferral> findByFromDoctor_DoctorIdOrderByCreatedAtDesc(Long doctorId);
     
     List<ClinicalReferral> findByStatusOrderByCreatedAtDesc(ClinicalReferralStatus status);
-    
-    List<ClinicalReferral> findByToDepartment_IdAndStatusOrderByCreatedAtDesc(
-        Long departmentId, 
-        ClinicalReferralStatus status
-    );
     
     @Query("SELECT r FROM ClinicalReferral r WHERE r.appointment.patient.patientId = :patientId ORDER BY r.createdAt DESC")
     List<ClinicalReferral> findByPatientId(@Param("patientId") Long patientId);

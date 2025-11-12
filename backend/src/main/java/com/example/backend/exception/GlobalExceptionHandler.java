@@ -43,9 +43,35 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
+        System.err.println("❌ RuntimeException caught: " + ex.getClass().getName());
+        System.err.println("❌ Message: " + ex.getMessage());
+        ex.printStackTrace();
+        
         Map<String, Object> response = new HashMap<>();
         response.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalStateException(IllegalStateException ex) {
+        System.err.println("❌ IllegalStateException caught: " + ex.getMessage());
+        ex.printStackTrace();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.transaction.UnexpectedRollbackException.class)
+    public ResponseEntity<Map<String, Object>> handleTransactionRollbackException(
+            org.springframework.transaction.UnexpectedRollbackException ex) {
+        System.err.println("❌ Transaction rollback exception: " + ex.getMessage());
+        ex.printStackTrace();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Lỗi transaction: " + ex.getMessage());
+        response.put("detail", "Vui lòng kiểm tra log server để biết thêm chi tiết");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
