@@ -35,6 +35,7 @@ export default function PaymentSuccess() {
           appointmentId,
           paymentId
         });
+        setLoading(false);
         return;
       }
 
@@ -137,6 +138,22 @@ export default function PaymentSuccess() {
     loadPaymentInfo();
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!paymentInfo) return;
+
+    const timer = setTimeout(() => {
+      navigate('/patient/appointments', {
+        replace: true,
+        state: {
+          paymentSuccess: true,
+          appointmentId: paymentInfo.appointmentId
+        }
+      });
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [paymentInfo, navigate]);
+
   const handleGoHome = () => {
     navigate('/');
   };
@@ -175,57 +192,33 @@ export default function PaymentSuccess() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          {/* Success Message */}
-          <div className="bg-white rounded-lg shadow-md p-8 mb-6 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Thanh toán thành công!</h1>
-            <p className="text-gray-600 mb-6">
-              Lịch hẹn của bạn đã được xác nhận. Bạn sẽ nhận được thông báo qua email.
-            </p>
-            
-            {paymentInfo.paymentId && (
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <p className="text-sm text-gray-600 mb-1">Mã thanh toán:</p>
-                <p className="font-mono text-lg font-semibold text-gray-900">#{paymentInfo.paymentId}</p>
-              </div>
-            )}
-          </div>
-
-          
-
-          {/* Next Steps */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-            <h3 className="font-semibold text-blue-900 mb-3">Bước tiếp theo:</h3>
-            <ul className="space-y-2 text-sm text-blue-800">
-              <li>• Bạn sẽ nhận được email xác nhận trong vòng 5 phút</li>
-              <li>• Vui lòng đến đúng giờ hẹn để được phục vụ tốt nhất</li>
-              <li>• Mang theo CMND/CCCD để xác minh danh tính</li>
-              <li>• Nếu có thay đổi, vui lòng liên hệ phòng khám trước 24h</li>
-            </ul>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-4">
-            <button
-              onClick={handleGoHome}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Về trang chủ
-            </button>
-            <button
-              onClick={handleViewAppointments}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Xem lịch hẹn
-            </button>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="h-8 w-8 text-green-600" />
         </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Thanh toán thành công!</h1>
+        <p className="text-gray-600 mb-4">
+          Hệ thống đang chuyển bạn về trang lịch hẹn để xem chi tiết.
+        </p>
+        {paymentInfo.paymentId && (
+          <p className="text-sm text-gray-500 mb-6">
+            Mã thanh toán: <span className="font-mono font-semibold">#{paymentInfo.paymentId}</span>
+          </p>
+        )}
+        <button
+          onClick={handleViewAppointments}
+          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Đến trang lịch hẹn ngay
+        </button>
+        <button
+          onClick={handleGoHome}
+          className="w-full mt-3 px-6 py-3 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          Về trang chủ
+        </button>
+        <p className="text-xs text-gray-400 mt-4">Bạn sẽ được chuyển tự động trong giây lát...</p>
       </div>
     </div>
   );

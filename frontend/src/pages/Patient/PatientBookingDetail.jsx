@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { 
   ArrowLeft, 
   Heart, 
@@ -26,10 +26,13 @@ import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import paymentApi from "../../api/paymentApi";
 import PaymentModal from "../../components/payment/PaymentModal";
+import { getFullAvatarUrl } from "../../utils/avatarUtils";
 
 export default function PatientBookingDetail() {
   const { doctorId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const lastCancelSignatureRef = useRef(null);
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState("");
@@ -49,6 +52,46 @@ export default function PatientBookingDetail() {
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [paymentId, setPaymentId] = useState(null);
   const [reviews, setReviews] = useState([]);
+
+  const buildSlotFromAppointment = useCallback((appointment) => {
+    if (!appointment || !appointment.startTime || !appointment.endTime) return null;
+    const start = new Date(appointment.startTime);
+    const end = new Date(appointment.endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+
+    const formatPart = (date) =>
+      date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const timeSlot = `${formatPart(start)} - ${formatPart(end)}`;
+
+    return {
+      id: appointment.appointmentId,
+      time: timeSlot,
+      available: appointment.patientId == null && appointment.status !== "Schedule",
+      appointmentId: appointment.appointmentId,
+      fee: appointment.fee,
+      status: appointment.status
+    };
+  }, []);
+
+  const restoreSelectedAppointment = useCallback((appointmentId, moveToStep = true) => {
+    if (!appointmentId || !appointments?.length) return false;
+    const appointment = appointments.find(
+      (apt) => String(apt.appointmentId) === String(appointmentId)
+    );
+    if (!appointment) return false;
+
+    const slot = buildSlotFromAppointment(appointment);
+    if (!slot) return false;
+
+    const dateStr = appointment.startTime?.split('T')?.[0] || '';
+    setSelectedDate(dateStr);
+    setSelectedTimeSlot(slot.time);
+    setSelectedAppointment(slot);
+    if (moveToStep) {
+      setBookingStep(2);
+    }
+    return true;
+  }, [appointments, buildSlotFromAppointment]);
 
   useEffect(() => {
     const raw = localStorage.getItem('user');
@@ -102,6 +145,60 @@ export default function PatientBookingDetail() {
     loadPatientByUserId();
   }, [currentUser]);
 
+  useEffect(() => {
+    const paymentStatusFlag = searchParams.get('paymentStatus');
+    if (paymentStatusFlag !== 'cancelled') return;
+
+    const payOSId = searchParams.get('id');
+    const orderCode = searchParams.get('orderCode');
+    const appointmentIdFromQuery = searchParams.get('appointmentId');
+    const paymentIdFromQuery = searchParams.get('paymentId');
+    const cancelSignature = [paymentStatusFlag, payOSId, appointmentIdFromQuery, paymentIdFromQuery].join('|');
+
+    if (lastCancelSignatureRef.current === cancelSignature) {
+      return;
+    }
+
+    lastCancelSignatureRef.current = cancelSignature;
+
+    const cleanupSearchParams = () => {
+      const nextParams = new URLSearchParams(searchParams);
+      ['paymentStatus', 'appointmentId', 'paymentId', 'id', 'status', 'orderCode', 'code'].forEach((key) => nextParams.delete(key));
+      setSearchParams(nextParams, { replace: true });
+    };
+
+    const finalizeCancellation = async () => {
+      try {
+        if (payOSId) {
+          await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'CANCELLED', orderCode);
+        } else if (paymentIdFromQuery) {
+          await paymentApi.updatePaymentStatus(paymentIdFromQuery, 'CANCELLED');
+        } else if (appointmentIdFromQuery) {
+          const response = await paymentApi.getPaymentsByAppointmentId(appointmentIdFromQuery);
+          const pendingPayment = response.data?.find((payment) => payment.status === 'PENDING');
+          if (pendingPayment) {
+            await paymentApi.updatePaymentStatus(pendingPayment.paymentId, 'CANCELLED');
+          }
+        }
+        const restored = restoreSelectedAppointment(appointmentIdFromQuery, false);
+        if (!restored && selectedAppointment?.appointmentId) {
+          restoreSelectedAppointment(selectedAppointment.appointmentId, false);
+        }
+        if (restored) {
+          sessionStorage.removeItem('pendingBooking');
+        }
+        setPaymentStatus('CANCELLED');
+        setBookingStep(restored ? 2 : 1);
+      } catch (err) {
+        console.error('❌ Error updating cancelled payment status:', err);
+      } finally {
+        cleanupSearchParams();
+      }
+    };
+
+    finalizeCancellation();
+  }, [searchParams, setSearchParams, restoreSelectedAppointment, selectedAppointment]);
+
   // Khôi phục thông tin booking sau khi đăng nhập
   useEffect(() => {
     // Chỉ restore khi đã có patientId và appointments đã load xong và chưa có selectedAppointment
@@ -115,48 +212,13 @@ export default function PatientBookingDetail() {
           
           // Kiểm tra xem có đúng doctorId không
           if (pendingBooking.doctorId === doctorId) {
-            // Restore thông tin booking
             setSelectedDate(pendingBooking.selectedDate);
             setSelectedTimeSlot(pendingBooking.selectedTimeSlot);
             setPatientNote(pendingBooking.patientNote || '');
-            
-            // Tìm lại appointment từ appointments
-            const appointment = appointments.find(
-              apt => apt.appointmentId === pendingBooking.selectedAppointmentId
-            );
-            
-            if (appointment) {
-              const startTime = new Date(appointment.startTime);
-              const endTime = new Date(appointment.endTime);
-              
-              if (!isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
-                const timeSlot = `${startTime.toLocaleTimeString('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false
-                })}-${endTime.toLocaleTimeString('vi-VN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false
-                })}`;
-                
-                const slot = {
-                  id: appointment.appointmentId,
-                  time: timeSlot,
-                  available: appointment.patientId == null && appointment.status !== "Schedule",
-                  appointmentId: appointment.appointmentId,
-                  fee: appointment.fee,
-                  status: appointment.status
-                };
-                
-                setSelectedAppointment(slot);
-                // Chuyển đến step 2 (confirmation) sau một chút delay để đảm bảo state được update
-                setTimeout(() => {
-                  setBookingStep(2);
-                }, 100);
-              }
+            const restored = restoreSelectedAppointment(pendingBooking.selectedAppointmentId);
+            if (!restored) {
+              setBookingStep(1);
             }
-            
             // Xóa pendingBooking sau khi restore
             sessionStorage.removeItem('pendingBooking');
           } else {
@@ -169,7 +231,7 @@ export default function PatientBookingDetail() {
         }
       }
     }
-  }, [patientId, doctorId, appointments, selectedAppointment, loading, bookingStep]);
+  }, [patientId, doctorId, appointments, selectedAppointment, loading, bookingStep, restoreSelectedAppointment]);
 
   const getUserIdFromCookie = () => {
     // Lấy UserID từ cookie
@@ -602,6 +664,17 @@ export default function PatientBookingDetail() {
         return;
       }
       
+      // Lưu trạng thái booking hiện tại để khôi phục nếu cần
+      const bookingInfo = {
+        doctorId: doctorId,
+        selectedDate: selectedDate,
+        selectedTimeSlot: selectedTimeSlot,
+        selectedAppointmentId: selectedAppointment.appointmentId,
+        patientNote: patientNote,
+        returnUrl: window.location.pathname + window.location.search
+      };
+      sessionStorage.setItem('pendingBooking', JSON.stringify(bookingInfo));
+      
       // Chuẩn bị dữ liệu thanh toán
       const amount = Number(selectedAppointment.fee || 0);
       if (!Number.isFinite(amount) || amount <= 0) {
@@ -611,13 +684,26 @@ export default function PatientBookingDetail() {
 
       // Tạo payment và lấy PayOS link TRƯỚC KHI đặt lịch
       try {
+        const cancelParams = new URLSearchParams({
+          paymentStatus: 'cancelled',
+          appointmentId: String(selectedAppointment.appointmentId)
+        });
+        const cancelPath = doctorId
+          ? `/patient/booking/${doctorId}?${cancelParams.toString()}`
+          : `/patient/book-appointment?${cancelParams.toString()}`;
+        const cancelUrl = `${window.location.origin}${cancelPath}`;
+        const successParams = new URLSearchParams({
+          paymentStatus: 'success',
+          appointmentId: String(selectedAppointment.appointmentId)
+        });
+        const successUrl = `${window.location.origin}/patient/appointments?${successParams.toString()}`;
         const paymentData = {
           appointmentId: selectedAppointment.appointmentId,
           patientId: patientId, // Thêm patientId
           // Không gửi amount, backend sẽ lấy từ appointment.fee
           description: `Phí khám #${selectedAppointment.appointmentId}`,
-          returnUrl: `${window.location.origin}/payment/success`,
-          cancelUrl: `${window.location.origin}/payment/cancel`
+          returnUrl: successUrl,
+          cancelUrl
         };
         
         console.log('🔍 Sending payment data:', paymentData);
@@ -679,6 +765,7 @@ export default function PatientBookingDetail() {
   const handlePaymentSuccess = (payment) => {
     console.log('Payment successful:', payment);
     setShowPaymentModal(false);
+    sessionStorage.removeItem('pendingBooking');
       
       // Chuyển đến trang xác nhận
       const params = new URLSearchParams({
@@ -843,7 +930,7 @@ export default function PatientBookingDetail() {
               <div className="relative">
                 <div className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden relative bg-gray-200">
                   <img
-                    src={doctor.avatar}
+                    src={getFullAvatarUrl(doctor.avatar)}
                     alt={doctor.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -857,7 +944,7 @@ export default function PatientBookingDetail() {
                   />
                   <span
                     className="text-2xl absolute"
-                    style={{ display: doctor.avatar && doctor.avatar !== '/api/placeholder/150/150' ? 'none' : 'flex' }}
+                    style={{ display: doctor.avatar ? 'none' : 'flex' }}
                   >
                     👨‍⚕️
                   </span>
@@ -1133,7 +1220,7 @@ export default function PatientBookingDetail() {
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200">
                           <img
-                            src={doctor.avatar}
+                            src={getFullAvatarUrl(doctor.avatar)}
                             alt={doctor.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {

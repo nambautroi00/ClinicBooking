@@ -991,8 +991,7 @@ const UsersManagement = () => {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="text-muted">Tổng số</div>
-                  <div className="h4 mb-0">{filteredStats.total}</div>
-                  <small className="text-muted">/ {stats.total}</small>
+                  <div className="h4 mb-0">{stats.total}</div>
                 </div>
                 <i className="bi bi-people fs-2 text-info"></i>
               </div>
@@ -1011,8 +1010,7 @@ const UsersManagement = () => {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="text-muted">Quản trị viên</div>
-                  <div className="h4 mb-0">{filteredStats.admins}</div>
-                  <small className="text-muted">/ {stats.admins}</small>
+                  <div className="h4 mb-0">{stats.admins}</div>
                 </div>
                 <i className="bi bi-shield-check fs-2 text-danger"></i>
               </div>
@@ -1031,8 +1029,7 @@ const UsersManagement = () => {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="text-muted">Bác sĩ</div>
-                  <div className="h4 mb-0">{filteredStats.doctors}</div>
-                  <small className="text-muted">/ {stats.doctors}</small>
+                  <div className="h4 mb-0">{stats.doctors}</div>
                 </div>
                 <i className="bi bi-person-badge fs-2 text-primary"></i>
               </div>
@@ -1051,8 +1048,7 @@ const UsersManagement = () => {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="text-muted">Bệnh nhân</div>
-                  <div className="h4 mb-0">{filteredStats.patients}</div>
-                  <small className="text-muted">/ {stats.patients}</small>
+                  <div className="h4 mb-0">{stats.patients}</div>
                 </div>
                 <i className="bi bi-person-heart fs-2 text-success"></i>
               </div>
@@ -1071,8 +1067,7 @@ const UsersManagement = () => {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="text-muted">Hoạt động</div>
-                  <div className="h4 mb-0">{filteredStats.active}</div>
-                  <small className="text-muted">/ {stats.active}</small>
+                  <div className="h4 mb-0">{stats.active}</div>
                 </div>
                 <i className="bi bi-check-circle fs-2 text-success"></i>
               </div>
@@ -1091,8 +1086,7 @@ const UsersManagement = () => {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="text-muted">Không hoạt động</div>
-                  <div className="h4 mb-0">{filteredStats.inactive}</div>
-                  <small className="text-muted">/ {stats.inactive}</small>
+                  <div className="h4 mb-0">{stats.inactive}</div>
                 </div>
                 <i className="bi bi-x-circle fs-2 text-warning"></i>
               </div>

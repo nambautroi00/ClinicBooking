@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   Calendar,
@@ -21,6 +21,7 @@ import reviewApi from "../../api/reviewApi";
 import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import doctorApi from "../../api/doctorApi";
+import paymentApi from "../../api/paymentApi";
 import toast from "../../utils/toast";
 import { getFullAvatarUrl } from "../../utils/avatarUtils";
 
@@ -74,7 +75,12 @@ export default function PatientAppointmentHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [doctorRatings, setDoctorRatings] = useState({});
-
+  const [appointmentsRefreshKey, setAppointmentsRefreshKey] = useState(0);
+  const [payOSProcessing, setPayOSProcessing] = useState(false);
+  const location = useLocation();
+  const lastProcessedPayOSId = useRef(null);
+  const lastHandledPaymentFlag = useRef(null);
+  
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -141,6 +147,77 @@ export default function PatientAppointmentHistory() {
 
     loadPatientByUserId();
   }, [currentUser]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const payOSId = params.get('id');
+    const payOSStatus = params.get('status');
+    const orderCode = params.get('orderCode');
+    const paymentStatusFlag = params.get('paymentStatus');
+    const appointmentIdParam = params.get('appointmentId');
+
+    const clearPayOSParams = () => {
+      ['id', 'status', 'orderCode', 'code', 'paymentStatus', 'appointmentId'].forEach((key) =>
+        params.delete(key)
+      );
+      const remaining = params.toString();
+      navigate(remaining ? `${location.pathname}?${remaining}` : location.pathname, { replace: true });
+    };
+
+    if (paymentStatusFlag === 'success' && !payOSId) {
+      const signature = `success-${appointmentIdParam || ''}`;
+      if (lastHandledPaymentFlag.current === signature) return;
+      lastHandledPaymentFlag.current = signature;
+      toast.success('Thanh toán thành công! Lịch hẹn của bạn đã được cập nhật.');
+      clearPayOSParams();
+      return;
+    }
+
+    if (!payOSId || lastProcessedPayOSId.current === payOSId) {
+      return;
+    }
+
+    lastProcessedPayOSId.current = payOSId;
+
+    const syncPayOSStatus = async () => {
+      setPayOSProcessing(true);
+      try {
+        if (payOSStatus === 'CANCELLED') {
+          toast.info('Thanh toán đã được hủy.');
+          return;
+        }
+
+        try {
+          await paymentApi.updatePaymentStatusFromPayOS(payOSId, 'PAID', orderCode);
+        } catch (updateError) {
+          console.error('Không thể cập nhật trạng thái thanh toán từ PayOS:', updateError);
+        }
+
+        try {
+          await paymentApi.getPaymentByPayOSPaymentId(payOSId);
+        } catch (fetchError) {
+          console.error('Không thể lấy thông tin thanh toán từ PayOS:', fetchError);
+        }
+
+        toast.success('Thanh toán thành công! Lịch hẹn của bạn đã được cập nhật.');
+        setAppointmentsRefreshKey((prev) => prev + 1);
+
+        try {
+          localStorage.setItem('payosStatus', 'PAID');
+          localStorage.setItem('payosLastUpdate', String(Date.now()));
+          window.dispatchEvent(new Event('payosStatusChanged'));
+        } catch (_) {}
+      } catch (error) {
+        console.error('Lỗi đồng bộ thanh toán PayOS:', error);
+        toast.error('Không thể cập nhật trạng thái thanh toán. Vui lòng thử lại.');
+      } finally {
+        setPayOSProcessing(false);
+        clearPayOSParams();
+      }
+    };
+
+    syncPayOSStatus();
+  }, [location, navigate]);
 
   const getUserIdFromCookie = () => {
     const cookies = document.cookie.split(';'); 
@@ -394,7 +471,7 @@ export default function PatientAppointmentHistory() {
     };
 
     loadAppointments();
-  }, [patientId]);
+  }, [patientId, appointmentsRefreshKey]);
 
   // (Removed old by-appointment review loader)
 
@@ -573,6 +650,12 @@ export default function PatientAppointmentHistory() {
     <div className="min-h-screen bg-gray-50">
       <div className="w-full py-4 sm:py-8"> 
         <div className="max-w-[1600px] mx-auto px-2 sm:px-4">
+          {payOSProcessing && (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              <RefreshCw className="mr-2 inline h-4 w-4 animate-spin text-blue-500" />
+              Đang đồng bộ trạng thái thanh toán của bạn...
+            </div>
+          )}
           {/* Appointments List */}
           <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
             <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 px-3 sm:px-6 py-3 sm:py-4 shadow-lg">
