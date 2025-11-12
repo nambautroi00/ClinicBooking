@@ -184,7 +184,7 @@ export default function AdminHeader({ onToggleSidebar, sidebarCollapsed }) {
               {user ? (
                 <div className="space-y-4">
                   <div className="flex flex-col items-center">
-                    <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 mb-3">
+                    <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 mb-3 shadow-sm">
                       <img
                         src={avatar}
                         alt="avatar"

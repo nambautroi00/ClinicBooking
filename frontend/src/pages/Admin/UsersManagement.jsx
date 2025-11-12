@@ -2115,7 +2115,26 @@ const UsersManagement = () => {
         </Modal.Header>
         <Modal.Body>
           {selectedUser && (
-            <div className="row">
+            <>
+              {/* Avatar ở phía trên */}
+              <div className="text-center mb-4">
+                <div className="mx-auto rounded-full overflow-hidden border shadow-sm" style={{ width: '120px', height: '120px' }}>
+                  <img
+                    src={getFullAvatarUrl(selectedUser.avatarUrl)}
+                    alt="Avatar"
+                    className="w-100 h-100 object-cover"
+                    onError={(e) => { e.currentTarget.src = '/images/default-doctor.png'; }}
+                  />
+                </div>
+                <div className="mt-2 fw-semibold">
+                  {selectedUser.firstName} {selectedUser.lastName}
+                </div>
+                <div className="text-muted" style={{ fontSize: '12px' }}>
+                  {selectedUser.email}
+                </div>
+              </div>
+
+              <div className="row">
               {/* Thông tin cơ bản */}
               <div className="col-md-6">
                 <h6 className="text-primary mb-3">
@@ -2249,24 +2268,8 @@ const UsersManagement = () => {
                 </div>
               </div>
 
-              {/* Avatar */}
-              {selectedUser.avatarUrl && (
-                <div className="col-12 text-center mt-3">
-                  <h6 className="text-info mb-3">
-                    <i className="bi bi-image me-2"></i>Ảnh đại diện
-                  </h6>
-                  <img 
-                    src={getFullAvatarUrl(selectedUser.avatarUrl)} 
-                    alt="Avatar" 
-                    className="rounded-circle border"
-                    style={{width: '150px', height: '150px', objectFit: 'cover'}}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
-            </div>
+              </div>
+            </>
           )}
         </Modal.Body>
         <Modal.Footer>

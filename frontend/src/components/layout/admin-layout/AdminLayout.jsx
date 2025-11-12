@@ -9,10 +9,11 @@ const EXPANDED_HEADER_HEIGHT = 80;
 const COMPACT_HEADER_HEIGHT = 56;
 
 const AdminLayout = () => {
+  // Sidebar có thể thu gọn/toggle bằng nút, nhưng không tự động theo scroll
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(EXPANDED_HEADER_HEIGHT);
 
-  // Resize: auto thu gọn khi hẹp
+  // Tự động thu gọn khi cửa sổ nhỏ (giữ lại nếu cần)
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth < 1180) setSidebarCollapsed(true);
@@ -38,24 +39,12 @@ const AdminLayout = () => {
     return () => window.removeEventListener("scroll", syncHeaderVar);
   }, []);
 
-  // Thu gọn theo cuộn sâu (thêm tùy biến)
-  useEffect(() => {
-    const onScrollCollapse = () => {
-      const y = window.scrollY;
-      if (y > 240 && !sidebarCollapsed && window.innerWidth >= 1180) {
-        setSidebarCollapsed(true);
-      } else if (y < 120 && sidebarCollapsed && window.innerWidth >= 1180) {
-        setSidebarCollapsed(false);
-      }
-    };
-    window.addEventListener("scroll", onScrollCollapse, { passive: true });
-    return () => window.removeEventListener("scroll", onScrollCollapse);
-  }, [sidebarCollapsed]);
+  // Không thu gọn sidebar theo scroll nữa
 
   const sidebarWidth = sidebarCollapsed ? COLLAPSED_SIDEBAR_WIDTH : FULL_SIDEBAR_WIDTH;
 
   return (
-    <div className={"admin-shell" + (sidebarCollapsed ? " sidebar-collapsed" : "")}>
+  <div className={"admin-shell" + (sidebarCollapsed ? " sidebar-collapsed" : "") }>
       {/* Header full width */}
       <div
         style={{
@@ -78,10 +67,10 @@ const AdminLayout = () => {
         className="bg-primary sidebar"
         style={{
           position: "fixed",
-          top: headerHeight,
+          top: EXPANDED_HEADER_HEIGHT,
           left: 0,
           width: sidebarWidth,
-          height: `calc(100vh - ${headerHeight}px)`,
+          height: `calc(100vh - ${EXPANDED_HEADER_HEIGHT}px)`,
           zIndex: 1090,
           display: "flex",
           flexDirection: "column",
