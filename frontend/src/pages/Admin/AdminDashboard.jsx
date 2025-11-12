@@ -114,9 +114,20 @@ const AdminDashboard = () => {
           return null;
         }
       });
-      const ratings = (await Promise.all(ratingPromises)).filter(Boolean);
-      const lowRated = ratings.filter(r => r.reviewCount >= 3 && r.avgRating > 0 && r.avgRating < 3).sort((a,b) => a.avgRating - b.avgRating).slice(0, 5);
-      setLowRatedDoctors(lowRated);
+      const ratings = (await Promise.all(ratingPromises))
+        .filter(Boolean)
+        .map((r) => ({
+          ...r,
+          avgRating: Number.isFinite(r.avgRating) ? r.avgRating : 0,
+          reviewCount: Number.isFinite(r.reviewCount) ? r.reviewCount : 0,
+        }));
+      const sortedDoctors = ratings.sort((a, b) => {
+        if (a.avgRating === b.avgRating) {
+          return a.reviewCount - b.reviewCount;
+        }
+        return a.avgRating - b.avgRating;
+      });
+      setLowRatedDoctors(sortedDoctors);
     } catch (e) {
       console.error('❌ Admin Dashboard API Error:', e);
       console.error('Error details:', {
@@ -339,7 +350,7 @@ const AdminDashboard = () => {
           {/* Low-rated doctors */}
           <div className="card mt-4">
             <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="card-title mb-0"><i className="bi bi-emoji-frown me-2"></i>Bác sĩ có đánh giá thấp</h5>
+              <h5 className="card-title mb-0"><i className="bi bi-bar-chart-steps me-2"></i>Bác sĩ theo điểm đánh giá (thấp → cao)</h5>
             </div>
             <div className="card-body">
               {loading ? (
@@ -368,7 +379,7 @@ const AdminDashboard = () => {
                             <td>
                               {d.avgRating.toFixed(2)}
                             </td>
-                            <td>{d.reviewCount}</td>
+                            <td>{d.reviewCount > 0 ? d.reviewCount : "Chưa có"}</td>
                           </tr>
                         ))
                       )}

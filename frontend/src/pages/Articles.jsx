@@ -16,11 +16,14 @@ const Articles = () => {
   const [totalElements, setTotalElements] = useState(0);
   const [likedArticles, setLikedArticles] = useState(new Set());
   const [currentUser, setCurrentUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
+  const [sortOption, setSortOption] = useState('createdAt,desc');
 
   // Scroll to top when component mounts
   useScrollToTop();
 
-  const fetchArticles = async (page = 0, search = '') => {
+  const fetchArticles = async ({ page = 0, search = activeSearch, sort = sortOption } = {}) => {
     try {
       setLoading(true);
       
@@ -34,7 +37,7 @@ const Articles = () => {
         searchParams.title = search.trim();
       }
       
-      const response = await articleApi.searchArticles(searchParams, page, 12, 'createdAt,desc');
+      const response = await articleApi.searchArticles(searchParams, page, 12, sort);
       
       const pageData = response.data;
       
@@ -75,7 +78,8 @@ const Articles = () => {
 
 
   const handlePageChange = (page) => {
-    fetchArticles(page, '');
+    if (page < 0 || page >= totalPages) return;
+    fetchArticles({ page });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -166,6 +170,21 @@ const Articles = () => {
     }
   };
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = searchTerm.trim();
+    setActiveSearch(trimmed);
+    setCurrentPage(0);
+    fetchArticles({ page: 0, search: trimmed });
+  };
+
+  const handleSortChange = (event) => {
+    const value = event.target.value;
+    setSortOption(value);
+    setCurrentPage(0);
+    fetchArticles({ page: 0, sort: value });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -220,6 +239,38 @@ const Articles = () => {
           </div>
         ) : (
           <>
+            <div className="max-w-4xl mx-auto mb-4 space-y-3 sm:space-y-0 sm:flex sm:flex-col gap-3">
+              <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-2 w-full">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm kiếm bài viết..."
+                  className="w-full sm:flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Tìm kiếm
+                </button>
+              </form>
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sắp xếp</label>
+                <select
+                  value={sortOption}
+                  onChange={handleSortChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="createdAt,desc">Mới nhất</option>
+                  <option value="createdAt,asc">Cũ nhất</option>
+                  <option value="title,asc">Tiêu đề (A-Z)</option>
+                  <option value="title,desc">Tiêu đề (Z-A)</option>
+                  <option value="likeCount,desc">Lượt thích nhiều</option>
+                  <option value="likeCount,asc">Lượt thích ít</option>
+                </select>
+              </div>
+            </div>
 
             <div className="max-w-4xl mx-auto space-y-3">
               {articles.map((article) => (
