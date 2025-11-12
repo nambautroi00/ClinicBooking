@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import doctorApi from "../../api/doctorApi";
@@ -19,8 +25,9 @@ import {
 const Button = (props) => (
   <button
     {...props}
-    className={`btn ${props.variant === "outline" ? "btn-outline-primary" : "btn-primary"
-      } ${props.className || ""}`}
+    className={`btn ${
+      props.variant === "outline" ? "btn-outline-primary" : "btn-primary"
+    } ${props.className || ""}`}
   >
     {props.children}
   </button>
@@ -64,7 +71,9 @@ const Avatar = ({ src, alt, children, size = 50 }) => (
 
 function DoctorAppointmentList() {
   const navigate = useNavigate();
-  
+  const location = useLocation();
+  const appointmentRefs = useRef({});
+
   // State
   const [activeTab, setActiveTab] = useState("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,6 +83,7 @@ function DoctorAppointmentList() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [doctorId, setDoctorId] = useState(null);
+  const [highlightedId, setHighlightedId] = useState(null);
 
   // Get current user from localStorage (memoized)
   const currentUser = useMemo(() => {
@@ -106,7 +116,7 @@ function DoctorAppointmentList() {
     return Promise.race([
       promise,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+        setTimeout(() => reject(new Error("Request timeout")), timeoutMs)
       ),
     ]);
   }, []);
@@ -127,7 +137,7 @@ function DoctorAppointmentList() {
 
       // Filter out empty slots (only show appointments with patients)
       const appointmentsWithPatients = appointmentsData
-        .filter(appointment => appointment.patientId !== null) // Chỉ lấy appointments có patient
+        .filter((appointment) => appointment.patientId !== null) // Chỉ lấy appointments có patient
         .map(async (appointment) => {
           try {
             const patientRes = await withTimeout(
@@ -163,10 +173,12 @@ function DoctorAppointmentList() {
         });
 
       // Wait for all patient data to be fetched with timeout protection
-      const resolvedAppointments = await Promise.allSettled(appointmentsWithPatients);
+      const resolvedAppointments = await Promise.allSettled(
+        appointmentsWithPatients
+      );
       const validAppointments = resolvedAppointments
-        .filter(result => result.status === 'fulfilled')
-        .map(result => result.value);
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => result.value);
       console.log("Appointments loaded:", resolvedAppointments);
       console.log(
         "Rejected count:",
@@ -191,20 +203,38 @@ function DoctorAppointmentList() {
     }
   }, [doctorId, fetchAppointments]);
 
+  // Handle highlight from Dashboard navigation
+  useEffect(() => {
+    const highlightAppointmentId = location.state?.highlightAppointmentId;
+    if (highlightAppointmentId && appointments.length > 0) {
+      setHighlightedId(highlightAppointmentId);
+
+      // Scroll to the appointment after a short delay
+      setTimeout(() => {
+        const element = appointmentRefs.current[highlightAppointmentId];
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 300);
+
+      // Remove highlight after 3 seconds
+      setTimeout(() => {
+        setHighlightedId(null);
+      }, 3000);
+    }
+  }, [location.state, appointments]);
+
   // Calculate counts - Updated for proper doctor status management
   const counts = useMemo(() => {
     return {
       upcoming: appointments.filter(
-        (a) =>
-          a.status === "Scheduled" ||
-
-          a.status === "Confirmed"
-
+        (a) => a.status === "Scheduled" || a.status === "Confirmed"
       ).length,
-      rejected: appointments.filter((a) =>
-        a.status === "Rejected" ||
-        a.status === "Từ chối lịch hẹn" ||
-        a.status === "Canceled"
+      rejected: appointments.filter(
+        (a) =>
+          a.status === "Rejected" ||
+          a.status === "Từ chối lịch hẹn" ||
+          a.status === "Canceled"
       ).length,
       completed: appointments.filter((a) => a.status === "Completed").length,
     };
@@ -212,8 +242,8 @@ function DoctorAppointmentList() {
 
   // Handle start appointment (go to prescription form)
   const handleStartAppointment = (appointment) => {
-    console.log('🚀 Bắt đầu khám bệnh cho cuộc hẹn:', appointment);
-    
+    console.log("🚀 Bắt đầu khám bệnh cho cuộc hẹn:", appointment);
+
     // Navigate to prescription form with appointment data
     const appointmentId = appointment.appointmentId || appointment.id;
     navigate(`/doctor/prescriptions/new/${appointmentId}`, {
@@ -223,16 +253,16 @@ function DoctorAppointmentList() {
           appointmentId: appointmentId,
           startTime: appointment.startTime,
           endTime: appointment.endTime,
-          appointmentDate: appointment.appointmentDate
+          appointmentDate: appointment.appointmentDate,
         },
         patientInfo: {
           patientId: appointment.patientId,
           patientName: appointment.patientName,
           phone: appointment.phone,
           gender: appointment.gender,
-          age: appointment.age
-        }
-      }
+          age: appointment.age,
+        },
+      },
     });
   };
 
@@ -249,18 +279,17 @@ function DoctorAppointmentList() {
 
     // Updated filter logic for doctor status management
     if (activeTab === "upcoming") {
-      return a.status === "Scheduled" ||
-
-        a.status === "Confirmed"
-
+      return a.status === "Scheduled" || a.status === "Confirmed";
     }
     if (activeTab === "completed") {
       return a.status === "Completed";
     }
     if (activeTab === "cancelled") {
-      return a.status === "Rejected" ||
+      return (
+        a.status === "Rejected" ||
         a.status === "Từ chối lịch hẹn" ||
-        a.status === "Canceled";
+        a.status === "Canceled"
+      );
     }
     return true;
   });
@@ -396,21 +425,35 @@ function DoctorAppointmentList() {
                 : "";
               const startTimeStr = startDateObj
                 ? startDateObj.toLocaleTimeString("vi-VN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
                 : "";
               const endTimeStr = endDateObj
                 ? endDateObj.toLocaleTimeString("vi-VN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
                 : "";
 
               return (
                 <div
                   key={appointment.id}
-                  className="flex items-center gap-6 rounded-lg border border-border bg-card p-1 shadow-sm transition-shadow hover:shadow-md"
+                  ref={(el) =>
+                    (appointmentRefs.current[appointment.appointmentId] = el)
+                  }
+                  className={`flex items-center gap-6 rounded-lg border bg-card p-1 shadow-sm transition-all ${
+                    highlightedId === appointment.appointmentId
+                      ? "border-primary shadow-lg"
+                      : "border-border hover:shadow-md"
+                  }`}
+                  style={{
+                    transition: "all 0.3s ease",
+                    backgroundColor:
+                      highlightedId === appointment.appointmentId
+                        ? "#e3f2fd"
+                        : undefined,
+                  }}
                 >
                   {/* Patient Info */}
                   <div
@@ -428,35 +471,41 @@ function DoctorAppointmentList() {
                     </Avatar>
                     <div className="flex-grow-1">
                       <div className="d-flex align-items-center gap-2 mb-1">
-                        <div
-                          className="fw-bold"
-                          style={{ fontSize: "14px" }}
-                        >
+                        <div className="fw-bold" style={{ fontSize: "14px" }}>
                           {appointment.patientName}
                         </div>
                         {/* Status Badge */}
                         <span
-                          className={`badge ${appointment.status === "Scheduled" ? "bg-warning" :
-
-                              appointment.status === "Confirmed" ? "bg-success" :
-
-                                appointment.status === "Rejected" ? "bg-danger" :
-                                  appointment.status === "Completed" ? "bg-primary" :
-                                    appointment.status === "Từ chối lịch hẹn" ? "bg-secondary" :
-                                      appointment.status === "Canceled" ? "bg-dark" :
-                                        "bg-light"
-                            }`}
+                          className={`badge ${
+                            appointment.status === "Scheduled"
+                              ? "bg-warning"
+                              : appointment.status === "Confirmed"
+                              ? "bg-success"
+                              : appointment.status === "Rejected"
+                              ? "bg-danger"
+                              : appointment.status === "Completed"
+                              ? "bg-primary"
+                              : appointment.status === "Từ chối lịch hẹn"
+                              ? "bg-secondary"
+                              : appointment.status === "Canceled"
+                              ? "bg-dark"
+                              : "bg-light"
+                          }`}
                           style={{ fontSize: "10px" }}
                         >
-                          {appointment.status === "Scheduled" ? "Đã đặt" :
-
-                            appointment.status === "Confirmed" ? "Đã xác nhận" :
-
-                              appointment.status === "Rejected" ? "Từ chối" :
-                                appointment.status === "Completed" ? "Hoàn thành" :
-                                  appointment.status === "Từ chối lịch hẹn" ? "Patient hủy" :
-                                    appointment.status === "Canceled" ? "Bị hủy" :
-                                      appointment.status}
+                          {appointment.status === "Scheduled"
+                            ? "Đã đặt"
+                            : appointment.status === "Confirmed"
+                            ? "Đã xác nhận"
+                            : appointment.status === "Rejected"
+                            ? "Từ chối"
+                            : appointment.status === "Completed"
+                            ? "Hoàn thành"
+                            : appointment.status === "Từ chối lịch hẹn"
+                            ? "Patient hủy"
+                            : appointment.status === "Canceled"
+                            ? "Bị hủy"
+                            : appointment.status}
                         </span>
                       </div>
                       {appointment.healthInsuranceNumber && (
@@ -532,7 +581,7 @@ function DoctorAppointmentList() {
                         <div className="small">
                           {appointment.medicalHistory.length > 40
                             ? appointment.medicalHistory.substring(0, 40) +
-                            "..."
+                              "..."
                             : appointment.medicalHistory}
                         </div>
                       </div>
@@ -567,34 +616,34 @@ function DoctorAppointmentList() {
                           borderColor:
                             (appointment.newStatus || appointment.status) ===
                               "Rejected" ||
-                              (appointment.newStatus || appointment.status) ===
+                            (appointment.newStatus || appointment.status) ===
                               "Canceled" ||
-                              (appointment.newStatus || appointment.status) ===
+                            (appointment.newStatus || appointment.status) ===
                               "Từ chối lịch hẹn"
                               ? "#dc3545"
                               : (appointment.newStatus ||
-                                appointment.status) === "Confirmed"
-                                ? "#198754"
-                                : (appointment.newStatus ||
+                                  appointment.status) === "Confirmed"
+                              ? "#198754"
+                              : (appointment.newStatus ||
                                   appointment.status) === "Completed"
-                                  ? "#0d6efd"
-                                  : "#6c757d",
+                              ? "#0d6efd"
+                              : "#6c757d",
                           fontWeight: "600",
                           color:
                             (appointment.newStatus || appointment.status) ===
                               "Rejected" ||
-                              (appointment.newStatus || appointment.status) ===
+                            (appointment.newStatus || appointment.status) ===
                               "Canceled" ||
-                              (appointment.newStatus || appointment.status) ===
+                            (appointment.newStatus || appointment.status) ===
                               "Từ chối lịch hẹn"
                               ? "#dc3545"
                               : (appointment.newStatus ||
-                                appointment.status) === "Confirmed"
-                                ? "#198754"
-                                : (appointment.newStatus ||
+                                  appointment.status) === "Confirmed"
+                              ? "#198754"
+                              : (appointment.newStatus ||
                                   appointment.status) === "Completed"
-                                  ? "#0d6efd"
-                                  : "#6c757d",
+                              ? "#0d6efd"
+                              : "#6c757d",
                         }}
                       >
                         <option value="Scheduled">Đã đặt</option>
@@ -604,14 +653,14 @@ function DoctorAppointmentList() {
                         <option value="Completed">Hoàn thành</option>
                       </select>
                     </div>
-                    {/* Update button with loading */}  
+                    {/* Update button with loading */}
                     <Button
                       size="sm"
                       className="btn-sm"
                       style={{ fontSize: "11px", padding: "4px 8px" }}
                       disabled={
                         appointment.status ===
-                        (appointment.newStatus || appointment.status) ||
+                          (appointment.newStatus || appointment.status) ||
                         appointment._updating
                       }
                       onClick={async () => {
@@ -682,12 +731,20 @@ function DoctorAppointmentList() {
                       }}
                       disabled={appointment.status !== "Confirmed"}
                       onClick={() => {
-                        console.log('🖱️ Nút Start Now được nhấn cho appointment:', appointment);
+                        console.log(
+                          "🖱️ Nút Start Now được nhấn cho appointment:",
+                          appointment
+                        );
                         if (appointment.status === "Confirmed") {
-                          console.log('✅ Status confirmed, gọi handleStartAppointment');
+                          console.log(
+                            "✅ Status confirmed, gọi handleStartAppointment"
+                          );
                           handleStartAppointment(appointment);
                         } else {
-                          console.log('❌ Status không phải Confirmed:', appointment.status);
+                          console.log(
+                            "❌ Status không phải Confirmed:",
+                            appointment.status
+                          );
                         }
                       }}
                     >
