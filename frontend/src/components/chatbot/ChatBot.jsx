@@ -59,6 +59,7 @@ const LIKELIHOOD_COLORS = {
 };
 
 const BOT_AVATAR = '/images/bot.gif';
+const MOBILE_BREAKPOINT = 430;
 
 const normalizeVietnamese = (value = '') =>
   value
@@ -243,7 +244,7 @@ const sanitizeStoredMessages = (items) => {
   }));
 };
 
-const TypewriterMessage = ({ msg }) => {
+const TypewriterMessage = ({ msg, isMobile }) => {
   const source = msg.rawText || '';
   const [visibleText, setVisibleText] = useState(msg.animate ? '' : source);
   const [isDone, setIsDone] = useState(!msg.animate);
@@ -275,14 +276,14 @@ const TypewriterMessage = ({ msg }) => {
     const htmlContent = isDone ? msg.text : formatMarkdownText(visibleText);
     return (
       <div
-        style={styles.message(msg.sender, msg.isError)}
+        style={styles.message(msg.sender, msg.isError, isMobile)}
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     );
   }
 
   const finalText = isDone ? msg.text : visibleText;
-  return <div style={styles.message(msg.sender, msg.isError)}>{finalText}</div>;
+  return <div style={styles.message(msg.sender, msg.isError, isMobile)}>{finalText}</div>;
 };
 
 const buildHistoryPayload = (historyMessages = []) => {
@@ -438,6 +439,10 @@ const ChatBot = () => {
   const [userName, setUserName] = useState(initialUserName);
   const [awaitingName, setAwaitingName] = useState(() => !initialUserName);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= MOBILE_BREAKPOINT;
+  });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -466,6 +471,15 @@ const ChatBot = () => {
       localStorage.removeItem(STORAGE_KEYS.userName);
     }
   }, [userName]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const mergeSymptomKeywords = (candidates = []) => {
     const sanitized = candidates.map((item) => safeString(item)).filter(Boolean);
@@ -867,28 +881,31 @@ const ChatBot = () => {
 
   return (
     <>
-      <div style={styles.page}>
-        <div style={styles.topBar}>
+      <div style={{ ...styles.page, ...(isMobile ? styles.pageMobile : {}) }}>
+        <div style={{ ...styles.topBar, ...(isMobile ? styles.topBarMobile : {}) }}>
           <div
-            style={styles.brandGroup}
+            style={{ ...styles.brandGroup, ...(isMobile ? styles.brandGroupMobile : {}) }}
             onClick={goHome}
             role="button"
             tabIndex={0}
             onKeyDown={handleBrandKeyDown}
           >
             <img src="/images/logo.png" alt="Clinic Booking" style={styles.brandImage} />
-            <div style={styles.brandText}>
+            <div style={{ ...styles.brandText, ...(isMobile ? styles.brandTextMobile : {}) }}>
               <span style={styles.brandName}>CLINIC BOOKING</span>
               <span style={styles.brandDivider}>/</span>
               <span style={styles.brandHelper}>Trợ lý y khoa</span>
             </div>
             <span style={styles.verifiedDot}>✓</span>
           </div>
-          <button style={styles.resetButton} onClick={openResetModal}>
+          <button
+            style={{ ...styles.resetButton, ...(isMobile ? styles.resetButtonMobile : {}) }}
+            onClick={openResetModal}
+          >
             Bắt đầu mới
           </button>
         </div>
-        <div style={styles.container}>
+        <div style={{ ...styles.container, ...(isMobile ? styles.containerMobile : {}) }}>
           {lastDepartment?.name && (
             <div style={styles.subHeader}>
               <div style={styles.subHint}>
@@ -897,29 +914,39 @@ const ChatBot = () => {
             </div>
           )}
 
-          <div style={styles.chatContainer}>
+          <div style={{ ...styles.chatContainer, ...(isMobile ? styles.chatContainerMobile : {}) }}>
             {messages.map((msg, index) => (
-              <div key={index} style={styles.messageWrapper(msg.sender)}>
+              <div key={index} style={styles.messageWrapper(msg.sender, isMobile)}>
                 {msg.sender === 'bot' && msg.type !== 'doctors' && (
-                  <img src={BOT_AVATAR} alt="AI trợ lý" style={styles.botAvatar} />
+                  <img
+                    src={BOT_AVATAR}
+                    alt="AI trợ lý"
+                    style={{ ...styles.botAvatar, ...(isMobile ? styles.botAvatarMobile : {}) }}
+                  />
                 )}
-                <div style={{ maxWidth: msg.type === 'doctors' ? '100%' : '70%' }}>
+                <div
+                  style={{
+                    maxWidth: msg.type === 'doctors' ? '100%' : isMobile ? '100%' : '70%'
+                  }}
+                >
                   {msg.type === 'doctors' ? (
                     <DoctorTable doctors={msg.doctors} departmentName={msg.departmentName} />
                   ) : msg.animate && msg.sender === 'bot' ? (
                     <>
-                      <TypewriterMessage msg={msg} />
+                      <TypewriterMessage msg={msg} isMobile={isMobile} />
                       <div style={styles.timestamp}>{formatTime(msg.timestamp)}</div>
                     </>
                   ) : (
                     <>
                       {msg.isMarkdown ? (
                         <div
-                          style={styles.message(msg.sender, msg.isError)}
+                          style={styles.message(msg.sender, msg.isError, isMobile)}
                           dangerouslySetInnerHTML={{ __html: msg.text }}
                         />
                       ) : (
-                        <div style={styles.message(msg.sender, msg.isError)}>{msg.text}</div>
+                        <div style={styles.message(msg.sender, msg.isError, isMobile)}>
+                          {msg.text}
+                        </div>
                       )}
                       <div style={styles.timestamp}>{formatTime(msg.timestamp)}</div>
                     </>
@@ -937,7 +964,9 @@ const ChatBot = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div style={styles.inputContainer}>
+          <div
+            style={{ ...styles.inputContainer, ...(isMobile ? styles.inputContainerMobile : {}) }}
+          >
             <input
               type="text"
               value={inputMessage}
@@ -948,6 +977,7 @@ const ChatBot = () => {
               placeholder="Nhập triệu chứng hoặc câu hỏi của bạn..."
               style={{
                 ...styles.input,
+                ...(isMobile ? styles.inputMobile : {}),
                 ...(isInputFocused ? styles.inputFocus : {})
               }}
               disabled={isLoading}
@@ -959,6 +989,7 @@ const ChatBot = () => {
               disabled={!inputMessage.trim() || isLoading}
               style={{
                 ...styles.sendButton,
+                ...(isMobile ? styles.sendButtonMobile : {}),
                 ...(isSendHovered && inputMessage.trim() && !isLoading ? styles.sendButtonHover : {}),
                 ...(!inputMessage.trim() || isLoading ? styles.sendButtonDisabled : {})
               }}
@@ -998,6 +1029,9 @@ const styles = {
     display: 'flex',
     flexDirection: 'column'
   },
+  pageMobile: {
+    minHeight: '100dvh'
+  },
   topBar: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1010,11 +1044,21 @@ const styles = {
     zIndex: 20,
     boxShadow: '0 4px 12px rgba(15,23,42,0.04)'
   },
+  topBarMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '8px',
+    padding: '12px 16px'
+  },
   brandGroup: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
     cursor: 'pointer'
+  },
+  brandGroupMobile: {
+    width: '100%',
+    justifyContent: 'space-between'
   },
   brandImage: {
     width: '48px',
@@ -1031,6 +1075,10 @@ const styles = {
     fontSize: '18px',
     color: '#1e293b',
     fontWeight: '600'
+  },
+  brandTextMobile: {
+    fontSize: '16px',
+    flexWrap: 'wrap'
   },
   brandName: {
     color: '#2563eb',
@@ -1064,6 +1112,9 @@ const styles = {
     padding: '12px 20px 16px',
     minHeight: 0
   },
+  containerMobile: {
+    padding: '8px 16px 12px'
+  },
   subHeader: {
     display: 'flex',
     justifyContent: 'center',
@@ -1090,6 +1141,10 @@ const styles = {
     cursor: 'pointer',
     transition: 'background-color 0.2s, transform 0.2s',
     boxShadow: '0 8px 16px rgba(37,99,235,0.3)'
+  },
+  resetButtonMobile: {
+    width: '100%',
+    textAlign: 'center'
   },
   modalOverlay: {
     position: 'fixed',
@@ -1156,10 +1211,15 @@ const styles = {
     backgroundColor: 'transparent',
     minHeight: 0
   },
-  messageWrapper: (sender) => ({
+  chatContainerMobile: {
+    padding: '12px 0 88px',
+    gap: '12px'
+  },
+  messageWrapper: (sender, isMobile = false) => ({
     display: 'flex',
     alignItems: 'flex-start',
     width: '100%',
+    gap: isMobile ? '8px' : '12px',
     justifyContent: sender === 'user' ? 'flex-end' : 'flex-start'
   }),
   botAvatar: {
@@ -1170,7 +1230,12 @@ const styles = {
     marginRight: '12px',
     boxShadow: '0 4px 10px rgba(15,23,42,0.12)'
   },
-  message: (sender, isError) => ({
+  botAvatarMobile: {
+    width: '32px',
+    height: '32px',
+    marginRight: '8px'
+  },
+  message: (sender, isError, isMobile = false) => ({
     padding: '16px 20px',
     borderRadius: '20px',
     backgroundColor: sender === 'user' ? '#2563eb' : isError ? '#fee2e2' : '#f8fafc',
@@ -1178,7 +1243,8 @@ const styles = {
     boxShadow: sender === 'user' ? '0 6px 16px rgba(37,99,235,0.25)' : '0 6px 16px rgba(15,23,42,0.08)',
     fontSize: '16px',
     lineHeight: 1.6,
-    whiteSpace: 'pre-wrap'
+    whiteSpace: 'pre-wrap',
+    ...(isMobile ? { padding: '14px 16px', fontSize: '15px' } : {})
   }),
   timestamp: {
     fontSize: '11px',
@@ -1207,6 +1273,9 @@ const styles = {
     backdropFilter: 'blur(4px)',
     zIndex: 15
   },
+  inputContainerMobile: {
+    padding: '10px 0 12px'
+  },
   input: {
     flex: 1,
     padding: '16px 20px',
@@ -1216,6 +1285,10 @@ const styles = {
     fontSize: '16px',
     outline: 'none',
     transition: 'border-color 0.3s'
+  },
+  inputMobile: {
+    padding: '14px 16px',
+    fontSize: '15px'
   },
   inputFocus: {
     borderColor: '#2563eb',
@@ -1232,6 +1305,10 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s',
     minWidth: '80px'
+  },
+  sendButtonMobile: {
+    padding: '12px 16px',
+    minWidth: '64px'
   },
   sendButtonHover: {
     backgroundColor: '#1e40af',
