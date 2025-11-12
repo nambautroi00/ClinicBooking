@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Header from '../layout/Header';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendMessageToBot } from '../../api/chatApi';
 import doctorApi from '../../api/doctorApi';
@@ -8,7 +7,8 @@ import { getFullAvatarUrl } from '../../utils/avatarUtils';
 const STORAGE_KEYS = {
   messages: 'clinic_chat_messages',
   keywords: 'clinic_chat_keywords',
-  department: 'clinic_chat_department'
+  department: 'clinic_chat_department',
+  userName: 'clinic_chat_user_name'
 };
 
 const DOCTOR_REQUEST_PATTERNS = [
@@ -57,6 +57,8 @@ const LIKELIHOOD_COLORS = {
   rare: { bg: '#fef3c7', color: '#92400e' },
   rule_out: { bg: '#fee2e2', color: '#b91c1c' }
 };
+
+const BOT_AVATAR = '/images/bot.gif';
 
 const normalizeVietnamese = (value = '') =>
   value
@@ -262,14 +264,50 @@ const ChatBot = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
 
+  const createGreetingMessage = (name) => {
+    if (name) {
+      const text = `Chào ${name}, mình là trợ lý y khoa của Clinic Booking. Mình có thể giúp bạn tìm bác sĩ, phòng khám hoặc tư vấn triệu chứng. Bạn đang gặp vấn đề gì về sức khỏe không?`;
+      return createMessage(text, 'bot', { rawText: text });
+    }
+    const text =
+      'Xin chào! Mình là trợ lý y khoa của Clinic Booking. Bạn vui lòng cho mình biết tên để mình tiện hỗ trợ và xưng hô nhé.';
+    return createMessage(text, 'bot', { rawText: text });
+  };
+
+  const getNameFromUserProfile = () => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return '';
+      const profile = JSON.parse(raw);
+      const candidates = [
+        profile.fullName,
+        `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
+        profile.name,
+        profile.user?.fullName,
+        `${profile.user?.firstName || ''} ${profile.user?.lastName || ''}`.trim()
+      ];
+      return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || '';
+    } catch (error) {
+      console.warn('Failed to parse stored user profile', error);
+      return '';
+    }
+  };
+
+  const resolveInitialUserName = () => {
+    const cached = loadFromStorage(STORAGE_KEYS.userName, '');
+    if (cached) return cached;
+    return getNameFromUserProfile();
+  };
+
+  const initialUserName = resolveInitialUserName();
+
   const [messages, setMessages] = useState(() => {
     const stored = loadFromStorage(STORAGE_KEYS.messages, null);
     if (stored && Array.isArray(stored) && stored.length > 0) {
       return stored;
     }
-    const greeting =
-      'Xin chào! Mình là trợ lý y khoa của Clinic Booking. Bạn hãy mô tả triệu chứng hoặc nhu cầu để được tư vấn nhé.';
-    return [createMessage(greeting, 'bot', { rawText: greeting })];
+    return [createGreetingMessage(initialUserName)];
   });
 
   const [symptomKeywords, setSymptomKeywords] = useState(() =>
@@ -284,19 +322,12 @@ const ChatBot = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isSendHovered, setIsSendHovered] = useState(false);
+  const [userName, setUserName] = useState(initialUserName);
+  const [awaitingName, setAwaitingName] = useState(() => !initialUserName);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
@@ -313,6 +344,14 @@ const ChatBot = () => {
       localStorage.removeItem(STORAGE_KEYS.department);
     }
   }, [lastDepartment]);
+
+  useEffect(() => {
+    if (userName) {
+      localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(userName));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.userName);
+    }
+  }, [userName]);
 
   const mergeSymptomKeywords = (candidates = []) => {
     const sanitized = candidates.map((item) => safeString(item)).filter(Boolean);
@@ -418,6 +457,15 @@ const ChatBot = () => {
 
     pushMessages(userMessage);
     setInputMessage('');
+
+    if (awaitingName) {
+      const safeName = sanitized.replace(/\s+/g, ' ').trim() || 'bạn';
+      setUserName(safeName);
+      setAwaitingName(false);
+      pushMessages(createGreetingMessage(safeName));
+      return;
+    }
+
     setIsLoading(true);
 
     extractKeywords(sanitized);
@@ -497,15 +545,6 @@ const ChatBot = () => {
         });
       }
 
-      if (departmentName && doctors.length === 0) {
-        const deptHint = `Khoa gợi ý hiện tại là ${departmentName}${
-          departmentReason ? ` (vì ${departmentReason})` : ''
-        }. Bạn có muốn mình tìm bác sĩ của khoa này không? Chỉ cần nhắn “tìm bác sĩ ${
-          departmentName || ''
-        }” hoặc mô tả thêm triệu chứng nhé.`;
-        botPayload.push(createMessage(deptHint, 'bot', { rawText: deptHint }));
-      }
-
       pushMessages(botPayload);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -533,6 +572,44 @@ const ChatBot = () => {
       window.location.href = `/patient/booking/${doctorId}`;
     } else {
       navigate('/doctors');
+    }
+  };
+
+  const goHome = () => {
+    navigate('/');
+  };
+
+  const handleBrandKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      goHome();
+    }
+  };
+
+  const resetConversation = () => {
+    const confirmClear =
+      typeof window === 'undefined'
+        ? true
+        : window.confirm('Xóa toàn bộ hội thoại và bắt đầu lại?');
+    if (!confirmClear) return;
+
+    const profileName = getNameFromUserProfile();
+    const greeting = createGreetingMessage(profileName);
+    setMessages([greeting]);
+    setSymptomKeywords([]);
+    setLastDepartment(null);
+    setUserName(profileName);
+    setAwaitingName(!profileName);
+    setInputMessage('');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.messages);
+      localStorage.removeItem(STORAGE_KEYS.keywords);
+      localStorage.removeItem(STORAGE_KEYS.department);
+      if (profileName) {
+        localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(profileName));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.userName);
+      }
     }
   };
 
@@ -567,22 +644,31 @@ const ChatBot = () => {
         </div>
       ) : null;
 
-    const renderListSection = (title, items, variant = 'default') =>
-      Array.isArray(items) && items.length > 0 ? (
-        <div style={styles.insightSection}>
+    const renderListSection = (title, items, variant = 'default') => {
+      if (!Array.isArray(items) || items.length === 0) {
+        return null;
+      }
+
+      const containerStyle =
+        variant === 'warning'
+          ? { ...styles.insightSection, ...styles.warningSection }
+          : styles.insightSection;
+      const listStyle = variant === 'warning' ? styles.warningList : styles.list;
+      const itemStyle = variant === 'warning' ? styles.redFlagItem : styles.listItem;
+
+      return (
+        <div style={containerStyle}>
           <div style={styles.insightSectionTitle}>{title}</div>
-          <ul style={styles.list}>
+          <ul style={listStyle}>
             {items.map((item, idx) => (
-              <li
-                key={`${title}-${idx}`}
-                style={variant === 'warning' ? styles.redFlagItem : styles.listItem}
-              >
+              <li key={`${title}-${idx}`} style={itemStyle}>
                 {item}
               </li>
             ))}
           </ul>
         </div>
-      ) : null;
+      );
+    };
 
     const renderPossibleCauses = () =>
       Array.isArray(possibleCauses) && possibleCauses.length > 0 ? (
@@ -613,9 +699,6 @@ const ChatBot = () => {
         <div style={styles.insightHeader}>
           <div>
             <div style={styles.insightTitle}>Phân tích y khoa</div>
-            <div style={styles.insightSubtitle}>
-              Người dùng: {input || 'Chưa xác định'}
-            </div>
           </div>
           <div style={styles.insightBadge}>AI schema</div>
         </div>
@@ -624,10 +707,9 @@ const ChatBot = () => {
         {renderChipSection('Triệu chứng chính', symptoms)}
         {renderPossibleCauses()}
         {renderChipSection('Bệnh liên quan', relatedConditions)}
-        {renderListSection('Dấu hiệu cần lưu ý', redFlags, 'warning')}
+        {renderListSection('Bạn cần đi khám ngay nếu:', redFlags, 'warning')}
         {renderListSection('Gợi ý tự chăm sóc', selfCare)}
-        {renderListSection('Câu hỏi tiếp theo', nextQuestions)}
-
+        
         {(recommendedDepartment?.name || recommendedDepartment?.code) && (
           <div style={styles.departmentCard}>
             <div style={styles.insightSectionTitle}>Khoa gợi ý</div>
@@ -635,7 +717,7 @@ const ChatBot = () => {
               {recommendedDepartment.name || 'Chưa xác định'}
             </div>
             <div style={styles.departmentMeta}>
-              Mã: {recommendedDepartment.code || 'N/A'} · Độ tin cậy: {confidencePercentage}%
+              · Độ tin cậy: {confidencePercentage}%
             </div>
             {Array.isArray(recommendedDepartment.alternatives) &&
               recommendedDepartment.alternatives.length > 0 && (
@@ -824,21 +906,42 @@ const ChatBot = () => {
 
   return (
     <>
-      <Header />
       <div style={styles.page}>
+        <div style={styles.topBar}>
+          <div
+            style={styles.brandGroup}
+            onClick={goHome}
+            role="button"
+            tabIndex={0}
+            onKeyDown={handleBrandKeyDown}
+          >
+            <img src="/images/logo.png" alt="Clinic Booking" style={styles.brandImage} />
+            <div style={styles.brandText}>
+              <span style={styles.brandName}>CLINIC BOOKING</span>
+              <span style={styles.brandDivider}>/</span>
+              <span style={styles.brandHelper}>Trợ lý y khoa</span>
+            </div>
+            <span style={styles.verifiedDot}>✓</span>
+          </div>
+          <button style={styles.resetButton} onClick={resetConversation}>
+            Bắt đầu mới
+          </button>
+        </div>
         <div style={styles.container}>
-          <div style={styles.subHeader}>
-            <div style={styles.subTitle}>Trợ lý y khoa</div>
-            {lastDepartment?.name && (
+          {lastDepartment?.name && (
+            <div style={styles.subHeader}>
               <div style={styles.subHint}>
                 Gợi ý hiện tại: <strong>{lastDepartment.name}</strong>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div style={styles.chatContainer}>
             {messages.map((msg, index) => (
               <div key={index} style={styles.messageWrapper(msg.sender)}>
+                {msg.sender === 'bot' && msg.type !== 'doctors' && msg.type !== 'insight' && (
+                  <img src={BOT_AVATAR} alt="AI trợ lý" style={styles.botAvatar} />
+                )}
                 <div style={{ maxWidth: msg.type === 'doctors' ? '100%' : '70%' }}>
                   {msg.type === 'doctors' ? (
                     <DoctorTable doctors={msg.doctors} departmentName={msg.departmentName} />
@@ -910,23 +1013,80 @@ const ChatBot = () => {
 
 const styles = {
   page: {
-    height: 'calc(100vh - 72px)',
-    backgroundColor: '#f5f7fa',
-    overflow: 'hidden',
+    minHeight: '100vh',
+    backgroundColor: '#ffffff',
     display: 'flex',
     flexDirection: 'column'
+  },
+  topBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 32px',
+    borderBottom: '1px solid #e5e7eb',
+    backgroundColor: '#ffffff',
+    position: 'sticky',
+    top: 0,
+    zIndex: 20,
+    boxShadow: '0 4px 12px rgba(15,23,42,0.04)'
+  },
+  brandGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    cursor: 'pointer'
+  },
+  brandImage: {
+    width: '48px',
+    height: '48px',
+    objectFit: 'cover',
+    borderRadius: '50%',
+    backgroundColor: '#e0f2fe',
+    padding: '6px'
+  },
+  brandText: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '18px',
+    color: '#1e293b',
+    fontWeight: '600'
+  },
+  brandName: {
+    color: '#2563eb',
+    letterSpacing: '0.5px'
+  },
+  brandDivider: {
+    color: '#cbd5f5'
+  },
+  brandHelper: {
+    color: '#0f172a'
+  },
+  verifiedDot: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    borderRadius: '50%',
+    backgroundColor: '#2563eb',
+    color: '#fff',
+    fontSize: '12px',
+    fontWeight: '700'
   },
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
-    maxWidth: '900px',
+    flex: 1,
+    maxWidth: '720px',
     margin: '0 auto',
-    padding: '20px'
+    width: '100%',
+    padding: '12px 20px 16px',
+    minHeight: 0
   },
   subHeader: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: '12px'
   },
@@ -939,17 +1099,27 @@ const styles = {
     fontSize: '14px',
     color: '#4b5563'
   },
+  resetButton: {
+    backgroundColor: '#2563eb',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '20px',
+    padding: '10px 18px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s, transform 0.2s',
+    boxShadow: '0 8px 16px rgba(37,99,235,0.3)'
+  },
   chatContainer: {
     flex: 1,
     overflowY: 'auto',
-    padding: '20px',
+    padding: '16px 0 96px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
-    border: '1px solid #e5e7eb'
+    gap: '16px',
+    backgroundColor: 'transparent',
+    minHeight: 0
   },
   insightCard: {
     backgroundColor: '#f8fafc',
@@ -1009,6 +1179,20 @@ const styles = {
     margin: 0,
     paddingLeft: '18px',
     color: '#1f2937',
+    fontSize: '14px',
+    lineHeight: 1.5
+  },
+  warningSection: {
+    backgroundColor: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: '12px',
+    padding: '12px',
+    marginTop: '12px'
+  },
+  warningList: {
+    margin: 0,
+    paddingLeft: '18px',
+    color: '#b91c1c',
     fontSize: '14px',
     lineHeight: 1.5
   },
@@ -1096,16 +1280,26 @@ const styles = {
   },
   messageWrapper: (sender) => ({
     display: 'flex',
+    alignItems: 'flex-start',
+    width: '100%',
     justifyContent: sender === 'user' ? 'flex-end' : 'flex-start'
   }),
+  botAvatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    objectFit: 'cover',
+    marginRight: '12px',
+    boxShadow: '0 4px 10px rgba(15,23,42,0.12)'
+  },
   message: (sender, isError) => ({
-    padding: '12px 16px',
-    borderRadius: '18px',
-    backgroundColor: sender === 'user' ? '#2563eb' : isError ? '#f87171' : '#f8fafc',
-    color: sender === 'user' || isError ? '#fff' : '#1f2937',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-    fontSize: '15px',
-    lineHeight: 1.5,
+    padding: '16px 20px',
+    borderRadius: '20px',
+    backgroundColor: sender === 'user' ? '#2563eb' : isError ? '#fee2e2' : '#f8fafc',
+    color: sender === 'user' ? '#fff' : isError ? '#b91c1c' : '#1f2937',
+    boxShadow: sender === 'user' ? '0 6px 16px rgba(37,99,235,0.25)' : '0 6px 16px rgba(15,23,42,0.08)',
+    fontSize: '16px',
+    lineHeight: 1.6,
     whiteSpace: 'pre-wrap'
   }),
   timestamp: {
@@ -1126,18 +1320,22 @@ const styles = {
     fontStyle: 'italic'
   },
   inputContainer: {
+    position: 'sticky',
+    bottom: 0,
     display: 'flex',
-    padding: '20px',
+    padding: '12px 0 16px',
     gap: '10px',
-    backgroundColor: '#fff',
-    borderTop: '1px solid #e5e7eb'
+    background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 40%)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 15
   },
   input: {
     flex: 1,
-    padding: '12px 16px',
-    borderRadius: '24px',
-    border: '1px solid #d1d5db',
-    fontSize: '15px',
+    padding: '16px 20px',
+    borderRadius: '30px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: '#f8fafc',
+    fontSize: '16px',
     outline: 'none',
     transition: 'border-color 0.3s'
   },

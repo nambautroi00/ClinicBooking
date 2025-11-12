@@ -10,6 +10,8 @@ const DoctorReviews = () => {
   const [error, setError] = useState("");
   const [reviews, setReviews] = useState([]);
   const [appointments, setAppointments] = useState({});
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState({
     avgRating: 0,
     reviewCount: 0,
@@ -203,83 +205,71 @@ const DoctorReviews = () => {
 
   return (
     <div className="container-fluid">
-      <div className="d-flex align-items-center justify-content-between mb-4">
-        <div>
-          <h4 className="mb-1">Đánh giá từ bệnh nhân</h4>
-          <p className="text-muted mb-0">
-            Xem toàn bộ nhận xét, điểm đánh giá và lịch hẹn liên quan.
-          </p>
-        </div>
+      <div className="d-flex align-items-center justify-content-between mb-3">
         <button
-          className="btn btn-outline-primary"
+          className="btn btn-outline-primary btn-sm "
           disabled={loading}
           onClick={loadReviews}
         >
-          <i className="bi bi-arrow-clockwise me-2"></i>
+          <i className="bi bi-arrow-clockwise me-1"></i>
           Tải lại
         </button>
       </div>
 
-      <div className="row mb-4">
-        <div className="col-md-4 mb-3">
+      <div className="row mb-3 g-3">
+        <div className="col-md-4">
           <div className="card shadow-sm border-left-warning h-100">
-            <div className="card-body">
-              <h6 className="text-uppercase text-muted mb-2">
+            <div className="card-body p-3">
+              <h6 className="text-uppercase text-muted mb-2 small">
                 Điểm đánh giá trung bình
               </h6>
-              <div className="d-flex align-items-center">
-                <div className="display-6 fw-bold me-3">
+              <div className="d-flex align-items-center mb-1">
+                <div className="h4 fw-bold me-2 mb-0">
                   {stats.avgRating ? stats.avgRating.toFixed(1) : "0.0"}
                 </div>
                 <div>{renderStars(stats.avgRating)}</div>
               </div>
-              <small className="text-muted">
-                Dựa trên {stats.reviewCount} đánh giá hoạt động.
-              </small>
             </div>
           </div>
         </div>
-        <div className="col-md-4 mb-3">
+        <div className="col-md-4">
           <div className="card shadow-sm border-left-success h-100">
-            <div className="card-body">
-              <h6 className="text-uppercase text-muted mb-2">
+            <div className="card-body p-3">
+              <h6 className="text-uppercase text-muted mb-2 small">
                 Tổng số đánh giá
               </h6>
-              <div className="display-6 fw-bold">{stats.reviewCount}</div>
-              <small className="text-muted">
-                Chỉ tính các đánh giá đang hoạt động.
-              </small>
+              <div className="h4 fw-bold mb-1">{stats.reviewCount}</div>
             </div>
           </div>
         </div>
-        <div className="col-md-4 mb-3">
+        <div className="col-md-4">
           <div className="card shadow-sm border-left-info h-100">
-            <div className="card-body">
-              <h6 className="text-uppercase text-muted mb-2">
+            <div className="card-body p-3">
+              <h6 className="text-uppercase text-muted mb-2 small">
                 Trạng thái tải dữ liệu
               </h6>
               <div className="d-flex align-items-center">
                 {loading ? (
                   <>
                     <div
-                      className="spinner-border text-info me-3"
+                      className="spinner-border spinner-border-sm text-info me-2"
                       role="status"
                     >
                       <span className="visually-hidden">Loading...</span>
                     </div>
-                    <span>Đang tải đánh giá...</span>
+                    <span className="small">Đang tải đánh giá...</span>
                   </>
                 ) : error ? (
                   <>
                     <i className="bi bi-exclamation-triangle text-danger me-2"></i>
-                    <span className="text-danger">
+                    <span className="text-danger small">
                       Có lỗi khi tải đánh giá
                     </span>
                   </>
                 ) : (
                   <>
                     <i className="bi bi-check-circle text-success me-2"></i>
-                    <span>Đã cập nhật đánh giá</span>
+                    <span className="small">Đã cập nhật đánh giá</span>
                   </>
                 )}
               </div>
@@ -289,10 +279,10 @@ const DoctorReviews = () => {
       </div>
 
       <div className="card shadow">
-        <div className="card-header py-3">
-          <h6 className="m-0 font-weight-bold text-primary">Danh sách đánh giá</h6>
+        <div className="card-header py-2">
+          <h6 className="m-0 fw-bold text-primary">Danh sách đánh giá</h6>
         </div>
-        <div className="card-body">
+        <div className="card-body p-0">
           {loading ? (
             <div className="d-flex justify-content-center py-5">
               <div className="spinner-border" role="status">
@@ -300,9 +290,9 @@ const DoctorReviews = () => {
               </div>
             </div>
           ) : error ? (
-            <div className="alert alert-danger mb-0">{error}</div>
+            <div className="alert alert-danger m-3 mb-0">{error}</div>
           ) : sortedReviews.length === 0 ? (
-            <p className="text-muted mb-0 text-center">
+            <p className="text-muted mb-0 text-center py-4">
               Chưa có đánh giá nào từ bệnh nhân.
             </p>
           ) : (
@@ -314,66 +304,52 @@ const DoctorReviews = () => {
                     : null;
 
                 return (
-                  <div key={review.reviewId} className="list-group-item py-4">
-                    <div className="d-flex justify-content-between align-items-start">
-                      <div>
-                        <h6 className="mb-1">
-                          {review.patientName || "Bệnh nhân ẩn danh"}
-                        </h6>
-                        <div className="d-flex align-items-center mb-2">
-                          {renderStars(review.rating)}
-                          <span className="ms-2 text-muted">
-                            {review.rating ? `${review.rating}/5` : "0/5"}
-                          </span>
-                        </div>
-                        {review.comment && (
-                          <p className="mb-2 text-secondary">{review.comment}</p>
-                        )}
-                        {review.status && (
-                          <span className="badge bg-light text-uppercase text-secondary">
-                            {review.status}
-                          </span>
-                        )}
-
-                        {review.appointmentId && (
-                          <div className="mt-3">
-                            <div className="small text-uppercase text-muted fw-semibold mb-1">
-                              Lịch hẹn liên quan
-                            </div>
-                            {appointmentInfo ? (
-                              <div className="border rounded px-3 py-2 bg-light">
-                                <div className="small text-secondary mb-1">
-                                  Mã lịch: #{appointmentInfo.appointmentId}
-                                </div>
-                                <div className="small text-secondary">
-                                  Thời gian:{" "}
-                                  {formatAppointmentRange(
-                                    appointmentInfo.startTime,
-                                    appointmentInfo.endTime
-                                  )}
-                                </div>
-                                <div className="small text-secondary">
-                                  Trạng thái:{" "}
-                                  {appointmentInfo.status || "Chưa cập nhật"}
-                                </div>
-                                {appointmentInfo.notes && (
-                                  <div className="small text-muted mt-1 fst-italic">
-                                    Ghi chú: {appointmentInfo.notes}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="small text-muted fst-italic">
-                                Không thể tải thông tin lịch hẹn #
-                                {review.appointmentId}.
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                  <div key={review.reviewId} className="list-group-item py-3 px-3">
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <h6 className="mb-0 fw-semibold">
+                        {review.patientName || "Bệnh nhân ẩn danh"}
+                      </h6>
                       <small className="text-muted">
                         {formatDate(review.createdAt)}
                       </small>
+                    </div>
+                    <div className="d-flex align-items-center mb-2">
+                      {renderStars(review.rating)}
+                      <span className="ms-2 text-muted small">
+                        {review.rating ? `${review.rating}/5` : "0/5"}
+                      </span>
+                    </div>
+                    {review.comment && (
+                      <p className="mb-2 text-secondary small">{review.comment}</p>
+                    )}
+                    <div className="d-flex justify-content-between align-items-center">
+                      {review.status && (
+                        <span className="badge bg-light text-uppercase text-secondary small">
+                          {review.status}
+                        </span>
+                      )}
+                      <div>
+                        {review.appointmentId && appointmentInfo ? (
+                          <button
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() => {
+                              setSelectedAppointment(appointmentInfo);
+                              setShowModal(true);
+                            }}
+                          >
+                            <i className="bi bi-eye me-1"></i>
+                            Xem chi tiết
+                          </button>
+                        ) : review.appointmentId ? (
+                          <span className="text-muted small">
+                            Không thể tải thông tin
+                          </span>
+                        ) : (
+                          <span className="text-muted small">
+                            Không có lịch hẹn
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -382,6 +358,91 @@ const DoctorReviews = () => {
           )}
         </div>
       </div>
+
+      {/* Modal hiển thị chi tiết lịch hẹn */}
+      {showModal && (
+        <>
+          <div
+            className="modal fade show"
+            style={{ display: "block", zIndex: 1050 }}
+            tabIndex="-1"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="modal-dialog modal-dialog-centered" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title fw-bold">LỊCH HẸN LIÊN QUAN</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    aria-label="Close"
+                    onClick={() => {
+                      setShowModal(false);
+                      setSelectedAppointment(null);
+                    }}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {selectedAppointment ? (
+                    <div>
+                      <div className="mb-3">
+                        <strong>Mã lịch:</strong>{" "}
+                        <span className="text-primary">
+                          #{selectedAppointment.appointmentId}
+                        </span>
+                      </div>
+                      <div className="mb-3">
+                        <strong>Thời gian:</strong>{" "}
+                        {formatAppointmentRange(
+                          selectedAppointment.startTime,
+                          selectedAppointment.endTime
+                        )}
+                      </div>
+                      <div className="mb-3">
+                        <strong>Trạng thái:</strong>{" "}
+                        <span className="badge bg-success">
+                          {selectedAppointment.status || "Chưa cập nhật"}
+                        </span>
+                      </div>
+                      {selectedAppointment.notes && (
+                        <div className="mb-3">
+                          <strong>Ghi chú:</strong>{" "}
+                          <span className="fst-italic">
+                            {selectedAppointment.notes}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-muted">Không có thông tin lịch hẹn.</p>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowModal(false);
+                      setSelectedAppointment(null);
+                    }}
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            className="modal-backdrop fade show"
+            style={{ zIndex: 1040, backgroundColor: "rgba(0, 0, 0, 0.3)" }}
+            onClick={() => {
+              setShowModal(false);
+              setSelectedAppointment(null);
+            }}
+          ></div>
+        </>
+      )}
     </div>
   );
 };
