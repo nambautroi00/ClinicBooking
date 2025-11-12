@@ -686,74 +686,142 @@ const PrescriptionForm = () => {
   };
 
   return (
-    <Container fluid className="py-4">
-      {/* Header */}
+    <Container fluid className="py-4" style={{backgroundColor: '#f8f9fa', minHeight: '100vh'}}>
+      {/* Modern Header */}
       <Row className="mb-4">
         <Col>
-          <Card>
-            <Card.Header>
+          <Card style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+            <Card.Body className="p-4">
               <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <div className="d-flex align-items-center mb-2">
-                    <Link to="/doctor/prescriptions" className="btn btn-outline-secondary me-3">
-                      <ArrowLeft size={18} className="me-1" />
-                      Quay lại
-                    </Link>
-                    <h4 className="mb-0">
-                      <Pill className="me-2" size={24} />
+                <div className="d-flex align-items-center">
+                  <div style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '16px'
+                  }}>
+                    <Pill size={28} color="white" />
+                  </div>
+                  <div>
+                    <h4 className="mb-1" style={{fontWeight: 600, color: '#1a202c'}}>
                       {appointmentInfo ? 'Kê Đơn Thuốc - Khám Bệnh' : 'Kê Đơn Thuốc Mới'}
                     </h4>
+                    <p className="mb-0" style={{color: '#718096', fontSize: '14px'}}>
+                      {(appointmentInfo || formData.patientId) ? (
+                        <>
+                          {appointmentInfo ? `Lịch hẹn: ${appointmentInfo?.appointmentTime || appointmentInfo?.startTime || 'N/A'} - ${appointmentInfo?.appointmentDate || 'N/A'}` : 'Tạo đơn thuốc cho bệnh nhân'}
+                        </>
+                      ) : (
+                        'Tạo đơn thuốc cho bệnh nhân'
+                      )}
+                    </p>
                   </div>
-                  {(appointmentInfo || formData.patientId) ? (
-                    <div className="mb-2">
-                      <small className="text-muted">Lịch hẹn: {appointmentInfo?.appointmentTime || appointmentInfo?.startTime || 'N/A'} - {appointmentInfo?.appointmentDate || 'N/A'}</small>
-                      <br />
-                      <small className="text-info">
-                        Bệnh nhân: {formData.patientName || patientInfo?.name || 'Không rõ'} |
-                        ID: {formData.patientId || patientInfo?.patientId || patientInfo?.id || appointmentInfo?.appointmentId || 'N/A'}
-                      </small>
-                    </div>
-                  ) : (
-                    <small className="text-muted">Tạo đơn thuốc cho bệnh nhân</small>
-                  )}
                 </div>
-                <Button 
-                  variant="success" 
-                  onClick={handleSavePrescription}
-                  disabled={
-                    formData.medicines.length === 0 || 
-                    !formData.patientId || 
-                    !formData.diagnosis.trim() ||
-                    formData.medicines.some(med => !med.medicineId || !med.dosage || med.quantity === undefined || med.quantity === null || med.quantity <= 0)
-                  }
-                >
-                  <Save className="me-2" size={18} />
-                  Lưu đơn thuốc
-                </Button>
+                <div className="d-flex gap-2">
+                  <Link to="/doctor/prescriptions" style={{textDecoration: 'none'}}>
+                    <Button 
+                      variant="outline-secondary"
+                      style={{
+                        height: '48px',
+                        borderRadius: '12px',
+                        padding: '0 24px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: '2px solid #e2e8f0'
+                      }}
+                    >
+                      <ArrowLeft size={18} />
+                      Quay lại
+                    </Button>
+                  </Link>
+                  <Button 
+                    onClick={handleSavePrescription}
+                    disabled={
+                      formData.medicines.length === 0 || 
+                      !formData.patientId || 
+                      !formData.diagnosis.trim() ||
+                      formData.medicines.some(med => !med.medicineId || !med.dosage || med.quantity === undefined || med.quantity === null || med.quantity <= 0)
+                    }
+                    style={{
+                      height: '48px',
+                      borderRadius: '12px',
+                      padding: '0 24px',
+                      background: formData.medicines.length === 0 || !formData.patientId || !formData.diagnosis.trim() ? '#cbd5e0' : 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+                      border: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontWeight: 500
+                    }}
+                  >
+                    <Save size={18} />
+                    Lưu Đơn Thuốc
+                  </Button>
+                </div>
               </div>
-            </Card.Header>
+            </Card.Body>
           </Card>
         </Col>
       </Row>
 
       <Row>
-        <Col md={7}>
-          {/* Patient Selection */}
-          <Card className="mb-4">
-            <Card.Header>
-              <h6 className="mb-0">Thông tin bệnh nhân</h6>
-            </Card.Header>
-            <Card.Body>
+        <Col lg={7}>
+          {/* Patient Information Card */}
+          <Card className="mb-3" style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center mb-3">
+                <User size={20} className="me-2" style={{color: '#667eea'}} />
+                <h6 className="mb-0" style={{fontWeight: 600, color: '#1a202c'}}>Thông tin bệnh nhân</h6>
+              </div>
               {(appointmentInfo || formData.patientId || patientInfo) ? (
-                <Alert variant="info">
-                  <div><strong>Từ lịch hẹn:</strong> {formData.patientName || patientInfo?.name || 'Không rõ tên'}</div>
-                  <div><strong>ID:</strong> {formData.patientId || patientInfo?.patientId || patientInfo?.id || 'N/A'}</div>
-                  {patientInfo?.phone && <div><strong>SĐT:</strong> {patientInfo.phone}</div>}
-                </Alert>
+                <div style={{
+                  background: 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%)',
+                  borderRadius: '12px',
+                  padding: '16px'
+                }}>
+                  <div className="d-flex align-items-start">
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '12px'
+                    }}>
+                      <User size={24} color="white" />
+                    </div>
+                    <div style={{flex: 1}}>
+                      <div style={{fontWeight: 600, fontSize: '16px', color: '#1a202c', marginBottom: '4px'}}>
+                        {formData.patientName || patientInfo?.name || 'Không rõ tên'}
+                      </div>
+                      <div style={{color: '#718096', fontSize: '14px'}}>
+                        <strong>ID:</strong> {formData.patientId || patientInfo?.patientId || patientInfo?.id || 'N/A'}
+                      </div>
+                      {patientInfo?.phone && (
+                        <div style={{color: '#718096', fontSize: '14px'}}>
+                          <strong>SĐT:</strong> {patientInfo.phone}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <Form.Select 
                   value={formData.patientId}
                   onChange={(e) => handleSelectPatient(e.target.value)}
+                  style={{
+                    height: '48px',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '14px'
+                  }}
                 >
                   <option value="">Chọn bệnh nhân...</option>
                   {patients.map(patient => (
@@ -768,11 +836,9 @@ const PrescriptionForm = () => {
 
           {/* Appointment Selection - only show if no appointment from URL/state */}
           {!appointmentInfo && !appointmentId && (
-            <Card className="mb-4">
-              <Card.Header>
-                <h6 className="mb-0">Chọn lịch hẹn (tùy chọn)</h6>
-              </Card.Header>
-              <Card.Body>
+            <Card className="mb-3" style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+              <Card.Body className="p-4">
+                <h6 className="mb-3" style={{fontWeight: 600, color: '#1a202c'}}>Chọn lịch hẹn (tùy chọn)</h6>
                 <Form.Select 
                   value={formData.selectedAppointmentId}
                   onChange={(e) => {
@@ -801,6 +867,12 @@ const PrescriptionForm = () => {
                       }));
                     }
                   }}
+                  style={{
+                    height: '48px',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '14px'
+                  }}
                 >
                   <option value="">Không chọn lịch hẹn cụ thể...</option>
                   {appointments
@@ -816,58 +888,78 @@ const PrescriptionForm = () => {
                       </option>
                     ))}
                 </Form.Select>
-                <small className="text-muted mt-1 d-block">
+                <small className="text-muted mt-2 d-block">
                   Chọn lịch hẹn để tự động điền thông tin bệnh nhân và tạo hồ sơ bệnh án
                 </small>
               </Card.Body>
             </Card>
           )}
 
-          {/* Diagnosis */}
-          <Card className="mb-4">
-            <Card.Header>
-              <div className="d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">Chẩn đoán sơ bộ</h6>
+          {/* Diagnosis Card */}
+          <Card className="mb-3" style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="d-flex align-items-center">
+                  <Clipboard size={20} className="me-2" style={{color: '#667eea'}} />
+                  <h6 className="mb-0" style={{fontWeight: 600, color: '#1a202c'}}>Chẩn đoán sơ bộ</h6>
+                </div>
                 <Button 
                   variant="outline-info" 
                   size="sm"
                   onClick={() => setShowReferralModal(true)}
                   disabled={!formData.patientId && !patientInfo}
+                  style={{
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    fontWeight: 500
+                  }}
                 >
-                  <Clipboard size={16} className="me-1" />
+                  <Clipboard size={14} className="me-1" />
                   Tạo Chỉ định CLS
                 </Button>
               </div>
-            </Card.Header>
-            <Card.Body>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={4}
                 placeholder="Nhập chẩn đoán sơ bộ (triệu chứng, dấu hiệu lâm sàng...)&#10;Sau khi nhập chẩn đoán, bạn có thể tạo chỉ định cận lâm sàng nếu cần."
                 value={formData.diagnosis}
                 onChange={(e) => setFormData(prev => ({...prev, diagnosis: e.target.value}))}
+                style={{
+                  borderRadius: '12px',
+                  border: '2px solid #e2e8f0',
+                  fontSize: '14px',
+                  resize: 'none'
+                }}
               />
-              <small className="text-muted mt-2 d-block">
+              <small className="text-muted mt-2 d-block" style={{fontSize: '13px'}}>
                 💡 <strong>Gợi ý:</strong> Nhập triệu chứng ban đầu. Nếu cần xét nghiệm/chẩn đoán hình ảnh, nhấn "Tạo Chỉ định CLS"
               </small>
             </Card.Body>
           </Card>
 
-          {/* Add Medicine */}
-          <Card className="mb-4">
-            <Card.Header>
-              <h6 className="mb-0">Thêm thuốc vào đơn</h6>
-            </Card.Header>
-            <Card.Body>
+          {/* Add Medicine Card */}
+          <Card className="mb-3" style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center mb-3">
+                <Plus size={20} className="me-2" style={{color: '#667eea'}} />
+                <h6 className="mb-0" style={{fontWeight: 600, color: '#1a202c'}}>Thêm thuốc vào đơn</h6>
+              </div>
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Chọn thuốc</Form.Label>
+                    <Form.Label style={{fontSize: '14px', fontWeight: 500, color: '#4a5568'}}>Chọn thuốc</Form.Label>
                     <Form.Select
                       value={currentMedicine.medicineId}
                       onChange={(e) => {
                         console.log('📝 Selected medicine ID from select:', e.target.value, typeof e.target.value);
                         setCurrentMedicine(prev => ({...prev, medicineId: e.target.value}));
+                      }}
+                      style={{
+                        height: '48px',
+                        borderRadius: '12px',
+                        border: '2px solid #e2e8f0',
+                        fontSize: '14px'
                       }}
                     >
                       <option value="">Chọn thuốc...</option>
@@ -881,12 +973,18 @@ const PrescriptionForm = () => {
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Số lượng</Form.Label>
+                    <Form.Label style={{fontSize: '14px', fontWeight: 500, color: '#4a5568'}}>Số lượng</Form.Label>
                     <Form.Control
                       type="number"
                       min="1"
                       value={currentMedicine.quantity}
                       onChange={(e) => setCurrentMedicine(prev => ({...prev, quantity: parseInt(e.target.value) || 1}))}
+                      style={{
+                        height: '48px',
+                        borderRadius: '12px',
+                        border: '2px solid #e2e8f0',
+                        fontSize: '14px'
+                      }}
                     />
                   </Form.Group>
                 </Col>
@@ -895,64 +993,114 @@ const PrescriptionForm = () => {
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Liều dùng</Form.Label>
+                    <Form.Label style={{fontSize: '14px', fontWeight: 500, color: '#4a5568'}}>Liều dùng</Form.Label>
                     <Form.Control
                       type="text"
                       placeholder="VD: 1 viên x 3 lần/ngày"
                       value={currentMedicine.dosage}
                       onChange={(e) => setCurrentMedicine(prev => ({...prev, dosage: e.target.value}))}
+                      style={{
+                        height: '48px',
+                        borderRadius: '12px',
+                        border: '2px solid #e2e8f0',
+                        fontSize: '14px'
+                      }}
                     />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Thời gian sử dụng</Form.Label>
+                    <Form.Label style={{fontSize: '14px', fontWeight: 500, color: '#4a5568'}}>Thời gian sử dụng</Form.Label>
                     <Form.Control
                       type="text"
                       placeholder="VD: 7 ngày"
                       value={currentMedicine.duration}
                       onChange={(e) => setCurrentMedicine(prev => ({...prev, duration: e.target.value}))}
+                      style={{
+                        height: '48px',
+                        borderRadius: '12px',
+                        border: '2px solid #e2e8f0',
+                        fontSize: '14px'
+                      }}
                     />
                   </Form.Group>
                 </Col>
               </Row>
 
               <Form.Group className="mb-3">
-                <Form.Label>Hướng dẫn sử dụng</Form.Label>
+                <Form.Label style={{fontSize: '14px', fontWeight: 500, color: '#4a5568'}}>Hướng dẫn sử dụng</Form.Label>
                 <Form.Control
                   type="text"
                   placeholder="VD: Uống sau ăn"
                   value={currentMedicine.instructions}
                   onChange={(e) => setCurrentMedicine(prev => ({...prev, instructions: e.target.value}))}
+                  style={{
+                    height: '48px',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '14px'
+                  }}
                 />
               </Form.Group>
 
-              <Button variant="primary" onClick={handleAddMedicine}>
-                <Plus size={18} className="me-1" />
-                Thêm thuốc
+              <Button 
+                onClick={handleAddMedicine}
+                style={{
+                  height: '48px',
+                  borderRadius: '12px',
+                  padding: '0 24px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  border: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: 500,
+                  fontSize: '14px'
+                }}
+              >
+                <Plus size={18} />
+                Thêm thuốc vào đơn
               </Button>
             </Card.Body>
           </Card>
         </Col>
 
-        <Col md={5}>
+        <Col lg={5}>
           {/* Medicine Search */}
-          <Card className="mb-4">
-            <Card.Header>
-              <h6 className="mb-0">
-                <Search size={18} className="me-2" />
-                Tìm kiếm thuốc ({filteredMedicines.length} thuốc)
-              </h6>
-            </Card.Header>
-            <Card.Body>
+          <Card className="mb-3" style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center mb-3">
+                <Search size={20} className="me-2" style={{color: '#667eea'}} />
+                <h6 className="mb-0" style={{fontWeight: 600, color: '#1a202c'}}>
+                  Tìm kiếm thuốc
+                  <span style={{
+                    marginLeft: '8px',
+                    fontSize: '13px',
+                    color: '#718096',
+                    fontWeight: 400
+                  }}>
+                    ({filteredMedicines.length} thuốc)
+                  </span>
+                </h6>
+              </div>
               <div className="position-relative mb-3">
-                <Search className="position-absolute" size={18} style={{left: "12px", top: "12px", color: "#6c757d"}} />
+                <Search 
+                  className="position-absolute" 
+                  size={18} 
+                  style={{left: "16px", top: "15px", color: "#a0aec0"}} 
+                />
                 <Form.Control
                   type="text"
-                  placeholder="Tìm kiếm theo tên thuốc, mã thuốc, loại..."
+                  placeholder="Tìm kiếm theo tên thuốc, loại..."
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  style={{paddingLeft: "45px"}}
+                  style={{
+                    height: '48px',
+                    paddingLeft: "48px",
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '14px'
+                  }}
                 />
                 {searchError && (
                   <small className="text-danger mt-1 d-block">{searchError}</small>
@@ -960,91 +1108,100 @@ const PrescriptionForm = () => {
               </div>
 
               {loading ? (
-                <div className="text-center py-3">
-                  <div className="spinner-border spinner-border-sm text-primary" role="status">
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status" style={{width: '40px', height: '40px'}}>
                     <span className="visually-hidden">Loading...</span>
                   </div>
-                  <div className="mt-2">Đang tải danh sách thuốc...</div>
+                  <div className="mt-3" style={{color: '#718096', fontSize: '14px'}}>Đang tải danh sách thuốc...</div>
                 </div>
               ) : (
-                <div style={{maxHeight: "350px", overflowY: "auto"}}>
+                <div style={{maxHeight: "400px", overflowY: "auto"}}>
                   {filteredMedicines.length === 0 ? (
-                    <div className="text-center py-4 text-muted">
-                      <Search size={48} className="mb-3" style={{opacity: 0.3}} />
-                      <div>Không tìm thấy thuốc nào</div>
-                      <small>Thử từ khóa khác</small>
+                    <div className="text-center py-5">
+                      <Search size={56} style={{color: '#cbd5e0', marginBottom: '12px'}} />
+                      <div style={{color: '#718096', fontSize: '15px', fontWeight: 500}}>Không tìm thấy thuốc nào</div>
+                      <small style={{color: '#a0aec0', fontSize: '13px'}}>Thử từ khóa khác</small>
                     </div>
                   ) : (
                     <>
-                      {filteredMedicines.length > 0 ? (
-                        filteredMedicines.map(medicine => {
-                          try {
-                            return (
-                              <div 
-                                key={medicine.id || `medicine-${Math.random()}`} 
-                                className="border rounded p-3 mb-2 cursor-pointer hover-bg-light" 
-                                onClick={() => {
-                                  try {
-                                    console.log('🖱️ Clicked medicine from search:', medicine.medicineId, typeof medicine.medicineId, medicine.name);
-                                    setCurrentMedicine(prev => ({...prev, medicineId: medicine.medicineId}));
-                                  } catch (error) {
-                                    console.error('❌ Error clicking medicine:', error);
-                                  }
-                                }}
-                                style={{
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s',
-                                  border: currentMedicine.medicineId == medicine.medicineId ? '2px solid #007bff' : '1px solid #dee2e6'
-                                }}
-                                onMouseEnter={(e) => {
-                                  try {
-                                    e.target.style.backgroundColor = '#f8f9fa';
-                                  } catch (error) {
-                                    console.error('❌ Error on mouse enter:', error);
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  try {
-                                    e.target.style.backgroundColor = 'white';
-                                  } catch (error) {
-                                    console.error('❌ Error on mouse leave:', error);
-                                  }
-                                }}
-                              >
-                        <div className="d-flex justify-content-between">
-                          <div style={{flex: 1}}>
-                            <div className="fw-bold text-primary">{medicine.name || 'Không rõ tên'}</div>
-                            <small className="text-muted d-block">
-                              <span className="badge bg-secondary me-1">{medicine.medicineId || 'N/A'}</span>
-                              {medicine.category || 'Không rõ loại'} • {medicine.strength || 'N/A'}
-                            </small>
-                            {medicine.description && (
-                              <small className="text-info d-block mt-1">
-                                {medicine.description}
-                              </small>
-                            )}
-                          </div>
-                          <div className="text-end ms-3">
-                            <div className="fw-bold text-success">
-                              {(medicine.price || 0).toLocaleString('vi-VN')} ₫
+                      {filteredMedicines.map(medicine => {
+                        try {
+                          return (
+                            <div 
+                              key={medicine.id || `medicine-${Math.random()}`} 
+                              className="cursor-pointer" 
+                              onClick={() => {
+                                try {
+                                  console.log('🖱️ Clicked medicine from search:', medicine.medicineId, typeof medicine.medicineId, medicine.name);
+                                  setCurrentMedicine(prev => ({...prev, medicineId: medicine.medicineId}));
+                                } catch (error) {
+                                  console.error('❌ Error clicking medicine:', error);
+                                }
+                              }}
+                              style={{
+                                cursor: 'pointer',
+                                padding: '16px',
+                                marginBottom: '8px',
+                                borderRadius: '12px',
+                                border: currentMedicine.medicineId == medicine.medicineId ? '2px solid #667eea' : '2px solid #e2e8f0',
+                                transition: 'all 0.2s',
+                                background: currentMedicine.medicineId == medicine.medicineId ? '#f7fafc' : 'white'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (currentMedicine.medicineId != medicine.medicineId) {
+                                  e.currentTarget.style.backgroundColor = '#f7fafc';
+                                  e.currentTarget.style.borderColor = '#cbd5e0';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (currentMedicine.medicineId != medicine.medicineId) {
+                                  e.currentTarget.style.backgroundColor = 'white';
+                                  e.currentTarget.style.borderColor = '#e2e8f0';
+                                }
+                              }}
+                            >
+                              <div className="d-flex justify-content-between">
+                                <div style={{flex: 1}}>
+                                  <div style={{fontWeight: 600, color: '#1a202c', fontSize: '15px', marginBottom: '4px'}}>
+                                    {medicine.name || 'Không rõ tên'}
+                                  </div>
+                                  <div style={{marginBottom: '6px'}}>
+                                    <span style={{
+                                      display: 'inline-block',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      background: '#e0e7ff',
+                                      color: '#5a67d8',
+                                      fontSize: '12px',
+                                      fontWeight: 500,
+                                      marginRight: '6px'
+                                    }}>
+                                      {medicine.medicineId || 'N/A'}
+                                    </span>
+                                    <span style={{fontSize: '13px', color: '#718096'}}>
+                                      {medicine.category || 'Không rõ loại'} • {medicine.strength || 'N/A'}
+                                    </span>
+                                  </div>
+                                  {medicine.description && (
+                                    <small style={{color: '#a0aec0', fontSize: '12px', display: 'block', marginTop: '2px'}}>
+                                      {medicine.description}
+                                    </small>
+                                  )}
+                                </div>
+                                <div className="text-end ms-3">
+                                  <div style={{fontWeight: 600, color: '#48bb78', fontSize: '15px'}}>
+                                    {(medicine.price || 0).toLocaleString('vi-VN')} ₫
+                                  </div>
+                                  <small style={{color: '#a0aec0', fontSize: '12px'}}>/{medicine.unit || 'đơn vị'}</small>
+                                </div>
+                              </div>
                             </div>
-                            <small className="text-muted">/{medicine.unit || 'đơn vị'}</small>
-                          </div>
-                        </div>
-                      </div>
-                            );
-                          } catch (error) {
-                            console.error('❌ Error rendering medicine:', medicine, error);
-                            return null;
-                          }
-                        })
-                      ) : (
-                        <div className="text-center py-4 text-muted">
-                          <Search size={48} className="mb-3" style={{opacity: 0.3}} />
-                          <div>Không tìm thấy thuốc nào</div>
-                          <small>Thử từ khóa khác</small>
-                        </div>
-                      )}
+                          );
+                        } catch (error) {
+                          console.error('❌ Error rendering medicine:', medicine, error);
+                          return null;
+                        }
+                      })}
                     </>
                   )}
                 </div>
@@ -1053,48 +1210,82 @@ const PrescriptionForm = () => {
           </Card>
 
           {/* Current Prescription */}
-          <Card>
-            <Card.Header>
-              <h6 className="mb-0">
-                <Pill size={18} className="me-2" />
-                Đơn thuốc hiện tại ({formData.medicines.length} thuốc)
-              </h6>
-            </Card.Header>
-            <Card.Body>
+          <Card style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="d-flex align-items-center">
+                  <Pill size={20} className="me-2" style={{color: '#667eea'}} />
+                  <h6 className="mb-0" style={{fontWeight: 600, color: '#1a202c'}}>Danh sách thuốc</h6>
+                </div>
+                <div style={{
+                  background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+                  color: 'white',
+                  padding: '4px 12px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}>
+                  {formData.medicines.length} thuốc
+                </div>
+              </div>
+
               {formData.medicines.length === 0 ? (
-                <div className="text-center py-4 text-muted">
-                  <Pill size={48} className="mb-3" style={{opacity: 0.3}} />
-                  <div>Chưa có thuốc nào trong đơn</div>
-                  <small>Thêm thuốc từ danh sách bên trái</small>
+                <div className="text-center py-5">
+                  <Pill size={56} style={{color: '#cbd5e0', marginBottom: '12px'}} />
+                  <div style={{color: '#718096', fontSize: '15px', fontWeight: 500}}>Chưa có thuốc nào trong đơn</div>
+                  <small style={{color: '#a0aec0', fontSize: '13px'}}>Thêm thuốc từ danh sách bên trái</small>
                 </div>
               ) : (
-                <div style={{maxHeight: "400px", overflowY: "auto"}}>
+                <div style={{maxHeight: "450px", overflowY: "auto"}}>
                   {formData.medicines.map((medicine, index) => (
-                    <div key={index} className="border rounded p-2 mb-2">
+                    <div 
+                      key={index} 
+                      style={{
+                        padding: '16px',
+                        marginBottom: '12px',
+                        borderRadius: '12px',
+                        border: '2px solid #e2e8f0',
+                        background: 'linear-gradient(135deg, #ffffff 0%, #f7fafc 100%)'
+                      }}
+                    >
                       <div className="d-flex justify-content-between align-items-start">
                         <div style={{flex: 1}}>
-                          <div className="fw-bold">{medicine.medicineName}</div>
-                          <small className="text-muted d-block">
-                            Số lượng: {medicine.quantity} {medicine.unit}
-                          </small>
-                          <small className="text-primary d-block">
-                            {medicine.dosage}
-                          </small>
+                          <div style={{fontWeight: 600, color: '#1a202c', fontSize: '15px', marginBottom: '8px'}}>
+                            {medicine.medicineName}
+                          </div>
+                          <div style={{fontSize: '13px', color: '#718096', marginBottom: '4px'}}>
+                            <strong>Số lượng:</strong> {medicine.quantity} {medicine.unit}
+                          </div>
+                          <div style={{fontSize: '13px', color: '#5a67d8', marginBottom: '4px'}}>
+                            <strong>Liều dùng:</strong> {medicine.dosage}
+                          </div>
                           {medicine.duration && (
-                            <small className="text-info d-block">
-                              Thời gian: {medicine.duration}
-                            </small>
+                            <div style={{fontSize: '13px', color: '#ed8936', marginBottom: '4px'}}>
+                              <strong>Thời gian:</strong> {medicine.duration}
+                            </div>
                           )}
                           {medicine.instructions && (
-                            <small className="text-success d-block">
-                              Hướng dẫn: {medicine.instructions}
-                            </small>
+                            <div style={{fontSize: '13px', color: '#48bb78', marginBottom: '4px'}}>
+                              <strong>Hướng dẫn:</strong> {medicine.instructions}
+                            </div>
                           )}
                         </div>
                         <Button
                           variant="outline-danger"
                           size="sm"
                           onClick={() => handleRemoveMedicine(index)}
+                          style={{
+                            borderRadius: '8px',
+                            width: '32px',
+                            height: '32px',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '20px',
+                            fontWeight: 'bold',
+                            border: '2px solid #fc8181'
+                          }}
                         >
                           ×
                         </Button>
@@ -1102,9 +1293,16 @@ const PrescriptionForm = () => {
                     </div>
                   ))}
                   
-                  <div className="mt-3 pt-3 border-top">
-                    <div className="fw-bold text-end">
-                      Tổng tiền: {formData.medicines.reduce((sum, med) => sum + (med.price || 0), 0).toLocaleString('vi-VN')} ₫
+                  <div style={{
+                    marginTop: '16px',
+                    paddingTop: '16px',
+                    borderTop: '2px solid #e2e8f0'
+                  }}>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span style={{fontWeight: 600, color: '#1a202c', fontSize: '15px'}}>Tổng tiền:</span>
+                      <span style={{fontWeight: 700, color: '#48bb78', fontSize: '18px'}}>
+                        {formData.medicines.reduce((sum, med) => sum + (med.price || 0), 0).toLocaleString('vi-VN')} ₫
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1115,23 +1313,54 @@ const PrescriptionForm = () => {
       </Row>
 
       {/* Clinical Referral Modal */}
-      <Modal show={showReferralModal} onHide={() => setShowReferralModal(false)} size="lg">
-        <Modal.Header closeButton>
+      <Modal show={showReferralModal} onHide={() => setShowReferralModal(false)} size="lg" centered>
+        <Modal.Header closeButton style={{border: 'none', paddingBottom: 0}}>
           <Modal.Title>
-            <Clipboard size={24} className="me-2 text-info" />
-            Tạo Chỉ định Cận Lâm Sàng
+            <div className="d-flex align-items-center">
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #4299e1 0%, #3182ce 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '12px'
+              }}>
+                <Clipboard size={24} color="white" />
+              </div>
+              <div>
+                <h5 className="mb-0" style={{fontWeight: 600, color: '#1a202c'}}>Tạo Chỉ định Cận Lâm Sàng</h5>
+                <small style={{color: '#718096'}}>Yêu cầu xét nghiệm hoặc chẩn đoán hình ảnh</small>
+              </div>
+            </div>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <Alert variant="info">
-            <strong>📋 Thông tin bệnh nhân:</strong> {formData.patientName || patientInfo?.name || 'N/A'}
-          </Alert>
+        <Modal.Body style={{padding: '24px'}}>
+          <div style={{
+            background: 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%)',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <div style={{fontSize: '14px', color: '#1a202c'}}>
+              <strong>📋 Thông tin bệnh nhân:</strong> {formData.patientName || patientInfo?.name || 'N/A'}
+            </div>
+          </div>
 
           <Form.Group className="mb-3">
-            <Form.Label>Chọn khoa thực hiện <span className="text-danger">*</span></Form.Label>
+            <Form.Label style={{fontSize: '14px', fontWeight: 600, color: '#4a5568'}}>
+              Chọn khoa thực hiện <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Select
               value={referralData.toDepartmentId}
               onChange={(e) => setReferralData(prev => ({...prev, toDepartmentId: e.target.value}))}
+              style={{
+                height: '48px',
+                borderRadius: '12px',
+                border: '2px solid #e2e8f0',
+                fontSize: '14px'
+              }}
             >
               <option value="">-- Chọn khoa --</option>
               {departments.map(dept => (
@@ -1143,27 +1372,65 @@ const PrescriptionForm = () => {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Yêu cầu cận lâm sàng <span className="text-danger">*</span></Form.Label>
+            <Form.Label style={{fontSize: '14px', fontWeight: 600, color: '#4a5568'}}>
+              Yêu cầu cận lâm sàng <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Control
               as="textarea"
-              rows={4}
+              rows={5}
               placeholder="Nhập chi tiết yêu cầu xét nghiệm hoặc chẩn đoán hình ảnh...&#10;Ví dụ:&#10;- Xét nghiệm công thức máu&#10;- Chụp X-quang phổi&#10;- Siêu âm bụng tổng quát"
               value={referralData.notes}
               onChange={(e) => setReferralData(prev => ({...prev, notes: e.target.value}))}
+              style={{
+                borderRadius: '12px',
+                border: '2px solid #e2e8f0',
+                fontSize: '14px',
+                resize: 'none'
+              }}
             />
           </Form.Group>
 
-          <Alert variant="warning">
-            <strong>⚠️ Lưu ý:</strong> Sau khi tạo chỉ định, trạng thái lịch hẹn sẽ chuyển sang "REFERRED". 
-            Bệnh nhân sẽ đến khoa được chỉ định để thực hiện xét nghiệm/chẩn đoán.
-          </Alert>
+          <div style={{
+            background: '#fffaf0',
+            border: '2px solid #fbd38d',
+            borderRadius: '12px',
+            padding: '16px'
+          }}>
+            <div style={{fontSize: '14px', color: '#744210'}}>
+              <strong>⚠️ Lưu ý:</strong> Sau khi tạo chỉ định, trạng thái lịch hẹn sẽ chuyển sang "REFERRED". 
+              Bệnh nhân sẽ đến khoa được chỉ định để thực hiện xét nghiệm/chẩn đoán.
+            </div>
+          </div>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowReferralModal(false)}>
+        <Modal.Footer style={{border: 'none', padding: '0 24px 24px'}}>
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => setShowReferralModal(false)}
+            style={{
+              height: '48px',
+              borderRadius: '12px',
+              padding: '0 24px',
+              border: '2px solid #e2e8f0',
+              fontWeight: 500
+            }}
+          >
             Hủy
           </Button>
-          <Button variant="primary" onClick={handleCreateReferral}>
-            <Clipboard size={18} className="me-1" />
+          <Button 
+            onClick={handleCreateReferral}
+            style={{
+              height: '48px',
+              borderRadius: '12px',
+              padding: '0 24px',
+              background: 'linear-gradient(135deg, #4299e1 0%, #3182ce 100%)',
+              border: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: 500
+            }}
+          >
+            <Clipboard size={18} />
             Tạo Chỉ Định
           </Button>
         </Modal.Footer>

@@ -40,13 +40,13 @@ public class GeminiChatController {
      * @return AI response
      */
     @PostMapping
-    public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, Object> request) {
         System.out.println("=== GEMINI CHAT CONTROLLER: Request received ===");
         System.out.println("Request body: " + request);
         log.info("Received Gemini chat request");
         
         try {
-            String userMessage = request.get("message");
+            String userMessage = request.get("message") != null ? request.get("message").toString() : null;
             System.out.println("User message: " + userMessage);
             
             if (userMessage == null || userMessage.trim().isEmpty()) {
@@ -55,7 +55,16 @@ public class GeminiChatController {
                 return ResponseEntity.badRequest().body(errorResponse);
             }
             
-            ChatbotResponseDto aiResponse = geminiService.getChatResponse(userMessage);
+            String context = request.get("context") != null ? request.get("context").toString() : null;
+            @SuppressWarnings("unchecked")
+            List<String> keywords = request.get("keywords") instanceof List ? (List<String>) request.get("keywords") : null;
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> history = request.get("history") instanceof List ? (List<Map<String, Object>>) request.get("history") : null;
+
+            String contextualSummary = mergeContexts(context, summarizeHistory(history));
+            String composedMessage = geminiService.buildMessageWithContext(userMessage, contextualSummary, keywords);
+
+            ChatbotResponseDto aiResponse = geminiService.getChatResponse(composedMessage);
 
             Map<String, Object> response = new HashMap<>();
             response.put("status", "success");
@@ -66,6 +75,8 @@ public class GeminiChatController {
             response.put("followUpQuestion", aiResponse.getFollowUpQuestion());
             response.put("department", aiResponse.getDepartment());
             response.put("doctors", aiResponse.getDoctors());
+            response.put("symptomKeywords", aiResponse.getSymptomKeywords());
+            response.put("schemaPayload", aiResponse.getSchemaPayload());
 
             return ResponseEntity.ok(response);
             
@@ -83,6 +94,35 @@ public class GeminiChatController {
             errorResponse.put("details", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
+    }
+    
+    private String summarizeHistory(List<Map<String, Object>> history) {
+        if (history == null || history.isEmpty()) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder("Lich su hoi thoai gan nhat:\n");
+        history.stream()
+            .filter(entry -> entry != null && entry.get("content") != null)
+            .limit(6)
+            .forEach(entry -> {
+                String role = entry.getOrDefault("role", "user").toString();
+                String content = entry.get("content").toString();
+                sb.append("- ").append(role).append(": ").append(content).append("\n");
+            });
+        return sb.toString().trim();
+    }
+    
+    private String mergeContexts(String... contexts) {
+        StringBuilder sb = new StringBuilder();
+        for (String ctx : contexts) {
+            if (ctx != null && !ctx.isBlank()) {
+                if (sb.length() > 0) {
+                    sb.append("\n\n");
+                }
+                sb.append(ctx.trim());
+            }
+        }
+        return sb.toString();
     }
     
     /**

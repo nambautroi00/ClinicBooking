@@ -6,3 +6,9 @@
 /backend/uploads
 /backend/uploads
 /backend/src/test
+*.md
+/tools/
+__pycache__/
+*/__pycache__/
+tests/selenium/screenshots/
+/tests
