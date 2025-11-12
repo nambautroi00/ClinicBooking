@@ -24,49 +24,56 @@ DELETE FROM Departments;
 DBCC CHECKIDENT ('Departments', RESEED, 0);
 
 INSERT INTO Departments (department_name, Description, Status, image_url) VALUES
--- Nhóm Nội khoa
+-- ID 1-10: Nhóm Nội khoa
 (N'Nội tổng hợp', N'Khoa Nội tổng hợp - Khám và điều trị các bệnh lý nội khoa thường gặp', 'ACTIVE', '/uploads/departments/noi_tong_hop.jpg'),
-(N'Tim mạch', N'Khoa Tim mạch - Chuyên điều trị các bệnh về tim và mạch máu', 'ACTIVE', '/uploads/departments/tim_mach.jpg'),
-(N'Hô hấp', N'Khoa Hô hấp - Chuyên điều trị các bệnh lý phổi và đường hô hấp', 'ACTIVE', '/uploads/departments/ho_hap.jpg'),
-(N'Tiêu hóa', N'Khoa Tiêu hóa - Chuyên điều trị các bệnh về dạ dày, gan, mật và ruột', 'ACTIVE', '/uploads/departments/tieu_hoa.jpg'),
-(N'Thận - Tiết niệu', N'Khoa Thận - Tiết niệu - Điều trị bệnh thận và hệ tiết niệu', 'ACTIVE', '/uploads/departments/noi_than.jpg'),
-(N'Nội tiết', N'Khoa Nội tiết - Điều trị bệnh đái tháo đường, tuyến giáp và rối loạn chuyển hóa', 'ACTIVE', '/uploads/departments/noi_tiet.jpg'),
-(N'Thần kinh', N'Khoa Thần kinh - Điều trị các bệnh về thần kinh trung ương và ngoại biên', 'ACTIVE', '/uploads/departments/noi_than_kinh.jpg'),
+(N'Tim mạch', N'Khoa Tim mạch - Chuyên điều trị cao huyết áp, suy tim, rối loạn nhịp tim, bệnh mạch vành', 'ACTIVE', '/uploads/departments/tim_mach.jpg'),
+(N'Hô hấp', N'Khoa Hô hấp - Chuyên điều trị viêm phổi, hen suyễn, COPD, bệnh phổi tắc nghẽn mãn tính', 'ACTIVE', '/uploads/departments/ho_hap.jpg'),
+(N'Tiêu hóa', N'Khoa Tiêu hóa - Chuyên điều trị viêm loét dạ dày, viêm gan, sỏi mật, viêm đại tràng', 'ACTIVE', '/uploads/departments/tieu_hoa.jpg'),
+(N'Nội thận', N'Khoa Nội thận - Điều trị suy thận, lọc máu, ghép thận, bệnh thận mạn tính', 'ACTIVE', '/uploads/departments/noi_than.jpg'),
+(N'Nội tiết', N'Khoa Nội tiết - Điều trị đái tháo đường, bệnh tuyến giáp, béo phì, loãng xương', 'ACTIVE', '/uploads/departments/noi_tiet.jpg'),
+(N'Nội thần kinh', N'Khoa Nội thần kinh - Điều trị đột quỵ, động kinh, Parkinson, đau đầu migraine', 'ACTIVE', '/uploads/departments/noi_than_kinh.jpg'),
+(N'Huyết học', N'Khoa Huyết học - Chuyên điều trị các bệnh về máu, tủy xương, thiếu máu, bạch cầu', 'ACTIVE', '/uploads/departments/huyet_hoc.jpg'),
+(N'Lao & Bệnh phổi', N'Khoa Lao & Bệnh phổi - Điều trị bệnh lao, bệnh phổi mãn tính, viêm phế quản', 'ACTIVE', '/uploads/departments/lao_benh_phoi.jpg'),
+(N'Truyền nhiễm', N'Khoa Truyền nhiễm - Cách ly và điều trị các bệnh nhiễm trùng, truyền nhiễm', 'ACTIVE', '/uploads/departments/truyen_nhiem.jpg'),
 
--- Nhóm Ngoại khoa
-(N'Ngoại tổng hợp', N'Khoa Ngoại tổng hợp - Thực hiện phẫu thuật các bệnh lý ngoại khoa', 'ACTIVE', '/uploads/departments/ngoai_tong_hop.jpg'),
-(N'Chấn thương chỉnh hình', N'Khoa Chấn thương chỉnh hình - Điều trị gãy xương, trật khớp và phẫu thuật chỉnh hình', 'ACTIVE', '/uploads/departments/chan_thuong_chinh_hinh.jpg'),
-(N'Ngoại thần kinh', N'Khoa Ngoại thần kinh - Phẫu thuật điều trị các bệnh lý hệ thần kinh', 'ACTIVE', '/uploads/departments/ngoai_than_kinh.jpg'),
-(N'Ngoại tiêu hóa', N'Khoa Ngoại tiêu hóa - Phẫu thuật các bệnh dạ dày, ruột, gan, mật', 'ACTIVE', '/uploads/departments/ngoai_nieu.jpg'),
-(N'Ngoại lồng ngực', N'Khoa Ngoại lồng ngực - Phẫu thuật tim, phổi và mạch máu lớn', 'ACTIVE', '/uploads/departments/ngoai_tiet_nieu.jpg'),
+-- ID 11-17: Nhóm Ngoại khoa và Cấp cứu
+(N'Ngoại tổng hợp', N'Khoa Ngoại tổng hợp - Phẫu thuật viêm ruột thừa, thoát vị, u nang, cắt amidan', 'ACTIVE', '/uploads/departments/ngoai_tong_hop.jpg'),
+(N'Ngoại thần kinh', N'Khoa Ngoại thần kinh - Phẫu thuật u não, chấn thương sọ não, thoát vị đĩa đệm', 'ACTIVE', '/uploads/departments/ngoai_than_kinh.jpg'),
+(N'Ngoại niệu', N'Khoa Ngoại niệu - Phẫu thuật sỏi thận, ung thư bàng quang, phì đại tuyến tiền liệt', 'ACTIVE', '/uploads/departments/ngoai_nieu.jpg'),
+(N'Ngoại tiết niệu', N'Khoa Ngoại tiết niệu - Điều trị sỏi thận, sỏi bàng quang, ung thư tiết niệu', 'ACTIVE', '/uploads/departments/ngoai_tiet_nieu.jpg'),
+(N'Chấn thương chỉnh hình', N'Khoa Chấn thương chỉnh hình - Điều trị gãy xương, trật khớp, phẫu thuật thay khớp', 'ACTIVE', '/uploads/departments/chan_thuong_chinh_hinh.jpg'),
+(N'Phẫu thuật tạo hình', N'Khoa Phẫu thuật tạo hình - Phẫu thuật thẩm mỹ, tái tạo, sửa chữa dị tật', 'ACTIVE', '/uploads/departments/phau_thuat_tao_hinh.jpg'),
+(N'Cấp cứu', N'Khoa Cấp cứu - Tiếp nhận và xử lý bệnh nhân cấp cứu 24/7, chấn thương, ngộ độc', 'ACTIVE', '/uploads/departments/cap_cuu.jpg'),
 
--- Nhóm Sản - Nhi - Phụ
-(N'Sản phụ khoa', N'Khoa Sản phụ khoa - Chăm sóc sức khỏe sinh sản và thai sản', 'ACTIVE', '/uploads/departments/san_phu_khoa.jpg'),
-(N'Nhi khoa', N'Khoa Nhi - Khám và điều trị cho trẻ em', 'ACTIVE', '/uploads/departments/nhi_khoa.jpg'),
+-- ID 18-27: Nhóm Chuyên khoa
+(N'Da liễu', N'Khoa Da liễu - Điều trị mụn trứng cá, viêm da, nấm da, zona, vảy nến', 'ACTIVE', '/uploads/departments/da_lieu.jpg'),
+(N'Nhi khoa', N'Khoa Nhi - Khám và điều trị cho trẻ em từ sơ sinh đến 16 tuổi, tiêm chủng', 'ACTIVE', '/uploads/departments/nhi_khoa.jpg'),
+(N'Sản phụ khoa', N'Khoa Sản phụ khoa - Chăm sóc thai sản, đẻ thường, mổ đẻ, điều trị vô sinh', 'ACTIVE', '/uploads/departments/san_phu_khoa.jpg'),
+(N'Tai Mũi Họng', N'Khoa Tai Mũi Họng - Điều trị viêm amidan, viêm xoang, điếc, ù tai, polyp mũi', 'ACTIVE', '/uploads/departments/tai_mui_hong.jpg'),
+(N'Nhãn khoa', N'Khoa Nhãn khoa - Điều trị cận thị, viễn thị, đục thủy tinh thể, glaucoma', 'ACTIVE', '/uploads/departments/nhan_khoa.jpg'),
+(N'Răng Hàm Mặt', N'Khoa Răng Hàm Mặt - Nhổ răng, trám răng, bọc răng sứ, niềng răng, cấy ghép implant', 'ACTIVE', '/uploads/departments/rang_ham_mat.jpg'),
+(N'Lão khoa', N'Khoa Lão khoa - Chăm sóc sức khỏe người cao tuổi, điều trị bệnh lý mãn tính', 'ACTIVE', '/uploads/departments/lao_khoa.jpg'),
+(N'Nam khoa', N'Khoa Nam khoa - Điều trị các bệnh lý nam giới, rối loạn cương dương, vô sinh nam', 'ACTIVE', '/uploads/departments/nam_khoa.jpg'),
+(N'Vô sinh - Hiếm muộn', N'Khoa Vô sinh - Hiếm muộn - Hỗ trợ sinh sản, thụ tinh ống nghiệm IVF', 'ACTIVE', '/uploads/departments/vo_sinh_hiem_muon.jpg'),
+(N'Cơ xương khớp', N'Khoa Cơ xương khớp - Điều trị thoái hóa khớp, viêm khớp dạng thấp, loãng xương', 'ACTIVE', '/uploads/departments/co_xuong_khop.jpg'),
 
--- Nhóm Cận lâm sàng
-(N'Chẩn đoán hình ảnh', N'Khoa Chẩn đoán hình ảnh - Siêu âm, X-quang, CT, MRI', 'ACTIVE', '/uploads/departments/chan_doan_hinh_anh.jpg'),
-(N'Xét nghiệm', N'Khoa Xét nghiệm - Thực hiện các xét nghiệm máu, nước tiểu, sinh hóa', 'ACTIVE', '/uploads/departments/xet_nghiem.jpg'),
-(N'Giải phẫu bệnh', N'Khoa Giải phẫu bệnh - Phân tích mô bệnh học và tế bào học', 'ACTIVE', '/uploads/departments/phau_thuat_tao_hinh.jpg'),
+-- ID 28-30: Nhóm Cận lâm sàng
+(N'Chẩn đoán hình ảnh', N'Khoa Chẩn đoán hình ảnh - Siêu âm, X-quang, CT Scanner, MRI, chụp mạch máu', 'ACTIVE', '/uploads/departments/chan_doan_hinh_anh.jpg'),
+(N'Xét nghiệm', N'Khoa Xét nghiệm - Xét nghiệm máu, nước tiểu, sinh hóa, vi sinh, miễn dịch', 'ACTIVE', '/uploads/departments/xet_nghiem.jpg'),
+(N'Gây mê hồi sức', N'Khoa Gây mê hồi sức - Gây mê phẫu thuật, hồi sức tích cực, chăm sóc đặc biệt', 'ACTIVE', '/uploads/departments/gay_me_hoi_suc.jpg'),
 
--- Nhóm Khám chuyên khoa sâu
-(N'Da liễu', N'Khoa Da liễu - Điều trị các bệnh về da, tóc và móng', 'ACTIVE', '/uploads/departments/da_lieu.jpg'),
-(N'Tai - Mũi - Họng', N'Khoa Tai - Mũi - Họng - Khám và điều trị các bệnh đường hô hấp trên', 'ACTIVE', '/uploads/departments/tai_mui_hong.jpg'),
-(N'Răng - Hàm - Mặt', N'Khoa Răng - Hàm - Mặt - Khám và điều trị răng miệng', 'ACTIVE', '/uploads/departments/rang_ham_mat.jpg'),
-(N'Mắt', N'Khoa Mắt - Khám và điều trị bệnh lý về mắt', 'ACTIVE', '/uploads/departments/nhan_khoa.jpg'),
-(N'Cơ - Xương - Khớp', N'Khoa Cơ - Xương - Khớp - Điều trị thoái hóa khớp, viêm khớp, loãng xương', 'ACTIVE', '/uploads/departments/co_xuong_khop.jpg'),
-(N'Ung bướu', N'Khoa Ung bướu - Điều trị ung thư và các khối u ác tính', 'ACTIVE', '/uploads/departments/ung_buou.jpg'),
+-- ID 31-37: Nhóm Hỗ trợ điều trị
+(N'Phục hồi chức năng - Vật lý trị liệu', N'Khoa Phục hồi chức năng - Vật lý trị liệu, phục hồi sau đột quỵ, chấn thương', 'ACTIVE', '/uploads/departments/phuc_hoi_chuc_nang_vat_ly_tri_lieu.jpg'),
+(N'Dinh dưỡng', N'Khoa Dinh dưỡng - Tư vấn chế độ ăn cho bệnh nhân tiểu đường, tim mạch, thận', 'ACTIVE', '/uploads/departments/dinh_duong.jpg'),
+(N'Tâm lý', N'Khoa Tâm lý - Tư vấn và điều trị các vấn đề tâm lý, stress, lo âu, trầm cảm', 'ACTIVE', '/uploads/departments/tam_ly.jpg'),
+(N'Tâm thần', N'Khoa Tâm thần - Điều trị các bệnh lý tâm thần, rối loạn tâm thần phân liệt', 'ACTIVE', '/uploads/departments/tam_than.jpg'),
+(N'Ung bướu', N'Khoa Ung bướu - Điều trị ung thư (hóa trị, xạ trị), chăm sóc giảm nhẹ', 'ACTIVE', '/uploads/departments/ung_buou.jpg'),
+(N'Y học cổ truyền', N'Khoa Y học cổ truyền - Châm cứu, bấm huyệt, đông y, thảo dược', 'ACTIVE', '/uploads/departments/y_hoc_co_truyen.jpg'),
+(N'Y học dự phòng', N'Khoa Y học dự phòng - Tiêm chủng, tư vấn sức khỏe cộng đồng, kiểm soát dịch bệnh', 'ACTIVE', '/uploads/departments/y_hoc_du_phong.jpg'),
 
--- Nhóm Hỗ trợ điều trị
-(N'Phục hồi chức năng', N'Khoa Phục hồi chức năng - Tập vật lý trị liệu, phục hồi sau phẫu thuật', 'ACTIVE', '/uploads/departments/phuc_hoi_chuc_nang_vat_ly_tri_lieu.jpg'),
-(N'Dinh dưỡng', N'Khoa Dinh dưỡng - Tư vấn và xây dựng chế độ ăn cho bệnh nhân', 'ACTIVE', '/uploads/departments/dinh_duong.jpg'),
-(N'Tâm lý - Tâm thần', N'Khoa Tâm lý - Tâm thần - Hỗ trợ điều trị rối loạn tâm lý và tâm thần', 'ACTIVE', '/uploads/departments/tam_ly.jpg'),
-
--- Nhóm Quản lý & Hành chính
-(N'Cấp cứu', N'Khoa Cấp cứu - Tiếp nhận và xử lý bệnh nhân cấp cứu 24/7', 'ACTIVE', '/uploads/departments/cap_cuu.jpg'),
-(N'Kiểm soát nhiễm khuẩn', N'Khoa Kiểm soát nhiễm khuẩn - Đảm bảo vệ sinh và an toàn trong bệnh viện', 'ACTIVE', '/uploads/departments/gay_me_hoi_suc.jpg'),
-(N'Dược', N'Khoa Dược - Quản lý thuốc và vật tư y tế', 'ACTIVE', '/uploads/departments/y_hoc_co_truyen.jpg'),
-(N'Hành chính', N'Phòng Hành chính - Quản lý hồ sơ, nhân sự và hành chính bệnh viện', 'ACTIVE', '/uploads/departments/y_hoc_du_phong.jpg');
+-- ID 38-39: Nhóm Đặc biệt
+(N'Đa khoa', N'Khoa Đa khoa - Khám và điều trị đa chuyên khoa, tổng quát', 'ACTIVE', '/uploads/departments/da_khoa.webp'),
+(N'Ngôn ngữ trị liệu', N'Khoa Ngôn ngữ trị liệu - Hỗ trợ phát triển ngôn ngữ và giao tiếp cho trẻ em', 'ACTIVE', '/uploads/departments/ngon_ngu_tri_lieu.jpg');
 
 
 -- ===========================================================
@@ -78,6 +85,14 @@ INSERT INTO users (Email, password_hash, first_name, last_name, Phone, gender, D
 ('admin@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'System', N'Admin', '0123456789', 'MALE', '1980-01-01', N'Hà Nội', 1, 'ACTIVE', GETDATE()),
 ('admin2@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Quản', N'Trị', '0123456788', 'FEMALE', '1985-03-15', N'TP.HCM', 1, 'ACTIVE', GETDATE());
 
+-- Patient users
+INSERT INTO users (Email, password_hash, first_name, last_name, Phone, Gender, DOB, Address, RoleID, Status, created_at) VALUES 
+('patient1@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'An', N'Phạm Văn', '0911111111', 'MALE', '2000-03-20', N'Hà Nội', 3, 'ACTIVE', GETDATE()),
+('patient2@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Hoa', N'Ngô Thị', '0922222222', 'FEMALE', '1995-07-12', N'TP.HCM', 3, 'ACTIVE', GETDATE()),
+('patient3@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Long', N'Trần Văn', '0933333333', 'MALE', '1992-11-05', N'Đà Nẵng', 3, 'ACTIVE', GETDATE()),
+('patient4@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Mai', N'Lê Thị', '0944444444', 'FEMALE', '1988-09-18', N'Hải Phòng', 3, 'ACTIVE', GETDATE()),
+('patient5@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Nam', N'Nguyễn Văn', '0955555555', 'MALE', '1990-01-30', N'Cần Thơ', 3, 'ACTIVE', GETDATE()),
+('patient6@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Thu', N'Phạm Thị', '0966666666', 'FEMALE', '1993-06-14', N'Vũng Tàu', 3, 'ACTIVE', GETDATE());
 -- Doctor users
 INSERT INTO users(Email, password_hash, first_name, last_name, Phone, Gender, DOB, Address, RoleID, Status, created_at) VALUES 
 ('doctor1@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Hùng', N'Nguyễn Văn', '0987654321', 'MALE', '1975-05-10', N'TP.HCM', 2, 'ACTIVE', GETDATE()),
@@ -113,60 +128,65 @@ INSERT INTO users(Email, password_hash, first_name, last_name, Phone, Gender, DO
 ('doctor31@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Sơn', N'Nguyễn Văn', '0987654031', 'MALE', '1981-11-12', N'Quảng Ngãi', 2, 'ACTIVE', GETDATE()),
 ('doctor32@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Thảo', N'Trần Thị', '0987654032', 'FEMALE', '1983-08-25', N'Quảng Trị', 2, 'ACTIVE', GETDATE());
 
--- Patient users
-INSERT INTO users (Email, password_hash, first_name, last_name, Phone, Gender, DOB, Address, RoleID, Status, created_at) VALUES 
-('patient1@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'An', N'Phạm Văn', '0911111111', 'MALE', '2000-03-20', N'Hà Nội', 3, 'ACTIVE', GETDATE()),
-('patient2@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Hoa', N'Ngô Thị', '0922222222', 'FEMALE', '1995-07-12', N'TP.HCM', 3, 'ACTIVE', GETDATE()),
-('patient3@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Long', N'Trần Văn', '0933333333', 'MALE', '1992-11-05', N'Đà Nẵng', 3, 'ACTIVE', GETDATE()),
-('patient4@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Mai', N'Lê Thị', '0944444444', 'FEMALE', '1988-09-18', N'Hải Phòng', 3, 'ACTIVE', GETDATE()),
-('patient5@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Nam', N'Nguyễn Văn', '0955555555', 'MALE', '1990-01-30', N'Cần Thơ', 3, 'ACTIVE', GETDATE()),
-('patient6@clinic.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', N'Thu', N'Phạm Thị', '0966666666', 'FEMALE', '1993-06-14', N'Vũng Tàu', 3, 'ACTIVE', GETDATE());
+DECLARE @i INT = 1;
+
+WHILE @i <= 124
+BEGIN
+	INSERT INTO Users(Email, password_hash, first_name, last_name, Phone, Gender, DOB, Address, RoleID, Status, created_at)
+	VALUES (
+		CONCAT('autodoctor', @i, '@clinic.com'),
+		'$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTV5DCi', -- password 123456
+		N'Doctor',
+		CONCAT('Auto', @i),
+		CONCAT('090', FORMAT(@i, '000000')),
+		'MALE',
+		'1985-01-01',
+		N'Hà Nội',
+		2, -- RoleID doctor
+		'ACTIVE',
+		GETDATE()
+	);
+
+	SET @i = @i + 1;
+END;
+
 
 -- ===========================================================
 -- 4. DOCTORS (Bác sĩ)
 -- ===========================================================
 INSERT INTO Doctors (UserID, DepartmentID, Specialty, Bio) VALUES 
--- Doctor 1-5 (Nội khoa)
-(3, 1, N'Nội tổng hợp', N'Bác sĩ chuyên khoa nội tổng hợp với 15 năm kinh nghiệm, chuyên khám và điều trị các bệnh lý nội khoa thường gặp'),
-(4, 2, N'Tim mạch', N'Bác sĩ chuyên khoa tim mạch, chuyên điều trị các bệnh về tim và mạch máu, có kinh nghiệm 12 năm'),
-(5, 3, N'Hô hấp', N'Bác sĩ chuyên khoa hô hấp, chuyên điều trị các bệnh lý phổi và đường hô hấp'),
-(6, 4, N'Tiêu hóa', N'Bác sĩ chuyên khoa tiêu hóa, chuyên điều trị các bệnh về dạ dày, gan, mật và ruột'),
-(7, 5, N'Thận - Tiết niệu', N'Bác sĩ chuyên khoa thận - tiết niệu, điều trị bệnh thận và hệ tiết niệu'),
 
--- Doctor 8-12 (Nội tiết, Thần kinh, Ngoại khoa)
-(8, 6, N'Nội tiết', N'Bác sĩ chuyên khoa nội tiết, điều trị bệnh đái tháo đường, tuyến giáp và rối loạn chuyển hóa'),
-(9, 7, N'Thần kinh', N'Bác sĩ chuyên khoa thần kinh, điều trị các bệnh về thần kinh trung ương và ngoại biên'),
-(10, 8, N'Ngoại tổng hợp', N'Bác sĩ chuyên khoa ngoại tổng hợp, thực hiện phẫu thuật các bệnh lý ngoại khoa'),
-(11, 9, N'Chấn thương chỉnh hình', N'Bác sĩ chuyên khoa chấn thương chỉnh hình, điều trị gãy xương, trật khớp và phẫu thuật chỉnh hình'),
-(12, 10, N'Ngoại thần kinh', N'Bác sĩ chuyên khoa ngoại thần kinh, phẫu thuật điều trị các bệnh lý hệ thần kinh'),
+;WITH DoctorList AS (
+    SELECT userid,
+           ROW_NUMBER() OVER (ORDER BY userid) AS rn
+    FROM Users
+    WHERE RoleID = 2
+),
+DeptCount AS (
+    SELECT COUNT(*) AS totalDept FROM Departments
+),
+FinalAssign AS (
+    SELECT 
+        ROW_NUMBER() OVER (ORDER BY d.userid) AS doctorid,
+        d.userid,
+        ((rn-1)/4) + 1 AS departmentid
+    FROM DoctorList d
+    CROSS JOIN DeptCount c
+    WHERE ((rn-1)/4) + 1 <= c.totalDept
+)
+INSERT INTO Doctors(
+    doctorid, userid, departmentid, specialty, bio, status, created_at
+)
+SELECT 
+    doctorid,
+    userid,
+    departmentid,
+    N'Bác sĩ chuyên khoa',
+    N'Đang cập nhật',
+    'ACTIVE',
+    GETDATE()
+FROM FinalAssign;
 
--- Doctor 13-17 (Ngoại tiêu hóa, Ngoại lồng ngực, Sản phụ khoa, Nhi khoa, Chẩn đoán hình ảnh)
-(13, 11, N'Ngoại tiêu hóa', N'Bác sĩ chuyên khoa ngoại tiêu hóa, phẫu thuật các bệnh dạ dày, ruột, gan, mật'),
-(14, 12, N'Ngoại lồng ngực', N'Bác sĩ chuyên khoa ngoại lồng ngực, phẫu thuật tim, phổi và mạch máu lớn'),
-(15, 13, N'Sản phụ khoa', N'Bác sĩ chuyên khoa sản phụ khoa, chăm sóc sức khỏe sinh sản và thai sản'),
-(16, 14, N'Nhi khoa', N'Bác sĩ chuyên khoa nhi, khám và điều trị cho trẻ em'),
-(17, 15, N'Chẩn đoán hình ảnh', N'Bác sĩ chuyên khoa chẩn đoán hình ảnh, siêu âm, X-quang, CT, MRI'),
-
--- Doctor 18-22 (Xét nghiệm, Giải phẫu bệnh, Da liễu, Tai Mũi Họng, Răng Hàm Mặt)
-(18, 16, N'Xét nghiệm', N'Bác sĩ chuyên khoa xét nghiệm, thực hiện các xét nghiệm máu, nước tiểu, sinh hóa'),
-(19, 17, N'Giải phẫu bệnh', N'Bác sĩ chuyên khoa giải phẫu bệnh, phân tích mô bệnh học và tế bào học'),
-(20, 18, N'Da liễu', N'Bác sĩ chuyên khoa da liễu, điều trị các bệnh về da, tóc và móng'),
-(21, 19, N'Tai - Mũi - Họng', N'Bác sĩ chuyên khoa tai - mũi - họng, khám và điều trị các bệnh đường hô hấp trên'),
-(22, 20, N'Răng - Hàm - Mặt', N'Bác sĩ chuyên khoa răng - hàm - mặt, khám và điều trị răng miệng'),
-
--- Doctor 23-27 (Mắt, Cơ Xương Khớp, Ung bướu, Phục hồi chức năng, Dinh dưỡng)
-(23, 21, N'Mắt', N'Bác sĩ chuyên khoa mắt, khám và điều trị bệnh lý về mắt'),
-(24, 22, N'Cơ - Xương - Khớp', N'Bác sĩ chuyên khoa cơ - xương - khớp, điều trị thoái hóa khớp, viêm khớp, loãng xương'),
-(25, 23, N'Ung bướu', N'Bác sĩ chuyên khoa ung bướu, điều trị ung thư và các khối u ác tính'),
-(26, 24, N'Phục hồi chức năng', N'Bác sĩ chuyên khoa phục hồi chức năng, tập vật lý trị liệu, phục hồi sau phẫu thuật'),
-(27, 25, N'Dinh dưỡng', N'Bác sĩ chuyên khoa dinh dưỡng, tư vấn và xây dựng chế độ ăn cho bệnh nhân'),
-
--- Doctor 28-32 (Tâm lý Tâm thần, Cấp cứu, Kiểm soát nhiễm khuẩn, Dược, Hành chính)
-(28, 26, N'Tâm lý - Tâm thần', N'Bác sĩ chuyên khoa tâm lý - tâm thần, hỗ trợ điều trị rối loạn tâm lý và tâm thần'),
-(29, 27, N'Cấp cứu', N'Bác sĩ chuyên khoa cấp cứu, tiếp nhận và xử lý bệnh nhân cấp cứu 24/7'),
-(30, 28, N'Kiểm soát nhiễm khuẩn', N'Bác sĩ chuyên khoa kiểm soát nhiễm khuẩn, đảm bảo vệ sinh và an toàn trong bệnh viện'),
-(31, 29, N'Dược', N'Bác sĩ chuyên khoa dược, quản lý thuốc và vật tư y tế'),
-(32, 30, N'Hành chính', N'Bác sĩ chuyên khoa hành chính, quản lý hồ sơ, nhân sự và hành chính bệnh viện');
 
 -- ===========================================================
 -- 5. PATIENTS (Bệnh nhân)
@@ -399,244 +419,6 @@ INSERT INTO system_notifications(Title, Message, AppointmentID, created_at) VALU
 	select * from departments
 	delete from doctors
 
-UPDATE Departments 
-SET image_url = '/uploads/departments/noi_tong_hop.jpg'
-WHERE DepartmentID = 1;
-GO
-
--- Khoa ID 2: Tim mạch
-UPDATE Departments 
-SET image_url = '/uploads/departments/tim_mach.jpg'
-WHERE DepartmentID = 2;
-GO
-
--- Khoa ID 3: Hô hấp
-UPDATE Departments 
-SET image_url = '/uploads/departments/ho_hap.jpg'
-WHERE DepartmentID = 3;
-GO
-
--- Khoa ID 4: Tiêu hóa
-UPDATE Departments 
-SET image_url = '/uploads/departments/tieu_hoa.jpg'
-WHERE DepartmentID = 4;
-GO
-
--- Khoa ID 5: Nội thận
-UPDATE Departments 
-SET image_url = '/uploads/departments/noi_than.jpg'
-WHERE DepartmentID = 5;
-GO
-
--- Khoa ID 6: Nội tiết
-UPDATE Departments 
-SET image_url = '/uploads/departments/noi_tiet.jpg'
-WHERE DepartmentID = 6;
-GO
-
--- Khoa ID 7: Nội thần kinh
-UPDATE Departments 
-SET image_url = '/uploads/departments/noi_than_kinh.jpg'
-WHERE DepartmentID = 7;
-GO
-
--- Khoa ID 8: Huyết học
-UPDATE Departments 
-SET image_url = '/uploads/departments/huyet_hoc.jpg'
-WHERE DepartmentID = 8;
-GO
-
--- Khoa ID 9: Lao & Bệnh phổi
-UPDATE Departments 
-SET image_url = '/uploads/departments/lao_benh_phoi.jpg'
-WHERE DepartmentID = 9;
-GO
-
--- Khoa ID 10: Truyền nhiễm
-UPDATE Departments 
-SET image_url = '/uploads/departments/truyen_nhiem.jpg'
-WHERE DepartmentID = 10;
-GO
-
--- Khoa ID 11: Ngoại tổng hợp
-UPDATE Departments 
-SET image_url = '/uploads/departments/ngoai_tong_hop.jpg'
-WHERE DepartmentID = 11;
-GO
-
--- Khoa ID 12: Ngoại thần kinh
-UPDATE Departments 
-SET image_url = '/uploads/departments/ngoai_than_kinh.jpg'
-WHERE DepartmentID = 12;
-GO
-
--- Khoa ID 13: Ngoại niệu
-UPDATE Departments 
-SET image_url = '/uploads/departments/ngoai_nieu.jpg'
-WHERE DepartmentID = 13;
-GO
-
--- Khoa ID 14: Ngoại tiết niệu
-UPDATE Departments 
-SET image_url = '/uploads/departments/ngoai_tiet_nieu.jpg'
-WHERE DepartmentID = 14;
-GO
-
--- Khoa ID 15: Chấn thương chỉnh hình
-UPDATE Departments 
-SET image_url = '/uploads/departments/chan_thuong_chinh_hinh.jpg'
-WHERE DepartmentID = 15;
-GO
-
--- Khoa ID 16: Phẫu thuật tạo hình
-UPDATE Departments 
-SET image_url = '/uploads/departments/phau_thuat_tao_hinh.jpg'
-WHERE DepartmentID = 16;
-GO
-
--- Khoa ID 17: Cấp cứu
-UPDATE Departments 
-SET image_url = '/uploads/departments/cap_cuu.jpg'
-WHERE DepartmentID = 17;
-GO
-
--- Khoa ID 18: Da liễu
-UPDATE Departments 
-SET image_url = '/uploads/departments/da_lieu.jpg'
-WHERE DepartmentID = 18;
-GO
-
--- Khoa ID 19: Nhi khoa
-UPDATE Departments 
-SET image_url = '/uploads/departments/nhi_khoa.jpg'
-WHERE DepartmentID = 19;
-GO
-
--- Khoa ID 20: Sản phụ khoa
-UPDATE Departments 
-SET image_url = '/uploads/departments/san_phu_khoa.jpg'
-WHERE DepartmentID = 20;
-GO
-
--- Khoa ID 21: Tai Mũi Họng
-UPDATE Departments 
-SET image_url = '/uploads/departments/tai_mui_hong.jpg'
-WHERE DepartmentID = 21;
-GO
-
--- Khoa ID 22: Nhãn khoa
-UPDATE Departments 
-SET image_url = '/uploads/departments/nhan_khoa.jpg'
-WHERE DepartmentID = 22;
-GO
-
--- Khoa ID 23: Răng Hàm Mặt
-UPDATE Departments 
-SET image_url = '/uploads/departments/rang_ham_mat.jpg'
-WHERE DepartmentID = 23;
-GO
-
--- Khoa ID 24: Lão khoa
-UPDATE Departments 
-SET image_url = '/uploads/departments/lao_khoa.jpg'
-WHERE DepartmentID = 24;
-GO
-
--- Khoa ID 25: Nam khoa
-UPDATE Departments 
-SET image_url = '/uploads/departments/nam_khoa.jpg'
-WHERE DepartmentID = 25;
-GO
-
--- Khoa ID 26: Vô sinh - Hiếm muộn
-UPDATE Departments 
-SET image_url = '/uploads/departments/vo_sinh_hiem_muon.jpg'
-WHERE DepartmentID = 26;
-GO
-
--- Khoa ID 27: Cơ xương khớp
-UPDATE Departments 
-SET image_url = '/uploads/departments/co_xuong_khop.jpg'
-WHERE DepartmentID = 27;
-GO
-
--- Khoa ID 28: Chẩn đoán hình ảnh
-UPDATE Departments 
-SET image_url = '/uploads/departments/chan_doan_hinh_anh.jpg'
-WHERE DepartmentID = 28;
-GO
-
--- Khoa ID 29: Xét nghiệm
-UPDATE Departments 
-SET image_url = '/uploads/departments/xet_nghiem.jpg'
-WHERE DepartmentID = 29;
-GO
-
--- Khoa ID 30: Gây mê hồi sức
-UPDATE Departments 
-SET image_url = '/uploads/departments/gay_me_hoi_suc.jpg'
-WHERE DepartmentID = 30;
-GO
-
--- Khoa ID 31: Phục hồi chức năng - Vật lý trị liệu
-UPDATE Departments 
-SET image_url = '/uploads/departments/phuc_hoi_chuc_nang_vat_ly_tri_lieu.jpg'
-WHERE DepartmentID = 31;
-GO
-
--- Khoa ID 32: Dinh dưỡng
-UPDATE Departments 
-SET image_url = '/uploads/departments/dinh_duong.jpg'
-WHERE DepartmentID = 32;
-GO
-
--- Khoa ID 33: Tâm lý
-UPDATE Departments 
-SET image_url = '/uploads/departments/tam_ly.jpg'
-WHERE DepartmentID = 33;
-GO
-
--- Khoa ID 34: Tâm thần
-UPDATE Departments 
-SET image_url = '/uploads/departments/tam_than.jpg'
-WHERE DepartmentID = 34;
-GO
-
--- Khoa ID 35: Ung bướu
-UPDATE Departments 
-SET image_url = '/uploads/departments/ung_buou.jpg'
-WHERE DepartmentID = 35;
-GO
-
--- Khoa ID 36: Y học cổ truyền
-UPDATE Departments 
-SET image_url = '/uploads/departments/y_hoc_co_truyen.jpg'
-WHERE DepartmentID = 36;
-GO
-
--- Khoa ID 37: Y học dự phòng
-UPDATE Departments 
-SET image_url = '/uploads/departments/y_hoc_du_phong.jpg'
-WHERE DepartmentID = 37;
-GO
-
--- Khoa ID 38: Đa khoa (đã có file .webp)
-UPDATE Departments 
-SET image_url = '/uploads/departments/da_khoa.webp'
-WHERE DepartmentID = 38;
-GO
-
--- Khoa ID 39: Ngôn ngữ trị liệu
-UPDATE Departments 
-SET image_url = '/uploads/departments/ngon_ngu_tri_lieu.jpg'
-WHERE DepartmentID = 39;
-GO
-
--- Khoa ID 40: Khoa đang phát triển (CLOSED)
-UPDATE Departments 
-SET image_url = '/uploads/departments/khoa_dang_phat_trien.jpg'
-WHERE DepartmentID = 40;
-GO
 --Thêm số lượng đơn thuốc
 ALTER TABLE prescription_items
 ADD quantity INT DEFAULT 1;

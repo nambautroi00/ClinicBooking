@@ -2,11 +2,14 @@ package com.example.backend.service;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import com.example.backend.model.User;
+
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.example.backend.model.User;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +17,9 @@ import com.example.backend.model.User;
 public class EmailService {
     private final JavaMailSender mailSender;
 
+    /**
+     * Gửi email văn bản thuần (plain text) - để tương thích ngược
+     */
     public void sendSimpleEmail(String to, String subject, String text) {
         System.out.println("📧 EmailService.sendSimpleEmail() called");
         System.out.println("📧 To: " + to);
@@ -40,9 +46,40 @@ public class EmailService {
             log.debug("Sent email to {} subject={}", to, subject);
         } catch (Exception ex) {
             System.err.println("❌ FAILED to send email to " + to + ": " + ex.getMessage());
-            ex.printStackTrace();
-            // if mail is not configured or fails, still log
             log.error("Failed to send email to {} subject={} error={}", to, subject, ex.getMessage());
+        }
+    }
+
+    /**
+     * Gửi email HTML với CSS đẹp
+     */
+    public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        System.out.println("📧 EmailService.sendHtmlEmail() called");
+        System.out.println("📧 To: " + to);
+        System.out.println("📧 Subject: " + subject);
+        
+        if (to == null || to.isBlank()) {
+            System.out.println("⚠️ Email to is null/blank, skipping send");
+            log.warn("Email to is null/blank, skipping send. subject={}", subject);
+            return;
+        }
+        
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true); // true = HTML content
+            
+            System.out.println("📧 Sending HTML email via JavaMailSender...");
+            mailSender.send(mimeMessage);
+            
+            System.out.println("✅ HTML Email sent successfully to: " + to);
+            log.debug("Sent HTML email to {} subject={}", to, subject);
+        } catch (Exception ex) {
+            System.err.println("❌ FAILED to send HTML email to " + to + ": " + ex.getMessage());
+            log.error("Failed to send HTML email to {} subject={} error={}", to, subject, ex.getMessage());
         }
     }
 

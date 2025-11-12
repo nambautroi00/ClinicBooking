@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 public class EmailOtpService {
 
     private final JavaMailSender mailSender;
+    private final EmailTemplateService emailTemplateService;
     
     @Value("${spring.mail.username:noreply@clinic.com}")
     private String fromEmail;
@@ -46,9 +47,9 @@ public class EmailOtpService {
             scheduleOtpExpiry(email, 5); // 5 phút
             log.info("OTP stored in memory for email: {}", email);
             
-            // Tạo email content
-            String subject = "Mã xác thực OTP - ClinicBooking";
-            String content = buildOtpEmailContent(otp);
+            // Tạo email content HTML đẹp
+            String subject = "🔐 Mã xác thực OTP - ClinicBooking";
+            String htmlContent = emailTemplateService.buildOtpEmail(otp);
             
             // Kiểm tra mail server configuration
             boolean mailConfigured = isMailServerConfigured();
@@ -58,10 +59,10 @@ public class EmailOtpService {
             
             // Gửi email (có thể simulate nếu không có mail server)
             if (mailConfigured) {
-                log.info("Attempting to send real email...");
-                boolean sent = sendEmail(email, subject, content);
+                log.info("Attempting to send real HTML email...");
+                boolean sent = sendHtmlEmail(email, subject, htmlContent);
                 if (sent) {
-                    log.info("OTP sent to email: {}", email);
+                    log.info("OTP HTML email sent to: {}", email);
                     return true;
                 } else {
                     log.error("Failed to send email, falling back to simulation");
@@ -78,6 +79,52 @@ public class EmailOtpService {
             log.error("Failed to send OTP to email: {}", email, e);
             return false;
         }
+    }
+
+    /**
+     * Gửi OTP kèm thông báo khóa tài khoản (lockout) sau khi nhập sai quá số lần cho phép
+     */
+    public boolean sendLockoutOtp(String email) {
+        try {
+            log.info("Sending LOCKOUT OTP to email: {}", email);
+            String otp = generateOtp();
+            otpStorage.put(email, otp);
+            scheduleOtpExpiry(email, 5);
+
+            String subject = "Tài khoản của bạn đã bị khóa - Mã OTP đặt lại mật khẩu";
+            String content = buildLockoutEmailContent(otp);
+
+            boolean mailConfigured = isMailServerConfigured();
+            if (mailConfigured) {
+                boolean sent = sendEmail(email, subject, content);
+                if (!sent) {
+                    simulateLockoutEmail(email, subject, otp);
+                }
+            } else {
+                simulateLockoutEmail(email, subject, otp);
+            }
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to send lockout OTP to {}", email, e);
+            return false;
+        }
+    }
+
+    private String buildLockoutEmailContent(String otp) {
+        return "Xin chào,\n\n" +
+               "Tài khoản của bạn đã bị khóa do nhập sai mật khẩu quá số lần cho phép.\n" +
+               "Để mở khóa và đặt lại mật khẩu mới, vui lòng sử dụng mã OTP sau: " + otp + "\n" +
+               "Mã này có hiệu lực trong 5 phút.\n\n" +
+               "Nếu bạn không thực hiện yêu cầu này, vui lòng liên hệ quản trị viên.\n\n" +
+               "Trân trọng,\nĐội ngũ ClinicBooking";
+    }
+
+    private void simulateLockoutEmail(String email, String subject, String otp) {
+        log.info("=== SIMULATED LOCKOUT EMAIL ===");
+        log.info("To: {}", email);
+        log.info("Subject: {}", subject);
+        log.info("OTP: {}", otp);
+        System.out.println("\n[LOCKOUT EMAIL] " + email + " | OTP: " + otp + " | Expires in 5 minutes\n");
     }
 
     // Save a pending registration (will send OTP)
@@ -99,12 +146,25 @@ public class EmailOtpService {
     }
 
     public boolean verifyOtp(String email, String inputOtp) {
+        // Debug logging
+        System.out.println("\n🔍 === DEBUG VERIFY OTP ===");
+        System.out.println("Email received: '" + email + "'");
+        System.out.println("Input OTP: '" + inputOtp + "'");
+        System.out.println("OTP storage size: " + otpStorage.size());
+        System.out.println("All emails in storage: " + otpStorage.keySet());
+        
         String savedOtp = otpStorage.get(email);
         
         if (savedOtp == null) {
             log.warn("No OTP found for email: {}", email);
+            System.out.println("❌ No OTP found for email: '" + email + "'");
+            System.out.println("=========================\n");
             return false;
         }
+        
+        System.out.println("Saved OTP: '" + savedOtp + "'");
+        System.out.println("Match: " + savedOtp.equals(inputOtp));
+        System.out.println("=========================\n");
         
         boolean isValid = savedOtp.equals(inputOtp);
         
@@ -173,6 +233,41 @@ public class EmailOtpService {
         }
     }
 
+    /**
+     * Gửi email HTML (dùng cho OTP)
+     */
+    private boolean sendHtmlEmail(String to, String subject, String htmlBody) {
+        try {
+            log.info("Attempting to send real HTML email to: {}", to);
+            
+            jakarta.mail.internet.MimeMessage mimeMessage = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper = 
+                new org.springframework.mail.javamail.MimeMessageHelper(mimeMessage, true, "UTF-8");
+            
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true); // true = HTML
+            
+            mailSender.send(mimeMessage);
+            log.info("HTML Email sent successfully to: {}", to);
+            return true;
+            
+        } catch (MailAuthenticationException e) {
+            log.error("Authentication failed when sending HTML email. Check username/password: {}", e.getMessage());
+            return false;
+        } catch (MailSendException e) {
+            log.error("Failed to send HTML email to {}: {}", to, e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.error("Unexpected error when sending HTML email to {}: {}", to, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Gửi email văn bản thuần (backward compatibility)
+     */
     private boolean sendEmail(String to, String subject, String body) {
         try {
             log.info("Attempting to send real email to: {}", to);
@@ -206,6 +301,17 @@ public class EmailOtpService {
         log.info("Subject: {}", subject);
         log.info("OTP: {}", otp);
         log.info("======================");
+        
+        // In ra console để dễ thấy
+        System.out.println("\n");
+        System.out.println("╔════════════════════════════════════════════════════════════╗");
+        System.out.println("║          📧 OTP ĐÃ ĐƯỢC GỬI (SIMULATED)                  ║");
+        System.out.println("╠════════════════════════════════════════════════════════════╣");
+        System.out.println("║  Email: " + email);
+        System.out.println("║  OTP:   " + otp + "                                          ║");
+        System.out.println("║  Hiệu lực: 5 phút                                        ║");
+        System.out.println("╚════════════════════════════════════════════════════════════╝");
+        System.out.println("\n");
     }
 
     // Method để clear OTP manually nếu cần

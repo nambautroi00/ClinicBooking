@@ -39,7 +39,6 @@ export default function Register() {
     gender: '',
     dateOfBirth: '',
     address: '',
-    role: 'PATIENT',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -212,12 +211,6 @@ export default function Register() {
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Ngày sinh</label>
             <input name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleChange} className="w-full rounded-md border border-gray-200 px-3 py-2" />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Vai trò</label>
-            <select name="role" value={form.role} onChange={handleChange} className="w-full rounded-md border border-gray-200 px-3 py-2">
-              <option value="PATIENT">Bệnh nhân</option>
-            </select>
           </div>
 
           <div className="md:col-span-2">

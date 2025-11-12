@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import HeroSection from '../../components/home/HeroSection';
 import SpecialtiesSection from '../../components/home/SpecialtiesSection';
 import ArticlesSection from '../../components/home/ArticlesSection';
-import SecuritySection from '../../components/home/SecuritySection';
 
 const Home = () => {
   // Scroll to top when component mounts
@@ -15,7 +14,6 @@ const Home = () => {
 	  <HeroSection />
 	  <SpecialtiesSection />
 	  <ArticlesSection />
-	  <SecuritySection />
 	</div>
   );
 };

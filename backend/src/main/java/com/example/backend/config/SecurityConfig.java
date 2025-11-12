@@ -1,6 +1,8 @@
 package com.example.backend.config;
 
 
+import java.util.Arrays;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -9,15 +11,22 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.Arrays;
+
+import com.example.backend.security.JwtAuthenticationFilter;
+
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // cho phép dùng @PreAuthorize ở Controller
+@EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -25,8 +34,31 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(authz -> authz
-                .anyRequest().permitAll() // Allow all requests for testing
-            );
+                // Public endpoints - Ai cũng xem được
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/patients/register").permitAll()
+                .requestMatchers("/api/patients/confirm-register").permitAll()  // Xác thực OTP khi đăng ký
+                .requestMatchers("/api/departments/**").permitAll()  // Xem departments public
+                .requestMatchers("/api/doctors/**").permitAll()      // Xem doctors public  
+                .requestMatchers("/api/articles/**").permitAll()     // Xem articles public
+                .requestMatchers("/uploads/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
+                
+                // Protected Admin endpoints - CHỈ ADMIN
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/users/**").hasRole("ADMIN")           // Quản lý users
+                .requestMatchers("/api/medicines/**").hasRole("ADMIN")       // Quản lý medicines
+                .requestMatchers("/api/prescriptions/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/appointments/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/payments/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/reviews/admin/**").hasRole("ADMIN")
+                
+                // Các endpoints còn lại - cần đăng nhập
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            
         return http.build();
     }
 

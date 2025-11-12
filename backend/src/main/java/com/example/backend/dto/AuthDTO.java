@@ -33,6 +33,10 @@ public class AuthDTO {
         private boolean success;
         private UserDTO.Response user;
         private String token; // JWT token - hiện tại để null
+        // Số lần thử còn lại trước khi bị khóa (chỉ trả về khi sai mật khẩu)
+        private Integer attemptsRemaining;
+        // Tài khoản đang bị khóa?
+        private Boolean locked;
     }
 
     @Data

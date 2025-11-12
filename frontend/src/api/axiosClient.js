@@ -44,9 +44,19 @@ axiosClient.interceptors.response.use(
 
     if (error.response?.status === 401) {
       // Token hết hạn hoặc không hợp lệ
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Chỉ xóa token và redirect nếu KHÔNG phải từ trang auth
+      const currentPath = window.location.pathname;
+      const isAuthPage = currentPath.includes('/login') || 
+                         currentPath.includes('/register') || 
+                         currentPath.includes('/verify-otp') ||
+                         currentPath.includes('/forgot-password') ||
+                         currentPath.includes('/reset-password');
+      
+      if (!isAuthPage) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
