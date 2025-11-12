@@ -9,12 +9,14 @@ export default function PaymentCancel() {
   const [loading, setLoading] = useState(true);
   const [paymentInfo, setPaymentInfo] = useState(null);
   const [error, setError] = useState(null);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   // Lấy thông tin từ PayOS redirect
   const payOSId = searchParams.get('id');
   const status = searchParams.get('status');
   const orderCode = searchParams.get('orderCode');
   const code = searchParams.get('code');
+  const doctorId = searchParams.get('doctorId');
 
   useEffect(() => {
     const handlePaymentCancel = async () => {
@@ -87,14 +89,38 @@ export default function PaymentCancel() {
         clearTimeout(timeoutId);
         setLoading(false);
         console.log('✅ Payment cancel process completed');
+        if (doctorId) {
+          setShouldRedirect(true);
+        }
       }
     };
 
     handlePaymentCancel();
-  }, [payOSId, status, orderCode, code]);
+  }, [payOSId, status, orderCode, code, doctorId]);
+
+  useEffect(() => {
+    if (!doctorId || !shouldRedirect) return;
+
+    const timer = setTimeout(() => {
+      navigate(`/patient/booking/${doctorId}`, {
+        replace: true,
+        state: { paymentCancelled: true }
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [doctorId, shouldRedirect, navigate]);
 
   const handleGoHome = () => {
     navigate('/');
+  };
+
+  const handleReturnToBooking = () => {
+    if (doctorId) {
+      navigate(`/patient/booking/${doctorId}`);
+    } else {
+      navigate('/patient/book-appointment');
+    }
   };
 
   const handleTryAgain = () => {
@@ -135,6 +161,11 @@ export default function PaymentCancel() {
             <p className="text-gray-600 mb-6">
               Bạn đã hủy quá trình thanh toán. Lịch hẹn chưa được xác nhận.
             </p>
+            {doctorId && (
+              <p className="text-sm text-blue-600 mb-6">
+                Hệ thống sẽ chuyển bạn về trang đặt lịch trong giây lát...
+              </p>
+            )}
             
             {/* Payment Info */}
             {paymentInfo && (
@@ -163,6 +194,14 @@ export default function PaymentCancel() {
          
           {/* Action Buttons */}
           <div className="flex gap-4">
+            {doctorId && (
+              <button
+                onClick={handleReturnToBooking}
+                className="flex-1 px-6 py-3 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+              >
+                Quay lại đặt lịch
+              </button>
+            )}
             <button
               onClick={handleGoHome}
               className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2  "

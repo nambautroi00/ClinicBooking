@@ -13,10 +13,12 @@ import com.example.backend.model.Appointment;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.DoctorSchedule;
 import com.example.backend.model.Patient;
+import com.example.backend.model.Payment;
 import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.DoctorScheduleRepository;
 import com.example.backend.repository.PatientRepository;
+import com.example.backend.repository.PaymentRepository;
 import com.example.backend.service.SystemNotificationService;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class AppointmentService {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository doctorScheduleRepository;
+    private final PaymentRepository paymentRepository;
     private final AppointmentMapper appointmentMapper;
     private final EmailService emailService;
     private final SystemNotificationService systemNotificationService;
@@ -267,6 +270,20 @@ public class AppointmentService {
         }
         
         Appointment saved = appointmentRepository.save(entity);
+
+        List<Payment> relatedPayments = paymentRepository.findByAppointment_AppointmentId(appointmentId);
+        if (!relatedPayments.isEmpty()) {
+            boolean paymentUpdated = false;
+            for (Payment payment : relatedPayments) {
+                if (payment.getStatus() != Payment.PaymentStatus.CANCELLED) {
+                    payment.setStatus(Payment.PaymentStatus.CANCELLED);
+                    paymentUpdated = true;
+                }
+            }
+            if (paymentUpdated) {
+                paymentRepository.saveAll(relatedPayments);
+            }
+        }
         try {
             String subject = "Lịch khám đã bị hủy";
             String body = "Lịch khám của bạn đã bị hủy. Vui lòng liên hệ nếu cần đặt lại.";
@@ -440,7 +457,6 @@ public class AppointmentService {
     }
     
 }
-
 
 
 

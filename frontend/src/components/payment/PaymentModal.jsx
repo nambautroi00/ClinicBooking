@@ -33,12 +33,25 @@ const PaymentModal = ({
         throw new Error('Valid fee amount is required');
       }
 
+      const cancelParams = new URLSearchParams({
+        paymentStatus: 'cancelled',
+        appointmentId: String(appointmentData.appointmentId)
+      });
+      const cancelPath = appointmentData.doctorId
+        ? `/patient/booking/${appointmentData.doctorId}?${cancelParams.toString()}`
+        : `/patient/book-appointment?${cancelParams.toString()}`;
+      const cancelUrl = `${window.location.origin}${cancelPath}`;
+      const successParams = new URLSearchParams({
+        paymentStatus: 'success',
+        appointmentId: String(appointmentData.appointmentId)
+      });
+      const successUrl = `${window.location.origin}/patient/appointments?${successParams.toString()}`;
       const paymentData = {
         appointmentId: Number(appointmentData.appointmentId), // Ensure it's a number
         amount: appointmentData.fee.toString(), // Convert to string for BigDecimal
         description: `Phí khám #${appointmentData.appointmentId}`, // Ngắn hơn cho PayOS
-        returnUrl: `${window.location.origin}/payment/success`,
-        cancelUrl: `${window.location.origin}/payment/cancel`
+        returnUrl: successUrl,
+        cancelUrl
       };
 
       console.log('Creating payment with data:', paymentData);
