@@ -4,6 +4,7 @@ import articleApi from '../../api/articleApi';
 import { toast } from '../../utils/toast';
 import { Modal, Button } from 'react-bootstrap';
 import { getFullAvatarUrl } from '../../utils/avatarUtils';
+import { getFullImageUrl } from '../../utils/imageUtils';
 
 const ArticleList = ({ onEdit, onDelete, searchParams }) => {
   const [articles, setArticles] = useState([]);
@@ -134,6 +135,7 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
           <tr>
             <th>ID</th>
             <th>Bài viết</th>
+            <th>Ảnh</th>
             <th>Tác giả</th>
             <th>Trạng thái</th>
             <th>Likes</th>
@@ -168,6 +170,17 @@ const ArticleList = ({ onEdit, onDelete, searchParams }) => {
                     )}
                   </div>
                 </div>
+              </td>
+              <td>
+                {item.imageUrl ? (
+                  <img
+                    src={getFullImageUrl(item.imageUrl)}
+                    alt={item.title}
+                    style={{ width: 72, height: 48, objectFit: 'cover', borderRadius: 4 }}
+                  />
+                ) : (
+                  <span className="text-muted small">Không có ảnh</span>
+                )}
               </td>
               <td>
                 {item.author ? `${item.author.firstName} ${item.author.lastName}` : 'N/A'}

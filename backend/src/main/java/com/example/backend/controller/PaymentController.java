@@ -1,10 +1,7 @@
 package com.example.backend.controller;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +9,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;              // <-- thêm
@@ -193,28 +189,48 @@ public class PaymentController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}/invoice-pdf")
     public ResponseEntity<byte[]> exportInvoicePdf(@PathVariable Long id) {
-        List<String> lines = new ArrayList<>();
-        lines.add("Mã hóa đơn: INV-" + id);
-        lines.add("Ngày: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-        lines.add("Bệnh nhân: [Tên bệnh nhân]");
-        lines.add("Bác sĩ: [Tên bác sĩ]");
-        lines.add("Phương thức thanh toán: [Tiền mặt/Thẻ/PayOS]");
-        lines.add("--------------------------------");
-        lines.add("Dịch vụ: [Tên dịch vụ] - [Thành tiền]");
-        lines.add("Thuốc: [Tổng tiền thuốc]");
-        lines.add("Giảm giá: [Nếu có]");
-        lines.add("--------------------------------");
-        lines.add("Tổng cộng: " + new BigDecimal("0.00") + " VND");
-        lines.add("Trạng thái: [Đã thanh toán/Chờ thanh toán]");
+        try {
+            PaymentDTO.Response p = paymentService.getPaymentById(id);
+            if (p == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .header(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
+                        .body(("Không tìm thấy hoá đơn: " + id).getBytes(StandardCharsets.UTF_8));
+            }
+            String currency = p.getCurrency() != null ? p.getCurrency() : "VND";
+            java.math.BigDecimal amount = p.getAmount() != null ? p.getAmount() : java.math.BigDecimal.ZERO;
 
-        byte[] pdf = pdfExportService.generateSimplePdf("HÓA ĐƠN THANH TOÁN", lines);
+            String[] headers = new String[]{
+                "Payment ID","Appointment ID","Bệnh nhân","Bác sĩ","Số tiền","Mô tả","Trạng thái","PayOS Code","Tạo lúc","Thanh toán lúc"
+            };
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy");
+            String createdAt = p.getCreatedAt() != null ? p.getCreatedAt().format(fmt) : "-";
+            String paidAt = p.getPaidAt() != null ? p.getPaidAt().format(fmt) : "-";
+            String[] values = new String[]{
+                String.valueOf(p.getPaymentId()),
+                String.valueOf(p.getAppointmentId()),
+                p.getPatientName() == null ? "-" : p.getPatientName(),
+                p.getDoctorName() == null ? "-" : p.getDoctorName(),
+                amount + " " + currency,
+                p.getDescription() == null ? "-" : p.getDescription(),
+                p.getStatus() != null ? p.getStatus().name() : "-",
+                p.getPayOSCode() == null ? "-" : p.getPayOSCode(),
+                createdAt,
+                paidAt
+            };
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice-" + id + ".pdf")
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(pdf);
+            byte[] pdf = pdfExportService.generateSingleRowTable("Chi tiết thanh toán", headers, values);
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice-" + id + ".pdf")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(pdf);
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
+                    .body(("Lỗi xuất hoá đơn: " + ex.getMessage()).getBytes(StandardCharsets.UTF_8));
+        }
     }
+
 }
