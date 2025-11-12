@@ -41,6 +41,7 @@ const UsersManagement = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({}); // Inline field-level errors
   const [success, setSuccess] = useState('');
   const [stats, setStats] = useState({
     total: 0,
@@ -101,6 +102,7 @@ const UsersManagement = () => {
 
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
+  const [pendingSearch, setPendingSearch] = useState(''); // nhập tạm, chỉ áp dụng khi nhấn Enter/Áp dụng
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
@@ -332,69 +334,58 @@ const UsersManagement = () => {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    
-    // Validation bắt buộc cơ bản
+    // Thu thập lỗi từng trường
+    const newErrors = {};
     if (!formData.email || !formData.email.trim()) {
-      setError('Email là bắt buộc');
-      return;
+      newErrors.email = 'Email là bắt buộc';
     }
     if (!formData.password || !formData.password.trim()) {
-      setError('Mật khẩu là bắt buộc');
-      return;
+      newErrors.password = 'Mật khẩu là bắt buộc';
     }
     if (!formData.firstName || !formData.firstName.trim()) {
-      setError('Tên là bắt buộc');
-      return;
+      newErrors.firstName = 'Tên là bắt buộc';
     }
     if (!formData.lastName || !formData.lastName.trim()) {
-      setError('Họ là bắt buộc');
-      return;
+      newErrors.lastName = 'Họ là bắt buộc';
     }
     if (!formData.phone || !formData.phone.trim()) {
-      setError('Số điện thoại là bắt buộc');
-      return;
-    }
-    
-    // Validation số điện thoại (10-11 số)
-    const phoneRegex = /^[0-9]{10,11}$/;
-    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-      setError('Số điện thoại phải có từ 10-11 chữ số');
-      return;
+      newErrors.phone = 'Số điện thoại là bắt buộc';
+    } else {
+      const phoneRegex = /^[0-9]{10,11}$/;
+      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        newErrors.phone = 'Số điện thoại phải có từ 10-11 chữ số';
+      }
     }
     if (!formData.gender) {
-      setError('Giới tính là bắt buộc');
-      return;
+      newErrors.gender = 'Giới tính là bắt buộc';
     }
     if (!formData.dateOfBirth) {
-      setError('Ngày sinh là bắt buộc');
-      return;
+      newErrors.dateOfBirth = 'Ngày sinh là bắt buộc';
+    } else {
+      const ageError = validateAgeByRole(formData.dateOfBirth, createUserType);
+      if (ageError) newErrors.dateOfBirth = ageError;
     }
     if (!formData.address || !formData.address.trim()) {
-      setError('Địa chỉ là bắt buộc');
-      return;
+      newErrors.address = 'Địa chỉ là bắt buộc';
     }
-    
-    // Validation tuổi
-    const ageError = validateAgeByRole(formData.dateOfBirth, createUserType);
-    if (ageError) {
-      setError(ageError);
-      return;
-    }
-    
-    // Validation đặc biệt cho bác sĩ
     if (createUserType === 'doctor') {
       if (!formData.specialty || !formData.specialty.trim()) {
-        setError('Chuyên khoa là bắt buộc cho bác sĩ');
-        return;
+        newErrors.specialty = 'Chuyên khoa là bắt buộc cho bác sĩ';
       }
       if (!formData.departmentId) {
-        setError('Khoa là bắt buộc cho bác sĩ');
-        return;
+        newErrors.departmentId = 'Khoa là bắt buộc cho bác sĩ';
       }
     }
-    
-    // Clear error before proceeding
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      setError('Vui lòng sửa các lỗi được đánh dấu');
+      return;
+    }
+
+    // Clear errors
     setError('');
+    setFieldErrors({});
     
     try {
       setLoading(true);
@@ -440,7 +431,20 @@ const UsersManagement = () => {
       fetchUsers();
       fetchStats();
     } catch (err) {
-      setError('Lỗi khi tạo người dùng: ' + (err.response?.data?.message || err.message));
+      const apiMessage = err.response?.data?.message || err.message;
+      setError('Lỗi khi tạo người dùng: ' + apiMessage);
+      // Map server-side validation to field errors if available
+      const apiErrors = err.response?.data?.errors;
+      if (apiErrors && typeof apiErrors === 'object') {
+        setFieldErrors(apiErrors);
+      } else if (apiMessage) {
+        if (apiMessage.toLowerCase().includes('email')) {
+          setFieldErrors(prev => ({...prev, email: apiMessage}));
+        }
+        if (apiMessage.toLowerCase().includes('phone')) {
+          setFieldErrors(prev => ({...prev, phone: apiMessage}));
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -448,56 +452,47 @@ const UsersManagement = () => {
 
   const handleEditUser = async (e) => {
     e.preventDefault();
-    
-    // Validation bắt buộc cơ bản
+    const newErrors = {};
     if (!formData.email || !formData.email.trim()) {
-      setError('Email là bắt buộc');
-      return;
+      newErrors.email = 'Email là bắt buộc';
     }
     if (!formData.firstName || !formData.firstName.trim()) {
-      setError('Tên là bắt buộc');
-      return;
+      newErrors.firstName = 'Tên là bắt buộc';
     }
     if (!formData.lastName || !formData.lastName.trim()) {
-      setError('Họ là bắt buộc');
-      return;
+      newErrors.lastName = 'Họ là bắt buộc';
     }
     if (!formData.phone || !formData.phone.trim()) {
-      setError('Số điện thoại là bắt buộc');
-      return;
+      newErrors.phone = 'Số điện thoại là bắt buộc';
+    } else {
+      const phoneRegex = /^[0-9]{10,11}$/;
+      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        newErrors.phone = 'Số điện thoại phải có từ 10-11 chữ số';
+      }
     }
-    
-    // Validation số điện thoại (10-11 số)
-    const phoneRegex = /^[0-9]{10,11}$/;
-    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-      setError('Số điện thoại phải có từ 10-11 chữ số');
-      return;
-    }
-    
     if (!formData.gender) {
-      setError('Giới tính là bắt buộc');
-      return;
+      newErrors.gender = 'Giới tính là bắt buộc';
     }
     if (!formData.dateOfBirth) {
-      setError('Ngày sinh là bắt buộc');
-      return;
+      newErrors.dateOfBirth = 'Ngày sinh là bắt buộc';
+    } else {
+      const userRole = selectedUser?.role?.name || (formData.roleId === 1 ? 'Admin' : 'Doctor');
+      const roleType = userRole.toLowerCase();
+      const ageError = validateAgeByRole(formData.dateOfBirth, roleType);
+      if (ageError) newErrors.dateOfBirth = ageError;
     }
     if (!formData.address || !formData.address.trim()) {
-      setError('Địa chỉ là bắt buộc');
+      newErrors.address = 'Địa chỉ là bắt buộc';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      setError('Vui lòng sửa các lỗi được đánh dấu');
       return;
     }
-    
-    // Validation tuổi
-    const userRole = selectedUser?.role?.name || (formData.roleId === 1 ? 'Admin' : 'Doctor');
-    const roleType = userRole.toLowerCase();
-    const ageError = validateAgeByRole(formData.dateOfBirth, roleType);
-    if (ageError) {
-      setError(ageError);
-      return;
-    }
-    
-    // Clear error before proceeding
+
     setError('');
+    setFieldErrors({});
     
     try {
       setLoading(true);
@@ -561,7 +556,19 @@ const UsersManagement = () => {
       fetchUsers();
       fetchStats();
     } catch (err) {
-      setError('Lỗi khi cập nhật người dùng: ' + (err.response?.data?.message || err.message));
+      const apiMessage = err.response?.data?.message || err.message;
+      setError('Lỗi khi cập nhật người dùng: ' + apiMessage);
+      const apiErrors = err.response?.data?.errors;
+      if (apiErrors && typeof apiErrors === 'object') {
+        setFieldErrors(apiErrors);
+      } else if (apiMessage) {
+        if (apiMessage.toLowerCase().includes('email')) {
+          setFieldErrors(prev => ({...prev, email: apiMessage}));
+        }
+        if (apiMessage.toLowerCase().includes('phone')) {
+          setFieldErrors(prev => ({...prev, phone: apiMessage}));
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -614,6 +621,7 @@ const UsersManagement = () => {
       patientStatus: 'ACTIVE'
     });
     setSelectedUser(null);
+    setFieldErrors({});
   };
 
   const openCreateModal = (userType) => {
@@ -646,6 +654,7 @@ const UsersManagement = () => {
       medicalHistory: '',
       patientStatus: 'ACTIVE'
     });
+    setFieldErrors({});
     setShowCreateModal(true);
   };
 
@@ -681,6 +690,7 @@ const UsersManagement = () => {
       medicalHistory: patientInfo.medicalHistory || '',
       patientStatus: patientInfo.status || 'ACTIVE'
     });
+    setFieldErrors({});
     setShowEditModal(true);
   };
 
@@ -714,7 +724,7 @@ const UsersManagement = () => {
     try {
       // For new user creation, we don't have userId yet, so pass null
       const userId = selectedUser?.id || null;
-      const response = await fileUploadApi.uploadImage(file, userId, 'user');
+  const response = await fileUploadApi.upload(file, userId, 'user');
       
       // 🔍 DEBUG: Log upload response
       console.log('=== UPLOAD DEBUG ===');
@@ -1130,6 +1140,7 @@ const UsersManagement = () => {
                 setFilterRole('');
                 setFilterStatus('');
                 setSearchTerm('');
+                setPendingSearch('');
               }}
             >
               <i className="bi bi-x-lg me-1"></i>
@@ -1149,10 +1160,18 @@ const UsersManagement = () => {
             <Form.Control
               type="text"
               placeholder="Tìm kiếm theo tên hoặc email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={pendingSearch}
+              onChange={(e) => setPendingSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setSearchTerm(pendingSearch); }}
               className="border-0"
             />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setSearchTerm(pendingSearch)}
+            >
+              Áp dụng
+            </button>
           </div>
         </div>
         <div className="col-md-3">
@@ -1186,6 +1205,7 @@ const UsersManagement = () => {
               setSearchTerm('');
               setFilterRole('');
               setFilterStatus('');
+              setPendingSearch('');
             }}
           >
             <i className="bi bi-arrow-clockwise me-2"></i>
@@ -1388,7 +1408,7 @@ const UsersManagement = () => {
       </div>
 
       {/* Create User Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
+  <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg" centered scrollable>
         <Modal.Header closeButton>
           <Modal.Title>
             {createUserType === 'admin' ? (
@@ -1405,7 +1425,7 @@ const UsersManagement = () => {
           </Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreateUser}>
-          <Modal.Body>
+          <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1413,10 +1433,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, email: e.target.value}); setFieldErrors(prev => ({...prev, email: undefined})); }}
                     required
                     placeholder="Nhập email"
+                    isInvalid={!!fieldErrors.email}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.email}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1425,10 +1447,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, password: e.target.value}); setFieldErrors(prev => ({...prev, password: undefined})); }}
                     required
                     placeholder="Nhập mật khẩu"
+                    isInvalid={!!fieldErrors.password}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.password}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -1439,10 +1463,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="text"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, lastName: e.target.value}); setFieldErrors(prev => ({...prev, lastName: undefined})); }}
                     required
                     placeholder="Nhập họ"
+                    isInvalid={!!fieldErrors.lastName}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.lastName}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1451,10 +1477,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="text"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, firstName: e.target.value}); setFieldErrors(prev => ({...prev, firstName: undefined})); }}
                     required
                     placeholder="Nhập tên"
+                    isInvalid={!!fieldErrors.firstName}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.firstName}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -1465,10 +1493,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, phone: e.target.value}); setFieldErrors(prev => ({...prev, phone: undefined})); }}
                     required
                     placeholder="Nhập số điện thoại"
+                    isInvalid={!!fieldErrors.phone}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.phone}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1476,13 +1506,15 @@ const UsersManagement = () => {
                   <Form.Label>Giới tính *</Form.Label>
                   <Form.Select
                     value={formData.gender}
-                    onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, gender: e.target.value}); setFieldErrors(prev => ({...prev, gender: undefined})); }}
                     required
+                    isInvalid={!!fieldErrors.gender}
                   >
                     <option value="">Chọn giới tính</option>
                     <option value="MALE">Nam</option>
                     <option value="FEMALE">Nữ</option>
                   </Form.Select>
+                  <Form.Control.Feedback type="invalid">{fieldErrors.gender}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -1493,9 +1525,11 @@ const UsersManagement = () => {
                   <Form.Control
                     type="date"
                     value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, dateOfBirth: e.target.value}); setFieldErrors(prev => ({...prev, dateOfBirth: undefined})); }}
                     required
+                    isInvalid={!!fieldErrors.dateOfBirth}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.dateOfBirth}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -1505,10 +1539,12 @@ const UsersManagement = () => {
               <Form.Control
                 type="text"
                 value={formData.address}
-                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                onChange={(e) => { setFormData({...formData, address: e.target.value}); setFieldErrors(prev => ({...prev, address: undefined})); }}
                 required
                 placeholder="Nhập địa chỉ"
+                isInvalid={!!fieldErrors.address}
               />
+              <Form.Control.Feedback type="invalid">{fieldErrors.address}</Form.Control.Feedback>
             </Form.Group>
             
             {/* Các trường đặc biệt cho bác sĩ */}
@@ -1521,10 +1557,12 @@ const UsersManagement = () => {
                       <Form.Control
                         type="text"
                         value={formData.specialty || ''}
-                        onChange={(e) => setFormData({...formData, specialty: e.target.value})}
+                        onChange={(e) => { setFormData({...formData, specialty: e.target.value}); setFieldErrors(prev => ({...prev, specialty: undefined})); }}
                         required
                         placeholder="Nhập chuyên khoa"
+                        isInvalid={!!fieldErrors.specialty}
                       />
+                      <Form.Control.Feedback type="invalid">{fieldErrors.specialty}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
@@ -1541,6 +1579,9 @@ const UsersManagement = () => {
                         className="border rounded px-3 py-2 w-full"
                         placeholder="Chọn khoa"
                       />
+                      {fieldErrors.departmentId && (
+                        <div className="text-danger small mt-1">{fieldErrors.departmentId}</div>
+                      )}
                     </Form.Group>
                   </Col>
                 </Row>
@@ -1669,12 +1710,12 @@ const UsersManagement = () => {
       </Modal>
 
       {/* Edit User Modal */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
+  <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered scrollable>
         <Modal.Header closeButton>
           <Modal.Title>Chỉnh sửa Thông tin Người dùng</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleEditUser}>
-          <Modal.Body>
+          <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1682,10 +1723,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, email: e.target.value}); setFieldErrors(prev => ({...prev, email: undefined})); }}
                     required
                     placeholder="Nhập email"
+                    isInvalid={!!fieldErrors.email}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.email}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1707,10 +1750,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="text"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, lastName: e.target.value}); setFieldErrors(prev => ({...prev, lastName: undefined})); }}
                     required
                     placeholder="Nhập họ"
+                    isInvalid={!!fieldErrors.lastName}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.lastName}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1719,10 +1764,12 @@ const UsersManagement = () => {
                   <Form.Control
                     type="text"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, firstName: e.target.value}); setFieldErrors(prev => ({...prev, firstName: undefined})); }}
                     required
                     placeholder="Nhập tên"
+                    isInvalid={!!fieldErrors.firstName}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.firstName}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -1733,9 +1780,11 @@ const UsersManagement = () => {
                   <Form.Control
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, phone: e.target.value}); setFieldErrors(prev => ({...prev, phone: undefined})); }}
                     placeholder="Nhập số điện thoại"
+                    isInvalid={!!fieldErrors.phone}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.phone}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1758,8 +1807,10 @@ const UsersManagement = () => {
                   <Form.Control
                     type="date"
                     value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, dateOfBirth: e.target.value}); setFieldErrors(prev => ({...prev, dateOfBirth: undefined})); }}
+                    isInvalid={!!fieldErrors.dateOfBirth}
                   />
+                  <Form.Control.Feedback type="invalid">{fieldErrors.dateOfBirth}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
@@ -1768,9 +1819,11 @@ const UsersManagement = () => {
               <Form.Control
                 type="text"
                 value={formData.address}
-                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                onChange={(e) => { setFormData({...formData, address: e.target.value}); setFieldErrors(prev => ({...prev, address: undefined})); }}
                 placeholder="Nhập địa chỉ"
+                isInvalid={!!fieldErrors.address}
               />
+              <Form.Control.Feedback type="invalid">{fieldErrors.address}</Form.Control.Feedback>
             </Form.Group>
             
             {/* Form chỉnh sửa riêng cho từng loại người dùng */}

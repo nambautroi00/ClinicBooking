@@ -795,7 +795,7 @@ function PatientMessages() {
       }
 
       // B) Upload file -> lấy URL public
-      const uploadRes = await fileUploadApi.uploadImage(pendingFile);
+  const uploadRes = await fileUploadApi.upload(pendingFile);
       const storedUrl = uploadRes?.data?.url || uploadRes?.data || null;
       if (!storedUrl) throw new Error("Upload failed");
 

@@ -33,6 +33,7 @@ import MedicalRecords from "../pages/Doctor/MedicalRecords";
 import DoctorReviews from "../pages/Doctor/DoctorReviews";
 import DoctorReferrals from "../pages/Doctor/DoctorReferrals";
 import ReferralDetail from "../pages/Doctor/ReferralDetail";
+import DepartmentReferrals from "../pages/Doctor/DepartmentReferrals";
 
 // Patient pages
 import PatientAppointmentBooking from "../pages/Patient/PatientAppointmentBooking";
@@ -135,6 +136,7 @@ const AppRoutes = () => {
         <Route path="reiview" element={<DoctorReviews />} />
         <Route path="referrals" element={<DoctorReferrals />} />
         <Route path="referrals/:id" element={<ReferralDetail />} />
+        <Route path="department-referrals" element={<DepartmentReferrals />} />
       </Route>
 
       {/* Admin (protected) */}

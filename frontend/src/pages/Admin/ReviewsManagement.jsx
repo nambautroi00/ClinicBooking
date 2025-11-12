@@ -14,6 +14,10 @@ const ReviewsManagement = () => {
   const [patientDetail, setPatientDetail] = useState(null);
   const [doctorDetail, setDoctorDetail] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedReview, setSelectedReview] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchReviews = async () => {
     setLoading(true);
@@ -47,7 +51,50 @@ const ReviewsManagement = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.doctorId, filters.patientId]);
 
-  // Removed deactivate/delete actions per request
+  const handleDeleteReview = async () => {
+    if (!selectedReview) return;
+    try {
+      setActionLoading(true);
+      setError("");
+      await reviewApi.delete(selectedReview.reviewId);
+      setShowDeleteModal(false);
+      setSelectedReview(null);
+      // Refresh reviews list
+      await fetchReviews();
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || "Không thể xóa đánh giá");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleChangeStatus = async () => {
+    if (!selectedReview) return;
+    try {
+      setActionLoading(true);
+      setError("");
+      const newStatus = selectedReview.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+      await reviewApi.update(selectedReview.reviewId, { status: newStatus });
+      setShowStatusModal(false);
+      setSelectedReview(null);
+      // Refresh reviews list
+      await fetchReviews();
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || "Không thể thay đổi trạng thái");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openDeleteModal = (review) => {
+    setSelectedReview(review);
+    setShowDeleteModal(true);
+  };
+
+  const openStatusModal = (review) => {
+    setSelectedReview(review);
+    setShowStatusModal(true);
+  };
 
   const openPatientProfile = async (patientId) => {
     if (!patientId) return;
@@ -168,12 +215,13 @@ const ReviewsManagement = () => {
                         <th>Tạo lúc</th>
                         <th>Trạng thái</th>
                         <th className="text-end">Hồ sơ</th>
+                        <th className="text-end">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reviews.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="text-center text-muted py-4">Không có dữ liệu</td>
+                          <td colSpan="9" className="text-center text-muted py-4">Không có dữ liệu</td>
                         </tr>
                       ) : (
                         reviews.map((r) => (
@@ -213,6 +261,26 @@ const ReviewsManagement = () => {
                                 </button>
                               </div>
                             </td>
+                            <td className="text-end">
+                              <div className="btn-group">
+                                <button
+                                  className={`btn btn-sm ${r.status === "ACTIVE" ? "btn-outline-warning" : "btn-outline-success"}`}
+                                  onClick={() => openStatusModal(r)}
+                                  disabled={actionLoading}
+                                  title={r.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"}
+                                >
+                                  <i className={`bi ${r.status === "ACTIVE" ? "bi-toggle-off" : "bi-toggle-on"}`}></i>
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => openDeleteModal(r)}
+                                  disabled={actionLoading}
+                                  title="Xóa"
+                                >
+                                  <i className="bi bi-trash"></i>
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))
                       )}
@@ -237,6 +305,89 @@ const ReviewsManagement = () => {
         doctor={doctorDetail}
         loading={profileLoading}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => !actionLoading && setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton={!actionLoading}>
+          <Modal.Title>Xác nhận xóa đánh giá</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedReview && (
+            <div>
+              <p>Bạn có chắc chắn muốn xóa đánh giá này?</p>
+              <div className="alert alert-warning mb-0">
+                <strong>ID:</strong> {selectedReview.reviewId}<br />
+                <strong>Bệnh nhân:</strong> {selectedReview.patientName}<br />
+                <strong>Bác sĩ:</strong> {selectedReview.doctorName}<br />
+                <strong>Đánh giá:</strong> {selectedReview.rating}/5
+              </div>
+              <p className="text-danger mt-2 mb-0"><small>Hành động này không thể hoàn tác!</small></p>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={actionLoading}>
+            Hủy
+          </Button>
+          <Button variant="danger" onClick={handleDeleteReview} disabled={actionLoading}>
+            {actionLoading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Đang xóa...
+              </>
+            ) : (
+              "Xóa"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Status Change Confirmation Modal */}
+      <Modal show={showStatusModal} onHide={() => !actionLoading && setShowStatusModal(false)} centered>
+        <Modal.Header closeButton={!actionLoading}>
+          <Modal.Title>Thay đổi trạng thái đánh giá</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedReview && (
+            <div>
+              <p>Bạn có chắc chắn muốn thay đổi trạng thái đánh giá này?</p>
+              <div className="alert alert-info mb-0">
+                <strong>ID:</strong> {selectedReview.reviewId}<br />
+                <strong>Bệnh nhân:</strong> {selectedReview.patientName}<br />
+                <strong>Bác sĩ:</strong> {selectedReview.doctorName}<br />
+                <strong>Trạng thái hiện tại:</strong>{" "}
+                <span className={`badge ${selectedReview.status === "ACTIVE" ? "bg-success" : "bg-secondary"}`}>
+                  {selectedReview.status}
+                </span>
+                <br />
+                <strong>Trạng thái mới:</strong>{" "}
+                <span className={`badge ${selectedReview.status === "ACTIVE" ? "bg-secondary" : "bg-success"}`}>
+                  {selectedReview.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"}
+                </span>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowStatusModal(false)} disabled={actionLoading}>
+            Hủy
+          </Button>
+          <Button
+            variant={selectedReview?.status === "ACTIVE" ? "warning" : "success"}
+            onClick={handleChangeStatus}
+            disabled={actionLoading}
+          >
+            {actionLoading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Đang cập nhật...
+              </>
+            ) : (
+              selectedReview?.status === "ACTIVE" ? "Vô hiệu hóa" : "Kích hoạt"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

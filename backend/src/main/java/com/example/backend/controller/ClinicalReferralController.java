@@ -34,7 +34,18 @@ public class ClinicalReferralController {
 
     @PostMapping
     public ResponseEntity<ClinicalReferral> createReferral(@RequestBody CreateReferralRequest request) {
-        return ResponseEntity.ok(referralService.createReferral(request));
+        System.out.println("🔍 ClinicalReferralController.createReferral called");
+        System.out.println("🔍 Request body: " + request);
+        
+        try {
+            ClinicalReferral result = referralService.createReferral(request);
+            System.out.println("✅ Controller: Referral created successfully with ID: " + result.getReferralId());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("❌ Controller error: " + e.getClass().getName() + ": " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @GetMapping("/doctor/{doctorId}")
@@ -57,12 +68,23 @@ public class ClinicalReferralController {
 
     @GetMapping("/department/{departmentId}")
     public ResponseEntity<List<ClinicalReferral>> getReferralsByDepartment(@PathVariable Long departmentId) {
-        return ResponseEntity.ok(referralService.getByDepartment(departmentId));
+        System.out.println("🔍 ClinicalReferralController.getReferralsByDepartment called with departmentId: " + departmentId);
+        List<ClinicalReferral> referrals = referralService.getByDepartment(departmentId);
+        System.out.println("✅ Found " + referrals.size() + " referrals for department " + departmentId);
+        if (!referrals.isEmpty()) {
+            ClinicalReferral first = referrals.get(0);
+            System.out.println("📋 First referral ID: " + first.getReferralId());
+            System.out.println("📋 First referral toDepartment: " + (first.getToDepartment() != null ? first.getToDepartment().getDepartmentName() : "NULL"));
+        }
+        return ResponseEntity.ok(referrals);
     }
 
     @GetMapping("/department/{departmentId}/pending")
     public ResponseEntity<List<ClinicalReferral>> getPendingReferrals(@PathVariable Long departmentId) {
-        return ResponseEntity.ok(referralService.getPendingByDepartment(departmentId));
+        System.out.println("🔍 ClinicalReferralController.getPendingReferrals called with departmentId: " + departmentId);
+        List<ClinicalReferral> referrals = referralService.getPendingByDepartment(departmentId);
+        System.out.println("✅ Found " + referrals.size() + " PENDING referrals for department " + departmentId);
+        return ResponseEntity.ok(referrals);
     }
 
     @PutMapping("/{id}/status")

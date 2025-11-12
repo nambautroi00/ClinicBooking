@@ -86,11 +86,6 @@ export default function PatientAppointmentHistory() {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
-  // Cancel appointment
-  const [cancellingId, setCancellingId] = useState(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [appointmentToCancel, setAppointmentToCancel] = useState(null);
-
   // Expand notes
   const [expandedNotes, setExpandedNotes] = useState({});
 
@@ -535,10 +530,10 @@ export default function PatientAppointmentHistory() {
   const getStatusBadge = (status) => {
     const statusConfig = {
       "Scheduled": {
-        class: "bg-cyan-500 text-white",
+        class: "bg-blue-50 text-blue-600 border border-blue-600",
         text: "Đã đặt lịch",
         icon: CheckCircle,
-        color: '#0dcaf0'
+        color: '#0d6efd'
       },
       "Confirmed": {
         class: "bg-blue-600 text-white",
@@ -598,41 +593,6 @@ export default function PatientAppointmentHistory() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  // Cancel appointment function
-  const handleCancelAppointment = async (appointmentId) => {
-    try {
-      setCancellingId(appointmentId);
-      await appointmentApi.cancelAppointment(appointmentId);
-
-      // Reload appointments
-      const response = await appointmentApi.getAppointmentsByPatient(patientId);
-      if (response.data) {
-        setAppointments(response.data);
-        setTotalPages(Math.ceil(response.data.length / itemsPerPage));
-      }
-
-      alert('Đã hủy lịch hẹn thành công');
-    } catch (error) {
-      console.error('Error cancelling appointment:', error);
-      alert('Không thể hủy lịch hẹn. Vui lòng thử lại sau.');
-    } finally {
-      setCancellingId(null);
-      setShowCancelModal(false);
-      setAppointmentToCancel(null);
-    }
-  };
-
-  const openCancelModal = (appointment) => {
-    setAppointmentToCancel(appointment);
-    setShowCancelModal(true);
-  };
-
-  const confirmCancel = () => {
-    if (appointmentToCancel) {
-      handleCancelAppointment(appointmentToCancel.appointmentId);
-    }
   };
 
   // Toggle expand notes
@@ -924,12 +884,6 @@ export default function PatientAppointmentHistory() {
                               <StatusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                               <span className="whitespace-nowrap">{statusConfig.text}</span>
                             </span>
-                            {appointment.status === 'Scheduled' && (
-                              <button className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed" disabled={cancellingId === appointment.appointmentId} onClick={() => openCancelModal(appointment)}>
-                                <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                                <span className="whitespace-nowrap">{cancellingId === appointment.appointmentId ? 'Đang hủy...' : 'Hủy lịch'}</span>
-                              </button>
-                            )}
                             {appointment.status === 'Completed' && (
                               <button className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-white bg-blue-300 hover:bg-blue-400 rounded-lg transition-all text-xs sm:text-sm font-semibold shadow-sm hover:shadow-md" onClick={() => { if (reviews[appointment.appointmentId]) openEditReview(appointment, reviews[appointment.appointmentId]); else { setAppointmentToReview(appointment); setShowReviewModal(true); } }}>
                                 <span className="whitespace-nowrap">{reviews[appointment.appointmentId] ? 'Chỉnh sửa' : 'Đánh giá'}</span>
@@ -1038,69 +992,6 @@ export default function PatientAppointmentHistory() {
           </div>
         </div>
       </div>
-
-      {/* Cancel Confirmation Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-full backdrop-blur-sm">
-                  <AlertCircle className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-0">Xác nhận hủy lịch hẹn</h3>
-              </div>
-            </div>
-            <div className="p-6">
-              {appointmentToCancel && (
-                <div className="mb-6">
-                  <p className="text-gray-700 mb-4 text-base">
-                    Bạn có chắc chắn muốn hủy lịch hẹn với bác sĩ <strong className="text-gray-900">{appointmentToCancel.doctorName}</strong>?
-                  </p>
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Ngày khám</span>
-                        <p className="text-gray-900 font-bold mt-1">{formatDate(appointmentToCancel.startTime)}</p>
-                      </div>
-                      <div>
-                        <span className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Giờ khám</span>
-                        <p className="text-gray-900 font-bold mt-1">{formatTime(appointmentToCancel.startTime)}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-yellow-800 font-medium">
-                        Lưu ý: Hành động này không thể hoàn tác. Bạn sẽ cần đặt lịch mới nếu muốn khám lại.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                <button
-                  className="flex-1 px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 font-semibold transition-all"
-                  onClick={() => {
-                    setShowCancelModal(false);
-                    setAppointmentToCancel(null);
-                  }}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  className="flex-1 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all font-bold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={cancellingId}
-                  onClick={confirmCancel}
-                >
-                  {cancellingId ? 'Đang hủy...' : 'Xác nhận hủy'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Review Modal */}
       {showReviewModal && (

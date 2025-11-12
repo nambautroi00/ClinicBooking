@@ -152,7 +152,7 @@ const DoctorProfile = () => {
 
     setUploading(true);
     try {
-      const response = await fileUploadApi.uploadImage(file, user?.id, 'user');
+  const response = await fileUploadApi.upload(file, user?.id, 'user');
       
       if (response.data.success) {
         const newAvatarUrl = response.data.url;

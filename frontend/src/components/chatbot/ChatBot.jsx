@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Header from '../layout/Header';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendMessageToBot } from '../../api/chatApi';
 import doctorApi from '../../api/doctorApi';
@@ -8,7 +7,8 @@ import { getFullAvatarUrl } from '../../utils/avatarUtils';
 const STORAGE_KEYS = {
   messages: 'clinic_chat_messages',
   keywords: 'clinic_chat_keywords',
-  department: 'clinic_chat_department'
+  department: 'clinic_chat_department',
+  userName: 'clinic_chat_user_name'
 };
 
 const DOCTOR_REQUEST_PATTERNS = [
@@ -57,6 +57,8 @@ const LIKELIHOOD_COLORS = {
   rare: { bg: '#fef3c7', color: '#92400e' },
   rule_out: { bg: '#fee2e2', color: '#b91c1c' }
 };
+
+const BOT_AVATAR = '/images/bot.gif';
 
 const normalizeVietnamese = (value = '') =>
   value
@@ -170,22 +172,16 @@ const buildSchemaPayload = (rawPayload, fallbackInput = '') => {
     normalized.messageToUserMarkdown = `Mình ghi nhận các triệu chứng: ${normalized.symptoms.join(', ')}.`;
   }
 
-  return normalized;
-};
+  if (normalized.symptoms.length > 0 && normalized.redFlags.length > 0) {
+    const redFlagSet = new Set(
+      normalized.redFlags.map((flag) => normalizeVietnamese(flag || ''))
+    );
+    normalized.symptoms = normalized.symptoms.filter(
+      (symptom) => !redFlagSet.has(normalizeVietnamese(symptom || ''))
+    );
+  }
 
-const hasInsightDetails = (payload) => {
-  if (!payload) return false;
-  return (
-    payload.intents.length > 0 ||
-    payload.symptoms.length > 0 ||
-    payload.possibleCauses.length > 0 ||
-    payload.relatedConditions.length > 0 ||
-    payload.redFlags.length > 0 ||
-    payload.selfCare.length > 0 ||
-    Boolean(payload.recommendedDepartment.name) ||
-    payload.nextQuestions.length > 0 ||
-    Boolean(payload.doctorQuery.departmentCode)
-  );
+  return normalized;
 };
 
 const escapeHtml = (value) => {
@@ -211,21 +207,83 @@ const formatMarkdownText = (value) => {
   return withBullets.replace(/\n/g, '<br/>');
 };
 
-const createMessage = (text, sender = 'bot', extra = {}) => ({
-  text,
-  sender,
-  timestamp: new Date().toISOString(),
-  ...extra
-});
+const createMessage = (text, sender = 'bot', extra = {}) => {
+  const { rawText, animate, ...rest } = extra;
+  return {
+    text,
+    sender,
+    timestamp: new Date().toISOString(),
+    rawText: rawText ?? text,
+    animate: animate ?? sender === 'bot',
+    ...rest
+  };
+};
 
 const createMarkdownMessage = (markdownText, sender = 'bot') =>
   createMessage(formatMarkdownText(markdownText || ''), sender, {
     isMarkdown: true,
-    rawText: markdownText || ''
+    rawText: markdownText || '',
+    animate: true
   });
 
 const stripBasicHtml = (value = '') =>
   value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const sanitizeStoredMessages = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    ...item,
+    animate: false,
+    rawText:
+      typeof item.rawText === 'string'
+        ? item.rawText
+        : item.isMarkdown
+        ? stripBasicHtml(item.text || '')
+        : item.text || ''
+  }));
+};
+
+const TypewriterMessage = ({ msg }) => {
+  const source = msg.rawText || '';
+  const [visibleText, setVisibleText] = useState(msg.animate ? '' : source);
+  const [isDone, setIsDone] = useState(!msg.animate);
+
+  useEffect(() => {
+    if (!msg.animate || !source) {
+      setVisibleText(source);
+      setIsDone(true);
+      return;
+    }
+
+    setVisibleText('');
+    setIsDone(false);
+    let index = 0;
+    const baseSpeed = Math.max(15, Math.min(40, 1500 / Math.max(source.length, 1)));
+    const interval = setInterval(() => {
+      index += 1;
+      setVisibleText(source.slice(0, index));
+      if (index >= source.length) {
+        clearInterval(interval);
+        setIsDone(true);
+      }
+    }, baseSpeed);
+
+    return () => clearInterval(interval);
+  }, [source, msg.animate, msg.timestamp]);
+
+  if (msg.isMarkdown) {
+    const htmlContent = isDone ? msg.text : formatMarkdownText(visibleText);
+    return (
+      <div
+        style={styles.message(msg.sender, msg.isError)}
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
+    );
+  }
+
+  const finalText = isDone ? msg.text : visibleText;
+  return <div style={styles.message(msg.sender, msg.isError)}>{finalText}</div>;
+};
 
 const buildHistoryPayload = (historyMessages = []) => {
   if (!Array.isArray(historyMessages)) return [];
@@ -246,6 +304,63 @@ const buildHistoryPayload = (historyMessages = []) => {
     .filter(Boolean);
 };
 
+const buildInsightMarkdown = (payload) => {
+  if (!payload) return '';
+
+  const parts = [];
+  const joinList = (items, prefix = '**', suffix = '**') =>
+    items.length > 0 ? `${prefix}${items.join(', ')}${suffix}` : '';
+  const bulletList = (items) => items.map((item) => `- ${item}`).join('\n');
+
+  if (payload.symptoms.length > 0) {
+    parts.push(`**Triệu chứng chính:** ${payload.symptoms.join(', ')}`);
+  }
+
+  if (payload.possibleCauses.length > 0) {
+    const causes = payload.possibleCauses
+      .map((cause) => `${cause.name} (${LIKELIHOOD_LABELS[cause.likelihood] || cause.likelihood})`)
+      .join(', ');
+    parts.push(`**Nguyên nhân có thể:** ${causes}`);
+  }
+
+  if (payload.relatedConditions.length > 0) {
+    parts.push(`**Bệnh liên quan:** ${payload.relatedConditions.join(', ')}`);
+  }
+
+  if (payload.redFlags.length > 0) {
+    parts.push(`**Bạn cần đi khám ngay nếu:**\n${bulletList(payload.redFlags)}`);
+  }
+
+  if (payload.selfCare.length > 0) {
+    parts.push(`**Gợi ý tự chăm sóc:**\n${bulletList(payload.selfCare)}`);
+  }
+
+  if (payload.recommendedDepartment?.name || payload.recommendedDepartment?.code) {
+    const { name, code, confidence } = payload.recommendedDepartment;
+    const percent =
+      typeof confidence === 'number' ? ` (độ tin cậy ${Math.round(confidence * 100)}%)` : '';
+    parts.push(
+      `**Khoa gợi ý:** ${name || 'Chưa xác định'}${code ? ` (${code})` : ''}${percent}`
+    );
+    if (Array.isArray(payload.recommendedDepartment.alternatives) && payload.recommendedDepartment.alternatives.length > 0) {
+      parts.push(
+        `**Phương án khác:** ${payload.recommendedDepartment.alternatives
+          .map((alt) => alt.name || alt.code)
+          .filter(Boolean)
+          .join(', ')}`
+      );
+    }
+  }
+
+  if (payload.nextQuestions.length > 0) {
+    parts.push(`**Câu hỏi tiếp theo:**\n${bulletList(payload.nextQuestions)}`);
+  }
+
+
+  if (parts.length === 0) return '';
+  return `**Phân tích y khoa**\n${parts.join('\n\n')}`;
+};
+
 const loadFromStorage = (key, fallback) => {
   if (typeof window === 'undefined') return fallback;
   try {
@@ -262,14 +377,50 @@ const ChatBot = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
 
+  const createGreetingMessage = (name) => {
+    if (name) {
+      const text = `Chào ${name}, mình là trợ lý y khoa của Clinic Booking. Mình có thể giúp bạn tìm bác sĩ, phòng khám hoặc tư vấn triệu chứng. Bạn đang gặp vấn đề gì về sức khỏe không?`;
+      return createMessage(text, 'bot', { rawText: text });
+    }
+    const text =
+      'Xin chào! Mình là trợ lý y khoa của Clinic Booking. Bạn vui lòng cho mình biết tên để mình tiện hỗ trợ và xưng hô nhé.';
+    return createMessage(text, 'bot', { rawText: text });
+  };
+
+  const getNameFromUserProfile = () => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return '';
+      const profile = JSON.parse(raw);
+      const candidates = [
+        profile.fullName,
+        `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
+        profile.name,
+        profile.user?.fullName,
+        `${profile.user?.firstName || ''} ${profile.user?.lastName || ''}`.trim()
+      ];
+      return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || '';
+    } catch (error) {
+      console.warn('Failed to parse stored user profile', error);
+      return '';
+    }
+  };
+
+  const resolveInitialUserName = () => {
+    const cached = loadFromStorage(STORAGE_KEYS.userName, '');
+    if (cached) return cached;
+    return getNameFromUserProfile();
+  };
+
+  const initialUserName = resolveInitialUserName();
+
   const [messages, setMessages] = useState(() => {
     const stored = loadFromStorage(STORAGE_KEYS.messages, null);
     if (stored && Array.isArray(stored) && stored.length > 0) {
-      return stored;
+      return sanitizeStoredMessages(stored);
     }
-    const greeting =
-      'Xin chào! Mình là trợ lý y khoa của Clinic Booking. Bạn hãy mô tả triệu chứng hoặc nhu cầu để được tư vấn nhé.';
-    return [createMessage(greeting, 'bot', { rawText: greeting })];
+    return [createGreetingMessage(initialUserName)];
   });
 
   const [symptomKeywords, setSymptomKeywords] = useState(() =>
@@ -284,19 +435,13 @@ const ChatBot = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isSendHovered, setIsSendHovered] = useState(false);
+  const [userName, setUserName] = useState(initialUserName);
+  const [awaitingName, setAwaitingName] = useState(() => !initialUserName);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
@@ -313,6 +458,14 @@ const ChatBot = () => {
       localStorage.removeItem(STORAGE_KEYS.department);
     }
   }, [lastDepartment]);
+
+  useEffect(() => {
+    if (userName) {
+      localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(userName));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.userName);
+    }
+  }, [userName]);
 
   const mergeSymptomKeywords = (candidates = []) => {
     const sanitized = candidates.map((item) => safeString(item)).filter(Boolean);
@@ -418,6 +571,15 @@ const ChatBot = () => {
 
     pushMessages(userMessage);
     setInputMessage('');
+
+    if (awaitingName) {
+      const safeName = sanitized.replace(/\s+/g, ' ').trim() || 'bạn';
+      setUserName(safeName);
+      setAwaitingName(false);
+      pushMessages(createGreetingMessage(safeName));
+      return;
+    }
+
     setIsLoading(true);
 
     extractKeywords(sanitized);
@@ -441,25 +603,14 @@ const ChatBot = () => {
       const botPayload = [];
       const structured = buildSchemaPayload(reply?.schemaPayload || reply?.response, sanitized);
 
-      if (Array.isArray(reply?.symptomKeywords)) {
-        mergeSymptomKeywords(reply.symptomKeywords);
-      }
-
       if (structured) {
         mergeSymptomKeywords(structured.symptoms);
-
-        if (structured.messageToUserMarkdown) {
-          botPayload.push(createMarkdownMessage(structured.messageToUserMarkdown));
-        }
-
-        if (hasInsightDetails(structured)) {
-          botPayload.push({
-            text: '',
-            sender: 'bot',
-            timestamp: new Date().toISOString(),
-            type: 'insight',
-            payload: structured
-          });
+        const insightText = buildInsightMarkdown(structured);
+        const combinedMessage = [structured.messageToUserMarkdown, insightText]
+          .filter(Boolean)
+          .join('\n\n');
+        if (combinedMessage) {
+          botPayload.push(createMarkdownMessage(combinedMessage));
         }
       }
 
@@ -497,15 +648,6 @@ const ChatBot = () => {
         });
       }
 
-      if (departmentName && doctors.length === 0) {
-        const deptHint = `Khoa gợi ý hiện tại là ${departmentName}${
-          departmentReason ? ` (vì ${departmentReason})` : ''
-        }. Bạn có muốn mình tìm bác sĩ của khoa này không? Chỉ cần nhắn “tìm bác sĩ ${
-          departmentName || ''
-        }” hoặc mô tả thêm triệu chứng nhé.`;
-        botPayload.push(createMessage(deptHint, 'bot', { rawText: deptHint }));
-      }
-
       pushMessages(botPayload);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -536,140 +678,41 @@ const ChatBot = () => {
     }
   };
 
-  const MedicalInsightCard = ({ payload }) => {
-    if (!payload) return null;
-
-    const {
-      input,
-      intents = [],
-      symptoms = [],
-      possibleCauses = [],
-      relatedConditions = [],
-      redFlags = [],
-      selfCare = [],
-      recommendedDepartment = {},
-      doctorQuery = {},
-      nextQuestions = [],
-      safetyNotice = SAFETY_NOTICE
-    } = payload;
-
-    const renderChipSection = (title, items) =>
-      Array.isArray(items) && items.length > 0 ? (
-        <div style={styles.insightSection}>
-          <div style={styles.insightSectionTitle}>{title}</div>
-          <div style={styles.chipGroup}>
-            {items.map((item, idx) => (
-              <span key={`${title}-${idx}`} style={styles.chip}>
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null;
-
-    const renderListSection = (title, items, variant = 'default') =>
-      Array.isArray(items) && items.length > 0 ? (
-        <div style={styles.insightSection}>
-          <div style={styles.insightSectionTitle}>{title}</div>
-          <ul style={styles.list}>
-            {items.map((item, idx) => (
-              <li
-                key={`${title}-${idx}`}
-                style={variant === 'warning' ? styles.redFlagItem : styles.listItem}
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null;
-
-    const renderPossibleCauses = () =>
-      Array.isArray(possibleCauses) && possibleCauses.length > 0 ? (
-        <div style={styles.insightSection}>
-          <div style={styles.insightSectionTitle}>Nguyên nhân có thể</div>
-          <ul style={styles.list}>
-            {possibleCauses.map((cause, idx) => (
-              <li key={`cause-${idx}`} style={styles.listItem}>
-                <div style={styles.causeRow}>
-                  <span>{cause.name}</span>
-                  <span style={styles.likelihoodChip(cause.likelihood)}>
-                    {LIKELIHOOD_LABELS[cause.likelihood] || cause.likelihood}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null;
-
-    const confidencePercentage = typeof recommendedDepartment.confidence === 'number'
-      ? Math.round(Math.min(Math.max(recommendedDepartment.confidence, 0), 1) * 100)
-      : 0;
-    const filters = doctorQuery?.filters || {};
-
-    return (
-      <div style={styles.insightCard}>
-        <div style={styles.insightHeader}>
-          <div>
-            <div style={styles.insightTitle}>Phân tích y khoa</div>
-            <div style={styles.insightSubtitle}>
-              Người dùng: {input || 'Chưa xác định'}
-            </div>
-          </div>
-          <div style={styles.insightBadge}>AI schema</div>
-        </div>
-
-        {renderChipSection('Ý định', intents)}
-        {renderChipSection('Triệu chứng chính', symptoms)}
-        {renderPossibleCauses()}
-        {renderChipSection('Bệnh liên quan', relatedConditions)}
-        {renderListSection('Dấu hiệu cần lưu ý', redFlags, 'warning')}
-        {renderListSection('Gợi ý tự chăm sóc', selfCare)}
-        {renderListSection('Câu hỏi tiếp theo', nextQuestions)}
-
-        {(recommendedDepartment?.name || recommendedDepartment?.code) && (
-          <div style={styles.departmentCard}>
-            <div style={styles.insightSectionTitle}>Khoa gợi ý</div>
-            <div style={styles.departmentName}>
-              {recommendedDepartment.name || 'Chưa xác định'}
-            </div>
-            <div style={styles.departmentMeta}>
-              Mã: {recommendedDepartment.code || 'N/A'} · Độ tin cậy: {confidencePercentage}%
-            </div>
-            {Array.isArray(recommendedDepartment.alternatives) &&
-              recommendedDepartment.alternatives.length > 0 && (
-                <>
-                  <div style={styles.altTitle}>Phương án khác</div>
-                  <div style={styles.chipGroup}>
-                    {recommendedDepartment.alternatives.map((alt, idx) => (
-                      <span key={`alt-${idx}`} style={styles.altChip}>
-                        {alt.name || alt.code}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-          </div>
-        )}
-
-        {(doctorQuery?.departmentCode || filters.location || filters.ratingMin) && (
-          <div style={styles.doctorQueryCard}>
-            <div style={styles.insightSectionTitle}>Tìm bác sĩ phù hợp</div>
-            <div style={styles.doctorQueryText}>
-              Mã khoa ưu tiên: <strong>{doctorQuery.departmentCode || 'Chưa có'}</strong>
-            </div>
-            <div style={styles.doctorFilters}>
-              <span>Vị trí: {filters.location || 'Bất kỳ'}</span>
-              <span>Đánh giá tối thiểu: {filters.ratingMin || 0}</span>
-            </div>
-          </div>
-        )}
-
-        {safetyNotice && <div style={styles.safetyNotice}>{safetyNotice}</div>}
-      </div>
-    );
+  const goHome = () => {
+    navigate('/');
   };
+
+  const handleBrandKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      goHome();
+    }
+  };
+
+  const resetConversation = () => {
+    const profileName = getNameFromUserProfile();
+    const greeting = createGreetingMessage(profileName);
+    setMessages([greeting]);
+    setSymptomKeywords([]);
+    setLastDepartment(null);
+    setUserName(profileName);
+    setAwaitingName(!profileName);
+    setInputMessage('');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.messages);
+      localStorage.removeItem(STORAGE_KEYS.keywords);
+      localStorage.removeItem(STORAGE_KEYS.department);
+      if (profileName) {
+        localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(profileName));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.userName);
+      }
+    }
+    setIsResetModalOpen(false);
+  };
+
+  const openResetModal = () => setIsResetModalOpen(true);
+  const closeResetModal = () => setIsResetModalOpen(false);
 
   const DoctorTable = ({ doctors, departmentName }) => {
     if (!doctors || doctors.length === 0) {
@@ -824,27 +867,48 @@ const ChatBot = () => {
 
   return (
     <>
-      <Header />
       <div style={styles.page}>
+        <div style={styles.topBar}>
+          <div
+            style={styles.brandGroup}
+            onClick={goHome}
+            role="button"
+            tabIndex={0}
+            onKeyDown={handleBrandKeyDown}
+          >
+            <img src="/images/logo.png" alt="Clinic Booking" style={styles.brandImage} />
+            <div style={styles.brandText}>
+              <span style={styles.brandName}>CLINIC BOOKING</span>
+              <span style={styles.brandDivider}>/</span>
+              <span style={styles.brandHelper}>Trợ lý y khoa</span>
+            </div>
+            <span style={styles.verifiedDot}>✓</span>
+          </div>
+          <button style={styles.resetButton} onClick={openResetModal}>
+            Bắt đầu mới
+          </button>
+        </div>
         <div style={styles.container}>
-          <div style={styles.subHeader}>
-            <div style={styles.subTitle}>Trợ lý y khoa</div>
-            {lastDepartment?.name && (
+          {lastDepartment?.name && (
+            <div style={styles.subHeader}>
               <div style={styles.subHint}>
                 Gợi ý hiện tại: <strong>{lastDepartment.name}</strong>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div style={styles.chatContainer}>
             {messages.map((msg, index) => (
               <div key={index} style={styles.messageWrapper(msg.sender)}>
+                {msg.sender === 'bot' && msg.type !== 'doctors' && (
+                  <img src={BOT_AVATAR} alt="AI trợ lý" style={styles.botAvatar} />
+                )}
                 <div style={{ maxWidth: msg.type === 'doctors' ? '100%' : '70%' }}>
                   {msg.type === 'doctors' ? (
                     <DoctorTable doctors={msg.doctors} departmentName={msg.departmentName} />
-                  ) : msg.type === 'insight' ? (
+                  ) : msg.animate && msg.sender === 'bot' ? (
                     <>
-                      <MedicalInsightCard payload={msg.payload} />
+                      <TypewriterMessage msg={msg} />
                       <div style={styles.timestamp}>{formatTime(msg.timestamp)}</div>
                     </>
                   ) : (
@@ -903,6 +967,25 @@ const ChatBot = () => {
             </button>
           </div>
         </div>
+
+        {isResetModalOpen && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modalCard}>
+              <div style={styles.modalTitle}>Bắt đầu cuộc trò chuyện mới?</div>
+              <p style={styles.modalText}>
+                Toàn bộ lịch sử tin nhắn hiện tại sẽ bị xóa. Bạn có chắc muốn làm mới trợ lý y khoa?
+              </p>
+              <div style={styles.modalActions}>
+                <button style={styles.modalCancel} onClick={closeResetModal}>
+                  Hủy
+                </button>
+                <button style={styles.modalConfirm} onClick={resetConversation}>
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -910,23 +993,80 @@ const ChatBot = () => {
 
 const styles = {
   page: {
-    height: 'calc(100vh - 72px)',
-    backgroundColor: '#f5f7fa',
-    overflow: 'hidden',
+    minHeight: '100vh',
+    backgroundColor: '#ffffff',
     display: 'flex',
     flexDirection: 'column'
+  },
+  topBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 32px',
+    borderBottom: '1px solid #e5e7eb',
+    backgroundColor: '#ffffff',
+    position: 'sticky',
+    top: 0,
+    zIndex: 20,
+    boxShadow: '0 4px 12px rgba(15,23,42,0.04)'
+  },
+  brandGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    cursor: 'pointer'
+  },
+  brandImage: {
+    width: '48px',
+    height: '48px',
+    objectFit: 'cover',
+    borderRadius: '50%',
+    backgroundColor: '#e0f2fe',
+    padding: '6px'
+  },
+  brandText: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '18px',
+    color: '#1e293b',
+    fontWeight: '600'
+  },
+  brandName: {
+    color: '#2563eb',
+    letterSpacing: '0.5px'
+  },
+  brandDivider: {
+    color: '#cbd5f5'
+  },
+  brandHelper: {
+    color: '#0f172a'
+  },
+  verifiedDot: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    borderRadius: '50%',
+    backgroundColor: '#2563eb',
+    color: '#fff',
+    fontSize: '12px',
+    fontWeight: '700'
   },
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
-    maxWidth: '900px',
+    flex: 1,
+    maxWidth: '720px',
     margin: '0 auto',
-    padding: '20px'
+    width: '100%',
+    padding: '12px 20px 16px',
+    minHeight: 0
   },
   subHeader: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: '12px'
   },
@@ -939,173 +1079,105 @@ const styles = {
     fontSize: '14px',
     color: '#4b5563'
   },
+  resetButton: {
+    backgroundColor: '#2563eb',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '20px',
+    padding: '10px 18px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s, transform 0.2s',
+    boxShadow: '0 8px 16px rgba(37,99,235,0.3)'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(15,23,42,0.35)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 30,
+    padding: '16px'
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: '420px',
+    backgroundColor: '#fff',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 20px 50px rgba(15,23,42,0.2)',
+    textAlign: 'center'
+  },
+  modalTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: '12px'
+  },
+  modalText: {
+    fontSize: '15px',
+    color: '#475569',
+    lineHeight: 1.5,
+    marginBottom: '20px'
+  },
+  modalActions: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px'
+  },
+  modalCancel: {
+    padding: '10px 18px',
+    borderRadius: '999px',
+    border: '1px solid #cbd5f5',
+    backgroundColor: '#fff',
+    color: '#475569',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  modalConfirm: {
+    padding: '10px 22px',
+    borderRadius: '999px',
+    border: 'none',
+    backgroundColor: '#2563eb',
+    color: '#fff',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 8px 16px rgba(37,99,235,0.35)'
+  },
   chatContainer: {
     flex: 1,
     overflowY: 'auto',
-    padding: '20px',
+    padding: '16px 0 96px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
-    border: '1px solid #e5e7eb'
-  },
-  insightCard: {
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: '18px',
-    padding: '18px',
-    boxShadow: '0 8px 22px rgba(15,23,42,0.08)',
-    marginTop: '6px'
-  },
-  insightHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px'
-  },
-  insightTitle: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#0f172a'
-  },
-  insightSubtitle: {
-    fontSize: '13px',
-    color: '#475569',
-    marginTop: '4px'
-  },
-  insightBadge: {
-    padding: '6px 12px',
-    borderRadius: '999px',
-    backgroundColor: '#dbeafe',
-    color: '#1d4ed8',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  insightSection: {
-    marginTop: '12px'
-  },
-  insightSectionTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#0f172a',
-    marginBottom: '6px'
-  },
-  chipGroup: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px'
-  },
-  chip: {
-    backgroundColor: '#e0f2fe',
-    color: '#0369a1',
-    borderRadius: '999px',
-    padding: '6px 12px',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  list: {
-    margin: 0,
-    paddingLeft: '18px',
-    color: '#1f2937',
-    fontSize: '14px',
-    lineHeight: 1.5
-  },
-  listItem: {
-    marginBottom: '4px'
-  },
-  redFlagItem: {
-    marginBottom: '4px',
-    color: '#b91c1c',
-    fontWeight: '600'
-  },
-  causeRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: '12px',
-    alignItems: 'center'
-  },
-  likelihoodChip: (type = 'possible') => {
-    const palette = LIKELIHOOD_COLORS[type] || LIKELIHOOD_COLORS.possible;
-    return {
-      backgroundColor: palette.bg,
-      color: palette.color,
-      borderRadius: '10px',
-      fontSize: '12px',
-      padding: '2px 8px',
-      fontWeight: '600'
-    };
-  },
-  departmentCard: {
-    marginTop: '12px',
-    padding: '12px',
-    borderRadius: '14px',
-    backgroundColor: '#fff',
-    border: '1px solid #e5e7eb'
-  },
-  departmentName: {
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#0f172a'
-  },
-  departmentMeta: {
-    fontSize: '13px',
-    color: '#475569',
-    marginTop: '4px'
-  },
-  altTitle: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#0f172a',
-    marginTop: '10px',
-    marginBottom: '6px'
-  },
-  altChip: {
-    backgroundColor: '#ede9fe',
-    color: '#5b21b6',
-    borderRadius: '999px',
-    padding: '4px 10px',
-    fontSize: '12px',
-    fontWeight: '600'
-  },
-  doctorQueryCard: {
-    marginTop: '12px',
-    padding: '12px',
-    borderRadius: '14px',
-    border: '1px dashed #93c5fd',
-    backgroundColor: '#eff6ff'
-  },
-  doctorQueryText: {
-    fontSize: '14px',
-    color: '#1f2937'
-  },
-  doctorFilters: {
-    marginTop: '6px',
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap',
-    fontSize: '13px',
-    color: '#475569'
-  },
-  safetyNotice: {
-    marginTop: '12px',
-    fontSize: '12px',
-    color: '#6b7280',
-    fontStyle: 'italic'
+    gap: '16px',
+    backgroundColor: 'transparent',
+    minHeight: 0
   },
   messageWrapper: (sender) => ({
     display: 'flex',
+    alignItems: 'flex-start',
+    width: '100%',
     justifyContent: sender === 'user' ? 'flex-end' : 'flex-start'
   }),
+  botAvatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    objectFit: 'cover',
+    marginRight: '12px',
+    boxShadow: '0 4px 10px rgba(15,23,42,0.12)'
+  },
   message: (sender, isError) => ({
-    padding: '12px 16px',
-    borderRadius: '18px',
-    backgroundColor: sender === 'user' ? '#2563eb' : isError ? '#f87171' : '#f8fafc',
-    color: sender === 'user' || isError ? '#fff' : '#1f2937',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-    fontSize: '15px',
-    lineHeight: 1.5,
+    padding: '16px 20px',
+    borderRadius: '20px',
+    backgroundColor: sender === 'user' ? '#2563eb' : isError ? '#fee2e2' : '#f8fafc',
+    color: sender === 'user' ? '#fff' : isError ? '#b91c1c' : '#1f2937',
+    boxShadow: sender === 'user' ? '0 6px 16px rgba(37,99,235,0.25)' : '0 6px 16px rgba(15,23,42,0.08)',
+    fontSize: '16px',
+    lineHeight: 1.6,
     whiteSpace: 'pre-wrap'
   }),
   timestamp: {
@@ -1126,18 +1198,22 @@ const styles = {
     fontStyle: 'italic'
   },
   inputContainer: {
+    position: 'sticky',
+    bottom: 0,
     display: 'flex',
-    padding: '20px',
+    padding: '12px 0 16px',
     gap: '10px',
-    backgroundColor: '#fff',
-    borderTop: '1px solid #e5e7eb'
+    background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 40%)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 15
   },
   input: {
     flex: 1,
-    padding: '12px 16px',
-    borderRadius: '24px',
-    border: '1px solid #d1d5db',
-    fontSize: '15px',
+    padding: '16px 20px',
+    borderRadius: '30px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: '#f8fafc',
+    fontSize: '16px',
     outline: 'none',
     transition: 'border-color 0.3s'
   },

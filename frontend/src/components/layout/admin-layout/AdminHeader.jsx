@@ -100,11 +100,28 @@ export default function AdminHeader({ onToggleSidebar, sidebarCollapsed }) {
             <i className={"bi " + (sidebarCollapsed ? "bi-list" : "bi-arrow-bar-left")}></i>
           </button>
           <Link to="/admin" className="admin-header__logo" title="Trang quản trị">
-            <span className="admin-header__logo-icon">🏥</span>
-            <span className="admin-header__logo-text">
-              <strong>Clinic Admin</strong>
-              <em>Quản trị</em>
-            </span>
+            {/* Unified logo like patient site */}
+            <div className="flex items-center gap-2">
+              <img
+                src="/images/logo.png"
+                alt="ClinicBooking Logo"
+                className="h-8 w-auto select-none"
+                onError={(e) => {
+                  // Fallback simple mark if image missing
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <span
+                className="hidden logo-fallback md:flex items-center justify-center h-8 px-2 rounded bg-blue-100 text-blue-700 font-bold text-sm"
+                style={{ display: 'none' }}
+              >CB</span>
+              <div className="text-base md:text-lg font-bold text-[#0d6efd] whitespace-nowrap">
+                ClinicBooking
+                <span className="ml-2 text-xs font-medium text-gray-500 hidden sm:inline">Admin</span>
+              </div>
+            </div>
           </Link>
         </div>
 

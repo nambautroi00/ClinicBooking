@@ -1,17 +1,26 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.CreateReferralRequest;
-import com.example.backend.dto.UpdateResultRequest;
-import com.example.backend.dto.SystemNotificationDTO;
-import com.example.backend.exception.NotFoundException;
-import com.example.backend.model.*;
-import com.example.backend.repository.*;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.example.backend.dto.CreateReferralRequest;
+import com.example.backend.dto.SystemNotificationDTO;
+import com.example.backend.dto.UpdateResultRequest;
+import com.example.backend.exception.NotFoundException;
+import com.example.backend.model.Appointment;
+import com.example.backend.model.ClinicalReferral;
+import com.example.backend.model.ClinicalReferralStatus;
+import com.example.backend.model.Department;
+import com.example.backend.model.Doctor;
+import com.example.backend.repository.AppointmentRepository;
+import com.example.backend.repository.ClinicalReferralRepository;
+import com.example.backend.repository.DepartmentRepository;
+import com.example.backend.repository.DoctorRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -25,16 +34,35 @@ public class ClinicalReferralService {
 
     @Transactional
     public ClinicalReferral createReferral(CreateReferralRequest request) {
+        System.out.println("🔍 ClinicalReferralService.createReferral called");
+        System.out.println("🔍 Request: " + request);
+        System.out.println("🔍 AppointmentId: " + request.getAppointmentId());
+        System.out.println("🔍 ToDepartmentId: " + request.getToDepartmentId());
+        System.out.println("🔍 Notes: " + request.getNotes());
+
         Appointment appointment = appointmentRepo.findById(request.getAppointmentId())
-                .orElseThrow(() -> new NotFoundException("Appointment not found"));
+                .orElseThrow(() -> {
+                    System.err.println("❌ Appointment not found with ID: " + request.getAppointmentId());
+                    return new NotFoundException("Appointment not found with ID: " + request.getAppointmentId());
+                });
+
+        System.out.println("✅ Found appointment: " + appointment.getAppointmentId());
 
         Department department = departmentRepo.findById(request.getToDepartmentId())
-                .orElseThrow(() -> new NotFoundException("Department not found"));
+                .orElseThrow(() -> {
+                    System.err.println("❌ Department not found with ID: " + request.getToDepartmentId());
+                    return new NotFoundException("Department not found with ID: " + request.getToDepartmentId());
+                });
+
+        System.out.println("✅ Found department: " + department.getDepartmentName());
 
         // Validate that appointment has a doctor
         if (appointment.getDoctor() == null) {
+            System.err.println("❌ Appointment does not have a doctor assigned");
             throw new IllegalStateException("Appointment does not have an assigned doctor. Cannot create referral.");
         }
+
+        System.out.println("✅ Appointment has doctor: " + appointment.getDoctor().getDoctorId());
 
         ClinicalReferral referral = new ClinicalReferral();
         referral.setAppointment(appointment);
@@ -44,29 +72,9 @@ public class ClinicalReferralService {
         referral.setStatus(ClinicalReferralStatus.PENDING);
         referral.setCreatedAt(LocalDateTime.now());
 
-        // Cập nhật trạng thái appointment
-        appointment.setStatus("REFERRED");
-        appointmentRepo.save(appointment);
-
+        System.out.println("💾 Saving referral...");
         ClinicalReferral saved = referralRepo.save(referral);
-
-        // Gửi thông báo
-        try {
-            Doctor doctor = appointment.getDoctor();
-            if (doctor != null && doctor.getUser() != null) {
-                SystemNotificationDTO.Create notifDto = new SystemNotificationDTO.Create();
-                notifDto.setTitle("Chỉ định cận lâm sàng mới");
-                notifDto.setMessage("Bác sĩ " + doctor.getUser().getLastName() + " " + 
-                    doctor.getUser().getFirstName() + 
-                    " đã chỉ định bạn đến " + department.getDepartmentName());
-                notifDto.setAppointmentId(appointment.getAppointmentId());
-                notificationService.createNotification(notifDto);
-            }
-        } catch (Exception e) {
-            // Log error but don't fail the transaction
-            System.err.println("Failed to send notification: " + e.getMessage());
-            e.printStackTrace();
-        }
+        System.out.println("✅ Referral saved with ID: " + saved.getReferralId());
 
         return saved;
     }
@@ -87,13 +95,48 @@ public class ClinicalReferralService {
 
     @Transactional
     public ClinicalReferral updateResult(Long referralId, UpdateResultRequest request) {
+        System.out.println("🔍 ClinicalReferralService.updateResult called");
+        System.out.println("🔍 ReferralId: " + referralId);
+        System.out.println("🔍 PerformedByDoctorId from request: " + request.getPerformedByDoctorId());
+        
         ClinicalReferral referral = referralRepo.findById(referralId)
                 .orElseThrow(() -> new NotFoundException("Referral not found"));
 
+        System.out.println("✅ Found referral with toDepartmentId: " + referral.getToDepartment().getId());
+
+        // Validate and set performedByDoctor
         if (request.getPerformedByDoctorId() != null) {
             Doctor performer = doctorRepo.findById(request.getPerformedByDoctorId())
-                    .orElseThrow(() -> new NotFoundException("Doctor not found"));
+                    .orElseThrow(() -> new NotFoundException("Doctor not found with ID: " + request.getPerformedByDoctorId()));
+            
+            System.out.println("✅ Found doctor with ID: " + performer.getDoctorId());
+            
+            // Check if doctor's department matches referral's toDepartment
+            if (performer.getDepartment() == null) {
+                System.err.println("❌ Doctor does not have a department assigned");
+                throw new IllegalStateException("Bác sĩ chưa được phân công vào khoa. Không thể cập nhật kết quả.");
+            }
+            
+            Long doctorDepartmentId = performer.getDepartment().getId();
+            Long referralToDepartmentId = referral.getToDepartment().getId();
+            
+            System.out.println("🔍 Doctor's departmentId: " + doctorDepartmentId);
+            System.out.println("🔍 Referral's toDepartmentId: " + referralToDepartmentId);
+            
+            if (!doctorDepartmentId.equals(referralToDepartmentId)) {
+                System.err.println("❌ Department mismatch!");
+                throw new IllegalStateException(
+                    String.format("Bác sĩ không thuộc khoa được chỉ định. Khoa của bác sĩ: %s, Khoa được chỉ định: %s",
+                        performer.getDepartment().getDepartmentName(),
+                        referral.getToDepartment().getDepartmentName())
+                );
+            }
+            
+            System.out.println("✅ Department match! Setting performedByDoctor");
             referral.setPerformedByDoctor(performer);
+        } else {
+            System.err.println("❌ PerformedByDoctorId is null in request");
+            throw new IllegalArgumentException("Thiếu thông tin bác sĩ thực hiện");
         }
 
         referral.setResultText(request.getResultText());

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import paymentApi from "../../api/paymentApi"; // <-- thêm dòng này
+import paymentApi from "../../api/paymentApi"; // API thanh toán
+// import TSX if supported; fallback to JS implementation
+import ExportAllPdfButton from "../../components/common/ExportAllPdfButton";
 
 // helper tải blob
 const downloadBlob = (data, filename) => {
@@ -15,6 +17,9 @@ const PaymentsManagement = () => {
   const [error, setError] = useState("");
   const [payments, setPayments] = useState([]);
   const [appointmentFilter, setAppointmentFilter] = useState("");
+  const [patientNameFilter, setPatientNameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState(""); // YYYY-MM-DD
+  const [dateTo, setDateTo] = useState("");   // YYYY-MM-DD
   const [sortField, setSortField] = useState("paymentId");
   const [sortOrder, setSortOrder] = useState("desc"); // asc | desc
   const [exportId, setExportId] = useState("");
@@ -90,6 +95,21 @@ const PaymentsManagement = () => {
         return apptId.includes(q);
       });
     }
+    if (patientNameFilter) {
+      const qn = patientNameFilter.toString().trim().toLowerCase();
+      rows = rows.filter((p) => (p.patientName || "").toString().toLowerCase().includes(qn));
+    }
+    if (dateFrom || dateTo) {
+      const fromTs = dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null;
+      const toTs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
+      rows = rows.filter((p) => {
+        const ts = p.createdAt ? new Date(p.createdAt).getTime() : null;
+        if (ts == null) return false;
+        if (fromTs != null && ts < fromTs) return false;
+        if (toTs != null && ts > toTs) return false;
+        return true;
+      });
+    }
     rows.sort((a, b) => {
       const dir = sortOrder === "asc" ? 1 : -1;
       const getVal = (r) => {
@@ -111,7 +131,7 @@ const PaymentsManagement = () => {
       return 0;
     });
     return rows;
-  }, [payments, appointmentFilter, sortField, sortOrder]);
+  }, [payments, appointmentFilter, patientNameFilter, dateFrom, dateTo, sortField, sortOrder]);
 
   const handleExportInvoice = async (id) => {
     if (!id) return;
@@ -135,6 +155,70 @@ const PaymentsManagement = () => {
                 <i className="bi bi-credit-card-2-front text-primary me-2"></i>
                 Quản lý thanh toán
               </h2>
+            </div>
+            <div className="d-flex gap-2">
+              <ExportAllPdfButton
+                title="Danh sách thanh toán"
+                fileName="payments-all"
+                columns={["Payment ID","Appointment ID","Bệnh nhân","Bác sĩ","Số tiền","Trạng thái","PayOS Code","Tạo lúc","Thanh toán lúc","Mô tả","Lý do lỗi"]}
+                getRows={async () => {
+                  // Nếu đang filter theo patientId thì chỉ xuất những gì hiển thị
+                  const collect = [];
+                  if (patientId) {
+                    collect.push(...displayedPayments);
+                  } else {
+                    // Lấy tất cả các trang
+                    let current = 0;
+                    const pageSize = 200; // kích thước lớn để giảm số lần gọi
+                    while (true) {
+                      const res = await paymentApi.getAllPayments(current, pageSize);
+                      const content = res.data?.content || (Array.isArray(res.data) ? res.data : []);
+                      collect.push(...content);
+                      const tp = res.data?.totalPages || 1;
+                      current++;
+                      if (current >= tp) break;
+                    }
+                  }
+                  // Map thành rows 2D
+                  return collect.map(p => [
+                    p.paymentId || p.id || '',
+                    p.appointmentId || p.appointment?.appointmentId || '',
+                    p.patientName || p.patientId || '',
+                    p.doctorName || '',
+                    `${(p.amount || 0).toLocaleString('vi-VN')} ${p.currency || 'VND'}`,
+                    p.status || '',
+                    p.payOSCode || '',
+                    p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN') : '',
+                    p.paidAt ? new Date(p.paidAt).toLocaleString('vi-VN') : '',
+                    p.description || '',
+                    p.failureReason || ''
+                  ]);
+                }}
+                className="btn btn-sm btn-outline-secondary"
+              />
+              <ExportAllPdfButton
+                title="Danh sách thanh toán (lọc)"
+                fileName="payments-filtered"
+                columns={["Payment ID","Appointment ID","Bệnh nhân","Bác sĩ","Số tiền","Trạng thái","PayOS Code","Tạo lúc","Thanh toán lúc","Mô tả","Lý do lỗi"]}
+                getRows={() =>
+                  (displayedPayments || []).map(p => [
+                    p.paymentId || p.id || '',
+                    p.appointmentId || p.appointment?.appointmentId || '',
+                    p.patientName || p.patientId || '',
+                    p.doctorName || '',
+                    `${(p.amount || 0).toLocaleString('vi-VN')} ${p.currency || 'VND'}`,
+                    p.status || '',
+                    p.payOSCode || '',
+                    p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN') : '',
+                    p.paidAt ? new Date(p.paidAt).toLocaleString('vi-VN') : '',
+                    p.description || '',
+                    p.failureReason || ''
+                  ])
+                }
+                className="btn btn-sm btn-primary"
+              >
+                <i className="bi bi-funnel me-2" />Xuất theo lọc
+              </ExportAllPdfButton>
             </div>
           </div>
 
@@ -171,6 +255,33 @@ const PaymentsManagement = () => {
                     placeholder="Mã lịch hẹn..."
                     value={appointmentFilter}
                     onChange={(e) => setAppointmentFilter(e.target.value)}
+                  />
+                </div>
+                <div className="col-md-2">
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Tên bệnh nhân..."
+                    value={patientNameFilter}
+                    onChange={(e) => setPatientNameFilter(e.target.value)}
+                  />
+                </div>
+                <div className="col-md-2">
+                  <input
+                    type="date"
+                    className="form-control form-control-sm"
+                    placeholder="Từ ngày"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="col-md-2">
+                  <input
+                    type="date"
+                    className="form-control form-control-sm"
+                    placeholder="Đến ngày"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
                   />
                 </div>
                 <div className="col-md-2">
@@ -219,6 +330,9 @@ const PaymentsManagement = () => {
                         onClick={() => { 
                           setPatientId(""); 
                           setAppointmentFilter("");
+                          setPatientNameFilter("");
+                          setDateFrom("");
+                          setDateTo("");
                           setPage(0);
                         }}
                         disabled={loading}
