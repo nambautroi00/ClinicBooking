@@ -26,6 +26,7 @@ import appointmentApi from "../../api/appointmentApi";
 import patientApi from "../../api/patientApi";
 import paymentApi from "../../api/paymentApi";
 import PaymentModal from "../../components/payment/PaymentModal";
+import { getFullAvatarUrl } from "../../utils/avatarUtils";
 
 export default function PatientBookingDetail() {
   const { doctorId } = useParams();
@@ -843,7 +844,7 @@ export default function PatientBookingDetail() {
               <div className="relative">
                 <div className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden relative bg-gray-200">
                   <img
-                    src={doctor.avatar}
+                    src={getFullAvatarUrl(doctor.avatar)}
                     alt={doctor.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -857,7 +858,7 @@ export default function PatientBookingDetail() {
                   />
                   <span
                     className="text-2xl absolute"
-                    style={{ display: doctor.avatar && doctor.avatar !== '/api/placeholder/150/150' ? 'none' : 'flex' }}
+                    style={{ display: doctor.avatar ? 'none' : 'flex' }}
                   >
                     👨‍⚕️
                   </span>
@@ -1133,7 +1134,7 @@ export default function PatientBookingDetail() {
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200">
                           <img
-                            src={doctor.avatar}
+                            src={getFullAvatarUrl(doctor.avatar)}
                             alt={doctor.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
