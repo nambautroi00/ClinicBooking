@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.backend.model.User;
 
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,11 @@ public class EmailService {
         try {
             System.out.println("📧 Creating SimpleMailMessage...");
             SimpleMailMessage message = new SimpleMailMessage();
+            // Set from email with display name "Clinic Booking"
+            String fromEmail = mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl 
+                ? ((org.springframework.mail.javamail.JavaMailSenderImpl) mailSender).getUsername()
+                : "noreply@clinicbooking.com";
+            message.setFrom("Clinic Booking <" + fromEmail + ">");
             message.setTo(to);
             message.setSubject(subject);
             message.setText(text);
@@ -67,6 +73,12 @@ public class EmailService {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            
+            // Set from email with display name "Clinic Booking"
+            String fromEmail = mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl 
+                ? ((org.springframework.mail.javamail.JavaMailSenderImpl) mailSender).getUsername()
+                : "noreply@clinicbooking.com";
+            helper.setFrom(new InternetAddress(fromEmail, "Clinic Booking", "UTF-8"));
             
             helper.setTo(to);
             helper.setSubject(subject);

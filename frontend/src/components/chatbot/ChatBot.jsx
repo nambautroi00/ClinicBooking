@@ -22,25 +22,6 @@ const DOCTOR_REQUEST_PATTERNS = [
   'tim bac si giup'
 ];
 
-const SYMPTOM_KEYWORDS = [
-  { match: 'dau dau', label: 'Đau đầu' },
-  { match: 'chong mat', label: 'Chóng mặt' },
-  { match: 'mat ngu', label: 'Mất ngủ' },
-  { match: 'sot cao', label: 'Sốt cao' },
-  { match: 'ho', label: 'Ho' },
-  { match: 'kho tho', label: 'Khó thở' },
-  { match: 'tuc nguc', label: 'Tức ngực' },
-  { match: 'dau nguc', label: 'Đau ngực' },
-  { match: 'tieu chay', label: 'Tiêu chảy' },
-  { match: 'dau bung', label: 'Đau bụng' },
-  { match: 'dau xuong', label: 'Đau xương' },
-  { match: 'sung khop', label: 'Sưng khớp' },
-  { match: 'phat ban', label: 'Phát ban' },
-  { match: 'ngua', label: 'Ngứa' },
-  { match: 'dau mat', label: 'Đau mắt' },
-  { match: 'met moi', label: 'Mệt mỏi' },
-  { match: 'buon non', label: 'Buồn nôn' }
-];
 const SAFETY_NOTICE = 'Thông tin chỉ mang tính tham khảo, không thay thế tư vấn y khoa trực tiếp.';
 const ALLOWED_LIKELIHOODS = ['common', 'possible', 'rare', 'rule_out'];
 
@@ -51,12 +32,12 @@ const LIKELIHOOD_LABELS = {
   rule_out: 'Cần loại trừ'
 };
 
-const LIKELIHOOD_COLORS = {
-  common: { bg: '#dcfce7', color: '#166534' },
-  possible: { bg: '#e0f2fe', color: '#075985' },
-  rare: { bg: '#fef3c7', color: '#92400e' },
-  rule_out: { bg: '#fee2e2', color: '#b91c1c' }
-};
+// const LIKELIHOOD_COLORS = {
+//   common: { bg: '#dcfce7', color: '#166534' },
+//   possible: { bg: '#e0f2fe', color: '#075985' },
+//   rare: { bg: '#fef3c7', color: '#92400e' },
+//   rule_out: { bg: '#fee2e2', color: '#b91c1c' }
+// };
 
 const BOT_AVATAR = '/images/bot.gif';
 const MOBILE_BREAKPOINT = 430;
@@ -259,7 +240,7 @@ const TypewriterMessage = ({ msg, isMobile }) => {
     setVisibleText('');
     setIsDone(false);
     let index = 0;
-    const baseSpeed = Math.max(15, Math.min(40, 1500 / Math.max(source.length, 1)));
+    const baseSpeed = Math.max(5, Math.min(15, 500 / Math.max(source.length, 1)));
     const interval = setInterval(() => {
       index += 1;
       setVisibleText(source.slice(0, index));
@@ -359,7 +340,7 @@ const buildInsightMarkdown = (payload) => {
 
 
   if (parts.length === 0) return '';
-  return `**Phân tích y khoa**\n${parts.join('\n\n')}`;
+  return `${parts.join('\n\n')}`;
 };
 
 const loadFromStorage = (key, fallback) => {
@@ -374,9 +355,34 @@ const loadFromStorage = (key, fallback) => {
   }
 };
 
+const getUserId = () => {
+  if (typeof window === 'undefined') return 'guest';
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return 'guest';
+    const profile = JSON.parse(raw);
+    return profile.id || profile.userId || profile.user?.id || 'guest';
+  } catch (error) {
+    console.warn('Failed to parse user ID', error);
+    return 'guest';
+  }
+};
+
+const getStorageKeys = () => {
+  const userId = getUserId();
+  return {
+    messages: `clinic_chat_messages_${userId}`,
+    keywords: `clinic_chat_keywords_${userId}`,
+    department: `clinic_chat_department_${userId}`,
+    userName: `clinic_chat_user_name_${userId}`
+  };
+};
+
 const ChatBot = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
+  const [userId, setUserId] = useState(() => getUserId());
+  const storageKeys = React.useMemo(() => getStorageKeys(), [userId]);
 
   const createGreetingMessage = (name) => {
     if (name) {
@@ -409,7 +415,7 @@ const ChatBot = () => {
   };
 
   const resolveInitialUserName = () => {
-    const cached = loadFromStorage(STORAGE_KEYS.userName, '');
+    const cached = loadFromStorage(storageKeys.userName, '');
     if (cached) return cached;
     return getNameFromUserProfile();
   };
@@ -417,7 +423,7 @@ const ChatBot = () => {
   const initialUserName = resolveInitialUserName();
 
   const [messages, setMessages] = useState(() => {
-    const stored = loadFromStorage(STORAGE_KEYS.messages, null);
+    const stored = loadFromStorage(storageKeys.messages, null);
     if (stored && Array.isArray(stored) && stored.length > 0) {
       return sanitizeStoredMessages(stored);
     }
@@ -425,11 +431,11 @@ const ChatBot = () => {
   });
 
   const [symptomKeywords, setSymptomKeywords] = useState(() =>
-    loadFromStorage(STORAGE_KEYS.keywords, [])
+    loadFromStorage(storageKeys.keywords, [])
   );
 
   const [lastDepartment, setLastDepartment] = useState(() =>
-    loadFromStorage(STORAGE_KEYS.department, null)
+    loadFromStorage(storageKeys.department, null)
   );
 
   const [inputMessage, setInputMessage] = useState('');
@@ -449,28 +455,28 @@ const ChatBot = () => {
   }, [messages]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
-  }, [messages]);
+    localStorage.setItem(storageKeys.messages, JSON.stringify(messages));
+  }, [messages, storageKeys.messages]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.keywords, JSON.stringify(symptomKeywords));
-  }, [symptomKeywords]);
+    localStorage.setItem(storageKeys.keywords, JSON.stringify(symptomKeywords));
+  }, [symptomKeywords, storageKeys.keywords]);
 
   useEffect(() => {
     if (lastDepartment) {
-      localStorage.setItem(STORAGE_KEYS.department, JSON.stringify(lastDepartment));
+      localStorage.setItem(storageKeys.department, JSON.stringify(lastDepartment));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.department);
+      localStorage.removeItem(storageKeys.department);
     }
-  }, [lastDepartment]);
+  }, [lastDepartment, storageKeys.department]);
 
   useEffect(() => {
     if (userName) {
-      localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(userName));
+      localStorage.setItem(storageKeys.userName, JSON.stringify(userName));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.userName);
+      localStorage.removeItem(storageKeys.userName);
     }
-  }, [userName]);
+  }, [userName, storageKeys.userName]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -480,6 +486,63 @@ const ChatBot = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Theo dõi sự thay đổi của user ID và reload dữ liệu khi đổi tài khoản
+  useEffect(() => {
+    const checkUserChange = () => {
+      const currentUserId = getUserId();
+      if (currentUserId !== userId) {
+        // Reload dữ liệu với user mới trước khi cập nhật userId
+        const newUserId = currentUserId;
+        const newStorageKeys = {
+          messages: `clinic_chat_messages_${newUserId}`,
+          keywords: `clinic_chat_keywords_${newUserId}`,
+          department: `clinic_chat_department_${newUserId}`,
+          userName: `clinic_chat_user_name_${newUserId}`
+        };
+        
+        const storedMessages = loadFromStorage(newStorageKeys.messages, null);
+        const storedKeywords = loadFromStorage(newStorageKeys.keywords, []);
+        const storedDepartment = loadFromStorage(newStorageKeys.department, null);
+        const storedUserName = loadFromStorage(newStorageKeys.userName, '');
+        
+        if (storedMessages && Array.isArray(storedMessages) && storedMessages.length > 0) {
+          setMessages(sanitizeStoredMessages(storedMessages));
+        } else {
+          const profileName = getNameFromUserProfile();
+          setMessages([createGreetingMessage(profileName)]);
+        }
+        
+        setSymptomKeywords(storedKeywords);
+        setLastDepartment(storedDepartment);
+        setUserName(storedUserName || getNameFromUserProfile());
+        setAwaitingName(!storedUserName && !getNameFromUserProfile());
+        
+        // Cập nhật userId sau khi đã load dữ liệu
+        setUserId(newUserId);
+      }
+    };
+
+    // Kiểm tra ngay lập tức
+    checkUserChange();
+
+    // Lắng nghe sự thay đổi trong localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === null) {
+        checkUserChange();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Kiểm tra định kỳ (mỗi 1 giây) để phát hiện thay đổi trong cùng tab
+    const interval = setInterval(checkUserChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [userId]);
 
   const mergeSymptomKeywords = (candidates = []) => {
     const sanitized = candidates.map((item) => safeString(item)).filter(Boolean);
@@ -496,19 +559,80 @@ const ChatBot = () => {
     });
   };
 
-  const extractKeywords = (message) => {
-    const normalized = normalizeVietnamese(message || '');
-    const matched = SYMPTOM_KEYWORDS.filter(({ match }) => normalized.includes(match)).map(
-      ({ label }) => label
-    );
-    mergeSymptomKeywords(matched);
-  };
-
   const formatTime = (timestamp) =>
     new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
   const pushMessages = (newMessages) => {
     setMessages((prev) => [...prev, ...(Array.isArray(newMessages) ? newMessages : [newMessages])]);
+  };
+
+  const extractDoctorName = (text) => {
+    const normalized = normalizeVietnamese(text);
+    const patterns = [
+      /tim\s+bac\s+si\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /tim\s+bac\s+sy\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /bac\s+si\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /bac\s+sy\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /tim\s+(.+?)\s+bac\s+si/i,
+      /tim\s+(.+?)\s+bac\s+sy/i,
+      /cho\s+toi\s+biet\s+ve\s+bac\s+si\s+(.+)/i,
+      /thong\s+tin\s+bac\s+si\s+(.+)/i
+    ];
+
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern);
+      if (match && match[1]) {
+        let name = match[1].trim();
+        // Loại bỏ các từ không cần thiết ở cuối
+        name = name.replace(/\s+(giup|cho|minh|toi|ban|di|nhe|khong|co|duoc)$/i, '').trim();
+        if (name.length > 0 && name.length < 50) {
+          return name;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const handleDoctorSearchByName = async (doctorName) => {
+    if (!doctorName || doctorName.trim().length === 0) {
+      pushMessages(
+        createMessage(
+          'Bạn vui lòng cung cấp tên bác sĩ để mình tìm kiếm nhé. Ví dụ: "tìm bác sĩ Nguyễn Văn A" hoặc "bác sĩ Trần Thị B".'
+        )
+      );
+      return;
+    }
+
+    try {
+      const response = await doctorApi.searchDoctors(doctorName);
+      const doctors = Array.isArray(response?.data) ? response.data : [];
+
+      if (doctors.length === 0) {
+        pushMessages(
+          createMessage(
+            `Mình không tìm thấy bác sĩ nào với tên "${doctorName}". Bạn có thể thử tìm với tên khác hoặc mô tả triệu chứng để mình gợi ý bác sĩ phù hợp nhé.`
+          )
+        );
+        return;
+      }
+
+      pushMessages({
+        text: '',
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        type: 'doctors',
+        doctors,
+        departmentName: null
+      });
+    } catch (error) {
+      console.error('Failed to search doctors by name', error);
+      pushMessages(
+        createMessage(
+          'Xin lỗi, mình chưa tra được danh sách bác sĩ lúc này. Bạn thử lại sau hoặc liên hệ hotline: 0775660817 (Lưu) giúp mình nhé.'
+        )
+      );
+    }
   };
 
   const handleDoctorRequest = async () => {
@@ -552,24 +676,19 @@ const ChatBot = () => {
         return;
       }
 
-      pushMessages([
-        createMessage(
-          `Mình đã tìm thấy ${doctors.length} bác sĩ thuộc khoa ${lastDepartment.name}:`
-        ),
-        {
-          text: '',
-          sender: 'bot',
-          timestamp: new Date().toISOString(),
-          type: 'doctors',
-          doctors,
-          departmentName: lastDepartment.name
-        }
-      ]);
+      pushMessages({
+        text: '',
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        type: 'doctors',
+        doctors,
+        departmentName: lastDepartment.name
+      });
     } catch (error) {
       console.error('Failed to fetch doctors', error);
       pushMessages(
         createMessage(
-          'Xin lỗi, mình chưa tra được danh sách bác sĩ lúc này. Bạn thử lại sau hoặc liên hệ hotline giúp mình nhé.'
+          'Xin lỗi, mình chưa tra được danh sách bác sĩ lúc này. Bạn thử lại sau hoặc liên hệ hotline: 0775660817 (Lưu) giúp mình nhé.'
         )
       );
     }
@@ -596,7 +715,13 @@ const ChatBot = () => {
 
     setIsLoading(true);
 
-    extractKeywords(sanitized);
+    // Kiểm tra tìm bác sĩ theo tên trước
+    const doctorName = extractDoctorName(sanitized);
+    if (doctorName) {
+      await handleDoctorSearchByName(doctorName);
+      setIsLoading(false);
+      return;
+    }
 
     const userWantsDoctors = DOCTOR_REQUEST_PATTERNS.some((pattern) =>
       normalizedInput.includes(pattern)
@@ -713,13 +838,13 @@ const ChatBot = () => {
     setAwaitingName(!profileName);
     setInputMessage('');
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEYS.messages);
-      localStorage.removeItem(STORAGE_KEYS.keywords);
-      localStorage.removeItem(STORAGE_KEYS.department);
+      localStorage.removeItem(storageKeys.messages);
+      localStorage.removeItem(storageKeys.keywords);
+      localStorage.removeItem(storageKeys.department);
       if (profileName) {
-        localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(profileName));
+        localStorage.setItem(storageKeys.userName, JSON.stringify(profileName));
       } else {
-        localStorage.removeItem(STORAGE_KEYS.userName);
+        localStorage.removeItem(storageKeys.userName);
       }
     }
     setIsResetModalOpen(false);
@@ -917,7 +1042,7 @@ const ChatBot = () => {
           <div style={{ ...styles.chatContainer, ...(isMobile ? styles.chatContainerMobile : {}) }}>
             {messages.map((msg, index) => (
               <div key={index} style={styles.messageWrapper(msg.sender, isMobile)}>
-                {msg.sender === 'bot' && msg.type !== 'doctors' && (
+                {msg.sender === 'bot' && (
                   <img
                     src={BOT_AVATAR}
                     alt="AI trợ lý"
@@ -926,7 +1051,7 @@ const ChatBot = () => {
                 )}
                 <div
                   style={{
-                    maxWidth: msg.type === 'doctors' ? '100%' : isMobile ? '100%' : '70%'
+                    maxWidth: isMobile ? '100%' : '70%'
                   }}
                 >
                   {msg.type === 'doctors' ? (
@@ -1242,7 +1367,7 @@ const styles = {
     color: sender === 'user' ? '#fff' : isError ? '#b91c1c' : '#1f2937',
     boxShadow: sender === 'user' ? '0 6px 16px rgba(37,99,235,0.25)' : '0 6px 16px rgba(15,23,42,0.08)',
     fontSize: '16px',
-    lineHeight: 1.6,
+    lineHeight: 1.4,
     whiteSpace: 'pre-wrap',
     ...(isMobile ? { padding: '14px 16px', fontSize: '15px' } : {})
   }),
