@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                
+                .requestMatchers("/api/auth/**", "/api/gemini-chat/**").permitAll() // <--- thêm dòng này
                 // Protected Admin endpoints - CHỈ ADMIN
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/users/**").hasRole("ADMIN")           // Quản lý users
