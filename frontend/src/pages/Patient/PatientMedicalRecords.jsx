@@ -496,9 +496,14 @@ const PatientMedicalRecords = () => {
                                             <div className="mb-1">
                                               <strong>Thời gian:</strong> {item.duration || 'N/A'}
                                             </div>
-                                            <div>
+                                            <div className="mb-1">
                                               <strong>Số lượng:</strong> {item.quantity || 1}
                                             </div>
+                                            {item.price && (
+                                              <div className="mb-1">
+                                                <strong>Đơn giá:</strong> <span className="text-success fw-bold">{item.price.toLocaleString('vi-VN')} ₫</span>
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       </div>

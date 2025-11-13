@@ -2,6 +2,8 @@ package com.example.backend.model;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,50 +20,55 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "ClinicalReferrals")
+@Table(name = "clinical_referrals")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ClinicalReferral {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ReferralID")
+    @Column(name = "referralid")
     private Long referralId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "AppointmentID", nullable = false)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "appointmentid", nullable = false)
+    @JsonIgnoreProperties({"referrals", "clinicalReferrals", "prescriptions", "medicalRecords", "payments", "reviews", "doctor", "patient"})
     private Appointment appointment;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "FromDoctorID", nullable = false)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "from_doctorid", nullable = false)
+    @JsonIgnoreProperties({"referrals", "clinicalReferrals", "prescriptions", "appointments", "schedules", "reviews", "conversations", "patients", "department", "user"})
     private Doctor fromDoctor;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ToDepartmentID", nullable = false)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "to_departmentid", nullable = false)
+    @JsonIgnoreProperties({"doctors", "referrals", "clinicalReferrals"})
     private Department toDepartment;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "PerformedByDoctorID")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "performed_by_doctorid")
+    @JsonIgnoreProperties({"referrals", "clinicalReferrals", "prescriptions", "appointments", "schedules", "reviews", "conversations", "patients", "department", "user"})
     private Doctor performedByDoctor;
 
-    @Column(name = "Notes", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "notes", columnDefinition = "NVARCHAR(MAX)")
     private String notes;
 
-    @Column(name = "ResultText", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "result_text", columnDefinition = "NVARCHAR(MAX)")
     private String resultText;
 
-    @Column(name = "ResultFileUrl", length = 500)
+    @Column(name = "result_file_url", length = 500)
     private String resultFileUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "Status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20)
     private ClinicalReferralStatus status = ClinicalReferralStatus.PENDING;
 
-    @Column(name = "CreatedAt", nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "CompletedAt")
+    @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
     // Getters and Setters

@@ -5,6 +5,7 @@ import java.util.Arrays;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -48,7 +49,9 @@ public class SecurityConfig {
                 // Protected Admin endpoints - CHỈ ADMIN
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/users/**").hasRole("ADMIN")           // Quản lý users
-                .requestMatchers("/api/medicines/**").hasRole("ADMIN")       // Quản lý medicines
+                // Medicines - ADMIN có thể quản lý (POST/PUT/DELETE), DOCTOR có thể đọc (GET) để kê đơn
+                .requestMatchers(HttpMethod.GET, "/api/medicines/**").hasAnyRole("ADMIN", "DOCTOR")
+                .requestMatchers("/api/medicines/**").hasRole("ADMIN")       // POST/PUT/DELETE chỉ ADMIN
                 .requestMatchers("/api/prescriptions/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/appointments/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/payments/admin/**").hasRole("ADMIN")

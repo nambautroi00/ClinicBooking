@@ -12,6 +12,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        use_sql_comments: true
         dialect: org.hibernate.dialect.SQLServerDialect
         naming:
           physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
@@ -19,6 +20,10 @@ spring:
         connection:
           characterEncoding: UTF-8
           useUnicode: true
+        jdbc:
+          batch_size: 10
+        order_inserts: true
+        order_updates: true
 
   # Email Configuration
   mail:
