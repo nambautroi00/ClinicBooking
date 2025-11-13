@@ -355,9 +355,34 @@ const loadFromStorage = (key, fallback) => {
   }
 };
 
+const getUserId = () => {
+  if (typeof window === 'undefined') return 'guest';
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return 'guest';
+    const profile = JSON.parse(raw);
+    return profile.id || profile.userId || profile.user?.id || 'guest';
+  } catch (error) {
+    console.warn('Failed to parse user ID', error);
+    return 'guest';
+  }
+};
+
+const getStorageKeys = () => {
+  const userId = getUserId();
+  return {
+    messages: `clinic_chat_messages_${userId}`,
+    keywords: `clinic_chat_keywords_${userId}`,
+    department: `clinic_chat_department_${userId}`,
+    userName: `clinic_chat_user_name_${userId}`
+  };
+};
+
 const ChatBot = () => {
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
+  const [userId, setUserId] = useState(() => getUserId());
+  const storageKeys = React.useMemo(() => getStorageKeys(), [userId]);
 
   const createGreetingMessage = (name) => {
     if (name) {
@@ -390,7 +415,7 @@ const ChatBot = () => {
   };
 
   const resolveInitialUserName = () => {
-    const cached = loadFromStorage(STORAGE_KEYS.userName, '');
+    const cached = loadFromStorage(storageKeys.userName, '');
     if (cached) return cached;
     return getNameFromUserProfile();
   };
@@ -398,7 +423,7 @@ const ChatBot = () => {
   const initialUserName = resolveInitialUserName();
 
   const [messages, setMessages] = useState(() => {
-    const stored = loadFromStorage(STORAGE_KEYS.messages, null);
+    const stored = loadFromStorage(storageKeys.messages, null);
     if (stored && Array.isArray(stored) && stored.length > 0) {
       return sanitizeStoredMessages(stored);
     }
@@ -406,11 +431,11 @@ const ChatBot = () => {
   });
 
   const [symptomKeywords, setSymptomKeywords] = useState(() =>
-    loadFromStorage(STORAGE_KEYS.keywords, [])
+    loadFromStorage(storageKeys.keywords, [])
   );
 
   const [lastDepartment, setLastDepartment] = useState(() =>
-    loadFromStorage(STORAGE_KEYS.department, null)
+    loadFromStorage(storageKeys.department, null)
   );
 
   const [inputMessage, setInputMessage] = useState('');
@@ -430,28 +455,28 @@ const ChatBot = () => {
   }, [messages]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
-  }, [messages]);
+    localStorage.setItem(storageKeys.messages, JSON.stringify(messages));
+  }, [messages, storageKeys.messages]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.keywords, JSON.stringify(symptomKeywords));
-  }, [symptomKeywords]);
+    localStorage.setItem(storageKeys.keywords, JSON.stringify(symptomKeywords));
+  }, [symptomKeywords, storageKeys.keywords]);
 
   useEffect(() => {
     if (lastDepartment) {
-      localStorage.setItem(STORAGE_KEYS.department, JSON.stringify(lastDepartment));
+      localStorage.setItem(storageKeys.department, JSON.stringify(lastDepartment));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.department);
+      localStorage.removeItem(storageKeys.department);
     }
-  }, [lastDepartment]);
+  }, [lastDepartment, storageKeys.department]);
 
   useEffect(() => {
     if (userName) {
-      localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(userName));
+      localStorage.setItem(storageKeys.userName, JSON.stringify(userName));
     } else {
-      localStorage.removeItem(STORAGE_KEYS.userName);
+      localStorage.removeItem(storageKeys.userName);
     }
-  }, [userName]);
+  }, [userName, storageKeys.userName]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -461,6 +486,63 @@ const ChatBot = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Theo dõi sự thay đổi của user ID và reload dữ liệu khi đổi tài khoản
+  useEffect(() => {
+    const checkUserChange = () => {
+      const currentUserId = getUserId();
+      if (currentUserId !== userId) {
+        // Reload dữ liệu với user mới trước khi cập nhật userId
+        const newUserId = currentUserId;
+        const newStorageKeys = {
+          messages: `clinic_chat_messages_${newUserId}`,
+          keywords: `clinic_chat_keywords_${newUserId}`,
+          department: `clinic_chat_department_${newUserId}`,
+          userName: `clinic_chat_user_name_${newUserId}`
+        };
+        
+        const storedMessages = loadFromStorage(newStorageKeys.messages, null);
+        const storedKeywords = loadFromStorage(newStorageKeys.keywords, []);
+        const storedDepartment = loadFromStorage(newStorageKeys.department, null);
+        const storedUserName = loadFromStorage(newStorageKeys.userName, '');
+        
+        if (storedMessages && Array.isArray(storedMessages) && storedMessages.length > 0) {
+          setMessages(sanitizeStoredMessages(storedMessages));
+        } else {
+          const profileName = getNameFromUserProfile();
+          setMessages([createGreetingMessage(profileName)]);
+        }
+        
+        setSymptomKeywords(storedKeywords);
+        setLastDepartment(storedDepartment);
+        setUserName(storedUserName || getNameFromUserProfile());
+        setAwaitingName(!storedUserName && !getNameFromUserProfile());
+        
+        // Cập nhật userId sau khi đã load dữ liệu
+        setUserId(newUserId);
+      }
+    };
+
+    // Kiểm tra ngay lập tức
+    checkUserChange();
+
+    // Lắng nghe sự thay đổi trong localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === 'user' || e.key === null) {
+        checkUserChange();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Kiểm tra định kỳ (mỗi 1 giây) để phát hiện thay đổi trong cùng tab
+    const interval = setInterval(checkUserChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [userId]);
 
   const mergeSymptomKeywords = (candidates = []) => {
     const sanitized = candidates.map((item) => safeString(item)).filter(Boolean);
@@ -756,13 +838,13 @@ const ChatBot = () => {
     setAwaitingName(!profileName);
     setInputMessage('');
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEYS.messages);
-      localStorage.removeItem(STORAGE_KEYS.keywords);
-      localStorage.removeItem(STORAGE_KEYS.department);
+      localStorage.removeItem(storageKeys.messages);
+      localStorage.removeItem(storageKeys.keywords);
+      localStorage.removeItem(storageKeys.department);
       if (profileName) {
-        localStorage.setItem(STORAGE_KEYS.userName, JSON.stringify(profileName));
+        localStorage.setItem(storageKeys.userName, JSON.stringify(profileName));
       } else {
-        localStorage.removeItem(STORAGE_KEYS.userName);
+        localStorage.removeItem(storageKeys.userName);
       }
     }
     setIsResetModalOpen(false);
