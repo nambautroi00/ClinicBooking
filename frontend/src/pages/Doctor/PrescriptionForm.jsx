@@ -32,6 +32,7 @@ const PrescriptionForm = () => {
     patientId: '',
     patientName: '',
     diagnosis: '',
+    advice: '', // Lời khuyên của bác sĩ
     medicines: [],
     selectedAppointmentId: appointmentId || '' // Store selected appointment
   });
@@ -56,6 +57,21 @@ const PrescriptionForm = () => {
   // Clinical Referral Results State
   const [referralResults, setReferralResults] = useState([]);
   const [loadingReferrals, setLoadingReferrals] = useState(false);
+
+  // Success/Error Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    type: 'success', // 'success' or 'error'
+    title: '',
+    message: '',
+    onClose: null
+  });
+
+  // Helper function to show modal
+  const showNotification = (type, title, message, onClose = null) => {
+    setModalConfig({ type, title, message, onClose });
+    setShowModal(true);
+  };
 
   useEffect(() => {
     loadMedicines();
@@ -136,9 +152,30 @@ const PrescriptionForm = () => {
   const loadMedicines = async () => {
     setLoading(true);
     try {
+  console.log('🔍 ========================================');
   console.log('🔍 Đang tải danh sách thuốc...');
   // use canonical medicineApi.getAll() from frontend/src/api/medicineApi.js
   const medicinesRes = await medicineApi.getAll();
+      
+      console.log('✅ Response từ API:', medicinesRes);
+      console.log('✅ Response.data:', medicinesRes.data);
+      console.log('✅ Response.data type:', typeof medicinesRes.data);
+      console.log('✅ Response.data is array?', Array.isArray(medicinesRes.data));
+      console.log('✅ Response.data length:', medicinesRes.data?.length);
+      
+      if (!medicinesRes.data || !Array.isArray(medicinesRes.data)) {
+        console.error('❌ API không trả về mảng medicines!');
+        setMedicines([]);
+        setLoading(false);
+        return;
+      }
+      
+      if (medicinesRes.data.length === 0) {
+        console.warn('⚠️ Danh sách thuốc rỗng!');
+        setMedicines([]);
+        setLoading(false);
+        return;
+      }
       
       const medicinesData = medicinesRes.data.map(medicine => ({
         id: medicine.medicineId || medicine.id || Math.random(),
@@ -151,17 +188,23 @@ const PrescriptionForm = () => {
         description: medicine.description || ''
       }));
 
-      console.log('✅ Đã tải danh sách thuốc:', medicinesData);
-      console.log('🔍 Raw medicine data từ backend:', medicinesRes.data);
-      console.log('🔍 Sample medicine object:', medicinesRes.data[0]);
+      console.log('✅ Đã tải danh sách thuốc:', medicinesData.length, 'thuốc');
+      console.log('🔍 Sample medicine:', medicinesData[0]);
+      console.log('🔍 ========================================');
       setMedicines(medicinesData);
     } catch (error) {
+      console.error('❌ ========================================');
       console.error('❌ Lỗi khi tải danh sách thuốc từ backend:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ ========================================');
       
       if (error.response?.status === 401) {
         console.error('🔒 Không có quyền truy cập danh sách thuốc');
+        showNotification('error', 'Lỗi Quyền Truy Cập', 'Không có quyền truy cập danh sách thuốc. Vui lòng đăng nhập lại.');
       } else {
         console.error('🔌 Không thể kết nối đến server backend');
+        showNotification('error', 'Lỗi Tải Dữ Liệu', 'Không thể tải danh sách thuốc. Vui lòng kiểm tra kết nối hoặc liên hệ quản trị viên.');
       }
       
       setMedicines([]);
@@ -289,16 +332,32 @@ const PrescriptionForm = () => {
 
   // Load clinical referral results for this appointment
   const loadReferralResults = async (apptId) => {
-    if (!apptId) return;
+    if (!apptId) {
+      console.log('⚠️ No appointmentId provided to loadReferralResults');
+      return;
+    }
     
     try {
       setLoadingReferrals(true);
+      console.log('📊 ========================================');
       console.log('📊 Loading referral results for appointment:', apptId);
       const response = await referralApi.getReferralsByAppointment(apptId);
-      console.log('✅ Referral results loaded:', response.data);
-      setReferralResults(response.data || []);
+      console.log('✅ API Response:', response);
+      console.log('✅ Response data:', response.data);
+      console.log('✅ Response data type:', typeof response.data);
+      console.log('✅ Is array?', Array.isArray(response.data));
+      
+      // Ensure it's an array
+      const referrals = Array.isArray(response.data) ? response.data : [];
+      console.log('✅ Setting referralResults state with', referrals.length, 'items');
+      if (referrals.length > 0) {
+        console.log('📋 First referral:', referrals[0]);
+      }
+      setReferralResults(referrals);
+      console.log('📊 ========================================');
     } catch (error) {
       console.error('❌ Error loading referral results:', error);
+      console.error('❌ Error response:', error.response);
       setReferralResults([]);
     } finally {
       setLoadingReferrals(false);
@@ -308,10 +367,51 @@ const PrescriptionForm = () => {
   // Load referral results when appointmentId changes
   useEffect(() => {
     const apptId = appointmentId || formData.selectedAppointmentId;
+    console.log('🔍 ========================================');
+    console.log('🔍 useEffect triggered for referral loading');
+    console.log('🔍 appointmentId from URL:', appointmentId);
+    console.log('🔍 selectedAppointmentId from formData:', formData.selectedAppointmentId);
+    console.log('🔍 patientId from formData:', formData.patientId);
+    console.log('🔍 Final apptId to use:', apptId);
+    console.log('🔍 ========================================');
+    
     if (apptId) {
+      console.log('✅ Calling loadReferralResults with appointmentId:', apptId);
       loadReferralResults(apptId);
+    } else if (formData.patientId) {
+      // If no appointmentId but have patientId, try loading by patient
+      console.log('⚠️ No appointmentId, trying to load referrals by patientId:', formData.patientId);
+      loadReferralsByPatient(formData.patientId);
+    } else {
+      console.log('⚠️ No appointmentId or patientId available, skipping referral load');
     }
-  }, [appointmentId, formData.selectedAppointmentId]);
+  }, [appointmentId, formData.selectedAppointmentId, formData.patientId]);
+
+  // Load referrals by patient ID
+  const loadReferralsByPatient = async (patientId) => {
+    if (!patientId) {
+      console.log('⚠️ No patientId provided to loadReferralsByPatient');
+      return;
+    }
+    
+    try {
+      setLoadingReferrals(true);
+      console.log('📊 Loading referrals for patient:', patientId);
+      const response = await referralApi.getReferralsByPatient(patientId);
+      console.log('✅ Patient referrals response:', response.data);
+      
+      const referrals = Array.isArray(response.data) ? response.data : [];
+      // Filter only DONE referrals
+      const doneReferrals = referrals.filter(r => r.status === 'DONE');
+      console.log('✅ Found', doneReferrals.length, 'completed referrals for patient');
+      setReferralResults(doneReferrals);
+    } catch (error) {
+      console.error('❌ Error loading patient referrals:', error);
+      setReferralResults([]);
+    } finally {
+      setLoadingReferrals(false);
+    }
+  };
 
   // Handle creating clinical referral
   const handleCreateReferral = async () => {
@@ -322,12 +422,12 @@ const PrescriptionForm = () => {
     console.log('🔍 appointmentInfo from state:', appointmentInfo);
 
     if (!referralData.toDepartmentId) {
-      alert('Vui lòng chọn khoa thực hiện');
+      showNotification('error', 'Thiếu Thông Tin', 'Vui lòng chọn khoa thực hiện');
       return;
     }
 
     if (!referralData.notes.trim()) {
-      alert('Vui lòng nhập yêu cầu cận lâm sàng');
+      showNotification('error', 'Thiếu Thông Tin', 'Vui lòng nhập yêu cầu cận lâm sàng');
       return;
     }
 
@@ -340,7 +440,7 @@ const PrescriptionForm = () => {
     console.log('🔍 Resolved appointment ID:', resolvedAppointmentId);
 
     if (!resolvedAppointmentId) {
-      alert('❌ Không tìm thấy thông tin lịch hẹn.\n\nVui lòng:\n1. Chọn lịch hẹn từ dropdown\n2. Hoặc mở form này từ trang "Lịch hẹn bệnh nhân"');
+      showNotification('error', 'Không Tìm Thấy Lịch Hẹn', 'Vui lòng:\n• Chọn lịch hẹn từ dropdown\n• Hoặc mở form này từ trang "Lịch hẹn bệnh nhân"');
       return;
     }
 
@@ -348,7 +448,7 @@ const PrescriptionForm = () => {
     const parsedAppointmentId = parseInt(resolvedAppointmentId);
     if (isNaN(parsedAppointmentId) || parsedAppointmentId <= 0) {
       console.error('❌ Invalid appointment ID:', resolvedAppointmentId);
-      alert(`❌ ID lịch hẹn không hợp lệ: ${resolvedAppointmentId}`);
+      showNotification('error', 'Dữ Liệu Không Hợp Lệ', `ID lịch hẹn không hợp lệ: ${resolvedAppointmentId}`);
       return;
     }
 
@@ -356,7 +456,7 @@ const PrescriptionForm = () => {
     const parsedDepartmentId = parseInt(referralData.toDepartmentId);
     if (isNaN(parsedDepartmentId) || parsedDepartmentId <= 0) {
       console.error('❌ Invalid department ID:', referralData.toDepartmentId);
-      alert(`❌ ID khoa không hợp lệ: ${referralData.toDepartmentId}`);
+      showNotification('error', 'Dữ Liệu Không Hợp Lệ', `ID khoa không hợp lệ: ${referralData.toDepartmentId}`);
       return;
     }
 
@@ -373,7 +473,11 @@ const PrescriptionForm = () => {
       const response = await referralApi.createReferral(requestData);
       console.log('✅ Referral created successfully:', response);
       
-      alert('✅ Đã tạo chỉ định cận lâm sàng thành công!');
+      showNotification('success', 'Thành Công', 'Đã tạo chỉ định cận lâm sàng thành công!', () => {
+        setShowReferralModal(false);
+        setReferralData({ toDepartmentId: '', notes: '' });
+        loadReferralResults();
+      });
       setShowReferralModal(false);
       setReferralData({ toDepartmentId: '', notes: '' });
       
@@ -409,7 +513,7 @@ const PrescriptionForm = () => {
         errorMessage += 'Vui lòng thử lại hoặc liên hệ IT hỗ trợ.';
       }
       
-      alert(errorMessage);
+      showNotification('error', 'Lỗi Tạo Chỉ Định', errorMessage);
     }
   };
 
@@ -491,7 +595,7 @@ const PrescriptionForm = () => {
     console.log('📋 Available medicines:', medicines.map(m => ({ id: m.id, name: m.name })));
 
     if (!currentMedicine.medicineId || !currentMedicine.quantity || !currentMedicine.dosage) {
-      alert('Vui lòng điền đầy đủ thông tin thuốc');
+      showNotification('error', 'Thiếu Thông Tin', 'Vui lòng điền đầy đủ thông tin thuốc (tên thuốc, liều dùng, số lượng)');
       return;
     }
 
@@ -508,7 +612,7 @@ const PrescriptionForm = () => {
     if (!selectedMedicine) {
       console.error('❌ Không tìm thấy thuốc với ID:', currentMedicine.medicineId);
       console.error('Available IDs:', medicines.map(m => `${m.id} (${typeof m.id})`));
-      alert(`Thuốc không hợp lệ. ID: ${currentMedicine.medicineId} không tìm thấy trong danh sách.`);
+      showNotification('error', 'Thuốc Không Hợp Lệ', `ID: ${currentMedicine.medicineId} không tìm thấy trong danh sách thuốc.`);
       return;
     }
 
@@ -529,14 +633,14 @@ const PrescriptionForm = () => {
     // Ensure medicineId is set
     if (!newMedicine.medicineId) {
       console.error('❌ medicineId is missing after adding medicine:', newMedicine);
-      alert('Lỗi: Không thể xác định ID thuốc. Vui lòng thử lại.');
+      showNotification('error', 'Lỗi Dữ Liệu', 'Không thể xác định ID thuốc. Vui lòng thử lại.');
       return;
     }
     
     // Ensure dosage is set
     if (!newMedicine.dosage || !newMedicine.dosage.trim()) {
       console.error('❌ dosage is missing after adding medicine:', newMedicine);
-      alert('Lỗi: Liều dùng không được để trống. Vui lòng thử lại.');
+      showNotification('error', 'Thiếu Thông Tin', 'Liều dùng không được để trống. Vui lòng nhập liều dùng.');
       return;
     }
 
@@ -572,7 +676,7 @@ const PrescriptionForm = () => {
     console.log('🔍 Current medicines:', formData.medicines);
 
     if (!formData.patientId || !formData.diagnosis || formData.medicines.length === 0) {
-      alert('Vui lòng điền đầy đủ thông tin đơn thuốc');
+      showNotification('error', 'Thiếu Thông Tin', 'Vui lòng điền đầy đủ thông tin:\n• Chọn bệnh nhân\n• Nhập chẩn đoán\n• Thêm ít nhất 1 loại thuốc');
       return;
     }
 
@@ -584,7 +688,7 @@ const PrescriptionForm = () => {
 
       if (invalidMedicines.length > 0) {
         console.error('❌ Có thuốc thiếu thông tin hoặc medicineId không hợp lệ:', invalidMedicines);
-        alert('Có thuốc trong đơn chưa đầy đủ thông tin hoặc ID thuốc không hợp lệ. Vui lòng kiểm tra lại.');
+        showNotification('error', 'Dữ Liệu Không Hợp Lệ', 'Có thuốc trong đơn chưa đầy đủ thông tin hoặc ID thuốc không hợp lệ. Vui lòng kiểm tra lại.');
         return;
       }
 
@@ -602,6 +706,7 @@ const PrescriptionForm = () => {
         // Include appointmentId so backend can create MedicalRecord if recordId is missing
         ...(resolvedAppointmentId && { appointmentId: parseInt(resolvedAppointmentId) }),
         notes: formData.diagnosis,
+        advice: formData.advice || '', // Lời khuyên của bác sĩ
         items: formData.medicines.map(med => {
           // Ensure medicineId is a number
           const medicineId = parseInt(med.medicineId);
@@ -620,13 +725,13 @@ const PrescriptionForm = () => {
 
       // Validate: Must have either recordId or appointmentId
       if (!prescriptionData.recordId && !prescriptionData.appointmentId) {
-        alert('Vui lòng chọn hoặc mở từ một lịch hẹn để hệ thống tự động tạo hồ sơ bệnh án.');
+        showNotification('error', 'Thiếu Thông Tin', 'Vui lòng chọn hoặc mở từ một lịch hẹn để hệ thống tự động tạo hồ sơ bệnh án.');
         return;
       }
 
       // Validate appointmentId if provided
       if (prescriptionData.appointmentId && isNaN(prescriptionData.appointmentId)) {
-        alert(`Appointment ID không hợp lệ: ${resolvedAppointmentId}`);
+        showNotification('error', 'Dữ Liệu Không Hợp Lệ', `Appointment ID không hợp lệ: ${resolvedAppointmentId}`);
         return;
       }
 
@@ -644,8 +749,20 @@ const PrescriptionForm = () => {
         const totalAmount = formData.medicines.reduce((sum, med) => sum + (Number(med.price) || 0), 0);
         const formattedTotal = totalAmount.toLocaleString('vi-VN');
 
-        // Show success message
-        alert(`✅ Đã lưu đơn thuốc thành công!\n\n📋 Bệnh nhân: ${formData.patientName}\n💊 Số loại thuốc: ${formData.medicines.length}\n💰 Tổng tiền: ${formattedTotal} ₫`);
+        // Show success message in modal
+        showNotification(
+          'success', 
+          'Lưu Đơn Thuốc Thành Công!', 
+          `📋 Bệnh nhân: ${formData.patientName}\n💊 Số loại thuốc: ${formData.medicines.length}\n💰 Tổng tiền: ${formattedTotal} ₫`,
+          () => {
+            // Navigate after closing modal
+            if (prescriptionData.appointmentId) {
+              navigate('/doctor/appointments');
+            } else {
+              navigate('/doctor/prescriptions');
+            }
+          }
+        );
 
         // Update appointment status to Completed (if appointmentId available)
         if (prescriptionData.appointmentId) {
@@ -654,34 +771,23 @@ const PrescriptionForm = () => {
             console.log('✅ Appointment status updated to Completed for', prescriptionData.appointmentId);
           } catch (e) {
             console.warn('⚠️ Không thể cập nhật trạng thái appointment sau khi kê đơn:', e);
-            // Don't block navigation if appointment update fails
           }
         }
-
-        // Navigate back to prescriptions list
-        console.log('🚀 Navigating to /doctor/prescriptions...');
-        navigate('/doctor/prescriptions', {
-          state: {
-            message: 'Đã kê đơn thuốc thành công!',
-            newPrescription: true
-          }
-        });
       } catch (apiError) {
         console.error('❌ Lỗi khi lưu đơn thuốc vào database:', apiError);
         console.error('❌ Error response:', apiError.response);
         console.error('❌ Error response data:', apiError.response?.data);
         console.error('❌ Prescription data sent:', JSON.stringify(prescriptionData, null, 2));
 
-        // Build a detailed message including backend response body when available
-        let errorMessage = '❌ Không thể lưu đơn thuốc vào hệ thống.\n\n';
+        // Build error message
+        let errorMessage = 'Không thể lưu đơn thuốc vào hệ thống.\n\n';
         const resp = apiError.response;
         if (resp) {
           errorMessage += `Server trả về: ${resp.status} ${resp.statusText}\n`;
           if (resp.data) {
             try {
-              // If backend provides validation errors, include them
               const body = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data, null, 2);
-              errorMessage += `Chi tiết: ${body}\n`;
+              errorMessage += `Chi tiết: ${body}`;
             } catch (e) {
               errorMessage += 'Chi tiết lỗi không thể hiển thị.';
             }
@@ -692,7 +798,7 @@ const PrescriptionForm = () => {
           errorMessage += `Lỗi: ${apiError.message}`;
         }
 
-        alert(errorMessage);
+        showNotification('error', 'Lỗi Lưu Đơn Thuốc', errorMessage);
         return; // Don't navigate on error
       }
 
@@ -700,7 +806,7 @@ const PrescriptionForm = () => {
       console.error('❌ Lỗi không mong đợi:', error);
       
       // More detailed error message
-      let errorMessage = '❌ Không thể lưu đơn thuốc.\n\n';
+      let errorMessage = 'Không thể lưu đơn thuốc.\n\n';
       
       if (error.response) {
         errorMessage += `Lỗi server: ${error.response.status} - ${error.response.data?.message || 'Không rõ lý do'}`;
@@ -712,7 +818,7 @@ const PrescriptionForm = () => {
       
       errorMessage += '\n\nVui lòng thử lại hoặc liên hệ quản trị viên.';
       
-      alert(errorMessage);
+      showNotification('error', 'Lỗi Không Mong Đợi', errorMessage);
     }
   };
 
@@ -966,6 +1072,30 @@ const PrescriptionForm = () => {
               <small className="text-muted mt-2 d-block" style={{fontSize: '13px'}}>
                 💡 <strong>Gợi ý:</strong> Nhập triệu chứng ban đầu. Nếu cần xét nghiệm/chẩn đoán hình ảnh, nhấn "Tạo Chỉ định CLS"
               </small>
+              
+              {/* Advice Section */}
+              <hr className="my-3" />
+              <Form.Group className="mt-3">
+                <Form.Label style={{fontSize: '14px', fontWeight: 600, color: '#1a202c'}}>
+                  Lời khuyên của bác sĩ
+                </Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  placeholder="Nhập lời khuyên cho bệnh nhân (cách chăm sóc, lưu ý khi dùng thuốc...)&#10;Ví dụ: Nghỉ ngơi đầy đủ, uống đủ nước, tránh thức khuya..."
+                  value={formData.advice}
+                  onChange={(e) => setFormData(prev => ({...prev, advice: e.target.value}))}
+                  style={{
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '14px',
+                    resize: 'none'
+                  }}
+                />
+                <small className="text-muted mt-1 d-block" style={{fontSize: '13px'}}>
+                  💡 <strong>Tùy chọn:</strong> Lời khuyên sẽ được lưu vào hồ sơ bệnh án
+                </small>
+              </Form.Group>
             </Card.Body>
           </Card>
 
@@ -1471,6 +1601,47 @@ const PrescriptionForm = () => {
           >
             <Clipboard size={18} />
             Tạo Chỉ Định
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Notification Modal */}
+      <Modal 
+        show={showModal} 
+        onHide={() => {
+          setShowModal(false);
+          if (modalConfig.onClose) {
+            modalConfig.onClose();
+          }
+        }}
+        centered
+      >
+        <Modal.Header 
+          closeButton 
+          style={{
+            backgroundColor: modalConfig.type === 'success' ? '#d4edda' : '#f8d7da',
+            borderBottom: `3px solid ${modalConfig.type === 'success' ? '#28a745' : '#dc3545'}`
+          }}
+        >
+          <Modal.Title>
+            {modalConfig.type === 'success' ? '✅' : '❌'} {modalConfig.title}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ whiteSpace: 'pre-line', fontSize: '15px' }}>
+          {modalConfig.message}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant={modalConfig.type === 'success' ? 'success' : 'danger'}
+            onClick={() => {
+              setShowModal(false);
+              if (modalConfig.onClose) {
+                modalConfig.onClose();
+              }
+            }}
+            style={{ minWidth: '100px' }}
+          >
+            OK
           </Button>
         </Modal.Footer>
       </Modal>

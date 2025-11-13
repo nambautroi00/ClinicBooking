@@ -1,9 +1,64 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, MessageCircle, Bell } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, MessageCircle, Bell, Loader2, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import notificationApi from "../../api/notificationApi";
 import userApi from "../../api/userApi";
+
+const normalizeText = (text = "") =>
+  text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const levenshteinDistance = (a = "", b = "") => {
+  const matrix = Array.from({ length: b.length + 1 }, () =>
+    Array(a.length + 1).fill(0)
+  );
+  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+  for (let j = 1; j <= b.length; j++) {
+    for (let i = 1; i <= a.length; i++) {
+      if (a[i - 1] === b[j - 1]) matrix[j][i] = matrix[j - 1][i - 1];
+      else {
+        matrix[j][i] = Math.min(
+          matrix[j - 1][i] + 1,
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i - 1] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+};
+
+const fuzzyIncludes = (source, token) => {
+  if (!token) return true;
+  if (!source) return false;
+  if (source.includes(token)) return true;
+  if (token.length <= 2) return false;
+  const maxDistance = token.length <= 4 ? 1 : 2;
+  for (let i = 0; i <= source.length - token.length; i++) {
+    const window = source.substring(i, i + token.length);
+    if (levenshteinDistance(window, token) <= maxDistance) return true;
+  }
+  return false;
+};
+
+const matchesTokens = (source, tokens) =>
+  tokens.every((token) => fuzzyIncludes(source, token));
+
+const getInitials = (text = "") => {
+  const parts = text.trim().split(/\s+/);
+  if (!parts.length) return "CK";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -17,7 +72,12 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState({ doctors: [], departments: [] });
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isGeminiSearching, setIsGeminiSearching] = useState(false);
+  const [searchSource, setSearchSource] = useState('local');
   const navigate = useNavigate();
+  const doctorCacheRef = useRef([]);
+  const departmentCacheRef = useRef([]);
+  const searchFetchPromiseRef = useRef(null);
 
   // Function to navigate to messages based on user role
   const handleMessagesClick = () => {
@@ -116,6 +176,97 @@ export default function Header() {
     }
   }, [user, fetchNotifications]);
 
+  const decorateDoctor = useCallback((doctor) => {
+    const fullName = `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.trim();
+    return {
+      ...doctor,
+      _searchName: normalizeText(fullName),
+      _searchDepartment: normalizeText(doctor.department?.departmentName || ''),
+      _searchSpecialty: normalizeText(doctor.specialty || doctor.department?.departmentName || '')
+    };
+  }, []);
+
+  const decorateDepartment = useCallback((dept) => ({
+    ...dept,
+    _searchName: normalizeText(dept.departmentName || dept.name || ''),
+    _searchDesc: normalizeText(dept.description || dept.desc || '')
+  }), []);
+
+  const ensureSearchData = useCallback(async () => {
+    if (doctorCacheRef.current.length || departmentCacheRef.current.length) return;
+    if (!searchFetchPromiseRef.current) {
+      searchFetchPromiseRef.current = Promise.all([
+        axiosClient.get('/doctors'),
+        axiosClient.get('/departments')
+      ])
+        .then(([doctorsResponse, departmentsResponse]) => {
+          const doctorsData = Array.isArray(doctorsResponse.data)
+            ? doctorsResponse.data
+            : (doctorsResponse.data?.content || []);
+          const departmentsData = Array.isArray(departmentsResponse.data)
+            ? departmentsResponse.data
+            : (departmentsResponse.data?.content || []);
+          doctorCacheRef.current = doctorsData.map(decorateDoctor);
+          departmentCacheRef.current = departmentsData.map(decorateDepartment);
+        })
+        .catch((error) => {
+          console.error('❌ Error preloading search data:', error);
+        })
+        .finally(() => {
+          searchFetchPromiseRef.current = null;
+        });
+    }
+    await searchFetchPromiseRef.current;
+  }, [decorateDepartment, decorateDoctor]);
+
+  const fetchGeminiSuggestions = useCallback(async (query) => {
+    setIsGeminiSearching(true);
+    try {
+      const payload = {
+        message: `Gợi ý nhanh danh sách chuyên khoa hoặc bác sĩ phù hợp với từ khóa tìm kiếm: "${query}". Trả về JSON với các trường department và doctors nếu có.`,
+        context: 'Autocomplete search suggestions for clinic booking website'
+      };
+      const response = await axiosClient.post('/gemini-chat', payload);
+      const { department, doctors } = response.data || {};
+
+      const aiDepartments = department
+        ? [{
+            departmentId: department.id || department.departmentId,
+            departmentName: department.name || department.aiProvidedName,
+            description: department.reason || department.description || department.suspectedCondition || ''
+          }]
+        : [];
+
+      const aiDoctors = Array.isArray(doctors)
+        ? doctors.map((doc) => ({
+            doctorId: doc.id,
+            user: {
+              firstName: doc.fullName?.split(' ').slice(0, -1).join(' ') || doc.fullName,
+              lastName: doc.fullName?.split(' ').slice(-1).join(' ') || '',
+              avatarUrl: doc.avatarUrl
+            },
+            department: { departmentName: doc.departmentName },
+            _searchName: normalizeText(doc.fullName || ''),
+            _searchDepartment: normalizeText(doc.departmentName || ''),
+            _searchSpecialty: normalizeText(doc.specialty || doc.departmentName || '')
+          }))
+        : [];
+
+      if (aiDepartments.length || aiDoctors.length) {
+        setSearchResults({
+          departments: aiDepartments,
+          doctors: aiDoctors
+        });
+        setSearchSource('ai');
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching Gemini suggestions:', error);
+    } finally {
+      setIsGeminiSearching(false);
+    }
+  }, []);
+
   // Function to handle search
   const handleSearch = async (query) => {
     setSearchQuery(query);
@@ -130,50 +281,49 @@ export default function Header() {
     setShowSearchResults(true);
 
     try {
-      // Search for doctors and departments in parallel
-      const [doctorsResponse, departmentsResponse] = await Promise.all([
-        axiosClient.get('/doctors'),
-        axiosClient.get('/departments')
-      ]);
+      await ensureSearchData();
+      const normalizedQuery = normalizeText(query);
+      if (!normalizedQuery) {
+        setSearchResults({ doctors: [], departments: [] });
+        setIsSearching(false);
+        return;
+      }
+      const tokens = normalizedQuery.split(' ').filter(Boolean);
 
-      console.log('🔍 Search - Doctors response:', doctorsResponse.data);
-      console.log('🔍 Search - Departments response:', departmentsResponse.data);
+      const scoredDoctors = doctorCacheRef.current
+        .map((doctor) => {
+          const nameScore = matchesTokens(doctor._searchName, tokens) ? 2 : 0;
+          const deptScore = matchesTokens(doctor._searchDepartment, tokens) ? 2 : 0;
+          const specialtyScore = matchesTokens(doctor._searchSpecialty, tokens) ? 1 : 0;
+          const score = nameScore + deptScore + specialtyScore;
+          return { doctor, score };
+        })
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6)
+        .map((entry) => entry.doctor);
 
-      // Handle different response structures
-      const doctors = Array.isArray(doctorsResponse.data) 
-        ? doctorsResponse.data 
-        : (doctorsResponse.data?.content || []);
-      
-      const departments = Array.isArray(departmentsResponse.data) 
-        ? departmentsResponse.data 
-        : (departmentsResponse.data?.content || []);
-
-      console.log('🔍 Doctors array:', doctors);
-      console.log('🔍 Departments array:', departments);
-
-      // Filter doctors by name or department
-      const filteredDoctors = doctors.filter(doctor => {
-        const fullName = `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.toLowerCase();
-        const departmentName = doctor.department?.departmentName?.toLowerCase() || '';
-        const queryLower = query.toLowerCase();
-        return fullName.includes(queryLower) || departmentName.includes(queryLower);
-      }).slice(0, 5); // Limit to 5 results
-
-      // Filter departments by name or description
-      const filteredDepartments = departments.filter(dept => {
-        const deptName = dept.departmentName?.toLowerCase() || '';
-        const deptDesc = dept.description?.toLowerCase() || '';
-        const queryLower = query.toLowerCase();
-        return deptName.includes(queryLower) || deptDesc.includes(queryLower);
-      }).slice(0, 5); // Limit to 5 results
-
-      console.log('🔍 Filtered doctors:', filteredDoctors);
-      console.log('🔍 Filtered departments:', filteredDepartments);
+      const scoredDepartments = departmentCacheRef.current
+        .map((dept) => {
+          const score =
+            (matchesTokens(dept._searchName, tokens) ? 2 : 0) +
+            (matchesTokens(dept._searchDesc, tokens) ? 1 : 0);
+          return { dept, score };
+        })
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6)
+        .map((entry) => entry.dept);
 
       setSearchResults({
-        doctors: filteredDoctors,
-        departments: filteredDepartments
+        doctors: scoredDoctors,
+        departments: scoredDepartments
       });
+      setSearchSource('local');
+
+      if (scoredDoctors.length === 0 && scoredDepartments.length === 0 && query.length >= 3) {
+        await fetchGeminiSuggestions(query);
+      }
     } catch (error) {
       console.error('❌ Error searching:', error);
       setSearchResults({ doctors: [], departments: [] });
@@ -202,22 +352,11 @@ export default function Header() {
     };
   }, [showSearchResults, showNotifications, showUserDropdown]);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showNotifications && !event.target.closest('.notifications-dropdown')) {
-        setShowNotifications(false);
-      }
-      if (showUserDropdown && !event.target.closest('.user-dropdown')) {
-        setShowUserDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showNotifications, showUserDropdown]);
+    if (!showMobileHeader && window.innerWidth < 768) {
+      setShowSearchResults(false);
+    }
+  }, [showMobileHeader]);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -286,6 +425,138 @@ export default function Header() {
   }, []);
 
 
+
+  const handleResultSelect = (variant) => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+    if (variant === 'mobile') {
+      setShowMobileHeader(false);
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const renderSearchResults = (variant = 'desktop') => {
+    if (!showSearchResults) return null;
+
+    const containerClasses =
+      variant === 'desktop'
+        ? "absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-lg border border-gray-100 rounded-3xl shadow-[0_20px_60px_rgba(15,23,42,0.12)] max-h-[40rem] overflow-y-auto z-50 p-1"
+        : "mt-3 bg-white/95 backdrop-blur-lg border border-gray-100 rounded-3xl shadow-[0_20px_60px_rgba(15,23,42,0.12)] max-h-[40rem] overflow-y-auto z-40 p-4";
+
+    return (
+      <div className={containerClasses}>
+        {isSearching ? (
+          <div className="p-4 text-center text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0d6efd] mx-auto"></div>
+            <p className="mt-2">Đang tìm kiếm...</p>
+          </div>
+        ) : (
+          <>
+            {isGeminiSearching && (
+              <div className="px-4 py-2 text-xs text-purple-600 flex items-center gap-2 bg-purple-50 border-b border-purple-100">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang lấy gợi ý từ AI Gemini...
+              </div>
+            )}
+            {(searchResults.departments.length > 0 || searchResults.doctors.length > 0) ? (
+              <>
+                <div className="flex flex-col gap-4">
+                {searchResults.departments.length > 0 && (
+                  <div className="w-full rounded-2xl bg-gradient-to-b from-[#f9fbff] to-white border border-[#e4ecff] shadow-[0_8px_30px_rgba(13,110,253,0.08)] overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#e4ecff] bg-white flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-[#eef4ff] flex items-center justify-center flex-shrink-0">
+                        <span className="text-[#0d6efd] text-lg">🏥</span>
+                      </div>
+                      <div className="text-sm font-semibold text-gray-700 tracking-wide uppercase">Chuyên khoa</div>
+                      {searchSource === 'ai' && (
+                        <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold flex-shrink-0">AI gợi ý</span>
+                      )}
+                    </div>
+                    <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                      {searchResults.departments.map((dept) => {
+                        const deptId = dept.departmentId ?? dept.id ?? dept.department_id;
+                        return (
+                          <Link
+                            key={deptId || Math.random()}
+                            to={`/specialty/${deptId}`}
+                            onClick={() => handleResultSelect(variant)}
+                            className="flex items-center gap-3 px-4 py-3 transition-all hover:bg-[#f5f9ff]"
+                          >
+                            <div className="w-12 h-12 rounded-2xl bg-white border border-[#e4ecff] flex items-center justify-center flex-shrink-0 shadow-inner">
+                              <span className="text-[#0d6efd] text-sm font-semibold">
+                                {getInitials(dept.departmentName || dept.name || 'CK')}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-gray-900 leading-snug truncate">{dept.departmentName || dept.name}</div>
+                              <div className="text-sm text-gray-500 leading-snug">
+                                {dept.description || dept.desc || 'Chuyên khoa'}
+                              </div>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-gray-300 ml-auto" />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {searchResults.doctors.length > 0 && (
+                  <div className="w-full rounded-2xl bg-gradient-to-b from-[#fef9ff] to-white border border-[#f5e4ff] shadow-[0_8px_30px_rgba(168,85,247,0.08)] overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#f5e4ff] bg-white flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-[#f5ebff] flex items-center justify-center flex-shrink-0">
+                        <span className="text-[#a855f7] text-lg">👨‍⚕️</span>
+                      </div>
+                      <div className="text-sm font-semibold text-gray-700 tracking-wide uppercase">Bác sĩ</div>
+                      {searchSource === 'ai' && (
+                        <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold flex-shrink-0">AI gợi ý</span>
+                      )}
+                    </div>
+                    <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                      {searchResults.doctors.map((doctor) => (
+                        <Link
+                          key={doctor.doctorId}
+                          to={`/doctor/${doctor.doctorId}`}
+                          onClick={() => handleResultSelect(variant)}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-[#fcf4ff] transition-all"
+                        >
+                          <img
+                            src={
+                              doctor.user?.avatarUrl ||
+                              doctor.user?.avatar ||
+                              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                (doctor.user?.firstName || '') + ' ' + (doctor.user?.lastName || '')
+                              )}&background=0d6efd&color=fff`
+                            }
+                            alt={`${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`}
+                            className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-gray-200"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-gray-900 truncate">
+                              {doctor.user?.firstName} {doctor.user?.lastName}
+                            </div>
+                            <div className="text-sm text-gray-500 truncate">
+                              {doctor.department?.departmentName || 'Bác sĩ chuyên khoa'}
+                            </div>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-gray-300 ml-auto flex-shrink-0" />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                </div>
+              </>
+            ) : (
+              <div className="p-4 text-center text-gray-500">
+                Không tìm thấy kết quả phù hợp
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   const menuItems = [
     { label: "Trang chủ", href: "/" },
@@ -376,94 +647,7 @@ export default function Header() {
                 className="w-full rounded-full border border-gray-200 bg-white py-3 pl-10 pr-4 text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
               />
               
-              {/* Search Results Dropdown */}
-              {showSearchResults && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
-                  {isSearching ? (
-                    <div className="p-4 text-center text-gray-500">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0d6efd] mx-auto"></div>
-                      <p className="mt-2">Đang tìm kiếm...</p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Departments Section */}
-                      {searchResults.departments.length > 0 && (
-                        <div className="border-b border-gray-100">
-                          <div className="px-4 py-2 bg-gray-50 text-sm font-semibold text-gray-700">
-                            Chuyên khoa
-                          </div>
-                          {searchResults.departments.map((dept) => {
-                            // departmentId can have different property names depending on backend response
-                            const deptId = dept.departmentId ?? dept.id ?? dept.departmentId ?? dept.department_id;
-                            return (
-                              <Link
-                                key={deptId || Math.random()}
-                                to={`/specialty/${deptId}`}
-                                onClick={() => {
-                                  setShowSearchResults(false);
-                                  setSearchQuery('');
-                                }}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-                              >
-                                <div className="w-10 h-10 rounded-full bg-[#0d6efd]/10 flex items-center justify-center flex-shrink-0">
-                                  <span className="text-[#0d6efd] text-lg">🏥</span>
-                                </div>
-                                <div>
-                                  <div className="font-medium text-gray-900">{dept.departmentName || dept.name}</div>
-                                  <div className="text-sm text-gray-500">{dept.description || dept.desc || 'Chuyên khoa'}</div>
-                                </div>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Doctors Section */}
-                      {searchResults.doctors.length > 0 && (
-                        <div>
-                          <div className="px-4 py-2 bg-gray-50 text-sm font-semibold text-gray-700">
-                            Bác sĩ
-                          </div>
-                          {searchResults.doctors.map((doctor) => (
-                            <Link
-                              key={doctor.doctorId}
-                              to={`/doctor/${doctor.doctorId}`}
-                              onClick={() => {
-                                setShowSearchResults(false);
-                                setSearchQuery('');
-                              }}
-                              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-                            >
-                              <img
-                                src={doctor.user?.avatarUrl || doctor.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.user?.firstName + ' ' + doctor.user?.lastName)}&background=0d6efd&color=fff`}
-                                alt={`${doctor.user?.firstName} ${doctor.user?.lastName}`}
-                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                              />
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  BS. {doctor.user?.firstName} {doctor.user?.lastName}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {doctor.department?.departmentName || 'Bác sĩ'}
-                                </div>
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* No Results */}
-                      {searchResults.doctors.length === 0 && searchResults.departments.length === 0 && (
-                        <div className="p-8 text-center text-gray-500">
-                          <Search className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                          <p className="font-medium">Không tìm thấy kết quả</p>
-                          <p className="text-sm mt-1">Vui lòng thử từ khóa khác</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
+              {renderSearchResults('desktop')}
             </div>
           </div>
 
@@ -667,7 +851,15 @@ export default function Header() {
           <div className="md:hidden pb-3 animate-slideDown">
             <div className="max-w-full mx-auto px-2 relative w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input type="search" placeholder="Tìm bác sĩ, chuyên khoa..." className="pl-10 bg-gray-100 w-full rounded-md py-2 text-lg" />
+              <input
+                type="search"
+                placeholder="Tìm bác sĩ, chuyên khoa..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => searchQuery && setShowSearchResults(true)}
+                className="pl-10 bg-gray-100 w-full rounded-md py-2 text-lg focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
+              />
+              {renderSearchResults('mobile')}
             </div>
           </div>
         )}

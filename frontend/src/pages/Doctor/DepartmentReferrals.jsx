@@ -44,6 +44,8 @@ const DepartmentReferrals = () => {
       if (deptId) {
         console.log('🏥 Department ID found:', deptId);
         console.log('🏥 Department Name:', response.data.department.departmentName);
+        console.log('🔍 IMPORTANT: Trang này chỉ hiển thị referrals có to_departmentid =', deptId);
+        console.log('🔍 Nếu referrals trong DB có to_departmentid khác, chúng sẽ KHÔNG hiển thị!');
         loadReferrals(deptId);
       } else {
         console.error('❌ Doctor has no department assigned');
@@ -62,18 +64,20 @@ const DepartmentReferrals = () => {
   const loadReferrals = async (departmentId) => {
     try {
       setLoading(true);
+      console.log('📊 ========================================');
       console.log('📊 Loading referrals for department ID:', departmentId);
       console.log('📊 Current filter:', filter);
+      console.log('📊 ========================================');
       
-      // Load all referrals or only pending based on filter
-      const response = filter === 'ALL' 
-        ? await referralApi.getReferralsByDepartment(departmentId)
-        : await referralApi.getPendingReferrals(departmentId);
+      // ALWAYS load ALL referrals, filter will be applied in UI
+      console.log('🔍 Calling getReferralsByDepartment (ALL referrals)');
+      const response = await referralApi.getReferralsByDepartment(departmentId);
       
       console.log('✅ Referrals API response:', response);
+      console.log('✅ Response data:', response.data);
       console.log('✅ Response data type:', typeof response.data);
       console.log('✅ Response data is array?', Array.isArray(response.data));
-      console.log('✅ Raw response data (first 500 chars):', JSON.stringify(response.data).substring(0, 500));
+      console.log('✅ Response data constructor:', response.data?.constructor?.name);
       
       // Ensure response.data is an array
       let referralsData = [];
@@ -81,36 +85,85 @@ const DepartmentReferrals = () => {
       if (Array.isArray(response.data)) {
         // Already an array - use directly
         referralsData = response.data;
-        console.log('✅ Data is already an array');
+        console.log('✅ Data is already an array, length:', referralsData.length);
+        console.log('✅ referralsData assigned:', referralsData);
+        console.log('✅ referralsData[0]:', referralsData[0]);
+        
+        // SET STATE IMMEDIATELY to prevent data loss
+        console.log('🚀 Setting referrals state directly with response.data');
+        const validItems = response.data.filter(r => r && r.referralId);
+        console.log('🚀 Valid items count:', validItems.length);
+        setReferrals(validItems);
+        setLoading(false);
+        return; // Early return to prevent further processing
       } else if (typeof response.data === 'string') {
         // Backend returned JSON string - parse it
         try {
           console.log('🔄 Attempting to parse JSON string...');
+          console.log('🔄 String length:', response.data.length);
+          console.log('🔄 String preview (first 300 chars):', response.data.substring(0, 300));
           const parsed = JSON.parse(response.data);
           referralsData = Array.isArray(parsed) ? parsed : [];
           console.log('✅ Parsed JSON string to array, length:', referralsData.length);
         } catch (e) {
           console.error('❌ Failed to parse JSON string:', e.message);
-          console.error('❌ First 200 chars of string:', response.data.substring(0, 200));
+          console.error('❌ String that failed to parse:', response.data.substring(0, 500));
           referralsData = [];
         }
       } else if (response.data && typeof response.data === 'object') {
         // If it's an object, try to extract array from common properties
-        console.log('🔄 Data is object, checking for array properties...');
-        referralsData = response.data.content || response.data.data || [];
+        console.log('🔄 Data is object, keys:', Object.keys(response.data));
+        console.log('🔄 Checking for array properties...');
+        referralsData = response.data.content || response.data.data || response.data.referrals || [];
+        if (referralsData.length === 0) {
+          console.warn('⚠️ Object has no common array properties, trying direct conversion');
+          // If object is not a wrapper, maybe it IS the array-like object?
+          // Try converting object to array if it has numeric keys
+          const keys = Object.keys(response.data);
+          if (keys.length > 0 && keys.every(k => !isNaN(k))) {
+            referralsData = Object.values(response.data);
+            console.log('✅ Converted numeric-keyed object to array, length:', referralsData.length);
+          }
+        }
       }
       
-      console.log('✅ Number of referrals:', referralsData.length);
+      console.log('📊 ========================================');
+      console.log('📊 TOTAL REFERRALS RETURNED:', referralsData.length);
+      console.log('📊 ========================================');
       
       if (referralsData.length > 0) {
-        console.log('📋 Sample referral (first 3):', referralsData.slice(0, 3));
-        console.log('📋 First referral toDepartment:', referralsData[0]?.toDepartment);
-        console.log('📋 First referral fromDoctor:', referralsData[0]?.fromDoctor);
-        console.log('📋 First referral appointment:', referralsData[0]?.appointment);
-        console.log('📋 First referral status:', referralsData[0]?.status);
+        console.log('📋 ALL REFERRALS:');
+        referralsData.forEach((ref, idx) => {
+          console.log(`   ${idx + 1}. ReferralID: ${ref.referralId}, Status: ${ref.status}, ToDept: ${ref.toDepartment?.id} (${ref.toDepartment?.departmentName})`);
+        });
+        console.log('� ========================================');
+      } else {
+        console.warn('⚠️ NO REFERRALS RETURNED FROM API!');
+        console.warn('⚠️ Kiểm tra:');
+        console.warn('   1. Có referrals trong DB với to_departmentid =', departmentId, '?');
+        console.warn('   2. Backend có filter đúng không?');
+        console.warn('   3. Bác sĩ có thuộc đúng khoa không?');
+        console.warn('   4. Backend entity có @JsonIgnoreProperties để tránh circular reference không?');
+        console.log('📊 ========================================');
       }
       
-      const validReferrals = referralsData.filter(r => r && r.referralId);
+      console.log('🔍 BEFORE FILTER - referralsData.length:', referralsData.length);
+      if (referralsData.length > 0) {
+        console.log('🔍 First item full object:', referralsData[0]);
+        console.log('🔍 First item keys:', Object.keys(referralsData[0]));
+        console.log('🔍 First item.referralId:', referralsData[0].referralId);
+        console.log('🔍 First item type:', typeof referralsData[0]);
+      }
+      
+      const validReferrals = referralsData.filter(r => {
+        const isValid = r && r.referralId;
+        if (!isValid) {
+          console.log('❌ FILTERED OUT item:', r);
+        } else {
+          console.log('✅ KEPT item with referralId:', r.referralId);
+        }
+        return isValid;
+      });
       console.log('✅ Valid referrals after filter:', validReferrals.length);
       setReferrals(validReferrals);
     } catch (error) {
@@ -141,15 +194,29 @@ const DepartmentReferrals = () => {
       return;
     }
 
+    // Validate doctor belongs to the department
+    console.log('🔍 Validation Check:');
+    console.log('   Doctor ID:', doctorId);
+    console.log('   Doctor Department ID:', doctorInfo?.department?.id);
+    console.log('   Referral To Department ID:', selectedReferral.toDepartmentId);
+    
+    if (doctorInfo?.department?.id !== selectedReferral.toDepartmentId) {
+      alert('❌ Lỗi: Bạn không thuộc khoa được chỉ định!\n\n' +
+            'Khoa của bạn: ' + (doctorInfo?.department?.departmentName || 'N/A') + '\n' +
+            'Khoa được chỉ định: ' + (selectedReferral.toDepartmentName || 'N/A'));
+      return;
+    }
+
     try {
       const payload = {
-        performedByDoctorId: doctorId,
+        performedByDoctorId: parseInt(doctorId),
         resultText: resultData.resultText.trim(),
         resultFileUrl: resultData.resultFileUrl.trim() || null,
         status: resultData.status
       };
 
       console.log('📤 Submitting result:', payload);
+      console.log('📤 Referral ID:', selectedReferral.referralId);
       
       await referralApi.updateResult(selectedReferral.referralId, payload);
       
@@ -164,7 +231,19 @@ const DepartmentReferrals = () => {
       }
     } catch (error) {
       console.error('❌ Error updating result:', error);
-      alert('Không thể cập nhật kết quả: ' + (error.response?.data?.message || error.message));
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
+      
+      let errorMsg = 'Không thể cập nhật kết quả';
+      if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.response?.data) {
+        errorMsg = error.response.data;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      alert('❌ ' + errorMsg);
     }
   };
 
@@ -246,6 +325,85 @@ const DepartmentReferrals = () => {
           <i className="bi bi-arrow-left me-2"></i>
           Quay lại
         </button>
+      </div>
+
+      {/* DEBUG INFO PANEL */}
+      <div className="alert alert-info mb-4">
+        <h6 className="alert-heading">
+          <i className="bi bi-info-circle me-2"></i>
+          Thông tin Debug
+        </h6>
+        <div className="mb-2">
+          <strong>Bác sĩ:</strong> {doctorInfo?.user?.firstName} {doctorInfo?.user?.lastName} (ID: {doctorId})
+        </div>
+        <div className="mb-2">
+          <strong>Khoa của bác sĩ:</strong> {doctorInfo?.department?.departmentName || 'Chưa có'} 
+          {doctorInfo?.department?.id && ` (Department ID: ${doctorInfo.department.id})`}
+        </div>
+        <div className="mb-2">
+          <strong>Filter hiện tại:</strong> {filter}
+        </div>
+        <div className="mb-2">
+          <strong>Số referrals được load:</strong> {safeReferrals.length}
+        </div>
+        {safeReferrals.length === 0 && (
+          <div className="alert alert-warning mt-2 mb-0">
+            <strong>⚠️ Không có referral nào!</strong>
+            <ul className="mb-0 mt-2">
+              <li>Kiểm tra trong DB: Có referrals với <code>to_departmentid = {doctorInfo?.department?.id}</code> không?</li>
+              <li>Trong SQL của bạn: referrals có <code>to_departmentid</code> là gì?</li>
+              <li>Bác sĩ tạo referrals có chọn đúng khoa này không?</li>
+              <li><strong className="text-danger">Kiểm tra Console log của backend!</strong> Có xuất hiện query SQL không?</li>
+            </ul>
+          </div>
+        )}
+        <div className="btn-group mt-2" role="group">
+          <button 
+            className="btn btn-sm btn-outline-primary"
+            onClick={() => {
+              console.log('🔍 Manual Debug Info:');
+              console.log('   Doctor:', doctorInfo);
+              console.log('   Department ID:', doctorInfo?.department?.id);
+              console.log('   Referrals:', safeReferrals);
+            }}
+          >
+            <i className="bi bi-terminal me-1"></i>
+            In log chi tiết vào Console
+          </button>
+          <button 
+            className="btn btn-sm btn-outline-success"
+            onClick={async () => {
+              console.log('🔄 Testing direct API call...');
+              const deptId = doctorInfo?.department?.id;
+              if (!deptId) {
+                alert('Không có department ID!');
+                return;
+              }
+              try {
+                console.log('📞 Calling: GET /api/clinical-referrals/department/' + deptId);
+                const response = await referralApi.getReferralsByDepartment(deptId);
+                console.log('✅ API Response:', response);
+                console.log('✅ Response data:', response.data);
+                console.log('✅ Data type:', typeof response.data);
+                console.log('✅ Is array?', Array.isArray(response.data));
+                if (Array.isArray(response.data)) {
+                  console.log('✅ Array length:', response.data.length);
+                  if (response.data.length > 0) {
+                    console.log('📋 First item:', response.data[0]);
+                  }
+                }
+                alert('API test done! Check console for details.\n\nFound: ' + (Array.isArray(response.data) ? response.data.length : 0) + ' referrals');
+              } catch (error) {
+                console.error('❌ API Error:', error);
+                console.error('❌ Error response:', error.response);
+                alert('API Error: ' + (error.response?.data?.message || error.message));
+              }
+            }}
+          >
+            <i className="bi bi-lightning me-1"></i>
+            Test API trực tiếp
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -353,13 +511,13 @@ const DepartmentReferrals = () => {
 
                   {/* From Doctor */}
                   <div className="border-start border-4 border-warning ps-3 mb-3">
-                    <small className="text-muted d-block mb-1">Bác sĩ chỉ định:</small>
+                    <small className="text-muted d-block mb-1">Bác sĩ yêu cầu (Bác sĩ chính):</small>
                     <div className="fw-bold">
                       <i className="bi bi-person-badge text-warning me-2"></i>
-                      BS. {referral.fromDoctor?.user?.lastName} {referral.fromDoctor?.user?.firstName}
+                      BS. {referral.fromDoctorName || 'N/A'}
                     </div>
                     <small className="text-muted">
-                      {referral.fromDoctor?.department?.departmentName || 'N/A'}
+                      Khoa: {referral.fromDoctorSpecialty || 'N/A'}
                     </small>
                   </div>
 
@@ -368,11 +526,11 @@ const DepartmentReferrals = () => {
                     <small className="text-muted d-block mb-1">Bệnh nhân:</small>
                     <div className="fw-bold text-dark">
                       <i className="bi bi-person-fill me-2 text-info"></i>
-                      {referral.appointment?.patient?.user?.lastName} {referral.appointment?.patient?.user?.firstName}
+                      {referral.patientName || 'N/A'}
                     </div>
                     <small className="text-muted d-block">
                       <i className="bi bi-telephone me-1"></i>
-                      {referral.appointment?.patient?.user?.phone || 'N/A'}
+                      {referral.patientPhone || 'N/A'}
                     </small>
                   </div>
 
@@ -444,10 +602,10 @@ const DepartmentReferrals = () => {
                           <i className="bi bi-check-circle-fill me-1"></i>
                           Đã hoàn thành: {formatDateTime(referral.completedAt)}
                         </small>
-                        {referral.performedByDoctor && (
+                        {referral.performedByDoctorName && (
                           <small className="text-muted d-block">
                             <i className="bi bi-person me-1"></i>
-                            Thực hiện bởi: BS. {referral.performedByDoctor.user?.lastName}
+                            Thực hiện bởi: BS. {referral.performedByDoctorName}
                           </small>
                         )}
                       </div>
@@ -477,7 +635,7 @@ const DepartmentReferrals = () => {
                   <>
                     {/* Patient Info */}
                     <div className="alert alert-info mb-3">
-                      <strong>Bệnh nhân:</strong> {selectedReferral.appointment?.patient?.user?.lastName} {selectedReferral.appointment?.patient?.user?.firstName}
+                      <strong>Bệnh nhân:</strong> {selectedReferral.patientName || 'N/A'}
                       <br />
                       <strong>Yêu cầu:</strong> {selectedReferral.notes}
                     </div>

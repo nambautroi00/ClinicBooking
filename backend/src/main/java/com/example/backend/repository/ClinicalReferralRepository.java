@@ -13,6 +13,11 @@ import com.example.backend.model.ClinicalReferralStatus;
 @Repository
 public interface ClinicalReferralRepository extends JpaRepository<ClinicalReferral, Long> {
     
+    // Test with native SQL query to bypass JPA mapping issues
+    @Query(value = "SELECT * FROM dbo.clinical_referrals WHERE to_departmentid = :departmentId ORDER BY created_at DESC", 
+           nativeQuery = true)
+    List<ClinicalReferral> findByDepartmentIdNative(@Param("departmentId") Long departmentId);
+    
     @Query("SELECT r FROM ClinicalReferral r " +
            "LEFT JOIN FETCH r.toDepartment " +
            "LEFT JOIN FETCH r.fromDoctor fd " +

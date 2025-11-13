@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.backend.dto.ClinicalReferralDTO;
 import com.example.backend.dto.CreateReferralRequest;
 import com.example.backend.dto.UpdateResultRequest;
 import com.example.backend.model.ClinicalReferral;
@@ -62,19 +63,22 @@ public class ClinicalReferralController {
     }
 
     @GetMapping("/appointment/{appointmentId}")
-    public ResponseEntity<List<ClinicalReferral>> getReferralsByAppointment(@PathVariable Long appointmentId) {
-        return ResponseEntity.ok(referralService.getByAppointment(appointmentId));
+    public ResponseEntity<List<ClinicalReferralDTO>> getReferralsByAppointment(@PathVariable Long appointmentId) {
+        System.out.println("🔍 ClinicalReferralController.getReferralsByAppointment called with appointmentId: " + appointmentId);
+        List<ClinicalReferralDTO> referrals = referralService.getByAppointmentDTO(appointmentId);
+        System.out.println("✅ Found " + referrals.size() + " referrals for appointment " + appointmentId);
+        return ResponseEntity.ok(referrals);
     }
 
     @GetMapping("/department/{departmentId}")
-    public ResponseEntity<List<ClinicalReferral>> getReferralsByDepartment(@PathVariable Long departmentId) {
+    public ResponseEntity<List<ClinicalReferralDTO>> getReferralsByDepartment(@PathVariable Long departmentId) {
         System.out.println("🔍 ClinicalReferralController.getReferralsByDepartment called with departmentId: " + departmentId);
-        List<ClinicalReferral> referrals = referralService.getByDepartment(departmentId);
+        List<ClinicalReferralDTO> referrals = referralService.getByDepartmentDTO(departmentId);
         System.out.println("✅ Found " + referrals.size() + " referrals for department " + departmentId);
         if (!referrals.isEmpty()) {
-            ClinicalReferral first = referrals.get(0);
+            ClinicalReferralDTO first = referrals.get(0);
             System.out.println("📋 First referral ID: " + first.getReferralId());
-            System.out.println("📋 First referral toDepartment: " + (first.getToDepartment() != null ? first.getToDepartment().getDepartmentName() : "NULL"));
+            System.out.println("📋 First referral toDepartmentName: " + first.getToDepartmentName());
         }
         return ResponseEntity.ok(referrals);
     }
@@ -95,10 +99,41 @@ public class ClinicalReferralController {
     }
 
     @PutMapping("/{id}/result")
-    public ResponseEntity<ClinicalReferral> updateResult(
+    public ResponseEntity<?> updateResult(
             @PathVariable Long id,
             @RequestBody UpdateResultRequest request) {
-        return ResponseEntity.ok(referralService.updateResult(id, request));
+        System.out.println("🔍 ========================================");
+        System.out.println("🔍 ClinicalReferralController.updateResult called");
+        System.out.println("🔍 Referral ID: " + id);
+        System.out.println("🔍 Request: " + request);
+        System.out.println("🔍 PerformedByDoctorId: " + request.getPerformedByDoctorId());
+        System.out.println("🔍 ResultText: " + request.getResultText());
+        System.out.println("🔍 Status: " + request.getStatus());
+        System.out.println("🔍 ========================================");
+        
+        try {
+            ClinicalReferral result = referralService.updateResult(id, request);
+            System.out.println("✅ ========================================");
+            System.out.println("✅ Update successful! Referral ID: " + result.getReferralId());
+            System.out.println("✅ New status: " + result.getStatus());
+            System.out.println("✅ ========================================");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("❌ ========================================");
+            System.err.println("❌ ERROR in updateResult controller");
+            System.err.println("❌ Exception type: " + e.getClass().getName());
+            System.err.println("❌ Message: " + e.getMessage());
+            System.err.println("❌ ========================================");
+            e.printStackTrace();
+            
+            // Return detailed error to frontend
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getClass().getSimpleName());
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("detail", "Vui lòng kiểm tra log server để biết thêm chi tiết");
+            
+            return ResponseEntity.status(500).body(errorResponse);
+        }
     }
 
     @GetMapping("/patient/{patientId}")

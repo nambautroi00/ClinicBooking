@@ -2,7 +2,33 @@ import React from 'react';
 import { Card } from 'react-bootstrap';
 
 const ReferralResults = ({ referrals, loading }) => {
-  if (!referrals || referrals.length === 0) return null;
+  console.log('🔍 ReferralResults component received:', referrals);
+  console.log('🔍 referrals type:', typeof referrals);
+  console.log('🔍 referrals is array?', Array.isArray(referrals));
+  
+  // Ensure referrals is an array
+  let referralList = [];
+  
+  if (Array.isArray(referrals)) {
+    referralList = referrals;
+  } else if (typeof referrals === 'string') {
+    console.warn('⚠️ referrals is a string, trying to parse...');
+    try {
+      const parsed = JSON.parse(referrals);
+      referralList = Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('❌ Failed to parse referrals string:', e);
+      referralList = [];
+    }
+  } else if (referrals && typeof referrals === 'object') {
+    console.warn('⚠️ referrals is an object, wrapping in array');
+    referralList = [referrals];
+  }
+  
+  console.log('✅ Final referralList:', referralList);
+  console.log('✅ referralList.length:', referralList.length);
+  
+  if (!referralList || referralList.length === 0) return null;
 
   return (
     <Card className="mb-3" style={{border: 'none', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', borderLeft: '4px solid #48bb78'}}>
@@ -11,7 +37,7 @@ const ReferralResults = ({ referrals, loading }) => {
           <i className="bi bi-clipboard-check text-success me-2" style={{fontSize: '20px'}}></i>
           <h6 className="mb-0" style={{fontWeight: 600, color: '#1a202c'}}>
             Kết quả Cận Lâm Sàng
-            <span className="badge bg-success ms-2">{referrals.length}</span>
+            <span className="badge bg-success ms-2">{referralList.length}</span>
           </h6>
         </div>
 
@@ -23,7 +49,7 @@ const ReferralResults = ({ referrals, loading }) => {
           </div>
         ) : (
           <div className="space-y-3">
-            {referrals.map((referral, index) => (
+            {referralList.map((referral, index) => (
               <div 
                 key={referral.referralId} 
                 className={`p-3 rounded ${index > 0 ? 'mt-3' : ''}`}
