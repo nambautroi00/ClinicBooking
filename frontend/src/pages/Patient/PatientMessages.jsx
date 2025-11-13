@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import patientApi from "../../api/patientApi";
 import appointmentApi from "../../api/appointmentApi";
 import doctorApi from "../../api/doctorApi";
@@ -84,6 +84,7 @@ const Avatar = ({ src, alt, children, size = 40, online = false }) => {
 
 function PatientMessages() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const selectedDoctorId = searchParams.get("doctorId");
   const urlPatientId = searchParams.get("patientId");
 
@@ -1034,7 +1035,13 @@ function PatientMessages() {
                       : "?"}
                   </Avatar>
                   <div>
-                    <h6 className="mb-0 fw-bold">{selectedDoctor.doctorName}</h6>
+                    <h6 
+                      className="mb-0 fw-bold"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => navigate(`/patient/booking/${selectedDoctor.doctorId}`)}
+                    >
+                      {selectedDoctor.doctorName}
+                    </h6>
                     <small className="text-muted"> • {selectedDoctor.totalAppointments} lịch hẹn
                     </small>
                   </div>

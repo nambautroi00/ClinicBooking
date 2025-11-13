@@ -1,9 +1,9 @@
 package com.example.backend.controller;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -93,9 +93,45 @@ public class PrescriptionController {
     }
 
     @PostMapping
-    public ResponseEntity<PrescriptionDto> createPrescription(@Valid @RequestBody PrescriptionDto requestDto) {
-        PrescriptionDto createdPrescription = prescriptionService.createPrescription(requestDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdPrescription);
+    public ResponseEntity<?> createPrescription(@Valid @RequestBody PrescriptionDto requestDto) {
+        try {
+            System.out.println("🔍 ========================================");
+            System.out.println("🔍 PrescriptionController.createPrescription called");
+            System.out.println("🔍 Request DTO: " + requestDto);
+            System.out.println("🔍 Items count: " + (requestDto.getItems() != null ? requestDto.getItems().size() : 0));
+            if (requestDto.getItems() != null) {
+                requestDto.getItems().forEach(item -> {
+                    System.out.println("  📦 Item: medicineId=" + item.getMedicineId() + 
+                                     ", quantity=" + item.getQuantity() + 
+                                     ", dosage=" + item.getDosage());
+                });
+            }
+            System.out.println("🔍 ========================================");
+            
+            PrescriptionDto createdPrescription = prescriptionService.createPrescription(requestDto);
+            
+            System.out.println("✅ ========================================");
+            System.out.println("✅ Prescription created successfully");
+            System.out.println("✅ Prescription ID: " + createdPrescription.getPrescriptionId());
+            System.out.println("✅ ========================================");
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdPrescription);
+        } catch (Exception e) {
+            System.err.println("❌ ========================================");
+            System.err.println("❌ Error in PrescriptionController.createPrescription");
+            System.err.println("❌ Exception type: " + e.getClass().getName());
+            System.err.println("❌ Message: " + e.getMessage());
+            System.err.println("❌ ========================================");
+            e.printStackTrace();
+            
+            // Return detailed error to frontend
+            java.util.Map<String, String> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("error", e.getClass().getSimpleName());
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("detail", "Could not commit JPA transaction");
+            
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     @PutMapping("/{id}")
