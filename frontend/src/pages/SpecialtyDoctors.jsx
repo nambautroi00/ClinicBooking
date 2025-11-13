@@ -367,7 +367,7 @@ const SpecialtyDoctors = () => {
                     </button>
                     
                     <button
-                      onClick={() => navigate(`/doctor/${doctor.doctorId}`)}
+                      onClick={() => navigate(`/patient/doctordetail/${doctor.doctorId}`)}
                       className="w-full mt-2 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       Xem chi tiết

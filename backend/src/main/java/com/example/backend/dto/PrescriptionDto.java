@@ -14,6 +14,7 @@ public class PrescriptionDto {
     private Long appointmentId;
     
     private String notes;
+    private String advice; // Lời khuyên của bác sĩ
     private LocalDateTime createdAt;
     
     @Valid
@@ -66,6 +67,9 @@ public class PrescriptionDto {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public String getAdvice() { return advice; }
+    public void setAdvice(String advice) { this.advice = advice; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

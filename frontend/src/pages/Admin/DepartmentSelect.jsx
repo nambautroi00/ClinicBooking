@@ -21,7 +21,9 @@ export default function DepartmentSelect({
         if (!mounted) return;
         const data = res?.data ?? [];
         const list = Array.isArray(data) ? data : data.content ?? [];
-        setOptions(list);
+        // Lọc chỉ lấy khoa có trạng thái ACTIVE
+        const activeList = list.filter(d => (d.status || d.departmentStatus || d.status_name || '').toUpperCase() === 'ACTIVE');
+        setOptions(activeList);
       })
       .catch((err) => {
         console.error("Load departments failed:", err);
@@ -38,23 +40,26 @@ export default function DepartmentSelect({
     value === null || value === undefined || value === "" ? "" : String(value);
 
   return (
-    <select
-      className={className}
-      value={currentValue}
-      onChange={onChange}
-      disabled={disabled || loading}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((d) => {
-        const id = d.id ?? d.departmentId ?? d.departmentid;
-        const name = d.departmentName ?? d.department_name ?? d.name ?? `Khoa ${id}`;
-        return (
-          <option key={String(id)} value={String(id)}>
-            {name}
-          </option>
-        );
-      })}
-    </select>
+    <div style={{ maxWidth: 400 }}>
+      <select
+        className={className}
+        value={currentValue}
+        onChange={onChange}
+        disabled={disabled || loading}
+        style={{ minHeight: 38, fontSize: 15, padding: '6px 10px', borderRadius: 8 }}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((d) => {
+          const id = d.id ?? d.departmentId ?? d.departmentid;
+          const name = d.departmentName ?? d.department_name ?? d.name ?? `Khoa ${id}`;
+          return (
+            <option key={String(id)} value={String(id)}>
+              {name}
+            </option>
+          );
+        })}
+      </select>
+    </div>
   );
 }
 

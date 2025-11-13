@@ -12,6 +12,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        use_sql_comments: true
         dialect: org.hibernate.dialect.SQLServerDialect
         naming:
           physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
@@ -19,6 +20,10 @@ spring:
         connection:
           characterEncoding: UTF-8
           useUnicode: true
+        jdbc:
+          batch_size: 10
+        order_inserts: true
+        order_updates: true
 
   # Email Configuration
   mail:
@@ -64,6 +69,7 @@ payos:
 # Google Gemini Configuration
 gemini:
   api:
-    key: AIzaSyA0F8_yUtzdGWH_H1eKmmx4yrOUrimOTtI
+    key: AIzaSyCoI4QRNCjGjy22yFSmaRwe5ucn-Jmij_Y
     url: https://generativelanguage.googleapis.com/v1beta/models
   model: gemini-2.0-flash
+

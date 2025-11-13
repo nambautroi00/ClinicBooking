@@ -1,23 +1,59 @@
 import React, { useState, useEffect } from 'react';
+import reviewApi from '../api/reviewApi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Clock, Phone, Mail, Calendar, MessageCircle, Award, GraduationCap, Stethoscope } from 'lucide-react';
 import doctorApi from '../api/doctorApi';
 
 const DoctorDetail = () => {
-  const { doctorId } = useParams();
+    const [reviews, setReviews] = useState([]);
+    const [loadingReviews, setLoadingReviews] = useState(true);
+  const { id } = useParams();
   const navigate = useNavigate();
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+
   useEffect(() => {
     fetchDoctorDetails();
-  }, [doctorId]);
+  }, [id]);
+
+  // Fetch reviews for doctor
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!doctor) return;
+      setLoadingReviews(true);
+      try {
+        const data = await reviewApi.getByDoctor(doctor.doctorId || doctor.id || id);
+        setReviews(data || []);
+      } catch {
+        setReviews([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+    if (doctor) fetchReviews();
+  }, [doctor, id]);
+
+  // Fetch rating and review count after doctor is loaded
+  useEffect(() => {
+    const fetchRating = async () => {
+      if (!doctor) return;
+      try {
+        const avg = await reviewApi.getAverageRatingByDoctor(doctor.doctorId || doctor.id || id);
+        const count = await reviewApi.getReviewCountByDoctor(doctor.doctorId || doctor.id || id);
+        setDoctor((prev) => ({ ...prev, rating: Number(avg) || 0, reviewCount: Number(count) || 0 }));
+      } catch {}
+    };
+    if (doctor && (doctor.rating === undefined || doctor.reviewCount === undefined)) {
+      fetchRating();
+    }
+  }, [doctor, id]);
 
   const fetchDoctorDetails = async () => {
     try {
       setLoading(true);
-      const response = await doctorApi.getDoctorById(doctorId);
+      const response = await doctorApi.getDoctorById(id);
       setDoctor(response.data);
     } catch (error) {
       console.error('Error fetching doctor details:', error);
@@ -28,7 +64,7 @@ const DoctorDetail = () => {
   };
 
   const handleBookAppointment = () => {
-    navigate(`/patient/booking/${doctorId}`);
+    navigate(`/patient/booking/${id}`);
   };
 
   const handleBack = () => {
@@ -66,7 +102,7 @@ const DoctorDetail = () => {
 
   const doctorName = doctor.name || 
     (doctor.user?.firstName && doctor.user?.lastName ? 
-      `${doctor.user.firstName} ${doctor.user.lastName}` : 'Bác sĩ');
+      `${doctor.user.lastName} ${doctor.user.firstName}` : 'Bác sĩ');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,47 +132,45 @@ const DoctorDetail = () => {
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                    {doctorName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
+                  {doctor.user?.avatarUrl ? (
+                    <img
+                      src={doctor.user.avatarUrl.startsWith('http') ? doctor.user.avatarUrl : `http://localhost:8080${doctor.user.avatarUrl}`}
+                      alt={doctorName}
+                      className="w-32 h-32 rounded-full object-cover border-4 border-blue-200 shadow"
+                      onError={e => { e.target.onerror = null; e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(doctorName); }}
+                    />
+                  ) : (
+                    <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                      {doctorName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Info */}
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">{doctorName}</h2>
-                  <p className="text-blue-600 text-lg font-medium mb-4">{doctor.specialty || 'Chuyên khoa'}</p>
-                  
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex items-center">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`h-5 w-5 ${
-                            star <= (doctor.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-5 w-5 text-yellow-400 fill-current" />
+                      <span className="text-base font-semibold text-gray-700">
+                        {Number(doctor.rating || 0).toFixed(1)}
+                      </span>
+                      {doctor.reviewCount > 0 && (
+                        <span className="text-sm text-gray-500">({doctor.reviewCount})</span>
+                      )}
                     </div>
-                    <span className="text-gray-600">
-                      {doctor.rating ? `${doctor.rating.toFixed(1)} (${doctor.reviewCount || 0} đánh giá)` : 'Chưa có đánh giá'}
-                    </span>
                   </div>
+                  <p className="text-blue-600 text-lg font-medium mb-1">{doctor.specialty || 'Chuyên khoa'}</p>
+                  {doctor.department?.departmentName && (
+                    <p className="text-gray-500 text-base mb-2">Khoa: {doctor.department.departmentName}</p>
+                  )}
+                  {doctor.workingHours && (
+                    <p className="text-gray-500 text-base mb-2">Giờ làm việc: {doctor.workingHours}</p>
+                  )}
 
                   {/* Contact Info */}
                   <div className="space-y-2">
-                    {doctor.user?.phone && (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Phone className="h-4 w-4" />
-                        <span>{doctor.user.phone}</span>
-                      </div>
-                    )}
-                    {doctor.user?.email && (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Mail className="h-4 w-4" />
-                        <span>{doctor.user.email}</span>
-                      </div>
-                    )}
+                    {/* Đã chuyển số điện thoại và email sang mục Liên hệ */}
                   </div>
                 </div>
               </div>
@@ -149,28 +183,38 @@ const DoctorDetail = () => {
                 Giới thiệu
               </h3>
               <p className="text-gray-700 leading-relaxed">
-                {doctor.description || 'Bác sĩ chuyên khoa có nhiều năm kinh nghiệm trong việc chẩn đoán và điều trị các bệnh lý chuyên khoa. Với kiến thức chuyên sâu và tận tâm trong công việc, bác sĩ luôn đặt sức khỏe và sự hài lòng của bệnh nhân lên hàng đầu.'}
+                {doctor.bio || doctor.description || 'Bác sĩ chuyên khoa có nhiều năm kinh nghiệm trong việc chẩn đoán và điều trị các bệnh lý chuyên khoa. Với kiến thức chuyên sâu và tận tâm trong công việc, bác sĩ luôn đặt sức khỏe và sự hài lòng của bệnh nhân lên hàng đầu.'}
               </p>
             </div>
 
             {/* Education & Experience */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
                 <GraduationCap className="h-5 w-5 text-blue-600" />
                 Học vấn & Kinh nghiệm
               </h3>
-              <div className="space-y-4">
-                <div className="border-l-4 border-blue-500 pl-4">
-                  <h4 className="font-semibold text-gray-900">Học vấn</h4>
-                  <p className="text-gray-600">Tốt nghiệp Đại học Y Hà Nội</p>
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-1 h-16 rounded bg-blue-500 mt-1"></div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 mb-1">Bằng cấp</h4>
+                    <p className="text-gray-700">{doctor.degree || 'Chưa cập nhật'}</p>
+                  </div>
                 </div>
-                <div className="border-l-4 border-green-500 pl-4">
-                  <h4 className="font-semibold text-gray-900">Kinh nghiệm</h4>
-                  <p className="text-gray-600">Hơn 10 năm kinh nghiệm trong lĩnh vực chuyên khoa</p>
+                <div className="flex items-start gap-4">
+                  <div className="w-1 h-16 rounded bg-green-500 mt-1"></div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 mb-1">Kinh nghiệm</h4>
+                    <p className="text-gray-700">{doctor.workExperience || 'Chưa cập nhật'}</p>
+                  </div>
                 </div>
-                <div className="border-l-4 border-purple-500 pl-4">
-                  <h4 className="font-semibold text-gray-900">Chứng chỉ</h4>
-                  <p className="text-gray-600">Chứng chỉ hành nghề y khoa</p>
+                <div className="flex items-start gap-4">
+                  <div className="w-1 h-16 rounded bg-purple-500 mt-1"></div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 mb-1">Liên hệ</h4>
+                    <p className="text-gray-700 mb-1">Số điện thoại: {doctor.user?.phone || 'Chưa cập nhật'}</p>
+                    <p className="text-gray-700">Email: {doctor.user?.email || 'Chưa cập nhật'}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -207,41 +251,43 @@ const DoctorDetail = () => {
 
             {/* Contact Card */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Liên hệ</h3>
-              <div className="space-y-3">
-                <button className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                  <MessageCircle className="h-4 w-4" />
-                  Nhắn tin
-                </button>
-                <button className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                  <Phone className="h-4 w-4" />
-                  Gọi điện
-                </button>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Review rating</h3>
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="flex items-center space-x-1">
+                  <Star className="h-5 w-5 text-yellow-400 fill-current" />
+                  <span className="text-base font-semibold text-gray-700">
+                    {Number(doctor.rating || 0).toFixed(1)}
+                  </span>
+                  {doctor.reviewCount > 0 && (
+                    <span className="text-sm text-gray-500">({doctor.reviewCount})</span>
+                  )}
+                </div>
               </div>
+              <h4 className="text-md font-semibold text-gray-800 mb-2">Đánh giá của người dùng</h4>
+              {loadingReviews ? (
+                <div className="text-center text-gray-500">Đang tải đánh giá...</div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center text-gray-500">Chưa có đánh giá nào.</div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b pb-4 last:border-b-0 last:pb-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {[1,2,3,4,5].map((star) => (
+                          <Star key={star} className={`h-4 w-4 ${star <= review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                        ))}
+                        <span className="text-sm text-gray-500 ml-2">{review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ''}</span>
+                      </div>
+                      <div className="text-base font-medium text-gray-900">{review.patientName || 'Ẩn danh'}</div>
+                      <div className="text-gray-700 mt-1">{review.comment || 'Không có nội dung.'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Reviews Summary */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Đánh giá</h3>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-2">
-                  {doctor.rating ? doctor.rating.toFixed(1) : '0.0'}
-                </div>
-                <div className="flex items-center justify-center mb-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`h-5 w-5 ${
-                        star <= (doctor.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="text-gray-600">
-                  {doctor.reviewCount || 0} đánh giá
-                </p>
-              </div>
-            </div>
+            {/* Removed duplicate rating display. Only compact rating under doctor name remains. */}
           </div>
         </div>
       </div>
