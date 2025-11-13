@@ -44,7 +44,7 @@ export default function VerifyOtp() {
     const key = `otpSent_${email}`;
     // force resend regardless of guard
     sessionStorage.setItem(key, String(Date.now()));
-    axiosClient.post('/auth/send-otp', { email })
+    axiosClient.post('/auth/send-otp-register', { email })
       .then(() => setMessage('Mã OTP đã được gửi lại'))
       .catch(err => {
         // if resend fails, allow future retry

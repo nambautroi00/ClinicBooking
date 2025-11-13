@@ -1,20 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, FileText, User, Clock, MapPin, Phone, Mail, Calendar as CalendarIcon, CreditCard, DollarSign, Edit, Save, X, Camera, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Calendar, FileText, User, Edit, Save, X, Camera, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import paymentApi from '../../../api/paymentApi';
 import patientApi from '../../../api/patientApi';
 import userApi from '../../../api/userApi';
-import fileUploadApi from '../../../api/fileUploadApi';
 import addressApi from '../../../api/addressApi';
 import PatientAppointmentHistory from '../../../pages/Patient/PatientAppointmentHistory';
-import PatientMedicalRecords from '../../../pages/Patient/PatientMedicalRecords';
+
+// Constants
+const VALID_TABS = ['appointments', 'profile'];
+const SUCCESS_AUTO_CLOSE_MS = 3000;
+const DEFAULT_AVATAR_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23e5f0ff"/><circle cx="200" cy="140" r="80" fill="%239bbcff"/><rect x="60" y="240" width="280" height="120" rx="60" fill="%239bbcff"/></svg>';
+
+// Sidebar styles
+const SIDEBAR_STYLES = {
+  container: {
+    position: 'sticky',
+    top: '90px',
+    zIndex: 100
+  }
+};
+
+// Active tab styles
+const getTabButtonStyle = (isActive) => ({
+  backgroundColor: isActive ? '#e3f2fd' : 'transparent',
+  fontWeight: isActive ? 'bold' : 'normal',
+  color: isActive ? '#1976d2' : '#333',
+  borderLeft: isActive ? '4px solid #1976d2' : '4px solid transparent'
+});
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('appointments');
-  const [payments, setPayments] = useState([]);
-  const [loadingPayments, setLoadingPayments] = useState(false);
   const [patientId, setPatientId] = useState(null);
   const [user, setUser] = useState(null);
   
@@ -26,15 +43,15 @@ const PatientDashboard = () => {
     currentPassword: '',
     newPassword: ''
   });
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [passwordErrors, setPasswordErrors] = useState({});
   const [isSuccess, setIsSuccess] = useState(true);
+  const successAutoCloseTimer = useRef(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   
@@ -46,12 +63,10 @@ const PatientDashboard = () => {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
 
-  const defaultAvatarDataUrl = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23e5f0ff"/><circle cx="200" cy="140" r="80" fill="%239bbcff"/><rect x="60" y="240" width="280" height="120" rx="60" fill="%239bbcff"/></svg>';
-
   // Đọc tab từ URL params
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && ['appointments', 'payments', 'profile', 'medical-records'].includes(tabFromUrl)) {
+    if (tabFromUrl && VALID_TABS.includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [searchParams]);
@@ -204,14 +219,6 @@ const PatientDashboard = () => {
     }
   }, [selectedDistrict]);
 
-  // Lấy danh sách thanh toán
-  useEffect(() => {
-    if (patientId && activeTab === 'payments') {
-      loadPayments();
-    }
-  }, [patientId, activeTab]);
-
-
   // Initialize form data when user data changes
   useEffect(() => {
     if (user) {
@@ -228,42 +235,6 @@ const PatientDashboard = () => {
       });
     }
   }, [user]);
-
-  const loadPayments = async () => {
-    try {
-      setLoadingPayments(true);
-      const response = await paymentApi.getPaymentsByPatient(patientId);
-      const paymentsData = Array.isArray(response.data) ? response.data : [];
-      setPayments(paymentsData);
-    } catch (error) {
-      console.error('Error loading payments:', error);
-      setPayments([]);
-    } finally {
-      setLoadingPayments(false);
-    }
-  };
-
-
-  const getPaymentStatusBadge = (status) => {
-    const statusConfig = {
-      PENDING: { variant: "warning", text: "Chờ thanh toán" },
-      COMPLETED: { variant: "success", text: "Đã thanh toán" },
-      FAILED: { variant: "danger", text: "Thanh toán thất bại" },
-      CANCELLED: { variant: "secondary", text: "Đã hủy" },
-      REFUNDED: { variant: "info", text: "Đã hoàn tiền" }
-    };
-    
-    const config = statusConfig[status] || { variant: "secondary", text: status };
-    return <span className={`badge bg-${config.variant}`}>{config.text}</span>;
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
-  };
 
   // Map gender from backend to frontend display
   const mapGenderFromBackend = (backendGender) => {
@@ -385,6 +356,8 @@ const PatientDashboard = () => {
     input.onchange = async (e) => {
       const file = e.target.files[0];
       if (file) {
+        // clear any previous form-level errors
+        setFormError('');
         if (file.size > 5 * 1024 * 1024) { // 5MB limit
           alert('Kích thước file không được vượt quá 5MB');
           return;
@@ -429,23 +402,33 @@ const PatientDashboard = () => {
           setSuccessMessage('Cập nhật ảnh đại diện thành công!');
           setIsSuccess(true);
           setShowSuccessModal(true);
-          
-          // Force component re-render with new avatar
-          setTimeout(() => {
-            setUser(prev => ({ ...prev, avatarUrl: avatarUrl }));
-            console.log('🔄 Force re-render with new avatarUrl:', avatarUrl);
-            
-            // Force page refresh to clear cache
-            setTimeout(() => {
-              console.log('🔄 Forcing page refresh to clear cache...');
-              window.location.reload();
-            }, 1000);
-          }, 100);
+          // Update user avatar in state/localStorage without forcing page reload
+          setUser(prev => ({ ...prev, avatarUrl: avatarUrl }));
+          localStorage.setItem('user', JSON.stringify({ ...user, avatarUrl }));
+
+          // Start auto-close timer for the success modal
+          if (successAutoCloseTimer.current) {
+            clearTimeout(successAutoCloseTimer.current);
+          }
+          successAutoCloseTimer.current = setTimeout(() => {
+            setShowSuccessModal(false);
+            setSuccessMessage('');
+            successAutoCloseTimer.current = null;
+          }, SUCCESS_AUTO_CLOSE_MS);
         } catch (error) {
           console.error('Error updating avatar:', error);
-          setSuccessMessage('Có lỗi xảy ra khi cập nhật ảnh đại diện: ' + (error.response?.data?.message || error.message));
-          setIsSuccess(false);
-          setShowSuccessModal(true);
+          const resp = error.response?.data;
+          if (resp?.errors && typeof resp.errors === 'object') {
+            setErrors(prev => ({ ...prev, ...resp.errors }));
+          } else if (Array.isArray(resp?.fieldErrors)) {
+            const fieldErrObj = {};
+            resp.fieldErrors.forEach(fe => {
+              if (fe.field) fieldErrObj[fe.field] = fe.message || fe.defaultMessage || '';
+            });
+            setErrors(prev => ({ ...prev, ...fieldErrObj }));
+          } else {
+            setFormError(resp?.message || error.message || 'Có lỗi xảy ra khi cập nhật ảnh đại diện');
+          }
         } finally {
           setUploading(false);
         }
@@ -459,14 +442,25 @@ const PatientDashboard = () => {
     setShowAvatarModal(false);
   };
 
+  // Cleanup success auto-close timer on unmount
+  useEffect(() => {
+    return () => {
+      if (successAutoCloseTimer.current) {
+        clearTimeout(successAutoCloseTimer.current);
+        successAutoCloseTimer.current = null;
+      }
+    };
+  }, []);
+
   // Save profile changes
   const handleSaveProfile = async () => {
     console.log('🚀 Starting handleSaveProfile...');
     console.log('📝 Form data:', formData);
     try {
-      setUploading(true);
-      console.log('⏳ Set uploading to true');
-      setErrors({});
+  setUploading(true);
+  console.log('⏳ Set uploading to true');
+  setErrors({});
+  setFormError('');
 
       // Validate all fields
       const newErrors = {};
@@ -538,7 +532,7 @@ const PatientDashboard = () => {
       };
       
       
-      // Map gender values to backend format
+      // Map gender values to backend format, remove if empty
       if (updateData.gender) {
         const genderMap = {
           'Nam': 'MALE',
@@ -546,6 +540,9 @@ const PatientDashboard = () => {
           'Khác': 'OTHER'
         };
         updateData.gender = genderMap[updateData.gender] || updateData.gender;
+      } else {
+        // Remove gender field if empty to avoid Jackson parse error
+        delete updateData.gender;
       }
 
       await userApi.updateUser(user.id, updateData);
@@ -583,9 +580,21 @@ const PatientDashboard = () => {
       setShowSuccessModal(true);
     } catch (error) {
       console.error('Error updating profile:', error);
-      setSuccessMessage('Có lỗi xảy ra khi cập nhật thông tin');
-      setIsSuccess(false);
-      setShowSuccessModal(true);
+      const resp = error.response?.data;
+      // If backend returns validation errors in an object, map them to fields
+      if (resp?.errors && typeof resp.errors === 'object') {
+        setErrors(prev => ({ ...prev, ...resp.errors }));
+      } else if (Array.isArray(resp?.fieldErrors)) {
+        // Convert [{field,message}] to { field: message }
+        const fieldErrObj = {};
+        resp.fieldErrors.forEach(fe => {
+          if (fe.field) fieldErrObj[fe.field] = fe.message || fe.defaultMessage || '';
+        });
+        setErrors(prev => ({ ...prev, ...fieldErrObj }));
+      } else {
+        // Generic error shown inline (not modal)
+        setFormError(resp?.message || error.message || 'Có lỗi xảy ra khi cập nhật thông tin');
+      }
     } finally {
       console.log('🏁 Finally block - setting uploading to false');
       setUploading(false);
@@ -718,7 +727,7 @@ const PatientDashboard = () => {
                                   }}
                                   onError={(e) => {
                                     console.log('❌ PatientDashboard - Avatar failed to load, showing default');
-                                    e.target.src = defaultAvatarDataUrl;
+                                    e.target.src = DEFAULT_AVATAR_SVG;
                                   }}
                                 />
                               );
@@ -726,7 +735,7 @@ const PatientDashboard = () => {
                             // Fallback default avatar
                             return (
                               <img
-                                src={defaultAvatarDataUrl}
+                                src={DEFAULT_AVATAR_SVG}
                                 alt="Avatar"
                                 className="rounded-circle shadow-lg border border-primary border-3"
                                 style={{ width: '90px', height: '90px', objectFit: 'cover' }}
@@ -815,6 +824,12 @@ const PatientDashboard = () => {
               {/* Right Panel - Profile Details */}
               <div className="col-md-8" style={{ height: 'calc(100vh - 250px)', overflow: 'auto' }}>
                 <div className="p-3">
+                  {/* Inline form-level error (non-modal) */}
+                  {formError && (
+                    <div className="alert alert-danger" role="alert">
+                      {formError}
+                    </div>
+                  )}
                   
                   {/* Alert */}
                   <div className="alert alert-warning d-flex align-items-center mb-4" style={{ 
@@ -882,7 +897,6 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
-                              backgroundColor: '#f8f9fa',
                                 backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
@@ -929,7 +943,6 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
-                              backgroundColor: '#f8f9fa',
                                 backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
@@ -976,7 +989,6 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
-                              backgroundColor: '#f8f9fa',
                                 backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
@@ -1076,8 +1088,6 @@ const PatientDashboard = () => {
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
                                   backgroundColor: '#f8f9fa',
-                              backgroundColor: '#f8f9fa',
-                                backgroundColor: '#f8f9fa',
                                   transition: 'all 0.3s ease',
                                   padding: '8px 12px'
                                 }}
@@ -1117,8 +1127,6 @@ const PatientDashboard = () => {
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
                                   backgroundColor: '#f8f9fa',
-                              backgroundColor: '#f8f9fa',
-                                backgroundColor: '#f8f9fa',
                                   transition: 'all 0.3s ease',
                                   padding: '8px 12px'
                                 }}
@@ -1159,8 +1167,6 @@ const PatientDashboard = () => {
                                   borderRadius: '10px',
                                   border: '2px solid #e9ecef',
                                   backgroundColor: '#f8f9fa',
-                              backgroundColor: '#f8f9fa',
-                                backgroundColor: '#f8f9fa',
                                   transition: 'all 0.3s ease',
                                   padding: '8px 12px'
                                 }}
@@ -1273,7 +1279,6 @@ const PatientDashboard = () => {
                                 fontSize: '13px',
                                 borderRadius: '10px',
                                 border: '2px solid #e9ecef',
-                              backgroundColor: '#f8f9fa',
                                 backgroundColor: '#f8f9fa',
                                 transition: 'all 0.3s ease',
                                 padding: '8px 12px'
@@ -1556,138 +1561,46 @@ const PatientDashboard = () => {
           </div>
         );
       
-      case 'payments':
-        return (
-          <div className="p-0">
-            {/* Header */}
-            <div className="bg-white border-bottom px-4 py-3">
-              <h4 className="mb-0 fw-bold">Lịch sử thanh toán</h4>
-            </div>
-            
-            <div className="p-4">
-              {loadingPayments ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  <p className="mt-3 text-muted">Đang tải lịch sử thanh toán...</p>
-                </div>
-              ) : payments.length === 0 ? (
-                <div className="text-center py-5">
-                  <CreditCard size={64} className="text-muted mb-3" />
-                  <h5>Chưa có giao dịch nào</h5>
-                  <p className="text-muted">Bạn chưa có lịch sử thanh toán nào trong hệ thống.</p>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-hover">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Mã giao dịch</th>
-                        <th>Dịch vụ</th>
-                        <th>Số tiền</th>
-                        <th>Phương thức</th>
-                        <th>Trạng thái</th>
-                        <th>Ngày thanh toán</th>
-                        <th className="text-center">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payments.map((payment) => (
-                        <tr key={payment.id}>
-                          <td className="fw-bold text-primary">
-                            #{payment.id}
-                          </td>
-                          <td>
-                            <div>
-                              <strong>{payment.serviceName || payment.appointment?.doctor?.user?.fullName || 'Dịch vụ khám bệnh'}</strong>
-                              <br />
-                              <small className="text-muted">
-                                {payment.description || 'Thanh toán lịch hẹn khám bệnh'}
-                              </small>
-                            </div>
-                          </td>
-                          <td className="fw-bold text-success">
-                            {formatCurrency(payment.amount)}
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <CreditCard size={16} className="me-2 text-muted" />
-                              <span>{payment.paymentMethod || 'Chuyển khoản'}</span>
-                            </div>
-                          </td>
-                          <td>{getPaymentStatusBadge(payment.status)}</td>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <Clock size={16} className="me-2 text-muted" />
-                              <span>
-                                {payment.paymentDate ? 
-                                  new Date(payment.paymentDate).toLocaleDateString('vi-VN') : 
-                                  '--'
-                                }
-                              </span>
-                            </div>
-                          </td>
-                          <td className="text-center">
-                            <button
-                              className="btn btn-outline-primary btn-sm"
-                              title="Xem chi tiết"
-                            >
-                              <DollarSign size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      
-      case 'medical-records':
-        return <PatientMedicalRecords />;
-      
       default:
         return null;
     }
   };
 
   return (
-    <div className="container-fluid" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+    <div className="container-fluid" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', paddingTop: '20px' }}>
       <div className="row">
-        {/* Left Sidebar Navigation */}
+        {/* Left Sidebar Navigation - Sticky */}
         <div className="col-md-3 col-lg-2">
-          <div className="bg-white rounded shadow-sm p-0" style={{ minHeight: '500px' }}>
+          <div className="bg-white rounded shadow-sm" style={SIDEBAR_STYLES.container}>
             <div className="list-group list-group-flush">
               <button 
                 className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
                   activeTab === 'appointments' ? 'active' : ''
                 }`}
                 onClick={() => setActiveTab('appointments')}
-                style={{
-                  backgroundColor: activeTab === 'appointments' ? '#e3f2fd' : 'transparent',
-                  fontWeight: activeTab === 'appointments' ? 'bold' : 'normal',
-                  color: activeTab === 'appointments' ? '#1976d2' : '#333',
-                  borderLeft: activeTab === 'appointments' ? '4px solid #1976d2' : '4px solid transparent'
-                }}
+                style={getTabButtonStyle(activeTab === 'appointments')}
               >
                 <Calendar className="me-2" size={18} />
                 Lịch khám
               </button>
               
               <button 
-                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
-                  activeTab === 'medical-records' ? 'active' : ''
-                }`}
-                onClick={() => setActiveTab('medical-records')}
+                className="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center"
+                onClick={() => navigate('/patient/medical-records')}
                 style={{
-                  backgroundColor: activeTab === 'medical-records' ? '#e3f2fd' : 'transparent',
-                  fontWeight: activeTab === 'medical-records' ? 'bold' : 'normal',
-                  color: activeTab === 'medical-records' ? '#1976d2' : '#333',
-                  borderLeft: activeTab === 'medical-records' ? '4px solid #1976d2' : '4px solid transparent',
+                  backgroundColor: 'transparent',
+                  fontWeight: 'normal',
+                  color: '#333',
+                  borderLeft: '4px solid transparent',
                   cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#f5f5f5';
+                  e.target.style.color = '#1976d2';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#333';
                 }}
               >
                 <FileText className="me-2" size={18} />
@@ -1696,31 +1609,10 @@ const PatientDashboard = () => {
               
               <button 
                 className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
-                  activeTab === 'payments' ? 'active' : ''
-                }`}
-                onClick={() => setActiveTab('payments')}
-                style={{
-                  backgroundColor: activeTab === 'payments' ? '#e3f2fd' : 'transparent',
-                  fontWeight: activeTab === 'payments' ? 'bold' : 'normal',
-                  color: activeTab === 'payments' ? '#1976d2' : '#333',
-                  borderLeft: activeTab === 'payments' ? '4px solid #1976d2' : '4px solid transparent'
-                }}
-              >
-                <CreditCard className="me-2" size={18} />
-                Lịch sử thanh toán
-              </button>
-              
-              <button 
-                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
                   activeTab === 'profile' ? 'active' : ''
                 }`}
                 onClick={() => setActiveTab('profile')}
-                style={{
-                  backgroundColor: activeTab === 'profile' ? '#e3f2fd' : 'transparent',
-                  fontWeight: activeTab === 'profile' ? 'bold' : 'normal',
-                  color: activeTab === 'profile' ? '#1976d2' : '#333',
-                  borderLeft: activeTab === 'profile' ? '4px solid #1976d2' : '4px solid transparent'
-                }}
+                style={getTabButtonStyle(activeTab === 'profile')}
               >
                 <User className="me-2" size={18} />
                 Tài khoản
@@ -1768,12 +1660,12 @@ const PatientDashboard = () => {
                       }}
                       onError={(e) => {
                         console.error('❌ Error loading avatar image:', e);
-                        e.target.src = defaultAvatarDataUrl;
+                        e.target.src = DEFAULT_AVATAR_SVG;
                       }}
                     />
                   ) : (
                     <img
-                      src={defaultAvatarDataUrl}
+                      src={DEFAULT_AVATAR_SVG}
                       alt="Avatar"
                       className="img-fluid rounded-circle shadow-lg"
                       style={{ 
@@ -1852,7 +1744,15 @@ const PatientDashboard = () => {
                 <button 
                   type="button" 
                   className="btn-close" 
-                  onClick={() => setShowSuccessModal(false)}
+                  onClick={() => {
+                    // manual close should cancel auto-close timer if any
+                    setShowSuccessModal(false);
+                    setSuccessMessage('');
+                    if (successAutoCloseTimer.current) {
+                      clearTimeout(successAutoCloseTimer.current);
+                      successAutoCloseTimer.current = null;
+                    }
+                  }}
                 ></button>
               </div>
               <div className="modal-body text-center py-4">
@@ -1865,7 +1765,14 @@ const PatientDashboard = () => {
                 <button 
                   type="button" 
                   className={`btn ${isSuccess ? 'btn-success' : 'btn-danger'}`}
-                  onClick={() => setShowSuccessModal(false)}
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setSuccessMessage('');
+                    if (successAutoCloseTimer.current) {
+                      clearTimeout(successAutoCloseTimer.current);
+                      successAutoCloseTimer.current = null;
+                    }
+                  }}
                 >
                   Đóng
                 </button>

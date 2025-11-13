@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -22,7 +24,6 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "Users")
@@ -84,6 +85,14 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "Status")
     private UserStatus status = UserStatus.ACTIVE;
+
+    // Số lần đăng nhập sai liên tiếp (phục vụ khóa tài khoản)
+    @Column(name = "FailedLoginAttempts")
+    private Integer failedLoginAttempts = 0;
+
+    // Thời điểm bị khóa (để theo dõi hoặc mở khóa theo thời gian nếu cần)
+    @Column(name = "LockedAt")
+    private LocalDateTime lockedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "RoleID", referencedColumnName = "RoleID", nullable = false)

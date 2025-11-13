@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, Heart, MessageCircle, Bell } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Menu, X, Search, Phone, Globe, Facebook, Twitter, Instagram, MessageCircle, Bell } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import notificationApi from "../../api/notificationApi";
 import userApi from "../../api/userApi";
-import config from "../../config/config";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,6 +13,10 @@ export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState({ doctors: [], departments: [] });
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
 
   // Function to navigate to messages based on user role
@@ -39,7 +42,7 @@ export default function Header() {
   };
 
   // Function to fetch notifications
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user || !user.id) return;
     
     try {
@@ -57,7 +60,7 @@ export default function Header() {
       setNotifications([]);
       setUnreadCount(0);
     }
-  };
+  }, [user]);
 
   // Function to mark notification as read
   const markAsRead = async (notificationId) => {
@@ -111,7 +114,93 @@ export default function Header() {
       setNotifications([]);
       setUnreadCount(0);
     }
-  }, [user]);
+  }, [user, fetchNotifications]);
+
+  // Function to handle search
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setSearchResults({ doctors: [], departments: [] });
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+
+    try {
+      // Search for doctors and departments in parallel
+      const [doctorsResponse, departmentsResponse] = await Promise.all([
+        axiosClient.get('/doctors'),
+        axiosClient.get('/departments')
+      ]);
+
+      console.log('🔍 Search - Doctors response:', doctorsResponse.data);
+      console.log('🔍 Search - Departments response:', departmentsResponse.data);
+
+      // Handle different response structures
+      const doctors = Array.isArray(doctorsResponse.data) 
+        ? doctorsResponse.data 
+        : (doctorsResponse.data?.content || []);
+      
+      const departments = Array.isArray(departmentsResponse.data) 
+        ? departmentsResponse.data 
+        : (departmentsResponse.data?.content || []);
+
+      console.log('🔍 Doctors array:', doctors);
+      console.log('🔍 Departments array:', departments);
+
+      // Filter doctors by name or department
+      const filteredDoctors = doctors.filter(doctor => {
+        const fullName = `${doctor.user?.firstName || ''} ${doctor.user?.lastName || ''}`.toLowerCase();
+        const departmentName = doctor.department?.departmentName?.toLowerCase() || '';
+        const queryLower = query.toLowerCase();
+        return fullName.includes(queryLower) || departmentName.includes(queryLower);
+      }).slice(0, 5); // Limit to 5 results
+
+      // Filter departments by name or description
+      const filteredDepartments = departments.filter(dept => {
+        const deptName = dept.departmentName?.toLowerCase() || '';
+        const deptDesc = dept.description?.toLowerCase() || '';
+        const queryLower = query.toLowerCase();
+        return deptName.includes(queryLower) || deptDesc.includes(queryLower);
+      }).slice(0, 5); // Limit to 5 results
+
+      console.log('🔍 Filtered doctors:', filteredDoctors);
+      console.log('🔍 Filtered departments:', filteredDepartments);
+
+      setSearchResults({
+        doctors: filteredDoctors,
+        departments: filteredDepartments
+      });
+    } catch (error) {
+      console.error('❌ Error searching:', error);
+      setSearchResults({ doctors: [], departments: [] });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSearchResults && !event.target.closest('.search-container')) {
+        setShowSearchResults(false);
+      }
+      if (showNotifications && !event.target.closest('.notifications-dropdown')) {
+        setShowNotifications(false);
+      }
+      if (showUserDropdown && !event.target.closest('.user-dropdown')) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSearchResults, showNotifications, showUserDropdown]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -142,13 +231,6 @@ export default function Header() {
           console.log('🔍 Header - User lastName:', userData?.lastName);
           console.log('🔍 Header - User avatar:', userData?.avatar);
           console.log('🔍 Header - User avatarUrl:', userData?.avatarUrl);
-          
-          // Check for encoding issues
-          if (userData?.firstName?.includes('Ă') || userData?.lastName?.includes('Ă')) {
-            console.log('⚠️ Header - Detected encoding issues, forcing page reload');
-            window.location.reload();
-            return;
-          }
           
           // If avatar fields are missing, try to fetch from backend
           if (!userData?.avatar && !userData?.avatarUrl) {
@@ -216,7 +298,6 @@ export default function Header() {
   const userDropdownItems = [
     { label: "Lịch khám", href: "/patient/profile?tab=appointments", icon: "📅" },
     { label: "Hồ sơ bệnh án", href: "/patient/medical-records", icon: "📋" },
-    { label: "Lịch sử thanh toán", href: "/patient/profile?tab=payments", icon: "💳" },
     { label: "Tài khoản", href: "/patient/profile?tab=profile", icon: "👤" },
   ];
 
@@ -284,13 +365,105 @@ export default function Header() {
 
           {/* Center search - shorter with larger text */}
           <div className="flex-1 hidden sm:block min-w-0">
-            <div className="relative max-w-xl mx-auto">
+            <div className="relative max-w-xl mx-auto search-container">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
                 placeholder="Tìm bác sĩ, chuyên khoa..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => searchQuery && setShowSearchResults(true)}
                 className="w-full rounded-full border border-gray-200 bg-white py-3 pl-10 pr-4 text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
               />
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0d6efd] mx-auto"></div>
+                      <p className="mt-2">Đang tìm kiếm...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Departments Section */}
+                      {searchResults.departments.length > 0 && (
+                        <div className="border-b border-gray-100">
+                          <div className="px-4 py-2 bg-gray-50 text-sm font-semibold text-gray-700">
+                            Chuyên khoa
+                          </div>
+                          {searchResults.departments.map((dept) => {
+                            // departmentId can have different property names depending on backend response
+                            const deptId = dept.departmentId ?? dept.id ?? dept.departmentId ?? dept.department_id;
+                            return (
+                              <Link
+                                key={deptId || Math.random()}
+                                to={`/specialty/${deptId}`}
+                                onClick={() => {
+                                  setShowSearchResults(false);
+                                  setSearchQuery('');
+                                }}
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-[#0d6efd]/10 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[#0d6efd] text-lg">🏥</span>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-gray-900">{dept.departmentName || dept.name}</div>
+                                  <div className="text-sm text-gray-500">{dept.description || dept.desc || 'Chuyên khoa'}</div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Doctors Section */}
+                      {searchResults.doctors.length > 0 && (
+                        <div>
+                          <div className="px-4 py-2 bg-gray-50 text-sm font-semibold text-gray-700">
+                            Bác sĩ
+                          </div>
+                          {searchResults.doctors.map((doctor) => (
+                            <Link
+                              key={doctor.doctorId}
+                              to={`/doctor/${doctor.doctorId}`}
+                              onClick={() => {
+                                setShowSearchResults(false);
+                                setSearchQuery('');
+                              }}
+                              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                            >
+                              <img
+                                src={doctor.user?.avatarUrl || doctor.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.user?.firstName + ' ' + doctor.user?.lastName)}&background=0d6efd&color=fff`}
+                                alt={`${doctor.user?.firstName} ${doctor.user?.lastName}`}
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                              />
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  BS. {doctor.user?.firstName} {doctor.user?.lastName}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {doctor.department?.departmentName || 'Bác sĩ'}
+                                </div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* No Results */}
+                      {searchResults.doctors.length === 0 && searchResults.departments.length === 0 && (
+                        <div className="p-8 text-center text-gray-500">
+                          <Search className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <p className="font-medium">Không tìm thấy kết quả</p>
+                          <p className="text-sm mt-1">Vui lòng thử từ khóa khác</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

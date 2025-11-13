@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ReminderScheduler {
     private final AppointmentRepository appointmentRepository;
     private final EmailService emailService;
+    private final EmailTemplateService emailTemplateService;
     
     // Set để track appointments đã gửi nhắc nhở (trong memory)
     private final Set<Long> sentReminders = ConcurrentHashMap.newKeySet();
@@ -40,13 +41,27 @@ public class ReminderScheduler {
                 String patientEmail = a.getPatient() != null && a.getPatient().getUser() != null
                         ? a.getPatient().getUser().getEmail()
                         : null;
-                String subject = "Nhắc lịch khám sắp tới";
-                String text = String.format("Xin chào %s %s,\n\nBạn có lịch khám với bác sĩ %s vào %s. Vui lòng có mặt đúng giờ.",
-                        a.getPatient() != null && a.getPatient().getUser() != null ? a.getPatient().getUser().getFirstName() : "",
-                        a.getPatient() != null && a.getPatient().getUser() != null ? a.getPatient().getUser().getLastName() : "",
-                        a.getDoctor() != null && a.getDoctor().getUser() != null ? a.getDoctor().getUser().getFirstName() + " " + a.getDoctor().getUser().getLastName() : "",
-                        a.getStartTime() != null ? a.getStartTime().toString() : "");
-                emailService.sendSimpleEmail(patientEmail, subject, text);
+                String patientName = a.getPatient() != null && a.getPatient().getUser() != null
+                        ? a.getPatient().getUser().getFirstName() + " " + a.getPatient().getUser().getLastName()
+                        : "Bệnh nhân";
+                String doctorName = a.getDoctor() != null && a.getDoctor().getUser() != null
+                        ? "BS. " + a.getDoctor().getUser().getFirstName() + " " + a.getDoctor().getUser().getLastName()
+                        : "Bác sĩ";
+                String department = a.getDoctor() != null && a.getDoctor().getDepartment() != null
+                        ? a.getDoctor().getDepartment().getDepartmentName()
+                        : "Khoa khám bệnh";
+                String appointmentDate = a.getStartTime() != null 
+                        ? a.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        : "";
+                String appointmentTime = a.getStartTime() != null 
+                        ? a.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                        : "";
+                
+                String subject = "📅 Nhắc lịch khám sắp tới - ClinicBooking";
+                String htmlContent = emailTemplateService.buildAppointmentReminderEmail(
+                    patientName, doctorName, appointmentDate, appointmentTime, department
+                );
+                emailService.sendHtmlEmail(patientEmail, subject, htmlContent);
                 // Track trong memory để tránh spam, không thay đổi status appointment
                 sentReminders.add(a.getAppointmentId());
                 log.debug("Reminder sent for appointment {}", a.getAppointmentId());

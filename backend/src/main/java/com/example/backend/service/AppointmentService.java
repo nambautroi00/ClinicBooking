@@ -13,13 +13,10 @@ import com.example.backend.model.Appointment;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.DoctorSchedule;
 import com.example.backend.model.Patient;
-import com.example.backend.model.Payment;
 import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.DoctorScheduleRepository;
 import com.example.backend.repository.PatientRepository;
-import com.example.backend.repository.PaymentRepository;
-import com.example.backend.service.SystemNotificationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,9 +31,9 @@ public class AppointmentService {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository doctorScheduleRepository;
-    private final PaymentRepository paymentRepository;
     private final AppointmentMapper appointmentMapper;
     private final EmailService emailService;
+    private final EmailTemplateService emailTemplateService;
     private final SystemNotificationService systemNotificationService;
 
     public AppointmentDTO.Response create(AppointmentDTO.Create dto) {
@@ -123,7 +120,24 @@ public class AppointmentService {
     private void notifyPatient(Appointment appointment, String subject, String body) {
         if (appointment == null || appointment.getPatient() == null || appointment.getPatient().getUser() == null) return;
         String email = appointment.getPatient().getUser().getEmail();
-        emailService.sendSimpleEmail(email, subject, body);
+        String patientName = appointment.getPatient().getUser().getFirstName() + " " + appointment.getPatient().getUser().getLastName();
+        String doctorName = appointment.getDoctor() != null && appointment.getDoctor().getUser() != null
+                ? "BS. " + appointment.getDoctor().getUser().getFirstName() + " " + appointment.getDoctor().getUser().getLastName()
+                : "Bác sĩ";
+        String department = appointment.getDoctor() != null && appointment.getDoctor().getDepartment() != null
+                ? appointment.getDoctor().getDepartment().getDepartmentName()
+                : "Khoa khám bệnh";
+        String appointmentDate = appointment.getStartTime() != null
+                ? appointment.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                : "";
+        String appointmentTime = appointment.getStartTime() != null
+                ? appointment.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                : "";
+        
+        String htmlContent = emailTemplateService.buildAppointmentConfirmationEmail(
+                patientName, doctorName, appointmentDate, appointmentTime, department
+        );
+        emailService.sendHtmlEmail(email, "✅ Xác nhận lịch khám - ClinicBooking", htmlContent);
     }
 
     @Transactional(readOnly = true)
@@ -270,20 +284,6 @@ public class AppointmentService {
         }
         
         Appointment saved = appointmentRepository.save(entity);
-
-        List<Payment> relatedPayments = paymentRepository.findByAppointment_AppointmentId(appointmentId);
-        if (!relatedPayments.isEmpty()) {
-            boolean paymentUpdated = false;
-            for (Payment payment : relatedPayments) {
-                if (payment.getStatus() != Payment.PaymentStatus.CANCELLED) {
-                    payment.setStatus(Payment.PaymentStatus.CANCELLED);
-                    paymentUpdated = true;
-                }
-            }
-            if (paymentUpdated) {
-                paymentRepository.saveAll(relatedPayments);
-            }
-        }
         try {
             String subject = "Lịch khám đã bị hủy";
             String body = "Lịch khám của bạn đã bị hủy. Vui lòng liên hệ nếu cần đặt lại.";
@@ -297,6 +297,21 @@ public class AppointmentService {
             systemNotificationService.createBookingCancelled(userId, saved.getAppointmentId());
         } catch (Exception ignore) {}
         return response;
+    }
+
+    public void permanentDelete(Long appointmentId) {
+        Appointment entity = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc hẹn với ID: " + appointmentId));
+        
+        // Nếu có schedule, giải phóng slot
+        if (entity.getSchedule() != null) {
+            entity.getSchedule().setStatus("Available");
+            doctorScheduleRepository.save(entity.getSchedule());
+        }
+        
+        // Xóa vĩnh viễn appointment
+        appointmentRepository.deleteById(appointmentId);
+        log.info("Đã xóa vĩnh viễn appointment với ID: {}", appointmentId);
     }
 
     @Transactional(readOnly = true)
@@ -442,21 +457,6 @@ public class AppointmentService {
         return response;
     }
     
-    public void permanentDelete(Long appointmentId) {
-        Appointment entity = appointmentRepository.findById(appointmentId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy cuộc hẹn với ID: " + appointmentId));
-        
-        // Kiểm tra xem appointment có bệnh nhân chưa
-        if (entity.getPatient() != null) {
-            throw new IllegalStateException("Không thể xóa khung giờ đã có bệnh nhân đặt lịch. Vui lòng hủy lịch hẹn thay vì xóa.");
-        }
-        
-        // Xóa thực sự khỏi database
-        appointmentRepository.delete(entity);
-        log.info("Đã xóa vĩnh viễn appointment ID: {}", appointmentId);
-    }
-    
 }
-
 
 

@@ -16,7 +16,7 @@ import ForgotPassword from "../pages/Auth/ForgotPassword";
 import ResetPassword from "../pages/Auth/ResetPassword";
 
 // Components / Guards
-//import RoleProtectedRoute from "../components/auth/RoleProtectedRoute";
+import RoleProtectedRoute from "../components/auth/RoleProtectedRoute";
 
 // Doctor pages
 import DoctorLayout from "../components/layout/doctors-layout/DoctorLayout";
@@ -112,9 +112,9 @@ const AppRoutes = () => {
       <Route
         path="/doctor"
         element={
-          //   <RoleProtectedRoute allowed={["doctor", "admin"]}>
+             <RoleProtectedRoute allowed={["doctor"]}>
           <DoctorLayout />
-          //   </RoleProtectedRoute>
+             </RoleProtectedRoute>
         }
       >
         <Route index element={<Navigate to="/doctor/dashboard" replace />} />
@@ -143,9 +143,9 @@ const AppRoutes = () => {
       <Route
         path="/admin"
         element={
-          //   <RoleProtectedRoute allowed={["admin"]}>
+             <RoleProtectedRoute allowed={["admin"]}>
           <AdminLayout />
-          //   </RoleProtectedRoute>
+             </RoleProtectedRoute>
         }
       >
         <Route index element={<AdminDashboard />} />

@@ -7,7 +7,6 @@ import java.util.Optional;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,8 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/auth") 
 @RequiredArgsConstructor
-// Allow requests from the React dev server and allow credentials so cookies can be set
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+// CORS đã được cấu hình toàn cục trong SecurityConfig
 public class AuthController {
 
     private final AuthService authService;
@@ -54,7 +52,9 @@ public class AuthController {
             }
             return ResponseEntity.ok(response);
         } else {
-            return ResponseEntity.badRequest().body(response);
+            // Trả về 401 Unauthorized cho tất cả trường hợp lỗi đăng nhập
+            // Frontend sẽ xử lý dựa vào response.locked và response.message
+            return ResponseEntity.status(401).body(response);
         }
     }
 
@@ -124,11 +124,15 @@ public class AuthController {
             }
             return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new AuthDTO.LoginResponse("OAuth error", false, null, null));
+            return ResponseEntity.badRequest().body(new AuthDTO.LoginResponse("OAuth error", false, null, null, null, false));
         }
     }
 
     // Email OTP Endpoints (no database storage)
+    
+    /**
+     * Gửi OTP cho FORGOT PASSWORD - Kiểm tra email phải tồn tại
+     */
     @PostMapping("/send-otp")
     public ResponseEntity<AuthDTO.OtpResponse> sendOtp(@Valid @RequestBody AuthDTO.SendOtpRequest request) {
         try {
@@ -142,16 +146,7 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            // Kiểm tra tài khoản có đang hoạt động không
-            if (user.get().getStatus() != User.UserStatus.ACTIVE) {
-                AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
-                    "Tài khoản đã bị khóa hoặc không hoạt động. Vui lòng liên hệ quản trị viên.",
-                    false
-                );
-                return ResponseEntity.badRequest().body(response);
-            }
-            
-            // Gửi OTP nếu email tồn tại và tài khoản hoạt động
+            // Cho phép gửi OTP ngay cả khi tài khoản đang bị khóa để người dùng có thể đặt lại mật khẩu
             boolean success = emailOtpService.sendOtp(request.getEmail());
             
             AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
@@ -168,6 +163,31 @@ public class AuthController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+    
+    /**
+     * Gửi lại OTP cho REGISTRATION - KHÔNG kiểm tra email tồn tại
+     */
+    @PostMapping("/send-otp-register")
+    public ResponseEntity<AuthDTO.OtpResponse> sendOtpForRegister(@Valid @RequestBody AuthDTO.SendOtpRequest request) {
+        try {
+            // Gửi OTP mà không kiểm tra email tồn tại (cho đăng ký mới)
+            boolean success = emailOtpService.sendOtp(request.getEmail());
+            
+            AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
+                success ? "Mã OTP đã được gửi đến email của bạn" : "Không thể gửi OTP, vui lòng thử lại",
+                success
+            );
+            
+            return success ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            AuthDTO.OtpResponse response = new AuthDTO.OtpResponse(
+                "Lỗi hệ thống khi gửi OTP: " + e.getMessage(),
+                false
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
 
     @PostMapping("/verify-otp") 
     public ResponseEntity<AuthDTO.OtpResponse> verifyOtp(@Valid @RequestBody AuthDTO.VerifyOtpRequest request) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReCAPTCHA from 'react-google-recaptcha';
 import axiosClient from '../../api/axiosClient';
@@ -13,6 +13,7 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [recaptchaValue, setRecaptchaValue] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const recaptchaRef = useRef(null);
   const navigate = useNavigate();
 
   // Load saved credentials if remember me was checked
@@ -102,17 +103,23 @@ export default function Login() {
         // Redirect based on role
         const roleName = data.user?.role?.name || data.user?.role?.roleName || '';
         const rn = String(roleName).toLowerCase();
-        if (rn.includes('admin')) navigate('/admin');
-        else if (rn.includes('doctor')) navigate('/doctor');
-        else navigate('/');
+        if (rn.includes('admin')) {
+          navigate('/admin');
+        } else if (rn.includes('doctor')) {
+          navigate('/doctor/dashboard');
+        } else {
+          navigate('/'); // Redirect to home page for patients
+        }
       } else {
         setError(data.message || 'Đăng nhập thất bại');
-        // Reset reCAPTCHA on error
+        // Reset reCAPTCHA on error and require user to verify again
+        try { recaptchaRef.current?.reset(); } catch (e) { /* noop */ }
         setRecaptchaValue(null);
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Lỗi mạng');
-      // Reset reCAPTCHA on error
+      // Reset reCAPTCHA on error and require user to verify again
+      try { recaptchaRef.current?.reset(); } catch (e) { /* noop */ }
       setRecaptchaValue(null);
     } finally {
       setLoading(false);
@@ -172,27 +179,23 @@ export default function Login() {
         console.log('🔍 Frontend - User firstName:', res.data.user?.firstName);
         console.log('🔍 Frontend - User lastName:', res.data.user?.lastName);
         
-        
+        // Save token and user to localStorage
         if (res.data.token) localStorage.setItem('token', res.data.token);
         if (res.data.user) localStorage.setItem('user', JSON.stringify(res.data.user));
-        // Force clear all cache and reload user data
-        localStorage.clear();
-        sessionStorage.clear();
         
-        // Set fresh data
-        if (res.data.token) localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
+        // Notify other parts of the app that user changed
+        window.dispatchEvent(new Event('userChanged'));
         
-        // Force page reload to clear all cache
-        setTimeout(() => {
-          window.location.reload();
-        }, 100);
-        // Same role-based redirect as normal login
+        // Redirect based on role
         const roleName = res.data.user?.role?.name || res.data.user?.role?.roleName || '';
         const rn = String(roleName).toLowerCase();
-        if (rn.includes('admin')) navigate('/admin');
-        else if (rn.includes('doctor')) navigate('/doctor/dashboard');
-        else navigate('/');
+        if (rn.includes('admin')) {
+          navigate('/admin');
+        } else if (rn.includes('doctor')) {
+          navigate('/doctor/dashboard');
+        } else {
+          navigate('/'); // Redirect to home page for patients
+        }
       }
     } catch (err) {
       console.error('❌ Google sign-in error:', err);
@@ -272,6 +275,7 @@ export default function Login() {
           {/* reCAPTCHA */}
           <div className="mb-4">
             <ReCAPTCHA
+              ref={recaptchaRef}
               sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY || "6LfeffErAAAAAJ-GRzSFQ3NcwFpKn-HAyiu_Jfku"}
               onChange={handleRecaptchaChange}
               onExpired={handleRecaptchaExpired}

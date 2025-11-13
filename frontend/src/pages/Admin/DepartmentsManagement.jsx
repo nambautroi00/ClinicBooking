@@ -585,19 +585,24 @@ const DepartmentsManagement = () => {
                 <tr key={department.id}>
                   <td>{department.id}</td>
                   <td>
-                    {department.imageUrl ? (
+                    {department.imageUrl && department.imageUrl.trim() !== '' ? (
                       <img 
-                        src={`http://localhost:8080${department.imageUrl}`} 
+                        src={`http://localhost:8080${department.imageUrl.startsWith('/') ? department.imageUrl : '/' + department.imageUrl}`} 
                         alt={department.departmentName}
                         style={{ 
                           width: '50px', 
                           height: '50px', 
                           objectFit: 'cover',
-                          borderRadius: '4px'
+                          borderRadius: '4px',
+                          display: 'block'
                         }}
                         onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
+                          // Hide image and show placeholder
+                          const img = e.target;
+                          const placeholder = img.nextElementSibling;
+                          if (img) img.style.display = 'none';
+                          if (placeholder) placeholder.style.display = 'flex';
+                          console.error('Failed to load image:', department.imageUrl);
                         }}
                       />
                     ) : null}
@@ -607,11 +612,12 @@ const DepartmentsManagement = () => {
                         height: '50px', 
                         backgroundColor: '#f8f9fa',
                         borderRadius: '4px',
-                        display: department.imageUrl ? 'none' : 'flex',
+                        display: (department.imageUrl && department.imageUrl.trim() !== '') ? 'none' : 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#6c757d',
-                        fontSize: '12px'
+                        fontSize: '12px',
+                        border: '1px solid #dee2e6'
                       }}
                     >
                       No Image

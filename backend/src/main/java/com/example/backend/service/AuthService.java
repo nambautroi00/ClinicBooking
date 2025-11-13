@@ -1,7 +1,7 @@
 package com.example.backend.service;
 
-import java.util.List;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -12,18 +12,16 @@ import com.example.backend.dto.UserDTO;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.NotFoundException;
 import com.example.backend.mapper.UserMapper;
-import com.example.backend.model.Role;
-import com.example.backend.model.User;
+import com.example.backend.model.Department;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.Patient;
-import com.example.backend.model.Department;
-import com.example.backend.repository.RoleRepository;
-import com.example.backend.repository.UserRepository;
+import com.example.backend.model.Role;
+import com.example.backend.model.User;
+import com.example.backend.repository.DepartmentRepository;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.PatientRepository;
-import com.example.backend.repository.DepartmentRepository;
-import com.example.backend.service.EmailService;
-import com.example.backend.service.SystemNotificationService;
+import com.example.backend.repository.RoleRepository;
+import com.example.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -41,6 +39,7 @@ public class AuthService {
     private final DepartmentRepository departmentRepository;
     private final EmailOtpService emailOtpService;
     private final EmailService emailService;
+    private final EmailTemplateService emailTemplateService;
     private final SystemNotificationService systemNotificationService;
 
     public AuthDTO.LoginResponse login(AuthDTO.LoginRequest loginRequest) {
@@ -50,23 +49,69 @@ public class AuthService {
 
             // Kiểm tra trạng thái user
             if (user.getStatus() != User.UserStatus.ACTIVE) {
-                return new AuthDTO.LoginResponse("Tài khoản đã bị khóa hoặc không hoạt động", false, null, null);
+                AuthDTO.LoginResponse resp = new AuthDTO.LoginResponse("Tài khoản đã bị khóa hoặc không hoạt động", false, null, null, 0, true);
+                return resp;
             }
 
             // Kiểm tra mật khẩu (tạm thời so sánh trực tiếp - sau này sẽ dùng BCrypt)
             if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPasswordHash())) {
-                return new AuthDTO.LoginResponse("Mật khẩu không chính xác", false, null, null);
+                // Tăng số lần đăng nhập sai
+                int current = user.getFailedLoginAttempts() == null ? 0 : user.getFailedLoginAttempts();
+                current += 1;
+                user.setFailedLoginAttempts(current);
+
+                // Nếu là Patient và sai >= 5 lần thì khóa tài khoản và gửi OTP reset
+                boolean isPatient = user.getRole() != null &&
+                        ("PATIENT".equalsIgnoreCase(user.getRole().getName()) || "Patient".equalsIgnoreCase(user.getRole().getName()));
+
+                if (isPatient && current >= 5) {
+                    user.setStatus(User.UserStatus.INACTIVE);
+                    user.setLockedAt(java.time.LocalDateTime.now());
+                    userRepository.save(user);
+                    try {
+                        // Gửi email HTML thông báo bị khóa (KHÔNG gửi OTP ở bước này)
+                        String subject = "🔒 Tài khoản của bạn đã bị khóa";
+                        String htmlContent = emailTemplateService.buildAccountLockedEmail();
+                        emailService.sendHtmlEmail(user.getEmail(), subject, htmlContent);
+                    } catch (Exception ignore) {}
+                    return new AuthDTO.LoginResponse(
+                        "Tài khoản đã bị khóa do nhập sai mật khẩu quá 5 lần. Vui lòng dùng 'Quên mật khẩu' để nhận OTP và đặt lại mật khẩu.",
+                        false,
+                        null,
+                        null,
+                        0,
+                        true
+                    );
+                } else {
+                    // Lưu số lần sai và trả về còn lại
+                    userRepository.save(user);
+                    int remaining = Math.max(0, 5 - current);
+                    return new AuthDTO.LoginResponse(
+                        remaining > 0 ? ("Mật khẩu không chính xác. Bạn còn " + remaining + " lần thử trước khi bị khóa.") : "Mật khẩu không chính xác",
+                        false,
+                        null,
+                        null,
+                        remaining,
+                        false
+                    );
+                }
+            }
+
+            // Đăng nhập thành công -> reset bộ đếm sai nếu có
+            if (user.getFailedLoginAttempts() != null && user.getFailedLoginAttempts() > 0) {
+                user.setFailedLoginAttempts(0);
+                userRepository.save(user);
             }
 
             // Chuyển đổi sang DTO
             UserDTO.Response userResponse = userMapper.entityToResponseDTO(user);
 
-            return new AuthDTO.LoginResponse("Đăng nhập thành công", true, userResponse, null);
+            return new AuthDTO.LoginResponse("Đăng nhập thành công", true, userResponse, null, null, false);
 
         } catch (NotFoundException e) {
-            return new AuthDTO.LoginResponse("Email hoặc mật khẩu không chính xác", false, null, null);
+            return new AuthDTO.LoginResponse("Email hoặc mật khẩu không chính xác", false, null, null, null, false);
         } catch (Exception e) {
-            return new AuthDTO.LoginResponse("Có lỗi xảy ra trong quá trình đăng nhập", false, null, null);
+            return new AuthDTO.LoginResponse("Có lỗi xảy ra trong quá trình đăng nhập", false, null, null, null, false);
         }
     }
 
@@ -301,7 +346,7 @@ public class AuthService {
                 // Check if existing user is a regular user (not Google user)
                 if (!"oauth_google_user".equals(user.getPasswordHash())) {
                     System.out.println("DEBUG OAuth: Email already exists as regular user: " + email);
-                    return new AuthDTO.LoginResponse("Email này đã được sử dụng để đăng ký tài khoản thường. Vui lòng đăng nhập bằng mật khẩu hoặc sử dụng email khác.", false, null, null);
+                    return new AuthDTO.LoginResponse("Email này đã được sử dụng để đăng ký tài khoản thường. Vui lòng đăng nhập bằng mật khẩu hoặc sử dụng email khác.", false, null, null, null, false);
                 }
                 
                 System.out.println("DEBUG OAuth: Found existing Google user with ID = " + user.getId() + ", status = " + user.getStatus());
@@ -375,18 +420,18 @@ public class AuthService {
                 
                 // Kiểm tra trạng thái user
                 if (user.getStatus() != User.UserStatus.ACTIVE) {
-                    return new AuthDTO.LoginResponse("Tài khoản đã bị khóa hoặc không hoạt động", false, null, null);
+                    return new AuthDTO.LoginResponse("Tài khoản đã bị khóa hoặc không hoạt động", false, null, null, 0, true);
                 }
             }
 
             UserDTO.Response userResponse = userMapper.entityToResponseDTO(user);
             System.out.println("DEBUG OAuth: Login successful for user = " + user.getEmail());
             System.out.println("DEBUG OAuth: UserResponse avatarUrl = '" + userResponse.getAvatarUrl() + "'");
-            return new AuthDTO.LoginResponse("Đăng nhập thành công (Google)", true, userResponse, null);
+            return new AuthDTO.LoginResponse("Đăng nhập thành công (Google)", true, userResponse, null, null, false);
         } catch (Exception e) {
             System.err.println("ERROR OAuth: " + e.getMessage());
             e.printStackTrace();
-            return new AuthDTO.LoginResponse("Đăng nhập OAuth thất bại: " + e.getMessage(), false, null, null);
+            return new AuthDTO.LoginResponse("Đăng nhập OAuth thất bại: " + e.getMessage(), false, null, null, null, false);
         }
     }
     
@@ -440,12 +485,29 @@ public class AuthService {
 
             // Hash and update password
             user.setPasswordHash(passwordEncoder.encode(newPassword));
+            // Mở khóa tài khoản và reset bộ đếm nếu đang bị khóa
+            user.setFailedLoginAttempts(0);
+            user.setLockedAt(null);
+            if (user.getStatus() != User.UserStatus.ACTIVE) {
+                user.setStatus(User.UserStatus.ACTIVE);
+            }
             userRepository.save(user);
 
             // Xóa OTP sau khi reset password thành công
             emailOtpService.consumeOtp(email);
 
-            return new AuthDTO.ResetPasswordResponse("Đặt lại mật khẩu thành công", true);
+            // Gửi email thông báo đặt lại mật khẩu thành công
+            try {
+                String userName = (user.getFirstName() != null ? user.getFirstName() : "") + 
+                                (user.getLastName() != null ? " " + user.getLastName() : "");
+                if (userName.trim().isEmpty()) {
+                    userName = "Bạn";
+                }
+                String htmlContent = emailTemplateService.buildPasswordResetSuccessEmail(userName.trim());
+                emailService.sendHtmlEmail(email, "🔑 Mật khẩu đã được đặt lại thành công - ClinicBooking", htmlContent);
+            } catch (Exception ignore) {}
+
+            return new AuthDTO.ResetPasswordResponse("Đặt lại mật khẩu thành công. Tài khoản đã được mở khóa, bạn có thể đăng nhập lại.", true);
         } catch (NotFoundException e) {
             return new AuthDTO.ResetPasswordResponse("Không tìm thấy người dùng", false);
         } catch (Exception e) {
@@ -461,12 +523,22 @@ public class AuthService {
             String roleName = user.getRole() != null ? user.getRole().getName() : "Người dùng";
             String userName = (user.getFirstName() != null ? user.getFirstName() : "") + 
                             (user.getLastName() != null ? " " + user.getLastName() : "");
+            if (userName.trim().isEmpty()) {
+                userName = "Bạn";
+            }
+            
+            boolean isGoogleUser = "oauth_google_user".equals(user.getPasswordHash());
             
             String subject = "🎉 Chào mừng bạn đến với ClinicBooking!";
-            String content = buildWelcomeEmailContent(userName, roleName, user.getEmail(), user);
+            String htmlContent = emailTemplateService.buildWelcomeEmail(
+                userName, 
+                roleName, 
+                user.getEmail(), 
+                isGoogleUser
+            );
             
-            emailService.sendSimpleEmail(user.getEmail(), subject, content);
-            System.out.println("✅ Email chào mừng đã gửi đến: " + user.getEmail());
+            emailService.sendHtmlEmail(user.getEmail(), subject, htmlContent);
+            System.out.println("✅ Email chào mừng HTML đã gửi đến: " + user.getEmail());
             
         } catch (Exception e) {
             System.err.println("❌ Lỗi gửi email chào mừng: " + e.getMessage());
@@ -475,9 +547,11 @@ public class AuthService {
     }
     
     /**
-     * Xây dựng nội dung email chào mừng thông minh
+     * @deprecated - Không còn sử dụng, giữ lại để tương thích
      */
+    @Deprecated
     private String buildWelcomeEmailContent(String userName, String roleName, String email, User user) {
+        // Old plain text version - kept for backward compatibility
         StringBuilder content = new StringBuilder();
         
         content.append("Xin chào ").append(userName).append("!\n\n");
