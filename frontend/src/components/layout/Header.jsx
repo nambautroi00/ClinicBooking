@@ -103,24 +103,72 @@ export default function Header() {
 
   // Function to fetch notifications
   const fetchNotifications = useCallback(async () => {
-    if (!user || !user.id) return;
+    // Re-read from localStorage each time to get fresh data
+    const userData = localStorage.getItem('user');
+    
+    console.log('🔍 fetchNotifications - user exists:', !!userData);
+    
+    if (!userData) {
+      console.log('⚠️ No user found, skipping notification fetch');
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+    
+    let currentUser;
+    try {
+      currentUser = JSON.parse(userData);
+    } catch (error) {
+      console.error('❌ Error parsing user:', error);
+      return;
+    }
+    
+    if (!currentUser || !currentUser.id) {
+      console.log('⚠️ No user ID found');
+      return;
+    }
     
     try {
-      console.log('🔔 Fetching notifications for user:', user.id);
-      const response = await notificationApi.getNotifications(user.id);
-      console.log('🔔 Notifications response:', response.data);
+      console.log('🔔 Fetching notifications for user:', currentUser.id);
+      const response = await notificationApi.getNotifications(currentUser.id);
       
-      const list = Array.isArray(response.data?.content) ? response.data.content : [];
-      const unread = typeof response.data?.unreadCount === 'number' ? response.data.unreadCount : (list.filter(n => !n.isRead).length);
+      console.log('📡 Raw response:', response);
+      console.log('📡 Response.data:', response.data);
+      
+      const data = response.data;
+      console.log('DEBUG: data type:', typeof data);
+      console.log('DEBUG: data.content exists?', !!data?.content);
+      console.log('DEBUG: data.content is array?', Array.isArray(data?.content));
+      console.log('DEBUG: data.content length:', data?.content?.length);
+      
+      const list = Array.isArray(data?.content) ? data.content : [];
+      const unread = typeof data?.unreadCount === 'number' ? data.unreadCount : (list.filter(n => !n.isRead).length);
+      
+      console.log('📊 Parsed - list length:', list.length, 'unread:', unread);
+      console.log('📊 List is array?', Array.isArray(list));
+      console.log('📊 List content:', JSON.stringify(list).substring(0, 200));
+      
+      console.log('� Calling setNotifications with', list.length, 'items');
       setNotifications(list);
+      
+      console.log('🔄 Calling setUnreadCount with', unread);
       setUnreadCount(unread);
+      
+      console.log('✅ setState calls completed');
     } catch (error) {
-      console.error('❌ Error fetching notifications:', error);
-      // Fallback to empty array if API fails
+      console.error('❌❌❌ ERROR in fetchNotifications:', error);
+      console.error('❌ Error details:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      
+      if (error.response) {
+        console.error('❌ Response status:', error.response.status);
+        console.error('❌ Response data:', error.response.data);
+      }
+      
       setNotifications([]);
       setUnreadCount(0);
     }
-  }, [user]);
+  }, []); // No dependencies - always read fresh from localStorage
 
   // Function to mark notification as read
   const markAsRead = async (notificationId) => {
@@ -128,7 +176,7 @@ export default function Header() {
       // Update UI immediately for better UX
       setNotifications(prev => 
         prev.map(notif => 
-          notif.id === notificationId 
+          notif.notificationId === notificationId 
             ? { ...notif, isRead: true }
             : notif
         )
@@ -166,11 +214,53 @@ export default function Header() {
     }
   };
 
+  // Listen for user changes (login/logout)
+  useEffect(() => {
+    const handleUserChange = () => {
+      const userData = localStorage.getItem("user");
+      const token = localStorage.getItem("token");
+      console.log('👤 User changed event - reloading user from localStorage');
+      console.log('👤 Token exists:', !!token);
+      console.log('👤 User data exists:', !!userData);
+      
+      if (userData && token) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          console.log('✅ User reloaded:', parsedUser);
+          setUser(parsedUser);
+        } catch (error) {
+          console.error('❌ Error parsing user:', error);
+          setUser(null);
+        }
+      } else {
+        console.log('⚠️ No user or token, setting user to null');
+        setUser(null);
+      }
+    };
+
+    // Listen for userChanged event
+    window.addEventListener('userChanged', handleUserChange);
+    
+    // Also check on mount
+    handleUserChange();
+
+    return () => {
+      window.removeEventListener('userChanged', handleUserChange);
+    };
+  }, []);
+
   // Fetch notifications when user changes
   useEffect(() => {
     if (user) {
-      fetchNotifications();
+      console.log('🔔 User is set, fetching notifications for:', user.id);
+      // Add small delay to ensure token is ready in localStorage
+      const timer = setTimeout(() => {
+        console.log('🔔 Fetching notifications after delay...');
+        fetchNotifications();
+      }, 100);
+      return () => clearTimeout(timer);
     } else {
+      console.log('⚠️ No user, clearing notifications');
       setNotifications([]);
       setUnreadCount(0);
     }
@@ -363,9 +453,17 @@ export default function Header() {
       try {
         // Load user from localStorage first
         const raw = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        
+        console.log('🔍 Header - Checking localStorage');
+        console.log('🔍 Header - User exists:', !!raw);
+        console.log('🔍 Header - Token exists:', !!token);
+        console.log('🔍 Header - Token value:', token ? token.substring(0, 50) + '...' : 'null');
+        
         if (raw) {
           const userData = JSON.parse(raw);
           console.log('🔍 Header - Loading user from localStorage:', userData);
+          console.log('🔍 Header - User ID:', userData?.id);
           console.log('🔍 Header - User firstName:', userData?.firstName);
           console.log('🔍 Header - User lastName:', userData?.lastName);
           console.log('🔍 Header - User avatar:', userData?.avatar);
@@ -711,7 +809,9 @@ export default function Header() {
                 <div className="absolute right-0 top-12 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-900">Thông báo</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Thông báo {notifications.length > 0 && `(${notifications.length})`}
+                      </h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllAsRead}
@@ -724,18 +824,24 @@ export default function Header() {
                   </div>
                   
                   <div className="max-h-96 overflow-y-auto">
+                    {(() => {
+                      console.log('🎨 Rendering notifications, length:', notifications.length);
+                      console.log('🎨 Notifications array:', notifications);
+                      return null;
+                    })()}
                     {notifications.length === 0 ? (
                       <div className="p-4 text-center text-gray-500">
-                        Không có thông báo nào
+                        <p>Không có thông báo nào</p>
+                        <p className="text-xs mt-2">Debug: Array length = {notifications.length}</p>
                       </div>
                     ) : (
                       notifications.map((notification) => (
                         <div
-                          key={notification.id}
+                          key={notification.notificationId}
                           className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
                             !notification.isRead ? 'bg-blue-50' : ''
                           }`}
-                          onClick={() => markAsRead(notification.id)}
+                          onClick={() => markAsRead(notification.notificationId)}
                         >
                           <div className="flex items-start gap-3">
                             <div className={`w-2 h-2 rounded-full mt-2 ${

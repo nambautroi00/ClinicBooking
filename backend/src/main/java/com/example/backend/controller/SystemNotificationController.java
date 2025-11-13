@@ -1,19 +1,32 @@
 package com.example.backend.controller;
 
-import com.example.backend.model.SystemNotification;
-import com.example.backend.service.SystemNotificationService;
-import lombok.RequiredArgsConstructor;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.example.backend.model.SystemNotification;
+import com.example.backend.service.SystemNotificationService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:3000")
+@Slf4j
 public class SystemNotificationController {
 
     private final SystemNotificationService notificationService;
@@ -22,13 +35,38 @@ public class SystemNotificationController {
     public ResponseEntity<Map<String, Object>> listByUser(@PathVariable Long userId,
                                                           @RequestParam(defaultValue = "0") int page,
                                                           @RequestParam(defaultValue = "50") int size) {
+        log.info("🔔 Fetching notifications for userId: {}, page: {}, size: {}", userId, page, size);
+        
         Page<SystemNotification> data = notificationService.listByUser(userId, page, size);
         long unread = notificationService.unreadCount(userId);
+        
+        log.info("📊 Found {} notifications, {} unread", data.getTotalElements(), unread);
+        
+        // Convert to simple DTOs to avoid circular reference
+        List<Map<String, Object>> simpleNotifications = data.getContent().stream()
+            .map(n -> {
+                Map<String, Object> dto = new HashMap<>();
+                dto.put("notificationId", n.getNotificationId());
+                dto.put("userId", n.getUserId());
+                dto.put("title", n.getTitle());
+                dto.put("message", n.getMessage());
+                dto.put("type", n.getType());
+                dto.put("isRead", n.getIsRead());
+                dto.put("createdAt", n.getCreatedAt());
+                dto.put("readAt", n.getReadAt());
+                // Don't include appointment to avoid circular reference
+                return dto;
+            })
+            .collect(Collectors.toList());
+        
         Map<String, Object> body = new HashMap<>();
-        body.put("content", data.getContent());
+        body.put("content", simpleNotifications);
         body.put("totalElements", data.getTotalElements());
         body.put("totalPages", data.getTotalPages());
         body.put("unreadCount", unread);
+        
+        log.info("📤 Returning {} notifications", simpleNotifications.size());
+        
         return ResponseEntity.ok(body);
     }
 

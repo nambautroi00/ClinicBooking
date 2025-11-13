@@ -18,6 +18,7 @@ import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.SystemNotificationRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service class cho SystemNotification entity
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SystemNotificationService {
 
     private final SystemNotificationRepository systemNotificationRepository;
@@ -210,6 +212,7 @@ public class SystemNotificationService {
     }
 
     public SystemNotification create(Long userId, String title, String message, String type) {
+        log.info("🔨 Creating notification for userId: {}", userId);
         SystemNotification n = new SystemNotification();
         n.setUserId(userId);
         n.setTitle(title);
@@ -217,7 +220,13 @@ public class SystemNotificationService {
         n.setType(type);
         n.setIsRead(false);
         n.setCreatedAt(LocalDateTime.now());
-        return systemNotificationRepository.save(n);
+        
+        log.info("🔨 Before save - isRead: {}", n.getIsRead());
+        SystemNotification saved = systemNotificationRepository.save(n);
+        log.info("🔨 After save - notificationId: {}, userId: {}, isRead: {}", 
+                 saved.getNotificationId(), saved.getUserId(), saved.getIsRead());
+        
+        return saved;
     }
 
     public Page<SystemNotification> listByUser(Long userId, int page, int size) {

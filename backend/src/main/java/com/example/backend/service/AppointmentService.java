@@ -13,6 +13,7 @@ import com.example.backend.model.Appointment;
 import com.example.backend.model.Doctor;
 import com.example.backend.model.DoctorSchedule;
 import com.example.backend.model.Patient;
+import com.example.backend.model.SystemNotification;
 import com.example.backend.repository.AppointmentRepository;
 import com.example.backend.repository.DoctorRepository;
 import com.example.backend.repository.DoctorScheduleRepository;
@@ -241,10 +242,58 @@ public class AppointmentService {
         }
         
         AppointmentDTO.Response response = appointmentMapper.entityToResponseDTO(saved);
+        
+        // Tạo thông báo cho bệnh nhân
         try {
-            Long userId = saved.getPatient().getUser().getId();
-            systemNotificationService.createBookingCreated(userId, saved.getAppointmentId());
-        } catch (Exception ignore) {}
+            Long patientUserId = saved.getPatient().getUser().getId();
+            log.info("📧 Creating notification for patient userId: {}", patientUserId);
+            systemNotificationService.createBookingCreated(patientUserId, saved.getAppointmentId());
+            log.info("✅ Patient notification created successfully");
+        } catch (Exception e) {
+            log.error("❌ Error creating patient notification: ", e);
+        }
+        
+        // Tạo thông báo cho bác sĩ khi bệnh nhân đặt lịch
+        try {
+            // Debug logging
+            log.info("🔍 Appointment saved with ID: {}", saved.getAppointmentId());
+            
+            // Fetch doctor với eager loading để đảm bảo có User
+            Doctor doctor = doctorRepository.findById(saved.getDoctor().getDoctorId())
+                .orElseThrow(() -> new NotFoundException("Doctor not found"));
+            
+            log.info("🔍 Doctor ID: {}", doctor.getDoctorId());
+            log.info("🔍 Doctor User: {}", doctor.getUser());
+            
+            if (doctor.getUser() == null) {
+                log.error("❌ Doctor User is NULL! Doctor ID: {}", doctor.getDoctorId());
+                return response;
+            }
+            
+            Long doctorUserId = doctor.getUser().getId();
+            log.info("🔍 Doctor User ID: {}", doctorUserId);
+            
+            if (doctorUserId == null || doctorUserId == 0) {
+                log.error("❌ Doctor User ID is NULL or 0!");
+                return response;
+            }
+            
+            String patientName = saved.getPatient().getUser().getFirstName() + " " + 
+                                saved.getPatient().getUser().getLastName();
+            String title = "Lịch hẹn mới";
+            String message = "Bệnh nhân " + patientName + " đã đặt lịch khám vào " + saved.getStartTime();
+            
+            log.info("📧 Creating notification for doctor userId: {}", doctorUserId);
+            log.info("📧 Title: {}, Message: {}", title, message);
+            
+            SystemNotification notification = systemNotificationService.create(doctorUserId, title, message, "APPOINTMENT");
+            
+            log.info("✅ Doctor notification created successfully with ID: {}, userId: {}", 
+                     notification.getNotificationId(), notification.getUserId());
+        } catch (Exception e) {
+            log.error("❌ Error creating doctor notification: ", e);
+        }
+        
         return response;
     }
 

@@ -1,6 +1,18 @@
 package com.example.backend.model;
 
-import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -8,13 +20,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @Table(name = "SystemNotifications")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class SystemNotification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,7 +49,7 @@ public class SystemNotification {
     @Column(name = "Type", columnDefinition = "NVARCHAR(50)")
     private String type = "general";
 
-    @Column(name = "IsRead")
+    @Column(name = "IsRead", nullable = false, columnDefinition = "BIT DEFAULT 0")
     private Boolean isRead = false;
 
     @Column(name = "CreatedAt", updatable = false)
@@ -55,11 +66,15 @@ public class SystemNotification {
 
     @ManyToOne
     @JoinColumn(name = "AppointmentID")
+    @JsonIgnoreProperties({"patient", "doctor", "medicalRecord", "prescription", "notifications"})
     private Appointment appointment;
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (isRead == null) {
+            isRead = false;
+        }
     }
 
     // Enum cho các loại thông báo
