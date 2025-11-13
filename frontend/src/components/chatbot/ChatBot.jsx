@@ -22,25 +22,6 @@ const DOCTOR_REQUEST_PATTERNS = [
   'tim bac si giup'
 ];
 
-const SYMPTOM_KEYWORDS = [
-  { match: 'dau dau', label: 'Đau đầu' },
-  { match: 'chong mat', label: 'Chóng mặt' },
-  { match: 'mat ngu', label: 'Mất ngủ' },
-  { match: 'sot cao', label: 'Sốt cao' },
-  { match: 'ho', label: 'Ho' },
-  { match: 'kho tho', label: 'Khó thở' },
-  { match: 'tuc nguc', label: 'Tức ngực' },
-  { match: 'dau nguc', label: 'Đau ngực' },
-  { match: 'tieu chay', label: 'Tiêu chảy' },
-  { match: 'dau bung', label: 'Đau bụng' },
-  { match: 'dau xuong', label: 'Đau xương' },
-  { match: 'sung khop', label: 'Sưng khớp' },
-  { match: 'phat ban', label: 'Phát ban' },
-  { match: 'ngua', label: 'Ngứa' },
-  { match: 'dau mat', label: 'Đau mắt' },
-  { match: 'met moi', label: 'Mệt mỏi' },
-  { match: 'buon non', label: 'Buồn nôn' }
-];
 const SAFETY_NOTICE = 'Thông tin chỉ mang tính tham khảo, không thay thế tư vấn y khoa trực tiếp.';
 const ALLOWED_LIKELIHOODS = ['common', 'possible', 'rare', 'rule_out'];
 
@@ -51,12 +32,12 @@ const LIKELIHOOD_LABELS = {
   rule_out: 'Cần loại trừ'
 };
 
-const LIKELIHOOD_COLORS = {
-  common: { bg: '#dcfce7', color: '#166534' },
-  possible: { bg: '#e0f2fe', color: '#075985' },
-  rare: { bg: '#fef3c7', color: '#92400e' },
-  rule_out: { bg: '#fee2e2', color: '#b91c1c' }
-};
+// const LIKELIHOOD_COLORS = {
+//   common: { bg: '#dcfce7', color: '#166534' },
+//   possible: { bg: '#e0f2fe', color: '#075985' },
+//   rare: { bg: '#fef3c7', color: '#92400e' },
+//   rule_out: { bg: '#fee2e2', color: '#b91c1c' }
+// };
 
 const BOT_AVATAR = '/images/bot.gif';
 const MOBILE_BREAKPOINT = 430;
@@ -259,7 +240,7 @@ const TypewriterMessage = ({ msg, isMobile }) => {
     setVisibleText('');
     setIsDone(false);
     let index = 0;
-    const baseSpeed = Math.max(15, Math.min(40, 1500 / Math.max(source.length, 1)));
+    const baseSpeed = Math.max(5, Math.min(15, 500 / Math.max(source.length, 1)));
     const interval = setInterval(() => {
       index += 1;
       setVisibleText(source.slice(0, index));
@@ -359,7 +340,7 @@ const buildInsightMarkdown = (payload) => {
 
 
   if (parts.length === 0) return '';
-  return `**Phân tích y khoa**\n${parts.join('\n\n')}`;
+  return `${parts.join('\n\n')}`;
 };
 
 const loadFromStorage = (key, fallback) => {
@@ -496,14 +477,6 @@ const ChatBot = () => {
     });
   };
 
-  const extractKeywords = (message) => {
-    const normalized = normalizeVietnamese(message || '');
-    const matched = SYMPTOM_KEYWORDS.filter(({ match }) => normalized.includes(match)).map(
-      ({ label }) => label
-    );
-    mergeSymptomKeywords(matched);
-  };
-
   const formatTime = (timestamp) =>
     new Date(timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
@@ -552,24 +525,19 @@ const ChatBot = () => {
         return;
       }
 
-      pushMessages([
-        createMessage(
-          `Mình đã tìm thấy ${doctors.length} bác sĩ thuộc khoa ${lastDepartment.name}:`
-        ),
-        {
-          text: '',
-          sender: 'bot',
-          timestamp: new Date().toISOString(),
-          type: 'doctors',
-          doctors,
-          departmentName: lastDepartment.name
-        }
-      ]);
+      pushMessages({
+        text: '',
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        type: 'doctors',
+        doctors,
+        departmentName: lastDepartment.name
+      });
     } catch (error) {
       console.error('Failed to fetch doctors', error);
       pushMessages(
         createMessage(
-          'Xin lỗi, mình chưa tra được danh sách bác sĩ lúc này. Bạn thử lại sau hoặc liên hệ hotline giúp mình nhé.'
+          'Xin lỗi, mình chưa tra được danh sách bác sĩ lúc này. Bạn thử lại sau hoặc liên hệ hotline: 0775660817 (Lưu) giúp mình nhé.'
         )
       );
     }
@@ -595,8 +563,6 @@ const ChatBot = () => {
     }
 
     setIsLoading(true);
-
-    extractKeywords(sanitized);
 
     const userWantsDoctors = DOCTOR_REQUEST_PATTERNS.some((pattern) =>
       normalizedInput.includes(pattern)
@@ -917,7 +883,7 @@ const ChatBot = () => {
           <div style={{ ...styles.chatContainer, ...(isMobile ? styles.chatContainerMobile : {}) }}>
             {messages.map((msg, index) => (
               <div key={index} style={styles.messageWrapper(msg.sender, isMobile)}>
-                {msg.sender === 'bot' && msg.type !== 'doctors' && (
+                {msg.sender === 'bot' && (
                   <img
                     src={BOT_AVATAR}
                     alt="AI trợ lý"
@@ -926,7 +892,7 @@ const ChatBot = () => {
                 )}
                 <div
                   style={{
-                    maxWidth: msg.type === 'doctors' ? '100%' : isMobile ? '100%' : '70%'
+                    maxWidth: isMobile ? '100%' : '70%'
                   }}
                 >
                   {msg.type === 'doctors' ? (
@@ -1242,7 +1208,7 @@ const styles = {
     color: sender === 'user' ? '#fff' : isError ? '#b91c1c' : '#1f2937',
     boxShadow: sender === 'user' ? '0 6px 16px rgba(37,99,235,0.25)' : '0 6px 16px rgba(15,23,42,0.08)',
     fontSize: '16px',
-    lineHeight: 1.6,
+    lineHeight: 1.4,
     whiteSpace: 'pre-wrap',
     ...(isMobile ? { padding: '14px 16px', fontSize: '15px' } : {})
   }),
