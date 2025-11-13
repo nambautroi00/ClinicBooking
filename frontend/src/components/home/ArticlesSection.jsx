@@ -103,12 +103,16 @@ const ArticlesSection = () => {
 
         {/* Articles Grid */}
         {articles.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+          <div className="relative mb-12">
+            <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-6 md:overflow-visible md:px-0 md:mx-0 md:snap-none">
             {articles.map((article) => (
-              <div key={article.articleId} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+              <div
+                key={article.articleId}
+                className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow min-w-[70vw] max-w-[75vw] sm:min-w-[260px] sm:max-w-none flex-shrink-0 snap-start md:min-w-0 md:max-w-none md:flex-shrink md:snap-none"
+              >
                 {/* Article Image */}
                 {getImageUrl(article.imageUrl) && (
-                  <div className="h-48 overflow-hidden">
+                  <div className="h-32 md:h-48 overflow-hidden">
                     <img
                       src={getImageUrl(article.imageUrl)}
                       alt={article.title}
@@ -121,7 +125,7 @@ const ArticlesSection = () => {
                 )}
 
                 {/* Article Content */}
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                   {/* Author Info */}
                   <div className="flex items-center mb-4">
                     <div className="flex items-center space-x-3">
@@ -129,21 +133,21 @@ const ArticlesSection = () => {
                         <img
                           src={getFullAvatarUrl(article.author.avatarUrl)}
                           alt={`${article.author.firstName} ${article.author.lastName}`}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                          className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-gray-200"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';
                           }}
                         />
                       ) : null}
-                      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-sm border-2 border-gray-200" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
+                      <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold text-xs md:text-sm border-2 border-gray-200" style={{ display: article.author?.avatarUrl ? 'none' : 'flex' }}>
                         {article.author?.firstName?.charAt(0)}{article.author?.lastName?.charAt(0)}
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-xs md:text-sm font-semibold text-gray-900">
                           {article.author?.firstName} {article.author?.lastName}
                         </div>
-                        <div className="flex items-center text-xs text-gray-500">
+                        <div className="flex items-center text-[11px] md:text-xs text-gray-500">
                           <Clock className="h-3 w-3 mr-1" />
                           <span>{formatDate(article.createdAt)}</span>
                         </div>
@@ -152,7 +156,7 @@ const ArticlesSection = () => {
                   </div>
 
                   {/* Article Title */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 line-clamp-2 leading-tight">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2 md:mb-3 line-clamp-2 leading-tight">
                     <Link 
                       to={`/articles/${article.articleId}`}
                       className="hover:text-blue-600 transition-colors"
@@ -162,7 +166,7 @@ const ArticlesSection = () => {
                   </h3>
 
                   {/* Article Excerpt */}
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
+                  <p className="text-gray-600 text-xs md:text-sm mb-4 line-clamp-3 leading-relaxed">
                     {article.content && article.content.length > 200 
                       ? article.content.substring(0, 200) + '...' 
                       : article.content
@@ -170,25 +174,26 @@ const ArticlesSection = () => {
                   </p>
 
                   {/* Article Stats */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-gray-100">
+                    <div className="flex items-center space-x-3 md:space-x-4 text-xs md:text-sm text-gray-500">
                       <div className="flex items-center space-x-1">
-                        <Heart className="h-4 w-4 text-red-500" />
+                        <Heart className="h-3 w-3 md:h-4 md:w-4 text-red-500" />
                         <span className="font-medium">{article.likeCount || 0}</span>
-                        <span className="text-xs">lượt tim</span>
+                        <span className="text-[11px] md:text-xs">lượt tim</span>
                       </div>
                     </div>
                     <Link 
                       to={`/articles/${article.articleId}`}
-                      className="text-blue-600 hover:text-blue-800 font-semibold flex items-center text-sm"
+                      className="text-blue-600 hover:text-blue-800 font-semibold flex items-center text-xs md:text-sm"
                     >
                       Đọc thêm
-                      <ArrowRight className="h-4 w-4 ml-1" />
+                      <ArrowRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
                     </Link>
                   </div>
                 </div>
               </div>
             ))}
+            </div>
           </div>
         ) : (
           <div className="text-center py-16">
