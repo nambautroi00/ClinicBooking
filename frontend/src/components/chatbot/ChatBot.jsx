@@ -484,6 +484,75 @@ const ChatBot = () => {
     setMessages((prev) => [...prev, ...(Array.isArray(newMessages) ? newMessages : [newMessages])]);
   };
 
+  const extractDoctorName = (text) => {
+    const normalized = normalizeVietnamese(text);
+    const patterns = [
+      /tim\s+bac\s+si\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /tim\s+bac\s+sy\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /bac\s+si\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /bac\s+sy\s+(.+?)(?:\s+giup|\s+cho|\s+minh|$)/i,
+      /tim\s+(.+?)\s+bac\s+si/i,
+      /tim\s+(.+?)\s+bac\s+sy/i,
+      /cho\s+toi\s+biet\s+ve\s+bac\s+si\s+(.+)/i,
+      /thong\s+tin\s+bac\s+si\s+(.+)/i
+    ];
+
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern);
+      if (match && match[1]) {
+        let name = match[1].trim();
+        // Loại bỏ các từ không cần thiết ở cuối
+        name = name.replace(/\s+(giup|cho|minh|toi|ban|di|nhe|khong|co|duoc)$/i, '').trim();
+        if (name.length > 0 && name.length < 50) {
+          return name;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const handleDoctorSearchByName = async (doctorName) => {
+    if (!doctorName || doctorName.trim().length === 0) {
+      pushMessages(
+        createMessage(
+          'Bạn vui lòng cung cấp tên bác sĩ để mình tìm kiếm nhé. Ví dụ: "tìm bác sĩ Nguyễn Văn A" hoặc "bác sĩ Trần Thị B".'
+        )
+      );
+      return;
+    }
+
+    try {
+      const response = await doctorApi.searchDoctors(doctorName);
+      const doctors = Array.isArray(response?.data) ? response.data : [];
+
+      if (doctors.length === 0) {
+        pushMessages(
+          createMessage(
+            `Mình không tìm thấy bác sĩ nào với tên "${doctorName}". Bạn có thể thử tìm với tên khác hoặc mô tả triệu chứng để mình gợi ý bác sĩ phù hợp nhé.`
+          )
+        );
+        return;
+      }
+
+      pushMessages({
+        text: '',
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        type: 'doctors',
+        doctors,
+        departmentName: null
+      });
+    } catch (error) {
+      console.error('Failed to search doctors by name', error);
+      pushMessages(
+        createMessage(
+          'Xin lỗi, mình chưa tra được danh sách bác sĩ lúc này. Bạn thử lại sau hoặc liên hệ hotline: 0775660817 (Lưu) giúp mình nhé.'
+        )
+      );
+    }
+  };
+
   const handleDoctorRequest = async () => {
     if (!lastDepartment) {
       pushMessages(
@@ -563,6 +632,14 @@ const ChatBot = () => {
     }
 
     setIsLoading(true);
+
+    // Kiểm tra tìm bác sĩ theo tên trước
+    const doctorName = extractDoctorName(sanitized);
+    if (doctorName) {
+      await handleDoctorSearchByName(doctorName);
+      setIsLoading(false);
+      return;
+    }
 
     const userWantsDoctors = DOCTOR_REQUEST_PATTERNS.some((pattern) =>
       normalizedInput.includes(pattern)
