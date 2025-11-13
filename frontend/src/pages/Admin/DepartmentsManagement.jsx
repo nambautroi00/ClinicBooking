@@ -656,63 +656,66 @@ const DepartmentsManagement = () => {
       </div>
 
       {/* Create Department Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Thêm Khoa Mới</Modal.Title>
+      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} centered dialogClassName="modal-sm-custom">
+        <Modal.Header closeButton style={{ padding: '10px 16px' }}>
+          <Modal.Title style={{ fontSize: '1.08rem' }}>Thêm Khoa Mới</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreateDepartment}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Tên khoa</Form.Label>
+          <Modal.Body style={{ maxHeight: '38vh', minHeight: 'auto', overflowY: 'auto', padding: '12px 16px' }}>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Tên khoa</Form.Label>
               <Form.Control
                 type="text"
                 value={formData.departmentName}
-                onChange={(e) => setFormData({...formData, departmentName: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, departmentName: e.target.value })}
                 required
                 placeholder="Nhập tên khoa"
+                style={{ fontSize: '0.97rem', padding: '6px 10px' }}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Mô tả</Form.Label>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Mô tả</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={2}
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Nhập mô tả khoa"
+                style={{ fontSize: '0.97rem', padding: '6px 10px' }}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Trạng thái</Form.Label>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Trạng thái</Form.Label>
               <Form.Select
                 value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 required
+                style={{ fontSize: '0.97rem', padding: '6px 10px' }}
               >
                 <option value="ACTIVE">Hoạt động</option>
                 <option value="INACTIVE">Bảo trì</option>
                 <option value="CLOSED">Đóng cửa</option>
               </Form.Select>
             </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Ảnh khoa</Form.Label>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Ảnh khoa</Form.Label>
               <Form.Control
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
-                className="mb-2"
+                className="mb-1"
+                style={{ fontSize: '0.97rem', padding: '4px 8px' }}
               />
               {imagePreview && (
-                <div className="mt-2">
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    style={{ 
-                      width: '150px', 
-                      height: '150px', 
+                <div className="mt-1">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      width: '90px',
+                      height: '90px',
                       objectFit: 'cover',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       border: '1px solid #ddd'
                     }}
                   />
@@ -723,77 +726,103 @@ const DepartmentsManagement = () => {
                   Đang upload ảnh...
                 </div>
               )}
+              {/* Inline image upload notification */}
+              {error && error.includes('upload ảnh') && (
+                <div className="alert alert-danger py-1 px-2 mt-2 mb-0" style={{ fontSize: '0.97rem' }}>
+                  {error}
+                </div>
+              )}
+              {success && success.includes('ảnh') && (
+                <div className="alert alert-success py-1 px-2 mt-2 mb-0" style={{ fontSize: '0.97rem' }}>
+                  {success}
+                </div>
+              )}
             </Form.Group>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+          <Modal.Footer style={{ padding: '8px 16px' }}>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)} style={{ fontSize: '0.97rem', padding: '4px 16px' }}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" disabled={loading}>
+            <Button variant="primary" type="submit" disabled={loading} style={{ fontSize: '0.97rem', padding: '4px 16px' }}>
               {loading ? 'Đang tạo...' : 'Tạo Khoa'}
             </Button>
           </Modal.Footer>
         </Form>
       </Modal>
 
+      {/* Custom modal size for add department */}
+      <style>{`
+        .modal-sm-custom .modal-dialog {
+          max-width: 370px;
+        }
+        @media (max-width: 500px) {
+          .modal-sm-custom .modal-dialog {
+            max-width: 98vw;
+          }
+        }
+      `}</style>
+
       {/* Edit Department Modal */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Chỉnh sửa Thông tin Khoa</Modal.Title>
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered dialogClassName="modal-sm-custom">
+        <Modal.Header closeButton style={{ padding: '10px 16px' }}>
+          <Modal.Title style={{ fontSize: '1.08rem' }}>Chỉnh sửa Thông tin Khoa</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleEditDepartment}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Tên khoa</Form.Label>
+          <Modal.Body style={{ maxHeight: '38vh', minHeight: 'auto', overflowY: 'auto', padding: '12px 16px' }}>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Tên khoa</Form.Label>
               <Form.Control
                 type="text"
                 value={formData.departmentName}
-                onChange={(e) => setFormData({...formData, departmentName: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, departmentName: e.target.value })}
                 required
                 placeholder="Nhập tên khoa"
+                style={{ fontSize: '0.97rem', padding: '6px 10px' }}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Mô tả</Form.Label>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Mô tả</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={2}
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Nhập mô tả khoa"
+                style={{ fontSize: '0.97rem', padding: '6px 10px' }}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Trạng thái</Form.Label>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Trạng thái</Form.Label>
               <Form.Select
                 value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 required
+                style={{ fontSize: '0.97rem', padding: '6px 10px' }}
               >
                 <option value="ACTIVE">Hoạt động</option>
                 <option value="INACTIVE">Bảo trì</option>
                 <option value="CLOSED">Đóng cửa</option>
               </Form.Select>
             </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Ảnh khoa</Form.Label>
+            <Form.Group className="mb-2">
+              <Form.Label style={{ fontSize: '0.97rem' }}>Ảnh khoa</Form.Label>
               <Form.Control
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
-                className="mb-2"
+                className="mb-1"
+                style={{ fontSize: '0.97rem', padding: '4px 8px' }}
               />
               {imagePreview && (
-                <div className="mt-2">
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    style={{ 
-                      width: '150px', 
-                      height: '150px', 
+                <div className="mt-1">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      width: '90px',
+                      height: '90px',
                       objectFit: 'cover',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       border: '1px solid #ddd'
                     }}
                   />
@@ -804,13 +833,24 @@ const DepartmentsManagement = () => {
                   Đang upload ảnh...
                 </div>
               )}
+              {/* Inline image upload notification */}
+              {error && error.includes('upload ảnh') && (
+                <div className="alert alert-danger py-1 px-2 mt-2 mb-0" style={{ fontSize: '0.97rem' }}>
+                  {error}
+                </div>
+              )}
+              {success && success.includes('ảnh') && (
+                <div className="alert alert-success py-1 px-2 mt-2 mb-0" style={{ fontSize: '0.97rem' }}>
+                  {success}
+                </div>
+              )}
             </Form.Group>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+          <Modal.Footer style={{ padding: '8px 16px' }}>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)} style={{ fontSize: '0.97rem', padding: '4px 16px' }}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" disabled={loading}>
+            <Button variant="primary" type="submit" disabled={loading} style={{ fontSize: '0.97rem', padding: '4px 16px' }}>
               {loading ? 'Đang cập nhật...' : 'Cập nhật'}
             </Button>
           </Modal.Footer>
