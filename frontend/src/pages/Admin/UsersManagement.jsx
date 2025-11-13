@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Modal, Button, Form, Table, Alert, Badge, Dropdown, Row, Col } from 'react-bootstrap';
+import { toast } from '../../utils/toast';
+
+
+
 import { BiEdit, BiPlus, BiSearch, BiDotsVertical, BiCheckCircle, BiXCircle, BiUserCheck, BiUserPlus } from 'react-icons/bi';
 import userApi from '../../api/userApi';
 import doctorApi from '../../api/doctorApi';
@@ -36,6 +40,9 @@ const validateAgeByRole = (dateOfBirth, roleType) => {
 };
 
 const UsersManagement = () => {
+    useEffect(() => {
+      toast.setPosition('top-right');
+    }, []);
   const location = useLocation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -351,9 +358,16 @@ const UsersManagement = () => {
     if (!formData.phone || !formData.phone.trim()) {
       newErrors.phone = 'Số điện thoại là bắt buộc';
     } else {
-      const phoneRegex = /^[0-9]{10,11}$/;
-      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-        newErrors.phone = 'Số điện thoại phải có từ 10-11 chữ số';
+      const phoneValue = formData.phone.replace(/\s/g, '');
+      const phoneRegex = /^0[0-9]{9,10}$/;
+      if (!phoneRegex.test(phoneValue)) {
+        newErrors.phone = 'Số điện thoại phải bắt đầu bằng số 0 và có từ 10-11 chữ số';
+      } else {
+        // Check uniqueness across all users
+        const isDuplicate = users.some(u => u.phone && u.phone.replace(/\s/g, '') === phoneValue);
+        if (isDuplicate) {
+          newErrors.phone = 'Số điện thoại đã tồn tại';
+        }
       }
     }
     if (!formData.gender) {
@@ -379,7 +393,10 @@ const UsersManagement = () => {
 
     if (Object.keys(newErrors).length > 0) {
       setFieldErrors(newErrors);
-      setError('Vui lòng sửa các lỗi được đánh dấu');
+      // Gom tất cả lỗi thành 1 chuỗi, mỗi lỗi 1 dòng
+      const allMsgs = Object.values(newErrors).filter(Boolean).join('\n');
+      if (allMsgs) toast.error(allMsgs, 5000); // Hiện 1 toast tổng hợp
+      toast.error('Vui lòng sửa các lỗi được đánh dấu');
       return;
     }
 
@@ -432,18 +449,30 @@ const UsersManagement = () => {
       fetchStats();
     } catch (err) {
       const apiMessage = err.response?.data?.message || err.message;
-      setError('Lỗi khi tạo người dùng: ' + apiMessage);
       // Map server-side validation to field errors if available
       const apiErrors = err.response?.data?.errors;
+      let shownToast = false;
       if (apiErrors && typeof apiErrors === 'object') {
         setFieldErrors(apiErrors);
+        // Ưu tiên lỗi email/phone nếu có
+        if (apiErrors.email) {
+          shownToast = true;
+        }
+        if (apiErrors.phone) {
+          shownToast = true;
+        }
       } else if (apiMessage) {
         if (apiMessage.toLowerCase().includes('email')) {
           setFieldErrors(prev => ({...prev, email: apiMessage}));
+          shownToast = true;
         }
         if (apiMessage.toLowerCase().includes('phone')) {
           setFieldErrors(prev => ({...prev, phone: apiMessage}));
+          shownToast = true;
         }
+      }
+      if (!shownToast) {
+        setError('Lỗi khi tạo người dùng: ' + apiMessage);
       }
     } finally {
       setLoading(false);
@@ -465,9 +494,16 @@ const UsersManagement = () => {
     if (!formData.phone || !formData.phone.trim()) {
       newErrors.phone = 'Số điện thoại là bắt buộc';
     } else {
-      const phoneRegex = /^[0-9]{10,11}$/;
-      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-        newErrors.phone = 'Số điện thoại phải có từ 10-11 chữ số';
+      const phoneValue = formData.phone.replace(/\s/g, '');
+      const phoneRegex = /^0[0-9]{9,10}$/;
+      if (!phoneRegex.test(phoneValue)) {
+        newErrors.phone = 'Số điện thoại phải bắt đầu bằng số 0 và có từ 10-11 chữ số';
+      } else {
+        // Check uniqueness across all users except the current user
+        const isDuplicate = users.some(u => u.phone && u.phone.replace(/\s/g, '') === phoneValue && u.id !== selectedUser.id);
+        if (isDuplicate) {
+          newErrors.phone = 'Số điện thoại đã tồn tại';
+        }
       }
     }
     if (!formData.gender) {
@@ -487,7 +523,10 @@ const UsersManagement = () => {
 
     if (Object.keys(newErrors).length > 0) {
       setFieldErrors(newErrors);
-      setError('Vui lòng sửa các lỗi được đánh dấu');
+      // Gom tất cả lỗi thành 1 chuỗi, mỗi lỗi 1 dòng
+      const allMsgs = Object.values(newErrors).filter(Boolean).join('\n');
+      if (allMsgs) toast.error(allMsgs, 5000); // Hiện 1 toast tổng hợp
+      toast.error('Vui lòng sửa các lỗi được đánh dấu');
       return;
     }
 
@@ -557,17 +596,28 @@ const UsersManagement = () => {
       fetchStats();
     } catch (err) {
       const apiMessage = err.response?.data?.message || err.message;
-      setError('Lỗi khi cập nhật người dùng: ' + apiMessage);
       const apiErrors = err.response?.data?.errors;
+      let shownToast = false;
       if (apiErrors && typeof apiErrors === 'object') {
         setFieldErrors(apiErrors);
+        if (apiErrors.email) {
+          shownToast = true;
+        }
+        if (apiErrors.phone) {
+          shownToast = true;
+        }
       } else if (apiMessage) {
         if (apiMessage.toLowerCase().includes('email')) {
           setFieldErrors(prev => ({...prev, email: apiMessage}));
+          shownToast = true;
         }
         if (apiMessage.toLowerCase().includes('phone')) {
           setFieldErrors(prev => ({...prev, phone: apiMessage}));
+          shownToast = true;
         }
+      }
+      if (!shownToast) {
+        setError('Lỗi khi cập nhật người dùng: ' + apiMessage);
       }
     } finally {
       setLoading(false);
@@ -710,13 +760,13 @@ const UsersManagement = () => {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
+      toast.error('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      alert('Kích thước file không được vượt quá 5MB');
+      toast.error('Kích thước file không được vượt quá 5MB');
       return;
     }
 
@@ -724,18 +774,15 @@ const UsersManagement = () => {
     try {
       // For new user creation, we don't have userId yet, so pass null
       const userId = selectedUser?.id || null;
-  const response = await fileUploadApi.upload(file, userId, 'user');
-      
+      const response = await fileUploadApi.upload(file, userId, 'user');
       // 🔍 DEBUG: Log upload response
       console.log('=== UPLOAD DEBUG ===');
       console.log('Upload response:', response.data);
       console.log('Response URL:', response.data.url);
       console.log('====================');
-      
       if (response.data.success) {
         const newAvatarUrl = response.data.url;
         console.log('Setting avatar URL:', newAvatarUrl);
-        
         setFormData(prev => {
           const newFormData = {
             ...prev,
@@ -744,14 +791,13 @@ const UsersManagement = () => {
           console.log('New form data:', newFormData);
           return newFormData;
         });
-        
-        alert('Upload ảnh thành công!');
+        toast.success('Upload ảnh đại diện thành công!');
       } else {
-        alert('Lỗi: ' + response.data.message);
+        toast.error('Lỗi khi upload ảnh: ' + response.data.message);
       }
     } catch (err) {
       console.error('Upload error:', err);
-      alert('Lỗi khi upload ảnh: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi upload ảnh: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploading(false);
     }
@@ -1307,7 +1353,7 @@ const UsersManagement = () => {
                         </div>
                       )}
                   </td>
-                  <td>{user.firstName} {user.lastName}</td>
+                  <td>{user.lastName} {user.firstName}</td>
                   <td>{user.email}</td>
                   <td>{user.phone || '-'}</td>
                   {!filterRole && <td>{getRoleBadge(user.role?.id)}</td>}
@@ -1402,7 +1448,7 @@ const UsersManagement = () => {
       </div>
 
       {/* Create User Modal */}
-  <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg" centered scrollable>
+  <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} centered dialogClassName="modal-sm-custom">
         <Modal.Header closeButton>
           <Modal.Title>
             {createUserType === 'admin' ? (
@@ -1419,7 +1465,7 @@ const UsersManagement = () => {
           </Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreateUser}>
-          <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <Modal.Body style={{ maxHeight: '38vh', minHeight: 'auto', overflowY: 'auto', padding: '12px 16px' }}>
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1428,6 +1474,7 @@ const UsersManagement = () => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => { setFormData({...formData, email: e.target.value}); setFieldErrors(prev => ({...prev, email: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
                     required
                     placeholder="Nhập email"
                     isInvalid={!!fieldErrors.email}
@@ -1442,6 +1489,7 @@ const UsersManagement = () => {
                     type="password"
                     value={formData.password}
                     onChange={(e) => { setFormData({...formData, password: e.target.value}); setFieldErrors(prev => ({...prev, password: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
                     required
                     placeholder="Nhập mật khẩu"
                     isInvalid={!!fieldErrors.password}
@@ -1458,6 +1506,7 @@ const UsersManagement = () => {
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => { setFormData({...formData, lastName: e.target.value}); setFieldErrors(prev => ({...prev, lastName: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
                     required
                     placeholder="Nhập họ"
                     isInvalid={!!fieldErrors.lastName}
@@ -1472,6 +1521,7 @@ const UsersManagement = () => {
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => { setFormData({...formData, firstName: e.target.value}); setFieldErrors(prev => ({...prev, firstName: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
                     required
                     placeholder="Nhập tên"
                     isInvalid={!!fieldErrors.firstName}
@@ -1488,6 +1538,7 @@ const UsersManagement = () => {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => { setFormData({...formData, phone: e.target.value}); setFieldErrors(prev => ({...prev, phone: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
                     required
                     placeholder="Nhập số điện thoại"
                     isInvalid={!!fieldErrors.phone}
@@ -1501,6 +1552,7 @@ const UsersManagement = () => {
                   <Form.Select
                     value={formData.gender}
                     onChange={(e) => { setFormData({...formData, gender: e.target.value}); setFieldErrors(prev => ({...prev, gender: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
                     required
                     isInvalid={!!fieldErrors.gender}
                   >
@@ -1520,6 +1572,7 @@ const UsersManagement = () => {
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => { setFormData({...formData, dateOfBirth: e.target.value}); setFieldErrors(prev => ({...prev, dateOfBirth: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
                     required
                     isInvalid={!!fieldErrors.dateOfBirth}
                   />
@@ -1530,14 +1583,15 @@ const UsersManagement = () => {
             
             <Form.Group className="mb-3">
               <Form.Label>Địa chỉ *</Form.Label>
-              <Form.Control
-                type="text"
-                value={formData.address}
-                onChange={(e) => { setFormData({...formData, address: e.target.value}); setFieldErrors(prev => ({...prev, address: undefined})); }}
-                required
-                placeholder="Nhập địa chỉ"
-                isInvalid={!!fieldErrors.address}
-              />
+                  <Form.Control
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => { setFormData({...formData, address: e.target.value}); setFieldErrors(prev => ({...prev, address: undefined})); }}
+                    // onBlur toast lỗi đã bị loại bỏ để tránh lộn xộn
+                    required
+                    placeholder="Nhập địa chỉ"
+                    isInvalid={!!fieldErrors.address}
+                  />
               <Form.Control.Feedback type="invalid">{fieldErrors.address}</Form.Control.Feedback>
             </Form.Group>
             
@@ -1692,7 +1746,7 @@ const UsersManagement = () => {
               )}
             </Form.Group>
           </Modal.Body>
-          <Modal.Footer>
+          <Modal.Footer style={{ padding: '8px 16px' }}>
             <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
               Hủy
             </Button>
@@ -1704,12 +1758,12 @@ const UsersManagement = () => {
       </Modal>
 
       {/* Edit User Modal */}
-  <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered scrollable>
+  <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered dialogClassName="modal-sm-custom">
         <Modal.Header closeButton>
           <Modal.Title>Chỉnh sửa Thông tin Người dùng</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleEditUser}>
-          <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <Modal.Body style={{ maxHeight: '38vh', minHeight: 'auto', overflowY: 'auto', padding: '12px 16px' }}>
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -2060,7 +2114,18 @@ const UsersManagement = () => {
               )}
             </Form.Group>
           </Modal.Body>
-          <Modal.Footer>
+          <Modal.Footer style={{ padding: '8px 16px' }}>
+                  {/* Custom modal size for add/edit user */}
+                  <style>{`
+                    .modal-sm-custom .modal-dialog {
+                      max-width: 370px;
+                    }
+                    @media (max-width: 500px) {
+                      .modal-sm-custom .modal-dialog {
+                        max-width: 98vw;
+                      }
+                    }
+                  `}</style>
             <Button variant="secondary" onClick={() => setShowEditModal(false)}>
               Hủy
             </Button>
@@ -2127,7 +2192,7 @@ const UsersManagement = () => {
                   />
                 </div>
                 <div className="mt-2 fw-semibold">
-                  {selectedUser.firstName} {selectedUser.lastName}
+                  {selectedUser.lastName} {selectedUser.firstName}
                 </div>
                 <div className="text-muted" style={{ fontSize: '12px' }}>
                   {selectedUser.email}
@@ -2142,7 +2207,7 @@ const UsersManagement = () => {
                 </h6>
                 <div className="mb-3">
                   <strong>Họ tên:</strong>
-                  <p className="mb-1">{selectedUser.firstName} {selectedUser.lastName}</p>
+                  <p className="mb-1">{selectedUser.lastName} {selectedUser.firstName}</p>
                 </div>
                 <div className="mb-3">
                   <strong>Email:</strong>

@@ -5,7 +5,12 @@ import conversationApi from "../../../api/conversationApi";
 import messageApi from "../../../api/messageApi";
 import doctorApi from "../../../api/doctorApi";
 
-const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClose }) => {
+const DoctorSidebar = ({
+  doctorInfo,
+  loading = false,
+  sidebarOpen = true,
+  onClose,
+}) => {
   const location = useLocation();
   const [totalUnread, setTotalUnread] = useState(0);
 
@@ -14,22 +19,24 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
     let intervalId;
     const fetchUnreadTotal = async () => {
       try {
-        const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+        const storedUser = JSON.parse(localStorage.getItem("user") || "null");
         const currentUserId = storedUser?.id;
-        const storedDoctorId = localStorage.getItem('doctorId');
+        const storedDoctorId = localStorage.getItem("doctorId");
         let doctorId = storedDoctorId || doctorInfo?.doctorId;
         if (!doctorId && currentUserId) {
           try {
             const res = await doctorApi.getDoctorByUserId(currentUserId);
             doctorId = res?.data?.doctorId || res?.doctorId || null;
-            if (doctorId) localStorage.setItem('doctorId', String(doctorId));
+            if (doctorId) localStorage.setItem("doctorId", String(doctorId));
           } catch (_) {}
         }
         if (!doctorId || !currentUserId) {
           if (isMounted) setTotalUnread(0);
           return;
         }
-        const convRes = await conversationApi.getConversationsByDoctor(doctorId);
+        const convRes = await conversationApi.getConversationsByDoctor(
+          doctorId
+        );
         const conversations = Array.isArray(convRes?.data) ? convRes.data : [];
         if (conversations.length === 0) {
           if (isMounted) setTotalUnread(0);
@@ -40,7 +47,10 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
             const convId = c.conversationId || c.id;
             if (!convId) return 0;
             try {
-              const res = await messageApi.getUnreadCount(convId, currentUserId);
+              const res = await messageApi.getUnreadCount(
+                convId,
+                currentUserId
+              );
               return Number(res?.data) || 0;
             } catch (_) {
               return 0;
@@ -59,14 +69,13 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
     intervalId = window.setInterval(fetchUnreadTotal, 10000);
 
     const onUserChanged = () => fetchUnreadTotal();
-    window.addEventListener('userChanged', onUserChanged);
+    window.addEventListener("userChanged", onUserChanged);
     return () => {
       isMounted = false;
-      window.removeEventListener('userChanged', onUserChanged);
+      window.removeEventListener("userChanged", onUserChanged);
       if (intervalId) window.clearInterval(intervalId);
     };
   }, [doctorInfo?.doctorId, location.pathname]);
-
 
   const menuItems = [
     {
@@ -100,12 +109,6 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
       description: "Phản hồi từ bệnh nhân",
     },
     {
-      path: "/doctor/patients",
-      icon: "bi-people",
-      label: "Quản lý bệnh nhân",
-      description: "Danh sách bệnh nhân",
-    },
-    {
       path: "/doctor/medical-records",
       icon: "bi-file-text",
       label: "Hồ sơ bệnh án",
@@ -131,18 +134,20 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
       {sidebarOpen && window.innerWidth < 992 && (
         <div
           className="position-fixed w-100 h-100 bg-dark bg-opacity-50"
-          style={{ 
-            top: 0, 
-            left: 0, 
+          style={{
+            top: 0,
+            left: 0,
             zIndex: 1039,
-            cursor: 'pointer'
+            cursor: "pointer",
           }}
           onClick={onClose}
         />
       )}
-      
+
       <nav
-        className={`bg-light doctor-sidebar ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}
+        className={`bg-light doctor-sidebar ${
+          sidebarOpen ? "sidebar-open" : "sidebar-closed"
+        }`}
         style={{
           position: "fixed",
           top: "20px",
@@ -155,65 +160,64 @@ const DoctorSidebar = ({ doctorInfo, loading = false, sidebarOpen = true, onClos
           transition: "left 0.3s ease-in-out",
         }}
       >
-      <div className="d-flex flex-column h-100">
-        {/* Doctor Info */}
-        <div className="doctor-info mb-1">
-          <div className="text-center">
-            <div className="doctor-avatar mb-2">
-              {doctorInfo.avatar ? (
-                <img
-                  src={doctorInfo.avatar}
-                  alt="avatar"
-                  className="rounded-circle"
-                  style={{ width: 90, height: 90 }}
-                />
+        <div className="d-flex flex-column h-100">
+          {/* Doctor Info */}
+          <div className="doctor-info mb-1">
+            <div className="text-center">
+              <div className="doctor-avatar mb-2">
+                {doctorInfo.avatar ? (
+                  <img
+                    src={doctorInfo.avatar}
+                    alt="avatar"
+                    className="rounded-circle"
+                    style={{ width: 90, height: 90 }}
+                  />
+                ) : (
+                  <i
+                    className="bi bi-person-circle text-primary"
+                    style={{ fontSize: "3rem" }}
+                  ></i>
+                )}
+              </div>
+              {loading ? (
+                <>
+                  <h6 className="mb-1">Đang tải...</h6>
+                  <small className="text-muted">Bác sĩ</small>
+                </>
               ) : (
-                <i
-                  className="bi bi-person-circle text-primary"
-                  style={{ fontSize: "3rem" }}
-                ></i>
+                <>
+                  <h6 className="mb-1">{doctorInfo.name}</h6>
+                  <small className="text-muted">{doctorInfo.department}</small>
+                </>
               )}
             </div>
-            {loading ? (
-              <>
-                <h6 className="mb-1">Đang tải...</h6>
-                <small className="text-muted">Bác sĩ</small>
-              </>
-            ) : (
-              <>
-                <h6 className="mb-1">{doctorInfo.name}</h6>
-                <small className="text-muted">{doctorInfo.department}</small>
-              </>
-            )}
           </div>
-        </div>
 
-        {/* Menu Items */}
-        <ul className="nav flex-column">
-          {menuItems.map((item) => (
-            <li key={item.path} className="nav-item mb-2">
-              <Link
-                className={`nav-link doctor-menu-item ${
-                  location.pathname === item.path ? "active" : ""
-                }`}
-                to={item.path}
-              >
-                <div className="d-flex align-items-center w-100 justify-content-between">
-                  <div className="d-flex align-items-center">
-                    <i className={`bi ${item.icon} me-3`}></i>
-                    <div>
-                      <div className="fw-semibold">{item.label}</div>
-                      <small className="text-muted">{item.description}</small>
+          {/* Menu Items */}
+          <ul className="nav flex-column">
+            {menuItems.map((item) => (
+              <li key={item.path} className="nav-item mb-2">
+                <Link
+                  className={`nav-link doctor-menu-item ${
+                    location.pathname === item.path ? "active" : ""
+                  }`}
+                  to={item.path}
+                >
+                  <div className="d-flex align-items-center w-100 justify-content-between">
+                    <div className="d-flex align-items-center">
+                      <i className={`bi ${item.icon} me-3`}></i>
+                      <div>
+                        <div className="fw-semibold">{item.label}</div>
+                        <small className="text-muted">{item.description}</small>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-      </div>
-    </nav>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
     </>
   );
 };

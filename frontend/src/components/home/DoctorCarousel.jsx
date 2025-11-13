@@ -30,7 +30,7 @@ const DoctorCarousel = ({
   };
 
   const handleDoctorClick = (doctorId) => {
-    navigate(`/doctor/${doctorId}`);
+    navigate(`/patient/doctordetail/${doctorId}`);
   };
 
   const handleViewAll = () => {
