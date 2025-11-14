@@ -1,18 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Menu,
-  X,
-  Search,
-  Phone,
-  Globe,
-  Facebook,
-  Twitter,
-  Instagram,
-  MessageCircle,
-  Bell,
-  Loader2,
-  ArrowRight,
-} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import notificationApi from "../../api/notificationApi";
@@ -791,7 +777,7 @@ export default function Header() {
           <>
             {isGeminiSearching && (
               <div className="px-3 py-2 text-xs text-purple-600 flex items-center gap-2 bg-purple-50 border-b border-purple-100">
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <i className="bi bi-arrow-clockwise animate-spin" style={{ fontSize: '12px' }}></i>
               </div>
             )}
             {searchResults.departments.length > 0 ||
@@ -849,7 +835,7 @@ export default function Header() {
                                 {dept.description || dept.desc || "Chuyên khoa"}
                               </div>
                             </div>
-                            <ArrowRight className="h-5 w-5 text-blue-400 group-hover:text-[#0056cc] flex-shrink-0 transition-all opacity-50 group-hover:opacity-100" />
+                            <i className="bi bi-arrow-right text-blue-400 group-hover:text-[#0056cc] flex-shrink-0 transition-all opacity-50 group-hover:opacity-100" style={{ fontSize: '20px' }}></i>
                           </Link>
                         );
                       })}
@@ -915,7 +901,7 @@ export default function Header() {
                               <span className="truncate">{departmentName}</span>
                             </div>
                           </div>
-                          <ArrowRight className="h-5 w-5 text-purple-400 group-hover:text-[#7c3aed] flex-shrink-0 transition-all opacity-50 group-hover:opacity-100" />
+                          <i className="bi bi-arrow-right text-purple-400 group-hover:text-[#7c3aed] flex-shrink-0 transition-all opacity-50 group-hover:opacity-100" style={{ fontSize: '20px' }}></i>
                         </Link>
                         );
                       })}
@@ -936,21 +922,21 @@ export default function Header() {
   };
 
   const menuItems = [
-    { label: "Trang chủ", href: "/" },
-    { label: "Chuyên khoa", href: "/#specialties" },
-    { label: "Bài viết", href: "/articles" },
-    { label: "Đặt lịch", href: "/patient/book-appointment" },
-    { label: "Trợ lý y khoa", href: "/chatbot" },
+    { label: "Trang chủ", href: "/", icon: "bi-house" },
+    { label: "Chuyên khoa", href: "/#specialties", icon: "bi-hospital" },
+    { label: "Bài viết", href: "/articles", icon: "bi-file-text" },
+    { label: "Đặt lịch", href: "/patient/book-appointment", icon: "bi-calendar-check" },
+    { label: "Trợ lý y khoa", href: "/chatbot", icon: "bi-robot" },
   ];
 
   const userDropdownItems = [
     {
       label: "Lịch khám",
       href: "/patient/profile?tab=appointments",
-      icon: "📅",
+      icon: "bi-calendar3",
     },
-    { label: "Hồ sơ bệnh án", href: "/patient/medical-records", icon: "📋" },
-    { label: "Tài khoản", href: "/patient/profile?tab=profile", icon: "👤" },
+    { label: "Hồ sơ bệnh án", href: "/patient/profile?tab=medical-records", icon: "bi-clipboard" },
+    { label: "Tài khoản", href: "/patient/profile?tab=profile", icon: "bi-person" },
   ];
 
   return (
@@ -961,13 +947,13 @@ export default function Header() {
           <div className="max-w-full mx-auto flex h-9 items-center justify-between text-sm">
             <div className="flex items-center gap-4 text-[#034ea2]">
               <a href="tel:19002115" className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
+                <i className="bi bi-telephone" style={{ fontSize: '16px' }}></i>
                 <span className="font-medium">Hotline: 1900 2115</span>
               </a>
             </div>
             <div className="flex items-center gap-3 text-sm">
               <button className="flex items-center gap-1 text-[#6b7280] hover:text-[#034ea2]">
-                <Globe className="h-4 w-4" />
+                <i className="bi bi-globe" style={{ fontSize: '16px' }}></i>
                 <span>VN</span>
               </button>
               <div className="flex items-center gap-2">
@@ -977,7 +963,7 @@ export default function Header() {
                   rel="noreferrer"
                   className="text-[#6b7280] hover:text-[#034ea2]"
                 >
-                  <Facebook className="h-4 w-4" />
+                  <i className="bi bi-facebook" style={{ fontSize: '16px' }}></i>
                 </a>
                 <a
                   href="https://twitter.com"
@@ -985,7 +971,7 @@ export default function Header() {
                   rel="noreferrer"
                   className="text-[#6b7280] hover:text-[#034ea2]"
                 >
-                  <Twitter className="h-4 w-4" />
+                  <i className="bi bi-twitter" style={{ fontSize: '16px' }}></i>
                 </a>
                 <a
                   href="https://www.instagram.com"
@@ -993,7 +979,7 @@ export default function Header() {
                   rel="noreferrer"
                   className="text-[#6b7280] hover:text-[#034ea2]"
                 >
-                  <Instagram className="h-4 w-4" />
+                  <i className="bi bi-instagram" style={{ fontSize: '16px' }}></i>
                 </a>
               </div>
             </div>
@@ -1040,7 +1026,7 @@ export default function Header() {
           {/* Center search - shorter with larger text */}
           <div className="flex-1 hidden sm:block min-w-0">
             <div className="relative max-w-xl mx-auto search-container">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" style={{ fontSize: '20px' }}></i>
               <input
                 type="search"
                 placeholder="Tìm bác sĩ, chuyên khoa..."
@@ -1092,10 +1078,10 @@ export default function Header() {
             {/* Messages Button */}
             <button
               onClick={handleMessagesClick}
-              className="relative hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
+              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
               title="Nhắn tin"
             >
-              <MessageCircle className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+              <i className="bi bi-chat-dots group-hover:scale-110 transition-transform duration-200" style={{ fontSize: '20px' }}></i>
               {messageUnreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center font-semibold">
                   {messageUnreadCount > 9 ? "9+" : messageUnreadCount}
@@ -1107,10 +1093,10 @@ export default function Header() {
             <div className="relative notifications-dropdown">
               <button
                 onClick={handleNotificationsClick}
-                className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
                 title="Thông báo"
               >
-                <Bell className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+                <i className="bi bi-bell group-hover:scale-110 transition-transform duration-200" style={{ fontSize: '20px' }}></i>
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
                     {unreadCount > 9 ? "9+" : unreadCount}
@@ -1239,7 +1225,7 @@ export default function Header() {
                           className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                           onClick={() => setShowUserDropdown(false)}
                         >
-                          <span className="text-lg">{item.icon}</span>
+                          <i className={`bi ${item.icon}`} style={{ fontSize: '18px' }}></i>
                           <span>{item.label}</span>
                         </Link>
                       ))}
@@ -1284,9 +1270,9 @@ export default function Header() {
               aria-label="Toggle mobile menu"
             >
               {mobileMenuOpen ? (
-                <X className="h-6 w-6 text-gray-700" />
+                <i className="bi bi-x-lg text-gray-700" style={{ fontSize: '24px' }}></i>
               ) : (
-                <Menu className="h-6 w-6 text-gray-700" />
+                <i className="bi bi-list text-gray-700" style={{ fontSize: '24px' }}></i>
               )}
             </button>
           </div>
@@ -1296,7 +1282,7 @@ export default function Header() {
         {showMobileHeader && (
           <div className="lg:hidden pb-3 animate-slideDown">
             <div className="max-w-full mx-auto px-2 relative w-full">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" style={{ fontSize: '16px' }}></i>
               <input
                 type="search"
                 placeholder="Tìm bác sĩ, chuyên khoa..."
@@ -1316,102 +1302,100 @@ export default function Header() {
 
         {/* Mobile Navigation */}
         {showMobileHeader && (
-          <nav className="lg:hidden border-t py-4 space-y-3 max-w-full mx-auto px-2 animate-slideDown">
-            {menuItems.map((item) => {
-              const handleClick = (e) => {
-                setMobileMenuOpen(false);
-                setShowMobileHeader(false);
-                if (item.href.includes("#")) {
-                  e.preventDefault();
-                  const [path, anchor] = item.href.split("#");
-                  navigate(path);
-                  setTimeout(() => {
-                    const element = document.getElementById(anchor);
-                    if (element) {
-                      element.scrollIntoView({ behavior: "smooth" });
-                    }
-                  }, 100);
-                }
-              };
+          <nav className="lg:hidden border-t py-2 max-w-full mx-auto px-2 animate-slideDown">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Left Column - General Navigation */}
+              <div className="space-y-1">
+                {menuItems
+                  .filter(item => item.label !== "Chuyên khoa")
+                  .map((item) => {
+                    const handleClick = (e) => {
+                      setMobileMenuOpen(false);
+                      setShowMobileHeader(false);
+                      if (item.href.includes("#")) {
+                        e.preventDefault();
+                        const [path, anchor] = item.href.split("#");
+                        navigate(path);
+                        setTimeout(() => {
+                          const element = document.getElementById(anchor);
+                          if (element) {
+                            element.scrollIntoView({ behavior: "smooth" });
+                          }
+                        }, 100);
+                      }
+                    };
 
-              return (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  className="block text-base font-medium text-gray-700 hover:text-[#0d6efd]"
-                  onClick={handleClick}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+                    return (
+                      <Link
+                        key={item.label}
+                        to={item.href}
+                        className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-[#0d6efd] py-1.5"
+                        onClick={handleClick}
+                      >
+                        <i className={`bi ${item.icon}`} style={{ fontSize: '16px' }}></i>
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+              </div>
 
-            {/* Mobile Messages Button */}
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setShowMobileHeader(false);
-                handleMessagesClick();
-              }}
-              className="flex items-center gap-3 w-full text-base font-medium text-gray-700 hover:text-[#0d6efd] py-2"
-            >
-              <MessageCircle className="h-5 w-5" />
-              <span>Nhắn tin</span>
-              {messageUnreadCount > 0 && (
-                <span className="ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-white bg-red-500 rounded-full">
-                  {messageUnreadCount > 9 ? "9+" : messageUnreadCount}
-                </span>
-              )}
-            </button>
-
-            {user ? (
-              <div className="space-y-2">
-                <div className="text-base font-medium text-gray-700 mb-2">
-                  {user.firstName || user.email}
-                </div>
-                {userDropdownItems.map((item, index) => (
+              {/* Right Column - Patient Section */}
+              <div className="space-y-1">
+                {user ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1 px-1">
+                      <i className="bi bi-person" style={{ fontSize: '16px' }}></i>
+                      <span>{user.firstName || user.email}</span>
+                    </div>
+                    {userDropdownItems.map((item, index) => (
+                      <Link
+                        key={index}
+                        to={item.href}
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:text-[#0d6efd] hover:bg-gray-50 rounded-md transition-colors"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setShowMobileHeader(false);
+                        }}
+                      >
+                        <i className={`bi ${item.icon}`} style={{ fontSize: '16px' }}></i>
+                        <span>{item.label}</span>
+                      </Link>
+                    ))}
+                    <button
+                      className="w-full inline-block rounded-md border border-red-200 bg-white px-2 py-1.5 text-sm text-red-600 text-center hover:bg-red-50 mt-1"
+                      onClick={async () => {
+                        try {
+                          await axiosClient.post("/auth/logout", {
+                            token: localStorage.getItem("token"),
+                          });
+                        } catch (e) {
+                          // ignore
+                        }
+                        localStorage.removeItem("token");
+                        localStorage.removeItem("user");
+                        window.dispatchEvent(new Event("userChanged"));
+                        navigate("/");
+                        setMobileMenuOpen(false);
+                        setShowMobileHeader(false);
+                      }}
+                    >
+                      Đăng xuất
+                    </button>
+                  </>
+                ) : (
                   <Link
-                    key={index}
-                    to={item.href}
-                    className="flex items-center gap-3 px-3 py-2 text-base text-gray-700 hover:text-[#0d6efd] hover:bg-gray-50 rounded-md transition-colors"
+                    to="/login"
+                    className="w-full inline-block rounded-md bg-[#0d6efd] px-2 py-1.5 text-sm text-white text-center"
                     onClick={() => {
                       setMobileMenuOpen(false);
                       setShowMobileHeader(false);
                     }}
                   >
-                    <span className="text-lg">{item.icon}</span>
-                    <span>{item.label}</span>
+                    Đăng nhập
                   </Link>
-                ))}
-                <button
-                  className="w-full inline-block rounded-md border border-red-200 bg-white px-3 py-1 text-base text-red-600 text-center hover:bg-red-50 mt-2"
-                  onClick={async () => {
-                    try {
-                      await axiosClient.post("/auth/logout", {
-                        token: localStorage.getItem("token"),
-                      });
-                    } catch (e) {
-                      // ignore
-                    }
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("user");
-                    window.dispatchEvent(new Event("userChanged"));
-                    navigate("/");
-                    setMobileMenuOpen(false);
-                    setShowMobileHeader(false);
-                  }}
-                >
-                  Đăng xuất
-                </button>
+                )}
               </div>
-            ) : (
-              <Link
-                to="/login"
-                className="w-full inline-block rounded-md bg-[#0d6efd] px-3 py-1 text-base text-white text-center"
-              >
-                Đăng nhập
-              </Link>
-            )}
+            </div>
           </nav>
         )}
       </div>

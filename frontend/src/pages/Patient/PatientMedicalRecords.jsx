@@ -275,8 +275,8 @@ const PatientMedicalRecords = () => {
         <h2>Hồ Sơ Bệnh Án</h2>
       </div>
 
-      {/* Stats Cards */}
-      <div className="row g-3 mb-4">
+      {/* Stats Cards - Hidden */}
+      {/* <div className="row g-3 mb-4 d-none">
         <div className="col-md-4">
           <div className="card stats-card">
             <div className="card-body">
@@ -316,7 +316,7 @@ const PatientMedicalRecords = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Search */}
       <div className="row mb-3">

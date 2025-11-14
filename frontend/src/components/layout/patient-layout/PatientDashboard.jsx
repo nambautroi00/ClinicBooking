@@ -5,9 +5,10 @@ import patientApi from '../../../api/patientApi';
 import userApi from '../../../api/userApi';
 import addressApi from '../../../api/addressApi';
 import PatientAppointmentHistory from '../../../pages/Patient/PatientAppointmentHistory';
+import PatientMedicalRecords from '../../../pages/Patient/PatientMedicalRecords';
 
 // Constants
-const VALID_TABS = ['appointments', 'profile'];
+const VALID_TABS = ['appointments', 'profile', 'medical-records'];
 const SUCCESS_AUTO_CLOSE_MS = 3000;
 const DEFAULT_AVATAR_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="%23e5f0ff"/><circle cx="200" cy="140" r="80" fill="%239bbcff"/><rect x="60" y="240" width="280" height="120" rx="60" fill="%239bbcff"/></svg>';
 
@@ -700,6 +701,9 @@ const PatientDashboard = () => {
       case 'appointments':
         return <PatientAppointmentHistory />;
       
+      case 'medical-records':
+        return <PatientMedicalRecords />;
+      
       case 'profile':
         return (
           <div className={`p-0 ${isMobileView ? 'pb-4' : ''}`} style={profileContainerStyle}>
@@ -711,136 +715,275 @@ const PatientDashboard = () => {
               >
                 <div className="p-4">
                   {/* Profile Card */}
-                  <div className="card border-0 shadow-lg" style={{ borderRadius: '25px', background: 'linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%)', overflow: 'hidden' }}>
-                    <div className="card-body text-center p-4">
-                      {/* Avatar Section */}
-                      <div className="position-relative d-inline-block mb-3">
-                        <div 
-                          className="position-relative"
-                          style={{ cursor: 'pointer' }}
-                          onClick={handleAvatarClick}
-                          title="Click để xem ảnh đại diện"
-                        >
-                          {(() => {
-                            console.log('🔍 PatientDashboard - User data:', user);
-                            
-                            // Check if user has avatar
-                            if (user?.avatarUrl) {
-                              let avatarUrl = user.avatarUrl.startsWith('/uploads/') ? 
-                                `http://localhost:8080${user.avatarUrl}` : 
-                                user.avatarUrl;
+                  <div className="card border-0 shadow-lg" style={{ borderRadius: '25px', background: isMobileView ? '#f5f5f5' : 'linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%)', overflow: 'hidden' }}>
+                    <div className={`card-body ${isMobileView ? 'px-3 py-2' : 'text-center p-4'}`}>
+                      {/* Desktop Layout - Centered */}
+                      <div className="d-none d-md-block">
+                        <div className="position-relative d-inline-block mb-3">
+                          <div 
+                            className="position-relative"
+                            style={{ cursor: 'pointer' }}
+                            onClick={handleAvatarClick}
+                            title="Click để xem ảnh đại diện"
+                          >
+                            {(() => {
+                              console.log('🔍 PatientDashboard - User data:', user);
                               
-                              // Add cache busting timestamp
-                              const separator = avatarUrl.includes('?') ? '&' : '?';
-                              avatarUrl += `${separator}t=${Date.now()}`;
-                              
-                              console.log('✅ PatientDashboard - Using avatar:', avatarUrl);
-                              console.log('🔍 PatientDashboard - Avatar URL details:', {
-                                original: user.avatarUrl,
-                                constructed: avatarUrl,
-                                hasTimestamp: avatarUrl.includes('?t=')
-                              });
+                              // Check if user has avatar
+                              if (user?.avatarUrl) {
+                                let avatarUrl = user.avatarUrl.startsWith('/uploads/') ? 
+                                  `http://localhost:8080${user.avatarUrl}` : 
+                                  user.avatarUrl;
+                                
+                                // Add cache busting timestamp
+                                const separator = avatarUrl.includes('?') ? '&' : '?';
+                                avatarUrl += `${separator}t=${Date.now()}`;
+                                
+                                console.log('✅ PatientDashboard - Using avatar:', avatarUrl);
+                                console.log('🔍 PatientDashboard - Avatar URL details:', {
+                                  original: user.avatarUrl,
+                                  constructed: avatarUrl,
+                                  hasTimestamp: avatarUrl.includes('?t=')
+                                });
+                                return (
+                                  <img 
+                                    src={avatarUrl} 
+                                    alt="Avatar" 
+                                    className="rounded-circle shadow-lg border border-primary border-3"
+                                    style={{ 
+                                      width: '90px', 
+                                      height: '90px', 
+                                      objectFit: 'cover'
+                                    }}
+                                    onError={(e) => {
+                                      console.log('❌ PatientDashboard - Avatar failed to load, showing default');
+                                      e.target.src = DEFAULT_AVATAR_SVG;
+                                    }}
+                                  />
+                                );
+                              }
+                              // Fallback default avatar
                               return (
-                                <img 
-                                  src={avatarUrl} 
-                                  alt="Avatar" 
+                                <img
+                                  src={DEFAULT_AVATAR_SVG}
+                                  alt="Avatar"
                                   className="rounded-circle shadow-lg border border-primary border-3"
-                                  style={{ 
-                                    width: '90px', 
-                                    height: '90px', 
-                                    objectFit: 'cover'
-                                  }}
-                                  onError={(e) => {
-                                    console.log('❌ PatientDashboard - Avatar failed to load, showing default');
-                                    e.target.src = DEFAULT_AVATAR_SVG;
-                                  }}
+                                  style={{ width: '90px', height: '90px', objectFit: 'cover' }}
                                 />
                               );
+                            })()}
+                          </div>
+                        </div>
+                        
+                        {/* User Info */}
+                        <h5 className="fw-bold mb-2 text-white" style={{ fontSize: '20px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                          {(() => {
+                            if (!user) return 'Chưa đăng nhập';
+                            
+                            // Kiểm tra nếu có fullName từ Google
+                            if (user.fullName) {
+                              return user.fullName;
                             }
-                            // Fallback default avatar
-                            return (
-                              <img
-                                src={DEFAULT_AVATAR_SVG}
-                                alt="Avatar"
-                                className="rounded-circle shadow-lg border border-primary border-3"
-                                style={{ width: '90px', height: '90px', objectFit: 'cover' }}
-                              />
-                            );
+                            
+                            // Kiểm tra firstName và lastName
+                            if (user.firstName && user.lastName) {
+                              return `${user.firstName} ${user.lastName}`;
+                            }
+                            
+                            // Kiểm tra name từ Google
+                            if (user.name) {
+                              return user.name;
+                            }
+                            
+                            // Fallback to email
+                            if (user.email) {
+                              return user.email.split('@')[0];
+                            }
+                            
+                            return 'Chưa cập nhật';
                           })()}
+                        </h5>
+                        <small className="text-white-50 mb-4 d-block" style={{ fontSize: '13px' }}>
+                          {user?.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+                        </small>
+
+                        {/* Change Avatar Button */}
+                        <button 
+                          className="btn btn-primary btn-sm shadow-sm w-100" 
+                          style={{ 
+                            fontSize: '14px',
+                            borderRadius: '20px',
+                            fontWeight: '600',
+                            background: 'linear-gradient(135deg, #1a73e8 0%, #3a8ef6 100%)',
+                            border: 'none',
+                            color: 'white',
+                            transition: 'all 0.3s ease',
+                            padding: '8px 16px',
+                            boxShadow: '0 4px 12px rgba(58,142,246,0.35)'
+                          }}
+                          onClick={handleChangeAvatar}
+                          disabled={uploading}
+                          onMouseEnter={(e) => {
+                            if (!uploading) {
+                              e.target.style.transform = 'translateY(-2px)';
+                              e.target.style.boxShadow = '0 6px 18px rgba(26,115,232,0.45)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(58,142,246,0.35)';
+                          }}
+                        >
+                          {uploading ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                              Đang tải...
+                            </>
+                          ) : (
+                            <>
+                              <Camera size={16} className="me-2" />
+                              Thay đổi ảnh đại diện
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Mobile Layout - Horizontal */}
+                      <div className="d-md-none">
+                        <div className="d-flex align-items-center gap-2">
+                          {/* Avatar Section - Left */}
+                          <div className="position-relative flex-shrink-0">
+                            <div 
+                              className="position-relative"
+                              style={{ cursor: 'pointer' }}
+                              onClick={handleAvatarClick}
+                              title="Click để xem ảnh đại diện"
+                            >
+                              {(() => {
+                                console.log('🔍 PatientDashboard - User data:', user);
+                                
+                                // Check if user has avatar
+                                if (user?.avatarUrl) {
+                                  let avatarUrl = user.avatarUrl.startsWith('/uploads/') ? 
+                                    `http://localhost:8080${user.avatarUrl}` : 
+                                    user.avatarUrl;
+                                  
+                                  // Add cache busting timestamp
+                                  const separator = avatarUrl.includes('?') ? '&' : '?';
+                                  avatarUrl += `${separator}t=${Date.now()}`;
+                                  
+                                  console.log('✅ PatientDashboard - Using avatar:', avatarUrl);
+                                  console.log('🔍 PatientDashboard - Avatar URL details:', {
+                                    original: user.avatarUrl,
+                                    constructed: avatarUrl,
+                                    hasTimestamp: avatarUrl.includes('?t=')
+                                  });
+                                  return (
+                                    <img 
+                                      src={avatarUrl} 
+                                      alt="Avatar" 
+                                      className="rounded-circle shadow-sm border border-secondary border-2"
+                                      style={{ 
+                                        width: '90px', 
+                                        height: '90px', 
+                                        objectFit: 'cover'
+                                      }}
+                                      onError={(e) => {
+                                        console.log('❌ PatientDashboard - Avatar failed to load, showing default');
+                                        e.target.src = DEFAULT_AVATAR_SVG;
+                                      }}
+                                    />
+                                  );
+                                }
+                                // Fallback default avatar
+                                return (
+                                  <img
+                                    src={DEFAULT_AVATAR_SVG}
+                                    alt="Avatar"
+                                    className="rounded-circle shadow-sm border border-secondary border-2"
+                                    style={{ width: '90px', height: '90px', objectFit: 'cover' }}
+                                  />
+                                );
+                              })()}
+                            </div>
+                          </div>
+                          
+                          {/* User Info - Right */}
+                          <div className="flex-grow-1 text-center text-md-start">
+                            <h5 className="fw-bold mb-1 text-dark" style={{ fontSize: '18px' }}>
+                              {(() => {
+                                if (!user) return 'Chưa đăng nhập';
+                                
+                                // Kiểm tra nếu có fullName từ Google
+                                if (user.fullName) {
+                                  return user.fullName;
+                                }
+                                
+                                // Kiểm tra firstName và lastName
+                                if (user.firstName && user.lastName) {
+                                  return `${user.firstName} ${user.lastName}`;
+                                }
+                                
+                                // Kiểm tra name từ Google
+                                if (user.name) {
+                                  return user.name;
+                                }
+                                
+                                // Fallback to email
+                                if (user.email) {
+                                  return user.email.split('@')[0];
+                                }
+                                
+                                return 'Chưa cập nhật';
+                              })()}
+                            </h5>
+                            <small className="text-muted d-block mb-2" style={{ fontSize: '12px' }}>
+                              {user?.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+                            </small>
+
+                            {/* Change Avatar Button - Compact */}
+                            <button 
+                              className="btn btn-outline-secondary btn-sm shadow-sm" 
+                              style={{ 
+                                fontSize: '11px',
+                                borderRadius: '12px',
+                                fontWeight: '500',
+                                border: '1px solid #dee2e6',
+                                color: '#6c757d',
+                                transition: 'all 0.2s ease',
+                                padding: '4px 10px',
+                                lineHeight: '1.2'
+                              }}
+                              onClick={handleChangeAvatar}
+                              disabled={uploading}
+                              onMouseEnter={(e) => {
+                                if (!uploading) {
+                                  e.target.style.backgroundColor = '#e9ecef';
+                                  e.target.style.borderColor = '#adb5bd';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!uploading) {
+                                  e.target.style.backgroundColor = 'transparent';
+                                  e.target.style.borderColor = '#dee2e6';
+                                }
+                              }}
+                            >
+                              {uploading ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style={{ width: '10px', height: '10px' }}></span>
+                                  Đang tải...
+                                </>
+                              ) : (
+                                <>
+                                  <Camera size={12} className="me-1" />
+                                  Đổi ảnh
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      
-                      {/* User Info */}
-                      <h5 className="fw-bold mb-2 text-white" style={{ fontSize: '20px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
-                        {(() => {
-                          if (!user) return 'Chưa đăng nhập';
-                          
-                          // Kiểm tra nếu có fullName từ Google
-                          if (user.fullName) {
-                            return user.fullName;
-                          }
-                          
-                          // Kiểm tra firstName và lastName
-                          if (user.firstName && user.lastName) {
-                            return `${user.firstName} ${user.lastName}`;
-                          }
-                          
-                          // Kiểm tra name từ Google
-                          if (user.name) {
-                            return user.name;
-                          }
-                          
-                          // Fallback to email
-                          if (user.email) {
-                            return user.email.split('@')[0];
-                          }
-                          
-                          return 'Chưa cập nhật';
-                        })()}
-                      </h5>
-                      <small className="text-white-50 mb-4 d-block" style={{ fontSize: '13px' }}>
-                        {user?.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
-                      </small>
-
-                      {/* Change Avatar Button - Integrated */}
-                      <button 
-                        className="btn btn-primary btn-sm shadow-sm w-100" 
-                        style={{ 
-                          fontSize: '14px',
-                          borderRadius: '20px',
-                          fontWeight: '600',
-                          background: 'linear-gradient(135deg, #1a73e8 0%, #3a8ef6 100%)',
-                          border: 'none',
-                          color: 'white',
-                          transition: 'all 0.3s ease',
-                          padding: '8px 16px',
-                          boxShadow: '0 4px 12px rgba(58,142,246,0.35)'
-                        }}
-                        onClick={handleChangeAvatar}
-                        disabled={uploading}
-                        onMouseEnter={(e) => {
-                          if (!uploading) {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 18px rgba(26,115,232,0.45)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(58,142,246,0.35)';
-                        }}
-                      >
-                        {uploading ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                            Đang tải...
-                          </>
-                        ) : (
-                          <>
-                            <Camera size={16} className="me-2" />
-                            Thay đổi ảnh
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
                     </div>
@@ -1330,28 +1473,30 @@ const PatientDashboard = () => {
                   {isEditing && (
                     <div className="d-flex gap-3 mb-4">
                       <button 
-                        className="btn btn-primary btn-sm shadow-sm" 
+                        className="btn btn-secondary btn-sm shadow-sm" 
                         onClick={handleSaveProfile}
                         disabled={uploading}
                         style={{ 
                           fontSize: '13px', 
                           padding: '8px 20px',
                           borderRadius: '25px',
-                          background: 'linear-gradient(135deg, #1a73e8 0%, #3a8ef6 100%)',
+                          background: '#6c757d',
                           border: 'none',
                           color: 'white',
                           transition: 'all 0.3s ease',
-                          boxShadow: '0 4px 12px rgba(26,115,232,0.35)'
+                          boxShadow: '0 2px 8px rgba(108,117,125,0.3)'
                         }}
                         onMouseEnter={(e) => {
                           if (!uploading) {
+                            e.target.style.backgroundColor = '#5a6268';
                             e.target.style.transform = 'translateY(-1px)';
-                            e.target.style.boxShadow = '0 6px 16px rgba(26,115,232,0.45)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(108,117,125,0.4)';
                           }
                         }}
                         onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = '#6c757d';
                           e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(26,115,232,0.35)';
+                          e.target.style.boxShadow = '0 2px 8px rgba(108,117,125,0.3)';
                         }}
                       >
                         {uploading ? (
@@ -1367,24 +1512,25 @@ const PatientDashboard = () => {
                         )}
                       </button>
                       <button 
-                        className="btn btn-outline-danger btn-sm shadow-sm" 
+                        className="btn btn-outline-secondary btn-sm shadow-sm" 
                         onClick={handleCancelEdit}
                         style={{ 
                           fontSize: '13px', 
                           padding: '8px 20px',
                           borderRadius: '25px',
-                          border: '2px solid #e17055',
-                          color: '#e17055',
+                          border: '1px solid #6c757d',
+                          color: '#6c757d',
+                          backgroundColor: 'transparent',
                           transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = '#e17055';
+                          e.target.style.backgroundColor = '#6c757d';
                           e.target.style.color = 'white';
                           e.target.style.transform = 'translateY(-1px)';
                         }}
                         onMouseLeave={(e) => {
                           e.target.style.backgroundColor = 'transparent';
-                          e.target.style.color = '#e17055';
+                          e.target.style.color = '#6c757d';
                           e.target.style.transform = 'translateY(0)';
                         }}
                       >
@@ -1514,26 +1660,30 @@ const PatientDashboard = () => {
                           </div>
                           <div className="d-flex gap-3">
                             <button 
-                              className="btn btn-success btn-sm shadow-sm" 
+                              className="btn btn-secondary btn-sm shadow-sm" 
                               onClick={handleSavePassword}
                               disabled={uploading}
                               style={{ 
                                 fontSize: '13px', 
                                 padding: '8px 20px',
                                 borderRadius: '25px',
-                                background: 'linear-gradient(45deg, #00b894 0%, #00cec9 100%)',
+                                background: '#6c757d',
                                 border: 'none',
-                                transition: 'all 0.3s ease'
+                                color: 'white',
+                                transition: 'all 0.3s ease',
+                                boxShadow: '0 2px 8px rgba(108,117,125,0.3)'
                               }}
                               onMouseEnter={(e) => {
                                 if (!uploading) {
+                                  e.target.style.backgroundColor = '#5a6268';
                                   e.target.style.transform = 'translateY(-1px)';
-                                  e.target.style.boxShadow = '0 4px 12px rgba(0,184,148,0.4)';
+                                  e.target.style.boxShadow = '0 4px 12px rgba(108,117,125,0.4)';
                                 }
                               }}
                               onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = '#6c757d';
                                 e.target.style.transform = 'translateY(0)';
-                                e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                                e.target.style.boxShadow = '0 2px 8px rgba(108,117,125,0.3)';
                               }}
                             >
                               {uploading ? (
@@ -1549,24 +1699,25 @@ const PatientDashboard = () => {
                               )}
                             </button>
                             <button 
-                              className="btn btn-outline-danger btn-sm shadow-sm" 
+                              className="btn btn-outline-secondary btn-sm shadow-sm" 
                               onClick={handleCancelPassword}
                               style={{ 
                                 fontSize: '13px', 
                                 padding: '8px 20px',
                                 borderRadius: '25px',
-                                border: '2px solid #e17055',
-                                color: '#e17055',
+                                border: '1px solid #6c757d',
+                                color: '#6c757d',
+                                backgroundColor: 'transparent',
                                 transition: 'all 0.3s ease'
                               }}
                               onMouseEnter={(e) => {
-                                e.target.style.backgroundColor = '#e17055';
+                                e.target.style.backgroundColor = '#6c757d';
                                 e.target.style.color = 'white';
                                 e.target.style.transform = 'translateY(-1px)';
                               }}
                               onMouseLeave={(e) => {
                                 e.target.style.backgroundColor = 'transparent';
-                                e.target.style.color = '#e17055';
+                                e.target.style.color = '#6c757d';
                                 e.target.style.transform = 'translateY(0)';
                               }}
                             >
@@ -1597,7 +1748,7 @@ const PatientDashboard = () => {
     <div className="container-fluid" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', paddingTop: '20px' }}>
       <div className="row gx-0 gy-4 gy-md-0">
         {/* Left Sidebar Navigation - Sticky */}
-        <div className="col-12 col-md-3 col-lg-2 mb-4 mb-md-0">
+        <div className="col-12 col-md-3 col-lg-2 mb-4 mb-md-0 d-none d-md-block">
           <div className="bg-white rounded shadow-sm" style={sidebarStyle}>
             <div className="list-group list-group-flush">
               <button 
@@ -1612,22 +1763,25 @@ const PatientDashboard = () => {
               </button>
               
               <button 
-                className="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center"
-                onClick={() => navigate('/patient/medical-records')}
-                style={{
-                  backgroundColor: 'transparent',
-                  fontWeight: 'normal',
-                  color: '#333',
-                  borderLeft: '4px solid transparent',
-                  cursor: 'pointer'
+                className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
+                  activeTab === 'medical-records' ? 'active' : ''
+                }`}
+                onClick={() => {
+                  setActiveTab('medical-records');
+                  navigate('/patient/profile?tab=medical-records');
                 }}
+                style={getTabButtonStyle(activeTab === 'medical-records')}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#f5f5f5';
-                  e.target.style.color = '#1976d2';
+                  if (activeTab !== 'medical-records') {
+                    e.target.style.backgroundColor = '#f5f5f5';
+                    e.target.style.color = '#1976d2';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#333';
+                  if (activeTab !== 'medical-records') {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#333';
+                  }
                 }}
               >
                 <FileText className="me-2" size={18} />
