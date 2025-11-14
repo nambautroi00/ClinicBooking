@@ -49,7 +49,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/api/gemini-chat/**").permitAll() // <--- thêm dòng này
                 // Protected Admin endpoints - CHỈ ADMIN
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/users/**").hasRole("ADMIN")           // Quản lý users
+                .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("ADMIN", "DOCTOR", "PATIENT")  // Cho phép DOCTOR và PATIENT xem thông tin user
+                .requestMatchers("/api/users/**").hasRole("ADMIN")           // POST/PUT/DELETE chỉ ADMIN
                 // Medicines - ADMIN có thể quản lý (POST/PUT/DELETE), DOCTOR có thể đọc (GET) để kê đơn
                 .requestMatchers(HttpMethod.GET, "/api/medicines/**").hasAnyRole("ADMIN", "DOCTOR")
                 .requestMatchers("/api/medicines/**").hasRole("ADMIN")       // POST/PUT/DELETE chỉ ADMIN
