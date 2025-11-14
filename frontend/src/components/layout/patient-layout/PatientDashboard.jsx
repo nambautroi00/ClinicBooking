@@ -54,6 +54,7 @@ const PatientDashboard = () => {
   const successAutoCloseTimer = useRef(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
   
   // Address states
   const [provinces, setProvinces] = useState([]);
@@ -62,6 +63,28 @@ const PatientDashboard = () => {
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const profileContainerStyle = isMobileView
+    ? { height: 'auto', overflow: 'visible' }
+    : { height: 'calc(100vh - 200px)', overflow: 'hidden' };
+
+  const profilePanelStyle = isMobileView
+    ? { height: 'auto', overflow: 'visible' }
+    : { height: 'calc(100vh - 250px)', overflow: 'auto' };
+
+  const sidebarStyle = isMobileView
+    ? { position: 'static', top: 'auto', zIndex: 'auto' }
+    : SIDEBAR_STYLES.container;
 
   // Đọc tab từ URL params
   useEffect(() => {
@@ -679,11 +702,13 @@ const PatientDashboard = () => {
       
       case 'profile':
         return (
-          <div className="p-0" style={{ height: 'calc(100vh - 200px)', overflow: 'hidden' }}>
-            
-            <div className="row g-0 h-100">
+          <div className={`p-0 ${isMobileView ? 'pb-4' : ''}`} style={profileContainerStyle}>
+            <div className={`row ${isMobileView ? 'gy-4' : 'g-0 h-100'}`}>
               {/* Left Panel - Profile Card */}
-              <div className="col-md-4 border-end" style={{ height: 'calc(100vh - 250px)', overflow: 'auto' }}>
+              <div
+                className={`col-12 col-md-4 ${isMobileView ? 'border-bottom mb-4 pb-4' : 'border-end'}`}
+                style={profilePanelStyle}
+              >
                 <div className="p-4">
                   {/* Profile Card */}
                   <div className="card border-0 shadow-lg" style={{ borderRadius: '25px', background: 'linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%)', overflow: 'hidden' }}>
@@ -779,29 +804,29 @@ const PatientDashboard = () => {
 
                       {/* Change Avatar Button - Integrated */}
                       <button 
-                        className="btn btn-light btn-sm shadow-sm w-100" 
-                      style={{ 
+                        className="btn btn-primary btn-sm shadow-sm w-100" 
+                        style={{ 
                           fontSize: '14px',
                           borderRadius: '20px',
                           fontWeight: '600',
-                          background: 'linear-gradient(45deg, #0d6efd 0%, #0056b3 100%)',
+                          background: 'linear-gradient(135deg, #1a73e8 0%, #3a8ef6 100%)',
                           border: 'none',
                           color: 'white',
                           transition: 'all 0.3s ease',
                           padding: '8px 16px',
-                          boxShadow: '0 4px 12px rgba(13,110,253,0.4)'
+                          boxShadow: '0 4px 12px rgba(58,142,246,0.35)'
                         }}
                         onClick={handleChangeAvatar}
                         disabled={uploading}
                         onMouseEnter={(e) => {
                           if (!uploading) {
                             e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 16px rgba(13,110,253,0.6)';
+                            e.target.style.boxShadow = '0 6px 18px rgba(26,115,232,0.45)';
                           }
                         }}
                         onMouseLeave={(e) => {
                           e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(13,110,253,0.4)';
+                          e.target.style.boxShadow = '0 4px 12px rgba(58,142,246,0.35)';
                         }}
                       >
                         {uploading ? (
@@ -822,7 +847,7 @@ const PatientDashboard = () => {
                   </div>
               
               {/* Right Panel - Profile Details */}
-              <div className="col-md-8" style={{ height: 'calc(100vh - 250px)', overflow: 'auto' }}>
+              <div className="col-12 col-md-8" style={profilePanelStyle}>
                 <div className="p-3">
                   {/* Inline form-level error (non-modal) */}
                   {formError && (
@@ -883,7 +908,7 @@ const PatientDashboard = () => {
                       )}
                     </div>
                     <div className="row g-3">
-                      <div className="col-6">
+                      <div className="col-12 col-md-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Họ</label>
                         {isEditing ? (
                           <div>
@@ -929,7 +954,7 @@ const PatientDashboard = () => {
                           </p>
                         )}
                       </div>
-                      <div className="col-6">
+                      <div className="col-12 col-md-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Tên</label>
                         {isEditing ? (
                           <div>
@@ -975,7 +1000,7 @@ const PatientDashboard = () => {
                           </p>
                         )}
                       </div>
-                      <div className="col-6">
+                      <div className="col-12 col-md-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Điện thoại</label>
                         {isEditing ? (
                           <div>
@@ -1008,7 +1033,7 @@ const PatientDashboard = () => {
                           <p className="mb-0 fw-medium" style={{ fontSize: '13px', color: '#2d3436' }}>{user?.phone || 'Chưa cập nhật'}</p>
                         )}
                       </div>
-                      <div className="col-6">
+                      <div className="col-12 col-md-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Ngày sinh</label>
                         {isEditing ? (
                           <input 
@@ -1038,7 +1063,7 @@ const PatientDashboard = () => {
                           <p className="mb-0 fw-medium" style={{ fontSize: '13px', color: '#2d3436' }}>{user?.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</p>
                         )}
                       </div>
-                      <div className="col-6">
+                      <div className="col-12 col-md-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Giới tính</label>
                         {isEditing ? (
                           <select 
@@ -1075,7 +1100,7 @@ const PatientDashboard = () => {
                       {/* Address Section - All on one row */}
                       <div className="col-12">
                     <div className="row">
-                          <div className="col-4">
+                          <div className="col-12 col-md-4">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Tỉnh/TP</label>
                             {isEditing ? (
                               <select 
@@ -1114,7 +1139,7 @@ const PatientDashboard = () => {
                               </p>
                             )}
                       </div>
-                          <div className="col-4">
+                          <div className="col-12 col-md-4">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Quận/Huyện</label>
                             {isEditing ? (
                               <select 
@@ -1154,7 +1179,7 @@ const PatientDashboard = () => {
                               </p>
                             )}
                       </div>
-                          <div className="col-4">
+                          <div className="col-12 col-md-4">
                             <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Phường/Xã</label>
                             {isEditing ? (
                               <select 
@@ -1231,7 +1256,7 @@ const PatientDashboard = () => {
                   <div className="mb-4">
                     <h6 className="fw-bold mb-3" style={{ fontSize: '16px', color: '#2d3436' }}>Thông tin bổ sung</h6>
                     <div className="row g-3">
-                      <div className="col-6">
+                      <div className="col-12 col-md-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Mã BHYT</label>
                         {isEditing ? (
                           <div>
@@ -1265,7 +1290,7 @@ const PatientDashboard = () => {
                           <p className="mb-0 fw-medium text-muted" style={{ fontSize: '13px' }}>{user?.healthInsurance || 'Chưa cập nhật'}</p>
                         )}
                       </div>
-                      <div className="col-6">
+                      <div className="col-12 col-md-6">
                         <label className="form-label fw-medium" style={{ fontSize: '12px', color: '#636e72' }}>Email</label>
                         {isEditing ? (
                           <div>
@@ -1305,26 +1330,28 @@ const PatientDashboard = () => {
                   {isEditing && (
                     <div className="d-flex gap-3 mb-4">
                       <button 
-                        className="btn btn-success btn-sm shadow-sm" 
+                        className="btn btn-primary btn-sm shadow-sm" 
                         onClick={handleSaveProfile}
                         disabled={uploading}
                         style={{ 
                           fontSize: '13px', 
                           padding: '8px 20px',
                           borderRadius: '25px',
-                          background: 'linear-gradient(45deg, #00b894 0%, #00cec9 100%)',
+                          background: 'linear-gradient(135deg, #1a73e8 0%, #3a8ef6 100%)',
                           border: 'none',
-                          transition: 'all 0.3s ease'
+                          color: 'white',
+                          transition: 'all 0.3s ease',
+                          boxShadow: '0 4px 12px rgba(26,115,232,0.35)'
                         }}
                         onMouseEnter={(e) => {
                           if (!uploading) {
                             e.target.style.transform = 'translateY(-1px)';
-                            e.target.style.boxShadow = '0 4px 12px rgba(0,184,148,0.4)';
+                            e.target.style.boxShadow = '0 6px 16px rgba(26,115,232,0.45)';
                           }
                         }}
                         onMouseLeave={(e) => {
                           e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                          e.target.style.boxShadow = '0 4px 12px rgba(26,115,232,0.35)';
                         }}
                       >
                         {uploading ? (
@@ -1568,10 +1595,10 @@ const PatientDashboard = () => {
 
   return (
     <div className="container-fluid" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', paddingTop: '20px' }}>
-      <div className="row">
+      <div className="row gx-0 gy-4 gy-md-0">
         {/* Left Sidebar Navigation - Sticky */}
-        <div className="col-md-3 col-lg-2">
-          <div className="bg-white rounded shadow-sm" style={SIDEBAR_STYLES.container}>
+        <div className="col-12 col-md-3 col-lg-2 mb-4 mb-md-0">
+          <div className="bg-white rounded shadow-sm" style={sidebarStyle}>
             <div className="list-group list-group-flush">
               <button 
                 className={`list-group-item list-group-item-action border-0 py-3 d-flex align-items-center ${
@@ -1622,7 +1649,7 @@ const PatientDashboard = () => {
         </div>
 
         {/* Main Content */}
-        <div className="col-md-9 col-lg-10">
+        <div className="col-12 col-md-9 col-lg-10">
           <div className={`bg-white shadow-sm ${activeTab === 'profile' ? '' : 'rounded'}`} style={{ minHeight: '500px' }}>
             {renderContent()}
           </div>

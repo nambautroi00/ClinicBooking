@@ -17,6 +17,8 @@ import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import notificationApi from "../../api/notificationApi";
 import userApi from "../../api/userApi";
+import { normalizeAvatar } from "../../utils/avatarUtils";
+import { getFullImageUrl } from "../../utils/imageUtils";
 
 const normalizeText = (text = "") =>
   text
@@ -71,6 +73,32 @@ const getInitials = (text = "") => {
   if (!parts.length) return "CK";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+const getDoctorAvatarUrl = (doctor = {}) => {
+  const rawAvatar =
+    doctor.user?.avatarUrl ||
+    doctor.user?.avatar ||
+    doctor.avatarUrl ||
+    doctor.avatar;
+
+  if (rawAvatar) return normalizeAvatar(rawAvatar);
+
+  const fullName = `${doctor.user?.firstName || ""} ${
+    doctor.user?.lastName || ""
+  }`.trim();
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    fullName || "BS"
+  )}&background=a855f7&color=fff&size=44`;
+};
+
+const getDepartmentImageUrl = (department = {}) => {
+  const rawImage =
+    department?.imageUrl ||
+    department?.image ||
+    department?.thumbnail ||
+    department?.icon;
+  return rawImage ? getFullImageUrl(rawImage) : null;
 };
 
 export default function Header() {
@@ -633,6 +661,11 @@ export default function Header() {
                       {searchResults.departments.map((dept) => {
                         const deptId =
                           dept.departmentId ?? dept.id ?? dept.department_id;
+                        const deptName =
+                          dept.departmentName || dept.name || "ChuyA�n khoa";
+                        const deptDescription =
+                          dept.description || dept.desc || "ChuyA�n khoa";
+                        const deptImageUrl = getDepartmentImageUrl(dept);
                         return (
                           <Link
                             key={deptId || Math.random()}
@@ -640,14 +673,24 @@ export default function Header() {
                             onClick={() => handleResultSelect(variant)}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-blue-100 transition-all duration-200 group border-l-4 border-l-transparent hover:border-l-blue-500 active:bg-blue-200"
                           >
-                            <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 border-2 border-blue-300 flex items-center justify-center flex-shrink-0 text-sm font-bold text-[#0d6efd] shadow-sm group-hover:shadow-md transition-shadow">
-                              {getInitials(
-                                dept.departmentName || dept.name || "CK"
-                              )}
-                            </div>
+                            {deptImageUrl ? (
+                              <img
+                                src={deptImageUrl}
+                                alt={deptName}
+                                className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border-2 border-blue-200 shadow-sm group-hover:shadow-md"
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = "/images/placeholder-image.png";
+                                }}
+                              />
+                            ) : (
+                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 border-2 border-blue-300 flex items-center justify-center flex-shrink-0 text-sm font-bold text-[#0d6efd] shadow-sm group-hover:shadow-md transition-shadow">
+                                {getInitials(deptName || "CK")}
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <div className="font-bold text-gray-900 text-base leading-tight truncate group-hover:text-[#0056cc]">
-                                {dept.departmentName || dept.name}
+                                {deptName}
                               </div>
                               <div className="text-sm text-gray-600 line-clamp-1 font-medium">
                                 {dept.description || dept.desc || "Chuyên khoa"}
@@ -675,7 +718,16 @@ export default function Header() {
                       )}
                     </div>
                     <div className="divide-y divide-purple-100 overflow-y-auto flex-1">
-                      {searchResults.doctors.map((doctor) => (
+                      {searchResults.doctors.map((doctor) => {
+                        const doctorName = `${doctor.user?.firstName || ""} ${doctor.user?.lastName || ""}`.trim() || "BA�c s�c";
+                        const departmentName =
+                          doctor.department?.departmentName ||
+                          doctor.department?.name ||
+                          "BA�c s�c chuyA�n khoa";
+                        const doctorAvatar = getDoctorAvatarUrl(doctor);
+                        const departmentImage = getDepartmentImageUrl(doctor.department || {});
+
+                        return (
                         <Link
                           key={doctor.doctorId}
                           to={`/patient/doctordetail/${doctor.doctorId}`}
@@ -683,32 +735,37 @@ export default function Header() {
                           className="flex items-center gap-3 px-4 py-3 hover:bg-purple-100 transition-all duration-200 group border-l-4 border-l-transparent hover:border-l-purple-500 active:bg-purple-200"
                         >
                           <img
-                            src={
-                              doctor.user?.avatarUrl ||
-                              doctor.user?.avatar ||
-                              `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                (doctor.user?.firstName || "") +
-                                  " " +
-                                  (doctor.user?.lastName || "")
-                              )}&background=a855f7&color=fff&size=44`
-                            }
-                            alt={`${doctor.user?.firstName || ""} ${
-                              doctor.user?.lastName || ""
-                            }`}
+                            src={doctorAvatar}
+                            alt={doctorName}
                             className="w-11 h-11 rounded-lg object-cover flex-shrink-0 border-2 border-purple-300 group-hover:ring-2 group-hover:ring-[#a855f7] transition-all shadow-sm group-hover:shadow-md"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = "/images/default-doctor.png";
+                            }}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-gray-900 text-base leading-tight truncate group-hover:text-[#7c3aed]">
-                              {doctor.user?.firstName} {doctor.user?.lastName}
+                              {doctorName}
                             </div>
-                            <div className="text-sm text-gray-600 truncate font-medium">
-                              {doctor.department?.departmentName ||
-                                "Bác sĩ chuyên khoa"}
+                            <div className="text-sm text-gray-600 truncate font-medium flex items-center gap-2">
+                              {departmentImage && (
+                                <img
+                                  src={departmentImage}
+                                  alt={departmentName}
+                                  className="w-6 h-6 rounded-md object-cover border border-purple-200"
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              )}
+                              <span className="truncate">{departmentName}</span>
                             </div>
                           </div>
                           <ArrowRight className="h-5 w-5 text-purple-400 group-hover:text-[#7c3aed] flex-shrink-0 transition-all opacity-50 group-hover:opacity-100" />
                         </Link>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -837,6 +894,10 @@ export default function Header() {
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => searchQuery && setShowSearchResults(true)}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 className="w-full rounded-full border border-gray-200 bg-white py-3 pl-10 pr-4 text-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
               />
 
@@ -1057,7 +1118,7 @@ export default function Header() {
 
             {/* Mobile Menu Button */}
             <button
-              className="md:hidden p-1"
+              className="lg:hidden p-1"
               onClick={() => {
                 setShowMobileHeader(!showMobileHeader);
                 setMobileMenuOpen(!mobileMenuOpen);
@@ -1075,7 +1136,7 @@ export default function Header() {
 
         {/* Mobile search */}
         {showMobileHeader && (
-          <div className="md:hidden pb-3 animate-slideDown">
+          <div className="lg:hidden pb-3 animate-slideDown">
             <div className="max-w-full mx-auto px-2 relative w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -1084,6 +1145,10 @@ export default function Header() {
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => searchQuery && setShowSearchResults(true)}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 className="pl-10 bg-gray-100 w-full rounded-md py-2 text-lg focus:outline-none focus:ring-2 focus:ring-[#cfe9ff]"
               />
               {renderSearchResults("mobile")}
@@ -1093,7 +1158,7 @@ export default function Header() {
 
         {/* Mobile Navigation */}
         {showMobileHeader && (
-          <nav className="md:hidden border-t py-4 space-y-3 max-w-full mx-auto px-2 animate-slideDown">
+          <nav className="lg:hidden border-t py-4 space-y-3 max-w-full mx-auto px-2 animate-slideDown">
             {menuItems.map((item) => {
               const handleClick = (e) => {
                 setMobileMenuOpen(false);
@@ -1190,3 +1255,5 @@ export default function Header() {
     </header>
   );
 }
+
+
