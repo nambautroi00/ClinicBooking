@@ -3,6 +3,7 @@ import { Card, Container, Row, Col, Table, Modal, Badge, Alert, Tabs, Tab } from
 import { FileText, Eye, Calendar, TestTube, Camera, Download, User, Stethoscope, Pill, Clock, Search } from "lucide-react";
 import medicalRecordApi from "../../api/medicalRecordApi";
 import patientApi from "../../api/patientApi";
+import referralApi from "../../api/referralApi";
 
 const PatientMedicalRecords = () => {
   const [medicalRecords, setMedicalRecords] = useState([]);
@@ -13,6 +14,7 @@ const PatientMedicalRecords = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [referralResults, setReferralResults] = useState([]);
 
   // Lấy patientId từ localStorage và API
   useEffect(() => {
@@ -137,9 +139,54 @@ const PatientMedicalRecords = () => {
     return <Badge bg={config.variant}>{config.text}</Badge>;
   };
 
-  const handleViewRecord = (record) => {
+  const handleViewRecord = async (record) => {
     setSelectedRecord(record);
     setShowModal(true);
+    
+    console.log('📋 Xem chi tiết hồ sơ:', record);
+    
+    // Try loading by appointment first, then by patient
+    let loadedReferrals = [];
+    
+    if (record.appointmentId) {
+      try {
+        console.log('🔍 Tải CLS theo appointmentId:', record.appointmentId);
+        const response = await referralApi.getReferralsByAppointment(record.appointmentId);
+        console.log('✅ Kết quả CLS theo appointment:', response.data);
+        loadedReferrals = Array.isArray(response.data) ? response.data : [response.data].filter(Boolean);
+      } catch (err) {
+        console.log('⚠️ Không tải được CLS theo appointment:', err.message);
+      }
+    }
+    
+    // If no results from appointment, try loading by patient
+    if (loadedReferrals.length === 0 && patientId) {
+      try {
+        console.log('🔍 Tải CLS theo patientId:', patientId);
+        const response = await referralApi.getReferralsByPatient(patientId);
+        console.log('✅ Kết quả CLS theo patient:', response.data);
+        loadedReferrals = Array.isArray(response.data) ? response.data : [response.data].filter(Boolean);
+      } catch (err) {
+        console.log('⚠️ Không tải được CLS theo patient:', err.message);
+      }
+    }
+    
+    console.log('📊 Tổng số referral results:', loadedReferrals.length);
+    if (loadedReferrals.length > 0) {
+      console.log('🔍 Chi tiết referral đầu tiên:', JSON.stringify(loadedReferrals[0], null, 2));
+      loadedReferrals.forEach((r, idx) => {
+        console.log(`Referral ${idx + 1}:`, {
+          id: r.id || r.referralId,
+          imageUrl: r.imageUrl,
+          imageLink: r.imageLink,
+          image: r.image,
+          resultImage: r.resultImage,
+          allKeys: Object.keys(r)
+        });
+      });
+    }
+    console.log('🖼️ Referrals có hình ảnh:', loadedReferrals.filter(r => r.imageUrl).length);
+    setReferralResults(loadedReferrals);
   };
 
   const handleExportPDF = async (recordId) => {
@@ -154,118 +201,131 @@ const PatientMedicalRecords = () => {
 
   return (
     <Container fluid className="py-4">
+      <style>{`
+        .stats-card {
+          border: none;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+        
+        .stats-card:hover {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+          transform: translateY(-2px);
+        }
+        
+        .stats-card .h4 {
+          font-weight: 700;
+          color: #5a5c69;
+        }
+        
+        .stats-card:hover .h4 {
+          color: #3a3b45;
+        }
+        
+        .stats-card .text-muted {
+          font-size: 0.875rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .stats-card small {
+          font-size: 0.75rem;
+          opacity: 0.7;
+        }
+        
+        .stats-card i {
+          opacity: 0.8;
+          transition: opacity 0.3s ease;
+        }
+        
+        .stats-card:hover i {
+          opacity: 1;
+        }
+      `}</style>
+
       {/* Header */}
-      <Row className="mb-4">
-        <Col>
-          <Card className="shadow-sm border-0" style={{borderRadius: '16px'}}>
-            <Card.Body className="p-4">
-              <div className="d-flex justify-content-between align-items-center">
-                <div className="d-flex align-items-center mb-2">
-                  <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: '16px'
-                  }}>
-                    <FileText size={24} color="white" />
-                  </div>
-                  <div>
-                    <h2 className="mb-0" style={{fontSize: '1.75rem', fontWeight: 700, color: '#1f2937'}}>
-                      Hồ Sơ Bệnh Án
-                    </h2>
-                    <p className="text-muted mb-0" style={{fontSize: '0.9rem'}}>Quản lý hồ sơ khám bệnh và điều trị</p>
-                  </div>
-                </div>
-                <div>
-                  {/* No create button for patient view; keep space for balance */}
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>Hồ Sơ Bệnh Án</h2>
+      </div>
 
       {/* Stats Cards */}
-      <Row className="mb-4 g-3">
-        <Col md={3}>
-          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
-            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
-              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
-                <FileText size={20} color="#0d6efd" />
+      <div className="row g-3 mb-4">
+        <div className="col-md-4">
+          <div className="card stats-card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Tổng Bệnh Án</div>
+                  <div className="h4 mb-0">{medicalRecords.length}</div>
+                </div>
+                <i className="bi bi-file-text fs-2 text-primary"></i>
               </div>
-              <h6 style={{fontWeight: 600}}>Tổng Bệnh Án</h6>
-              <h3 className="mt-2 text-primary">{medicalRecords.length}</h3>
-              <small className="text-muted">Hồ sơ bệnh án</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
-            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
-              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
-                <span role="img" aria-label="done">✅</span>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card stats-card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Đã Hoàn Thành</div>
+                  <div className="h4 mb-0">{medicalRecords.filter(r => r.status === 'completed').length}</div>
+                </div>
+                <i className="bi bi-check-circle fs-2 text-success"></i>
               </div>
-              <h6 style={{fontWeight: 600}}>Đã Hoàn Thành</h6>
-              <h3 className="mt-2 text-success">{medicalRecords.filter(r => r.status === 'completed').length}</h3>
-              <small className="text-muted">Hoàn tất điều trị</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
-            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
-              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
-                <span role="img" aria-label="treat">⏳</span>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card stats-card">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Đang Điều Trị</div>
+                  <div className="h4 mb-0">{medicalRecords.filter(r => r.status === 'active').length}</div>
+                </div>
+                <i className="bi bi-hourglass-split fs-2 text-warning"></i>
               </div>
-              <h6 style={{fontWeight: 600}}>Đang Điều Trị</h6>
-              <h3 className="mt-2 text-warning">{medicalRecords.filter(r => r.status === 'active').length}</h3>
-              <small className="text-muted">Đang theo dõi</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="border-0 shadow-sm" style={{background: '#fff', borderRadius: '12px'}}>
-            <Card.Body className="p-3" style={{position: 'relative', minHeight: 110}}>
-              <div style={{position: 'absolute', top: 12, right: 12, opacity: 0.9}}>
-                <span role="img" aria-label="new">✨</span>
-              </div>
-              <h6 style={{fontWeight: 600}}>Mới</h6>
-              <h3 className="mt-2 text-primary">{medicalRecords.filter(r => r.status === 'new').length}</h3>
-              <small className="text-muted">Hồ sơ mới</small>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Search */}
-      <Row className="mb-4">
-        <Col md={9}>
-          <div className="position-relative">
-            <Search className="position-absolute" size={20} style={{left: "16px", top: "14px", color: "#9ca3af"}} />
+      <div className="row mb-3">
+        <div className="col-md-9">
+          <div className="input-group">
+            <span className="input-group-text">
+              <Search size={18} />
+            </span>
             <input
               className="form-control"
               type="text"
               placeholder="Tìm kiếm theo mã hồ sơ, bác sĩ hoặc chẩn đoán..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{paddingLeft: '48px', height: '48px', borderRadius: '12px', border: '1px solid #e5e7eb'}}
+              style={{height: '48px', fontSize: '0.95rem'}}
             />
           </div>
-        </Col>
-        <Col md={3} className="d-flex align-items-center justify-content-end">
-          <select className="form-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{height: '48px', borderRadius: '12px'}}>
+        </div>
+        <div className="col-md-3">
+          <select 
+            className="form-select" 
+            value={filterStatus} 
+            onChange={(e) => setFilterStatus(e.target.value)} 
+            style={{height: '48px'}}
+          >
             <option value="all">Tất cả trạng thái</option>
             <option value="completed">Hoàn thành</option>
             <option value="active">Đang điều trị</option>
             <option value="followup">Cần tái khám</option>
             <option value="cancelled">Đã hủy</option>
           </select>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {/* Medical Records Cards */}
       <Row>
@@ -383,91 +443,80 @@ const PatientMedicalRecords = () => {
 
       {/* View Medical Record Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered>
-        <Modal.Header closeButton className="bg-primary text-white border-0">
-          <Modal.Title className="text-white">
+        <Modal.Header closeButton style={{borderBottom: 'none', paddingBottom: 0}}>
+          <Modal.Title>
             <FileText className="me-2" size={24} />
             Chi Tiết Hồ Sơ Bệnh Án
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-0">
           {selectedRecord && (
-            <Tabs defaultActiveKey="general" className="mb-0">
-              <Tab eventKey="general" title={
-                <span>
-                  <Stethoscope size={16} className="me-1" />
-                  Thông tin khám
-                </span>
-              }>
-                <div className="p-4">
-                  {/* Header Info Card */}
-                  <Card className="mb-4 border-0 shadow-sm" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                    <Card.Body className="text-white">
-                      <Row>
-                        <Col md={6}>
+            <Tabs defaultActiveKey="general" className="mb-0 px-3 pt-3">
+              <Tab eventKey="general" title={<span><Stethoscope size={16} className="me-1" />Thông tin khám</span>}>
+                <div className="p-3">
+                  {/* Header Card */}
+                  <div className="card mb-3" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', borderRadius: '12px'}}>
+                    <div className="card-body p-3">
+                      <div className="row">
+                        <div className="col-md-6">
                           <div className="d-flex align-items-center mb-2">
-                            <FileText size={20} className="me-2" />
-                            <h5 className="mb-0">Hồ sơ #{selectedRecord.recordId}</h5>
+                            <FileText size={18} className="me-2" />
+                            <strong>Hồ sơ #{selectedRecord.recordId}</strong>
                           </div>
-                          <div className="d-flex align-items-center mb-2">
-                            <User size={18} className="me-2" />
+                          <div className="d-flex align-items-center">
+                            <User size={16} className="me-2" />
                             <span>{selectedRecord.doctorName}</span>
                           </div>
-                        </Col>
-                        <Col md={6} className="text-md-end">
+                        </div>
+                        <div className="col-md-6 text-md-end">
                           <div className="d-flex align-items-center justify-content-md-end mb-2">
-                            <Calendar size={18} className="me-2" />
+                            <Calendar size={16} className="me-2" />
                             <span>{new Date(selectedRecord.visitDate).toLocaleDateString('vi-VN')}</span>
                           </div>
-                          <div className="d-flex align-items-center justify-content-md-end">
-                            {getStatusBadge(selectedRecord.status)}
-                          </div>
-                        </Col>
-                      </Row>
-                    </Card.Body>
-                  </Card>
+                          {getStatusBadge(selectedRecord.status)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                  {/* Diagnosis Card */}
-                  <Card className="mb-3 border-0 shadow-sm">
-                    <Card.Header className="bg-light border-0">
+                  {/* Diagnosis */}
+                  <div className="card mb-3">
+                    <div className="card-header bg-light">
                       <h6 className="mb-0 d-flex align-items-center">
                         <Stethoscope size={18} className="me-2 text-primary" />
                         Chẩn đoán
                       </h6>
-                    </Card.Header>
-                    <Card.Body>
-                      <p className="mb-0" style={{ fontSize: '1.05rem', lineHeight: '1.8' }}>
-                        {selectedRecord.diagnosis || "Chưa cập nhật"}
-                      </p>
-                    </Card.Body>
-                  </Card>
+                    </div>
+                    <div className="card-body">
+                      <p className="mb-0">{selectedRecord.diagnosis || "Chưa cập nhật"}</p>
+                    </div>
+                  </div>
 
-                  {/* Advice Card */}
+                  {/* Advice */}
                   {selectedRecord.advice && (
-                    <Card className="mb-3 border-0 shadow-sm">
-                      <Card.Header className="bg-light border-0">
+                    <div className="card mb-3">
+                      <div className="card-header bg-light">
                         <h6 className="mb-0 d-flex align-items-center">
                           <FileText size={18} className="me-2 text-success" />
                           Lời khuyên
                         </h6>
-                      </Card.Header>
-                      <Card.Body>
-                        <p className="mb-0" style={{ fontSize: '1.05rem', lineHeight: '1.8' }}>
-                          {selectedRecord.advice}
-                        </p>
-                      </Card.Body>
-                    </Card>
+                      </div>
+                      <div className="card-body">
+                        <p className="mb-0">{selectedRecord.advice}</p>
+                      </div>
+                    </div>
                   )}
 
-                  {/* Prescription Card */}
+                  {/* Prescription */}
                   {selectedRecord.prescription && (
-                    <Card className="mb-3 border-0 shadow-sm">
-                      <Card.Header className="bg-light border-0">
+                    <div className="card mb-3">
+                      <div className="card-header bg-light">
                         <h6 className="mb-0 d-flex align-items-center">
                           <Pill size={18} className="me-2 text-danger" />
                           Đơn thuốc
                         </h6>
-                      </Card.Header>
-                      <Card.Body>
+                      </div>
+                      <div className="card-body">
                         {selectedRecord.prescription.notes && (
                           <div className="mb-3 p-3 bg-light rounded">
                             <strong>Ghi chú:</strong>
@@ -477,11 +526,11 @@ const PatientMedicalRecords = () => {
                         {selectedRecord.prescription.items && selectedRecord.prescription.items.length > 0 ? (
                           <div>
                             <strong className="mb-3 d-block">Thuốc kê đơn:</strong>
-                            <Row className="g-3">
+                            <div className="row g-3">
                               {selectedRecord.prescription.items.map((item, index) => (
-                                <Col md={6} key={index}>
-                                  <Card className="border h-100">
-                                    <Card.Body className="p-3">
+                                <div className="col-md-6" key={index}>
+                                  <div className="card border h-100">
+                                    <div className="card-body p-3">
                                       <div className="d-flex align-items-start mb-2">
                                         <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
                                              style={{ width: '28px', height: '28px', fontSize: '0.85rem', fontWeight: 'bold' }}>
@@ -490,28 +539,20 @@ const PatientMedicalRecords = () => {
                                         <div className="flex-grow-1">
                                           <h6 className="mb-1 text-primary">{item.medicineName || `Thuốc ${index + 1}`}</h6>
                                           <div className="small text-muted">
-                                            <div className="mb-1">
-                                              <strong>Liều dùng:</strong> {item.dosage || 'N/A'}
-                                            </div>
-                                            <div className="mb-1">
-                                              <strong>Thời gian:</strong> {item.duration || 'N/A'}
-                                            </div>
-                                            <div className="mb-1">
-                                              <strong>Số lượng:</strong> {item.quantity || 1}
-                                            </div>
+                                            <div className="mb-1"><strong>Liều dùng:</strong> {item.dosage || 'N/A'}</div>
+                                            <div className="mb-1"><strong>Thời gian:</strong> {item.duration || 'N/A'}</div>
+                                            <div className="mb-1"><strong>Số lượng:</strong> {item.quantity || 1}</div>
                                             {item.price && (
-                                              <div className="mb-1">
-                                                <strong>Đơn giá:</strong> <span className="text-success fw-bold">{item.price.toLocaleString('vi-VN')} ₫</span>
-                                              </div>
+                                              <div className="mb-1"><strong>Đơn giá:</strong> <span className="text-success fw-bold">{item.price.toLocaleString('vi-VN')} ₫</span></div>
                                             )}
                                           </div>
                                         </div>
                                       </div>
-                                    </Card.Body>
-                                  </Card>
-                                </Col>
+                                    </div>
+                                  </div>
+                                </div>
                               ))}
-                            </Row>
+                            </div>
                           </div>
                         ) : (
                           <Alert variant="info" className="mb-0">
@@ -519,91 +560,55 @@ const PatientMedicalRecords = () => {
                             Không có thuốc nào được kê
                           </Alert>
                         )}
-                      </Card.Body>
-                    </Card>
+                      </div>
+                    </div>
                   )}
                 </div>
               </Tab>
               
-              <Tab eventKey="tests" title={
-                <span>
-                  <TestTube size={16} className="me-1" />
-                  Xét nghiệm
-                </span>
-              }>
-                <div className="p-4">
-                  <h6 className="mb-4 d-flex align-items-center">
-                    <TestTube size={20} className="me-2 text-info" />
-                    Kết quả xét nghiệm
-                  </h6>
-                  {selectedRecord.testResults && selectedRecord.testResults.length > 0 ? (
-                    <Row className="g-3">
-                      {selectedRecord.testResults.map((test, index) => (
-                        <Col md={6} key={index}>
-                          <Card className="border-0 shadow-sm h-100">
-                            <Card.Header className="bg-info text-white">
-                              <div className="d-flex justify-content-between align-items-center">
-                                <strong>{test.type}</strong>
-                                <small>
-                                  {new Date(test.date).toLocaleDateString('vi-VN')}
-                                </small>
-                              </div>
-                            </Card.Header>
-                            <Card.Body>
-                              <p className="mb-0" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                                {test.result}
-                              </p>
-                            </Card.Body>
-                          </Card>
-                        </Col>
-                      ))}
-                    </Row>
-                  ) : (
-                    <Alert variant="info" className="border-0">
-                      <TestTube size={24} className="me-2" />
-                      Chưa có kết quả xét nghiệm nào
-                    </Alert>
-                  )}
-                </div>
-              </Tab>
-              
-              <Tab eventKey="images" title={
-                <span>
-                  <Camera size={16} className="me-1" />
-                  Hình ảnh
-                </span>
-              }>
-                <div className="p-4">
-                  <h6 className="mb-4 d-flex align-items-center">
+              <Tab eventKey="images" title={<span><Camera size={16} className="me-1" />Hình ảnh</span>}>
+                <div className="p-3">
+                  <h6 className="mb-3 d-flex align-items-center">
                     <Camera size={20} className="me-2 text-warning" />
                     Hình ảnh y học
                   </h6>
-                  {selectedRecord.medicalImages && selectedRecord.medicalImages.length > 0 ? (
-                    <Row className="g-3">
-                      {selectedRecord.medicalImages.map((image, index) => (
-                        <Col md={4} key={index}>
-                          <Card className="border-0 shadow-sm h-100">
-                            <Card.Img 
-                              variant="top" 
-                              src={image.url} 
-                              style={{ height: '200px', objectFit: 'cover' }}
+                  {referralResults.length > 0 && referralResults.some(r => r.result_file_url || r.resultFileUrl) ? (
+                    <div className="row g-3">
+                      {referralResults.filter(r => r.result_file_url || r.resultFileUrl).map((referral, index) => {
+                        const imageUrl = referral.result_file_url || referral.resultFileUrl;
+                        return (
+                        <div className="col-md-4" key={index}>
+                          <div className="card border-0 shadow-sm h-100">
+                            <img 
+                              src={imageUrl} 
+                              alt={`Kết quả CLS ${index + 1}`}
+                              style={{ height: '200px', objectFit: 'cover', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}
+                              onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/400x300?text=Kh%C3%B4ng+t%E1%BA%A3i+%C4%91%C6%B0%E1%BB%A3c+h%C3%ACnh';
+                              }}
                             />
-                            <Card.Body>
-                              <Card.Title className="h6">{image.type}</Card.Title>
-                              <small className="text-muted">
+                            <div className="card-body">
+                              <h6 className="card-title">{referral.clinical_service || referral.clinicalService || 'Kết quả hình ảnh'}</h6>
+                              <small className="text-muted d-block mb-1">
                                 <Clock size={14} className="me-1" />
-                                {image.date}
+                                {referral.completed_at || referral.completedAt ? new Date(referral.completed_at || referral.completedAt).toLocaleDateString('vi-VN') : 'N/A'}
                               </small>
-                            </Card.Body>
-                          </Card>
-                        </Col>
-                      ))}
-                    </Row>
+                              {referral.result && (
+                                <p className="mb-0 small text-muted mt-2">
+                                  <strong>Kết quả:</strong> {referral.result}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        );
+                      })}
+                    </div>
                   ) : (
-                    <Alert variant="info" className="border-0">
-                      <Camera size={24} className="me-2" />
-                      Chưa có hình ảnh y học nào
-                    </Alert>
+                    <div className="alert alert-info border-0 text-center" style={{backgroundColor: '#e3f2fd'}}>
+                      <Camera size={48} className="mb-3 text-primary" />
+                      <h5>Chưa có hình ảnh y học nào</h5>
+                    </div>
                   )}
                 </div>
               </Tab>
