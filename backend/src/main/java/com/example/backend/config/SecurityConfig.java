@@ -51,7 +51,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("ADMIN", "DOCTOR", "PATIENT")  // Cho phép DOCTOR và PATIENT xem thông tin user
                 .requestMatchers(HttpMethod.PUT, "/api/users/**").hasAnyRole("ADMIN", "DOCTOR", "PATIENT")  // Cho phép user cập nhật thông tin của mình
-                .requestMatchers("/api/users/**").hasRole("ADMIN")           // POST/DELETE chỉ ADMIN
+                .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "DOCTOR", "PATIENT")           // POST/DELETE chỉ ADMIN
                 // Medicines - ADMIN có thể quản lý (POST/PUT/DELETE), DOCTOR có thể đọc (GET) để kê đơn
                 .requestMatchers(HttpMethod.GET, "/api/medicines/**").hasAnyRole("ADMIN", "DOCTOR")
                 .requestMatchers("/api/medicines/**").hasRole("ADMIN")       // POST/PUT/DELETE chỉ ADMIN
