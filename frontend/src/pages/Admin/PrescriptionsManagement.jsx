@@ -3,7 +3,10 @@ import { Card, Container, Row, Col, Button, Table, Modal, Form, Badge, Alert } f
 import { FileText, Eye, User, Calendar, Search, Trash2 } from "lucide-react";
 import prescriptionApi, { exportPrescriptionPdf } from "../../api/prescriptionApi";
 import appointmentApi from "../../api/appointmentApi";
+import userApi from '../../api/userApi';
 import { toast } from "../../utils/toast";
+import PrescriptionPdf from '../../components/admin/PrescriptionPdf';
+import html2pdf from 'html2pdf.js';
 
 const PrescriptionsManagement = () => {
   const [prescriptions, setPrescriptions] = useState([]);
@@ -19,6 +22,8 @@ const PrescriptionsManagement = () => {
   const [editForm, setEditForm] = useState({ id: null, diagnosis: "" });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({ patientId: "", appointmentId: "", diagnosis: "", items: [{ medicineId: "", quantity: 1, dosage: "" }] });
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfPrescription, setPdfPrescription] = useState(null);
 
   useEffect(() => {
     loadPrescriptions();
@@ -215,6 +220,46 @@ const PrescriptionsManagement = () => {
     if (!id) return;
     const res = await exportPrescriptionPdf(id);
     downloadBlob(res.data, `prescription-${id}.pdf`);
+  };
+
+  const handleShowPdf = async (prescription) => {
+    let patientInfo = {};
+    try {
+      const userRes = await userApi.getUserById(prescription.patientId);
+      patientInfo = userRes.data || {};
+      console.log('PDF Patient Info from users:', patientInfo);
+    } catch (e) {
+      patientInfo = appointments.find(a => a.patientId === prescription.patientId) || {};
+      if (Array.isArray(patientInfo)) patientInfo = patientInfo[0] || {};
+      console.log('PDF Patient Info from appointments:', patientInfo);
+    }
+    const pdfData = {
+      ...prescription,
+      patientDob: patientInfo.dateOfBirth || '',
+      patientGender: patientInfo.gender || '',
+      patientAddress: patientInfo.address || '',
+      patientName: (patientInfo.fullName || `${patientInfo.firstName || ''} ${patientInfo.lastName || ''}`.trim()) || prescription.patientName || '',
+    };
+    console.log('PDF Data for PrescriptionPdf:', pdfData);
+    setPdfPrescription(pdfData);
+    setShowPdfModal(true);
+  };
+
+  const handleClosePdf = () => {
+    setShowPdfModal(false);
+    setPdfPrescription(null);
+  };
+
+  const handleExportPdfFile = () => {
+    const element = document.getElementById('pdf-preview-content');
+    if (element) {
+      html2pdf().set({
+        margin: 10,
+        filename: `prescription-${pdfPrescription.prescriptionId}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(element).save();
+    }
   };
 
   return (
@@ -437,8 +482,8 @@ const PrescriptionsManagement = () => {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            onClick={() => handleExportPrescription(prescription.id)}
-                            title="Xuất PDF"
+                            onClick={() => handleShowPdf(prescription)}
+                            title="Xem PDF"
                             style={{borderRadius: '8px'}}
                           >
                             PDF
@@ -677,6 +722,24 @@ const PrescriptionsManagement = () => {
           <Button variant="primary" onClick={handleSaveCreate}>Tạo</Button>
         </Modal.Footer>
       </Modal>
+
+      {/* PDF Preview Modal */}
+      {showPdfModal && (
+        <Modal show={showPdfModal} onHide={handleClosePdf} size="lg" centered>
+          <Modal.Header closeButton>
+            <Modal.Title>Xem trước Đơn thuốc PDF</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div id="pdf-preview-content">
+              {pdfPrescription && <PrescriptionPdf prescription={pdfPrescription} />}
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={handleClosePdf}>Đóng</Button>
+            <Button variant="primary" onClick={handleExportPdfFile}>Xuất file PDF</Button>
+          </Modal.Footer>
+        </Modal>
+      )}
     </Container>
   );
 };
