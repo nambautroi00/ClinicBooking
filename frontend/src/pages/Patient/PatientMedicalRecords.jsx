@@ -4,6 +4,8 @@ import { FileText, Eye, Calendar, TestTube, Camera, Download, User, Stethoscope,
 import medicalRecordApi from "../../api/medicalRecordApi";
 import patientApi from "../../api/patientApi";
 import referralApi from "../../api/referralApi";
+import MedicalRecordPdf from '../../components/patient/MedicalRecordPdf';
+import html2pdf from 'html2pdf.js';
 
 const PatientMedicalRecords = () => {
   const [medicalRecords, setMedicalRecords] = useState([]);
@@ -15,6 +17,8 @@ const PatientMedicalRecords = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [referralResults, setReferralResults] = useState([]);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfRecord, setPdfRecord] = useState(null);
 
   // Lấy patientId từ localStorage và API
   useEffect(() => {
@@ -189,14 +193,34 @@ const PatientMedicalRecords = () => {
     setReferralResults(loadedReferrals);
   };
 
+  const handleShowPdfModal = (record) => {
+    // Lấy referralResults đang hiển thị ở tab hình ảnh
+    setPdfRecord({ ...record, referralResults });
+    setShowPdfModal(true);
+  };
+
+  const handleClosePdfModal = () => {
+    setShowPdfModal(false);
+    setPdfRecord(null);
+  };
+
   const handleExportPDF = async (recordId) => {
-    try {
-      console.log('📄 Đang xuất PDF cho hồ sơ:', recordId);
-      alert('Tính năng xuất PDF sẽ được cập nhật sau!');
-    } catch (error) {
-      console.error('❌ Lỗi khi xuất PDF:', error);
-      alert('Không thể xuất PDF. Vui lòng thử lại.');
-    }
+    const record = medicalRecords.find(r => r.id === recordId);
+    if (!record) return;
+    // Lấy referralResults đang hiển thị ở tab hình ảnh
+    setPdfRecord({ ...record, referralResults });
+    setShowPdfModal(true);
+    setTimeout(() => {
+      const element = document.getElementById('medical-record-pdf-preview');
+      if (element) {
+        html2pdf().set({
+          margin: 10,
+          filename: `medical-record-${recordId}.pdf`,
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+        }).from(element).save();
+      }
+    }, 500);
   };
 
   return (
@@ -584,7 +608,7 @@ const PatientMedicalRecords = () => {
                               alt={`Kết quả CLS ${index + 1}`}
                               style={{ height: '200px', objectFit: 'cover', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}
                               onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/400x300?text=Kh%C3%B4ng+t%E1%BA%A3i+%C4%91%C6%B0%E1%BB%A3c+h%C3%ACnh';
+                                e.target.src = 'https://via.placeholder.com/400x300?text=Kh%C3%B4ng+t%E1%BA%A1i+%C4%91%C6%B0%E1%BB%A3c+h%C3%ACnh';
                               }}
                             />
                             <div className="card-body">
@@ -621,6 +645,13 @@ const PatientMedicalRecords = () => {
           </button>
           <button 
             className="btn btn-primary" 
+            onClick={() => handleShowPdfModal(selectedRecord)}
+          >
+            <FileText className="me-2" size={16} />
+            Xem trước PDF
+          </button>
+          <button 
+            className="btn btn-primary" 
             onClick={() => handleExportPDF(selectedRecord?.id)}
           >
             <Download className="me-2" size={16} />
@@ -628,6 +659,26 @@ const PatientMedicalRecords = () => {
           </button>
         </Modal.Footer>
       </Modal>
+      {/* PDF Preview Modal */}
+      {showPdfModal && pdfRecord && (
+        <Modal show={showPdfModal} onHide={handleClosePdfModal} size="lg" centered>
+          <Modal.Header closeButton>
+            <Modal.Title>Xem trước Hồ sơ bệnh án PDF</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div id="medical-record-pdf-preview">
+              <MedicalRecordPdf record={pdfRecord} />
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <button className="btn btn-outline-secondary" onClick={handleClosePdfModal}>Đóng</button>
+            <button className="btn btn-primary" onClick={() => handleExportPDF(pdfRecord.id)}>
+              <Download className="me-2" size={16} />
+              Xuất PDF
+            </button>
+          </Modal.Footer>
+        </Modal>
+      )}
     </Container>
   );
 };
