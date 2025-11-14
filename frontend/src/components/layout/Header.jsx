@@ -17,6 +17,9 @@ import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import notificationApi from "../../api/notificationApi";
 import userApi from "../../api/userApi";
+import patientApi from "../../api/patientApi";
+import conversationApi from "../../api/conversationApi";
+import messageApi from "../../api/messageApi";
 import { normalizeAvatar } from "../../utils/avatarUtils";
 import { getFullImageUrl } from "../../utils/imageUtils";
 
@@ -101,6 +104,41 @@ const getDepartmentImageUrl = (department = {}) => {
   return rawImage ? getFullImageUrl(rawImage) : null;
 };
 
+const extractRoleValue = (roleLike) => {
+  if (!roleLike) return "";
+  if (typeof roleLike === "string") return roleLike;
+  return (
+    roleLike.name ||
+    roleLike.role ||
+    roleLike.authority ||
+    roleLike.code ||
+    roleLike.value ||
+    ""
+  );
+};
+
+const isPatientRole = (userData = {}) => {
+  const singleRole = extractRoleValue(userData.role)
+    .toString()
+    .toUpperCase();
+  if (singleRole.includes("PATIENT")) return true;
+
+  const roleArrays = [userData.roles, userData.authorities]
+    .filter(Array.isArray)
+    .flat();
+  if (roleArrays.length > 0) {
+    return roleArrays.some((item) =>
+      extractRoleValue(item).toString().toUpperCase().includes("PATIENT")
+    );
+  }
+
+  return !!(
+    userData.patientId ||
+    userData.patient?.patientId ||
+    userData.patient?.id
+  );
+};
+
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMobileHeader, setShowMobileHeader] = useState(false);
@@ -109,6 +147,7 @@ export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({
     doctors: [],
@@ -122,6 +161,91 @@ export default function Header() {
   const doctorCacheRef = useRef([]);
   const departmentCacheRef = useRef([]);
   const searchFetchPromiseRef = useRef(null);
+
+  const fetchPatientUnreadMessages = useCallback(async () => {
+    try {
+      const stored = localStorage.getItem("user");
+      const parsedUser = user || (stored ? JSON.parse(stored) : null);
+
+      if (!parsedUser?.id || !isPatientRole(parsedUser)) {
+        setMessageUnreadCount(0);
+        return;
+      }
+
+      let patientId =
+        parsedUser.patientId ||
+        parsedUser.patient?.patientId ||
+        parsedUser.patient?.id;
+
+      if (!patientId) {
+        try {
+          const patientRes = await patientApi.getPatientByUserId(parsedUser.id);
+          const payload = patientRes?.data || patientRes;
+          patientId =
+            payload?.patientId ||
+            payload?.id ||
+            (Array.isArray(payload) ? payload[0]?.patientId : null);
+        } catch (err) {
+          console.warn("Header - Unable to resolve patientId for user:", err);
+        }
+      }
+
+      if (!patientId) {
+        setMessageUnreadCount(0);
+        return;
+      }
+
+      const conversationRes = await conversationApi.getConversationsByPatient({
+        patientId,
+        patientUserId: parsedUser.id,
+      });
+      const conversations =
+        (Array.isArray(conversationRes?.data)
+          ? conversationRes.data
+          : Array.isArray(conversationRes)
+          ? conversationRes
+          : []) || [];
+
+      if (!conversations.length) {
+        setMessageUnreadCount(0);
+        return;
+      }
+
+      const unreadCounts = await Promise.all(
+        conversations.map(async (conversation) => {
+          const conversationId = conversation.conversationId ?? conversation.id;
+          const fallbackCount =
+            typeof conversation.unreadCount === "number"
+              ? conversation.unreadCount
+              : 0;
+
+          if (!conversationId) return fallbackCount;
+
+          try {
+            const unreadRes = await messageApi.getUnreadCount(
+              conversationId,
+              parsedUser.id
+            );
+            return typeof unreadRes?.data === "number"
+              ? unreadRes.data
+              : fallbackCount;
+          } catch (error) {
+            return fallbackCount;
+          }
+        })
+      );
+
+      const totalUnread = unreadCounts.reduce(
+        (sum, count) => sum + (Number.isFinite(count) ? count : 0),
+        0
+      );
+
+      setMessageUnreadCount(totalUnread);
+    } catch (error) {
+      console.error("Header - Failed to fetch unread messages:", error);
+      setMessageUnreadCount(0);
+    }
+  }, [user]);
 
   // Function to navigate to messages based on user role
   const handleMessagesClick = () => {
@@ -525,6 +649,35 @@ export default function Header() {
       setShowSearchResults(false);
     }
   }, [showMobileHeader]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPatientUnreadMessages();
+    } else {
+      setMessageUnreadCount(0);
+    }
+  }, [user, fetchPatientUnreadMessages]);
+
+  useEffect(() => {
+    if (!user || !isPatientRole(user)) return;
+    const interval = setInterval(() => {
+      fetchPatientUnreadMessages();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [user, fetchPatientUnreadMessages]);
+
+  useEffect(() => {
+    const handleUnreadUpdate = (event) => {
+      const value = Number(event?.detail);
+      if (Number.isFinite(value)) {
+        setMessageUnreadCount(value);
+      }
+    };
+    window.addEventListener("patientUnreadUpdated", handleUnreadUpdate);
+    return () => {
+      window.removeEventListener("patientUnreadUpdated", handleUnreadUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -939,10 +1092,15 @@ export default function Header() {
             {/* Messages Button */}
             <button
               onClick={handleMessagesClick}
-              className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
+              className="relative hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
               title="Nhắn tin"
             >
               <MessageCircle className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
+              {messageUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center font-semibold">
+                  {messageUnreadCount > 9 ? "9+" : messageUnreadCount}
+                </span>
+              )}
             </button>
 
             {/* Notifications Button */}
@@ -1199,6 +1357,11 @@ export default function Header() {
             >
               <MessageCircle className="h-5 w-5" />
               <span>Nhắn tin</span>
+              {messageUnreadCount > 0 && (
+                <span className="ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-white bg-red-500 rounded-full">
+                  {messageUnreadCount > 9 ? "9+" : messageUnreadCount}
+                </span>
+              )}
             </button>
 
             {user ? (
