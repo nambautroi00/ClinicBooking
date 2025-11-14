@@ -14,6 +14,7 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [imagePreviewKey, setImagePreviewKey] = useState(0);
 
   useEffect(() => {
     if (article) {
@@ -84,18 +85,23 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
       toast.warning('Chỉ cho phép file ảnh (JPEG, PNG, GIF)');
+      e.target.value = ''; // Reset input
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       toast.warning('Kích thước file không được vượt quá 5MB');
+      e.target.value = ''; // Reset input
       return;
     }
     setUploading(true);
     try {
       // Nếu là bài viết mới (chưa có ID), upload không cần ID
       // Nếu là bài viết đã có ID, gửi articleId để backend đổi tên file
-  const response = await fileUploadApi.upload(file, article?.articleId || null, 'article');
+      const response = await fileUploadApi.upload(file, article?.articleId || null, 'article');
       if (response.data.success) {
+        // Force remount image component by changing key
+        setImagePreviewKey(prev => prev + 1);
+        // Update imageUrl
         setFormData(prev => ({
           ...prev,
           imageUrl: response.data.url
@@ -110,6 +116,7 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
       toast.error('Lỗi: ' + errorMessage);
     } finally {
       setUploading(false);
+      e.target.value = ''; // Reset input để có thể upload lại cùng file
     }
   };
 
@@ -221,7 +228,7 @@ const ArticleForm = ({ article, onSave, onCancel }) => {
               </div>
 
               {formData.imageUrl && (
-                <div className="mb-3">
+                <div className="mb-3" key={`preview-${imagePreviewKey}`}>
                   <label className="form-label">Ảnh hiện tại</label>
                   <div>
                     <img
