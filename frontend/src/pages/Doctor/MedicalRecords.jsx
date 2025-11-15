@@ -196,37 +196,6 @@ const MedicalRecords = () => {
     setShowModal(true);
   };
 
-  const handleNewRecord = () => {
-    setSelectedRecord(null);
-    setShowModal(true);
-  };
-
-  const handleSaveRecord = async (recordData) => {
-    try {
-      setLoading(true);
-      
-      if (selectedRecord) {
-        // Cập nhật hồ sơ có sẵn
-        await medicalRecordApi.updateMedicalRecord(selectedRecord.id, recordData);
-      } else {
-        // Tạo hồ sơ mới
-        await medicalRecordApi.createMedicalRecord(recordData);
-      }
-      
-      // Tải lại danh sách
-      await loadMedicalRecords();
-      setShowModal(false);
-      
-      // Thông báo thành công (có thể dùng toast notification)
-      console.log('Lưu hồ sơ bệnh án thành công!');
-    } catch (error) {
-      console.error('Lỗi khi lưu hồ sơ bệnh án:', error);
-      alert('Có lỗi xảy ra khi lưu hồ sơ. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <Container fluid className="py-4">
       <style>{`
@@ -277,10 +246,7 @@ const MedicalRecords = () => {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Hồ Sơ Bệnh Án</h2>
-        <Button variant="primary" onClick={handleNewRecord} style={{height: '42px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center'}}>
-          <Plus className="me-2" size={18} />
-          Tạo Bệnh Án Mới
-        </Button>
+       
       </div>
 
       {/* Stats Cards */}
@@ -447,7 +413,7 @@ const MedicalRecords = () => {
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>
-            {selectedRecord ? `Bệnh Án - ${selectedRecord.patientName}` : "Tạo Bệnh Án Mới"}
+            {selectedRecord && `Bệnh Án - ${selectedRecord.patientName}`}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -583,75 +549,15 @@ const MedicalRecords = () => {
               )}
             </div>
           ) : (
-            <Form>
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Mã bệnh nhân</Form.Label>
-                    <Form.Control type="text" placeholder="Nhập mã bệnh nhân" />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Họ tên bệnh nhân</Form.Label>
-                    <Form.Control type="text" placeholder="Nhập họ tên" />
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Row>
-                <Col md={4}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Tuổi</Form.Label>
-                    <Form.Control type="number" placeholder="Tuổi" />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Giới tính</Form.Label>
-                    <Form.Select>
-                      <option>Chọn giới tính</option>
-                      <option value="Nam">Nam</option>
-                      <option value="Nữ">Nữ</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Điện thoại</Form.Label>
-                    <Form.Control type="tel" placeholder="Số điện thoại" />
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Form.Group className="mb-3">
-                <Form.Label>Chẩn đoán</Form.Label>
-                <Form.Control 
-                  as="textarea" 
-                  rows={3} 
-                  placeholder="Nhập chẩn đoán bệnh..." 
-                  name="diagnosis"
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Lời khuyên</Form.Label>
-                <Form.Control 
-                  as="textarea" 
-                  rows={3} 
-                  placeholder="Nhập lời khuyên cho bệnh nhân..." 
-                  name="advice"
-                />
-              </Form.Group>
-            </Form>
+            <div className="text-center py-5">
+              <p className="text-muted">Không có thông tin bệnh án</p>
+            </div>
           )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowModal(false)}>
             Đóng
           </Button>
-          {!selectedRecord && (
-            <Button variant="primary">
-              Lưu Bệnh Án
-            </Button>
-          )}
         </Modal.Footer>
       </Modal>
     </Container>
