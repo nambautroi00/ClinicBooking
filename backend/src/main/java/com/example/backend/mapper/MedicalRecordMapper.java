@@ -48,13 +48,27 @@ public class MedicalRecordMapper {
                     if (user.getGender() != null) {
                         dto.setPatientGender(user.getGender().toString());
                     }
-                    
-                    // Calculate age from dateOfBirth
+
+                    // Debug log for dateOfBirth and address
+                    System.out.println("[DEBUG] user.getDateOfBirth(): " + user.getDateOfBirth());
+                    System.out.println("[DEBUG] user.getAddress(): " + user.getAddress());
+
+                    // Map date of birth (ngày sinh)
                     if (user.getDateOfBirth() != null) {
                         LocalDate birthDate = user.getDateOfBirth();
+                        dto.setPatientDob(birthDate.toString()); // ISO format yyyy-MM-dd
                         LocalDate currentDate = LocalDate.now();
                         int age = Period.between(birthDate, currentDate).getYears();
                         dto.setPatientAge(age);
+                    } else {
+                        dto.setPatientDob("");
+                    }
+
+                    // Map address (địa chỉ)
+                    if (user.getAddress() != null) {
+                        dto.setPatientAddress(user.getAddress());
+                    } else {
+                        dto.setPatientAddress("");
                     }
                 }
             }

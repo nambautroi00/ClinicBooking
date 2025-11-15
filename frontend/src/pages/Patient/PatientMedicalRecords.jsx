@@ -57,6 +57,7 @@ const PatientMedicalRecords = () => {
       
       const response = await medicalRecordApi.getMedicalRecordsByPatient(patientId);
       console.log('✅ Response từ backend:', response);
+      console.log('API response data:', response.data);
       
       // Transform data from backend format to frontend format
       const records = Array.isArray(response.data) ? response.data.map(record => {
@@ -84,7 +85,10 @@ const PatientMedicalRecords = () => {
           createdAt: record.createdAt,
           appointmentId: record.appointmentId,
           patientId: record.patientId,
-          patientName: record.patientName
+          patientName: record.patientName,
+          patientDob: record.patientDob,
+          patientGender: record.patientGender,
+          patientAddress: record.patientAddress
         };
       }) : [];
       
@@ -210,17 +214,34 @@ const PatientMedicalRecords = () => {
     // Lấy referralResults đang hiển thị ở tab hình ảnh
     setPdfRecord({ ...record, referralResults });
     setShowPdfModal(true);
-    setTimeout(() => {
-      const element = document.getElementById('medical-record-pdf-preview');
-      if (element) {
-        html2pdf().set({
-          margin: 10,
-          filename: `medical-record-${recordId}.pdf`,
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
-        }).from(element).save();
-      }
-    }, 500);
+    // Preload all images in referralResults
+    const preloadImages = async (images) => {
+      const promises = images.map(img => {
+        const src = img.result_file_url || img.resultFileUrl || img.imageUrl || img.imageLink || img.image || '';
+        if (!src) return Promise.resolve();
+        return new Promise((resolve) => {
+          const image = new window.Image();
+          image.crossOrigin = 'anonymous';
+          image.onload = () => resolve();
+          image.onerror = () => resolve();
+          image.src = src;
+        });
+      });
+      await Promise.all(promises);
+    };
+    preloadImages(referralResults).then(() => {
+      setTimeout(() => {
+        const element = document.getElementById('medical-record-pdf-preview');
+        if (element) {
+          html2pdf().set({
+            margin: 10,
+            filename: `medical-record-${recordId}.pdf`,
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' }
+          }).from(element).save();
+        }
+      }, 500);
+    });
   };
 
   return (

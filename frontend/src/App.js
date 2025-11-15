@@ -14,6 +14,7 @@ const AppContent = () => {
   const isDoctorRoute = location.pathname.startsWith("/doctor");
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isChatbotRoute = location.pathname === "/chatbot";
+  const isNotFoundRoute = location.pathname === "/404";
   const isHomePage = location.pathname === "/";
 
   // Nếu đang ở trong doctor layout, không hiển thị header/sidebar chính
@@ -28,6 +29,11 @@ const AppContent = () => {
 
   // Nếu đang ở chatbot, không hiển thị header/footer
   if (isChatbotRoute) {
+    return <AppRoutes />;
+  }
+
+  // Nếu đang ở trang 404, không hiển thị header/footer
+  if (isNotFoundRoute) {
     return <AppRoutes />;
   }
 

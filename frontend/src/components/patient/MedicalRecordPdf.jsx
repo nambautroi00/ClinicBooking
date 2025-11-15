@@ -5,6 +5,8 @@ const tdStyle = { border: '1px solid #1976d2', padding: 8, textAlign: 'center' }
 
 const MedicalRecordPdf = ({ record }) => {
   if (!record) return null;
+  console.log('MedicalRecordPdf record:', record);
+  console.log('MedicalRecordPdf referralResults:', record.referralResults);
   const { patientName, patientDob, patientGender, patientAddress, doctorName, visitDate, diagnosis, advice, prescription, referralResults } = record;
   return (
     <div style={{ width: 700, margin: 'auto', fontFamily: 'Roboto, Arial' }}>
@@ -56,7 +58,7 @@ const MedicalRecordPdf = ({ record }) => {
           <strong>Hình ảnh y học:</strong>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
             {referralResults.map((img, idx) => {
-              const src = img.imageUrl || img.imageLink || img.image || '';
+              const src = img.result_file_url || img.resultFileUrl || img.imageUrl || img.imageLink || img.image || '';
               return (
                 <div key={idx} style={{ border: '1px solid #ccc', padding: 6, borderRadius: 8, width: 180 }}>
                   {src ? (
@@ -67,9 +69,9 @@ const MedicalRecordPdf = ({ record }) => {
                     </div>
                   )}
                   <div style={{ fontSize: 13, color: '#555' }}>{img.description || img.result || 'Kết quả hình ảnh'}</div>
-                  {img.date && (
-                    <div style={{ fontSize: 12, color: '#888' }}>Ngày chụp: {img.date}</div>
-                  )}
+                  {img.date || img.completed_at || img.completedAt ? (
+                    <div style={{ fontSize: 12, color: '#888' }}>Ngày chụp: {img.date || img.completed_at || img.completedAt}</div>
+                  ) : null}
                 </div>
               );
             })}

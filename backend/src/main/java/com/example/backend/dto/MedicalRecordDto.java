@@ -22,6 +22,8 @@ public class MedicalRecordDto {
     private String patientPhone;
     private Integer patientAge;
     private String patientGender;
+    private String patientDob;
+    private String patientAddress;
     private Long doctorId;
     private String doctorName;
     private LocalDateTime appointmentDate;
@@ -73,6 +75,18 @@ public class MedicalRecordDto {
     public String getPatientPhone() { return patientPhone; }
     public void setPatientPhone(String patientPhone) { this.patientPhone = patientPhone; }
 
+    public Integer getPatientAge() { return patientAge; }
+    public void setPatientAge(Integer patientAge) { this.patientAge = patientAge; }
+
+    public String getPatientGender() { return patientGender; }
+    public void setPatientGender(String patientGender) { this.patientGender = patientGender; }
+
+    public String getPatientDob() { return patientDob; }
+    public void setPatientDob(String patientDob) { this.patientDob = patientDob; }
+
+    public String getPatientAddress() { return patientAddress; }
+    public void setPatientAddress(String patientAddress) { this.patientAddress = patientAddress; }
+
     public Long getDoctorId() { return doctorId; }
     public void setDoctorId(Long doctorId) { this.doctorId = doctorId; }
 
@@ -81,10 +95,4 @@ public class MedicalRecordDto {
 
     public LocalDateTime getAppointmentDate() { return appointmentDate; }
     public void setAppointmentDate(LocalDateTime appointmentDate) { this.appointmentDate = appointmentDate; }
-
-    public Integer getPatientAge() { return patientAge; }
-    public void setPatientAge(Integer patientAge) { this.patientAge = patientAge; }
-
-    public String getPatientGender() { return patientGender; }
-    public void setPatientGender(String patientGender) { this.patientGender = patientGender; }
 }

@@ -17,6 +17,7 @@ import ResetPassword from "../pages/Auth/ResetPassword";
 
 // Components / Guards
 import RoleProtectedRoute from "../components/auth/RoleProtectedRoute";
+import RoleRestrictedRoute from "../components/auth/RoleRestrictedRoute";
 
 // Doctor pages
 import DoctorLayout from "../components/layout/doctors-layout/DoctorLayout";
@@ -66,14 +67,14 @@ import ChatBot from "../components/chatbot/ChatBot";
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Public */}
-      <Route path="/" element={<Home />} />
-      <Route path="/articles" element={<Articles />} />
-      <Route path="/articles/:id" element={<PublicArticleDetail />} />
-      <Route path="/patient/doctordetail/:id" element={<DoctorDetail />} />
-      <Route path="/specialty/:departmentId" element={<SpecialtyDoctors />} />
-      <Route path="/notifications" element={<NotificationsPage />} />
-      <Route path="/chatbot" element={<ChatBot />} />
+      {/* Public - Restricted for admin/doctor */}
+      <Route path="/" element={<RoleRestrictedRoute><Home /></RoleRestrictedRoute>} />
+      <Route path="/articles" element={<RoleRestrictedRoute><Articles /></RoleRestrictedRoute>} />
+      <Route path="/articles/:id" element={<RoleRestrictedRoute><PublicArticleDetail /></RoleRestrictedRoute>} />
+      <Route path="/patient/doctordetail/:id" element={<RoleRestrictedRoute><DoctorDetail /></RoleRestrictedRoute>} />
+      <Route path="/specialty/:departmentId" element={<RoleRestrictedRoute><SpecialtyDoctors /></RoleRestrictedRoute>} />
+      <Route path="/notifications" element={<RoleRestrictedRoute><NotificationsPage /></RoleRestrictedRoute>} />
+      <Route path="/chatbot" element={<RoleRestrictedRoute><ChatBot /></RoleRestrictedRoute>} />
       <Route path="/test-auth" element={<TestAuth />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/cancel" element={<PaymentCancel />} />
@@ -85,26 +86,26 @@ const AppRoutes = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Patient */}
+      {/* Patient - Restricted for admin/doctor */}
       <Route
         path="/patient"
-        element={<Navigate to="/patient/book-appointment" replace />}
+        element={<RoleRestrictedRoute><Navigate to="/patient/book-appointment" replace /></RoleRestrictedRoute>}
       />
       <Route
         path="/patient/book-appointment"
-        element={<PatientAppointmentBooking />}
+        element={<RoleRestrictedRoute><PatientAppointmentBooking /></RoleRestrictedRoute>}
       />
       <Route
         path="/patient/doctors"
-        element={<DoctorList />}
+        element={<RoleRestrictedRoute><DoctorList /></RoleRestrictedRoute>}
       />
       <Route
         path="/patient/appointments"
-        element={<PatientAppointmentHistory />}
+        element={<RoleRestrictedRoute><PatientAppointmentHistory /></RoleRestrictedRoute>}
       />
-      <Route path="/patient/profile" element={<PatientDashboardPage />} />
-      <Route path="/patient/messages" element={<PatientMessages />} />
-      <Route path="/patient/booking/:doctorId" element={<PatientBookingDetail />} />
+      <Route path="/patient/profile" element={<RoleRestrictedRoute><PatientDashboardPage /></RoleRestrictedRoute>} />
+      <Route path="/patient/messages" element={<RoleRestrictedRoute><PatientMessages /></RoleRestrictedRoute>} />
+      <Route path="/patient/booking/:doctorId" element={<RoleRestrictedRoute><PatientBookingDetail /></RoleRestrictedRoute>} />
 
       {/* Doctor (protected) */}
       <Route
