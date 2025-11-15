@@ -15,7 +15,31 @@ const DepartmentReferrals = () => {
     resultFileUrl: '',
     status: 'DONE'
   });
+  
+  // Notification Modal State
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationData, setNotificationData] = useState({
+    type: 'success', // 'success', 'error', 'warning', 'info'
+    title: '',
+    message: '',
+    onClose: null
+  });
+  
   const navigate = useNavigate();
+  
+  // Show notification modal
+  const showNotification = (type, title, message, onClose = null) => {
+    setNotificationData({ type, title, message, onClose });
+    setShowNotificationModal(true);
+  };
+  
+  // Close notification modal
+  const closeNotification = () => {
+    setShowNotificationModal(false);
+    if (notificationData.onClose) {
+      notificationData.onClose();
+    }
+  };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const doctorId = user.doctorId || localStorage.getItem('doctorId');
@@ -50,13 +74,13 @@ const DepartmentReferrals = () => {
       } else {
         console.error('❌ Doctor has no department assigned');
         console.error('❌ Doctor data:', response.data);
-        alert('❌ Bác sĩ chưa được phân công vào khoa nào.\n\nVui lòng liên hệ quản trị viên để được phân công khoa.');
+        showNotification('error', 'Lỗi Phân Công', 'Bác sĩ chưa được phân công vào khoa nào.\n\nVui lòng liên hệ quản trị viên để được phân công khoa.');
         setLoading(false);
       }
     } catch (error) {
       console.error('❌ Error loading doctor info:', error);
       console.error('❌ Error response:', error.response);
-      alert('Không thể tải thông tin bác sĩ: ' + (error.response?.data?.message || error.message));
+      showNotification('error', 'Lỗi Tải Dữ Liệu', 'Không thể tải thông tin bác sĩ: ' + (error.response?.data?.message || error.message));
       setLoading(false);
     }
   };
@@ -169,7 +193,7 @@ const DepartmentReferrals = () => {
     } catch (error) {
       console.error('❌ Error loading referrals:', error);
       console.error('❌ Error response:', error.response);
-      alert('Không thể tải danh sách chỉ định: ' + (error.response?.data?.message || error.message));
+      showNotification('error', 'Lỗi Tải Dữ Liệu', 'Không thể tải danh sách chỉ định: ' + (error.response?.data?.message || error.message));
       setReferrals([]); // Set empty array on error
     } finally {
       setLoading(false);
@@ -190,7 +214,7 @@ const DepartmentReferrals = () => {
     if (!selectedReferral) return;
 
     if (!resultData.resultText.trim()) {
-      alert('Vui lòng nhập kết quả cận lâm sàng');
+      showNotification('warning', 'Thiếu Thông Tin', 'Vui lòng nhập kết quả cận lâm sàng');
       return;
     }
 
@@ -201,9 +225,11 @@ const DepartmentReferrals = () => {
     console.log('   Referral To Department ID:', selectedReferral.toDepartmentId);
     
     if (doctorInfo?.department?.id !== selectedReferral.toDepartmentId) {
-      alert('❌ Lỗi: Bạn không thuộc khoa được chỉ định!\n\n' +
-            'Khoa của bạn: ' + (doctorInfo?.department?.departmentName || 'N/A') + '\n' +
-            'Khoa được chỉ định: ' + (selectedReferral.toDepartmentName || 'N/A'));
+      showNotification('error', 'Lỗi Phân Quyền', 
+        'Bạn không thuộc khoa được chỉ định!\n\n' +
+        'Khoa của bạn: ' + (doctorInfo?.department?.departmentName || 'N/A') + '\n' +
+        'Khoa được chỉ định: ' + (selectedReferral.toDepartmentName || 'N/A')
+      );
       return;
     }
 
@@ -220,15 +246,16 @@ const DepartmentReferrals = () => {
       
       await referralApi.updateResult(selectedReferral.referralId, payload);
       
-      alert('✅ Đã cập nhật kết quả thành công!');
-      setShowUpdateModal(false);
-      setSelectedReferral(null);
-      setResultData({ resultText: '', resultFileUrl: '', status: 'DONE' });
-      
-      // Reload referrals
-      if (doctorInfo?.department?.id) {
-        loadReferrals(doctorInfo.department.id);
-      }
+      showNotification('success', 'Thành Công', 'Đã cập nhật kết quả thành công!', () => {
+        setShowUpdateModal(false);
+        setSelectedReferral(null);
+        setResultData({ resultText: '', resultFileUrl: '', status: 'DONE' });
+        
+        // Reload referrals
+        if (doctorInfo?.department?.id) {
+          loadReferrals(doctorInfo.department.id);
+        }
+      });
     } catch (error) {
       console.error('❌ Error updating result:', error);
       console.error('❌ Error response:', error.response);
@@ -243,21 +270,26 @@ const DepartmentReferrals = () => {
         errorMsg = error.message;
       }
       
-      alert('❌ ' + errorMsg);
+      showNotification('error', 'Lỗi Cập Nhật', errorMsg);
     }
   };
 
   const handleUpdateStatus = async (referralId, newStatus) => {
     try {
       await referralApi.updateStatus(referralId, newStatus);
-      alert(`✅ Đã cập nhật trạng thái thành ${newStatus}`);
       
-      if (doctorInfo?.department?.id) {
-        loadReferrals(doctorInfo.department.id);
-      }
+      const statusText = newStatus === 'IN_PROGRESS' ? 'Đang thực hiện' : 
+                        newStatus === 'DONE' ? 'Hoàn thành' :
+                        newStatus === 'PENDING' ? 'Chờ thực hiện' : newStatus;
+      
+      showNotification('success', 'Thành Công', `Đã cập nhật trạng thái thành: ${statusText}`, () => {
+        if (doctorInfo?.department?.id) {
+          loadReferrals(doctorInfo.department.id);
+        }
+      });
     } catch (error) {
       console.error('❌ Error updating status:', error);
-      alert('Không thể cập nhật trạng thái');
+      showNotification('error', 'Lỗi Cập Nhật', 'Không thể cập nhật trạng thái: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -307,6 +339,51 @@ const DepartmentReferrals = () => {
 
   return (
     <div className="container-fluid py-4">
+      <style>{`
+        .stats-card {
+          border: none;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+        
+        .stats-card:hover {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+          transform: translateY(-2px);
+        }
+        
+        .stats-card .h4 {
+          font-weight: 700;
+          color: #5a5c69;
+        }
+        
+        .stats-card:hover .h4 {
+          color: #3a3b45;
+        }
+        
+        .stats-card .text-muted {
+          font-size: 0.875rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        .stats-card small {
+          font-size: 0.75rem;
+          opacity: 0.7;
+        }
+        
+        .stats-card i {
+          opacity: 0.8;
+          transition: opacity 0.3s ease;
+        }
+        
+        .stats-card:hover i {
+          opacity: 1;
+        }
+      `}</style>
+
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -330,40 +407,54 @@ const DepartmentReferrals = () => {
       {/* Stats Cards */}
       <div className="row g-3 mb-4">
         <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-warning bg-opacity-10">
+          <div className="card stats-card">
             <div className="card-body">
-              <h6 className="text-muted mb-1">Chờ thực hiện</h6>
-              <h3 className="mb-0 text-warning">
-                {safeReferrals.filter(r => r.status === 'PENDING').length}
-              </h3>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Chờ thực hiện</div>
+                  <div className="h4 mb-0">{safeReferrals.filter(r => r.status === 'PENDING').length}</div>
+                </div>
+                <i className="bi bi-hourglass-split fs-2 text-warning"></i>
+              </div>
             </div>
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-primary bg-opacity-10">
+          <div className="card stats-card">
             <div className="card-body">
-              <h6 className="text-muted mb-1">Đang thực hiện</h6>
-              <h3 className="mb-0 text-primary">
-                {safeReferrals.filter(r => r.status === 'IN_PROGRESS').length}
-              </h3>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Đang thực hiện</div>
+                  <div className="h4 mb-0">{safeReferrals.filter(r => r.status === 'IN_PROGRESS').length}</div>
+                </div>
+                <i className="bi bi-arrow-repeat fs-2 text-primary"></i>
+              </div>
             </div>
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-success bg-opacity-10">
+          <div className="card stats-card">
             <div className="card-body">
-              <h6 className="text-muted mb-1">Đã hoàn thành</h6>
-              <h3 className="mb-0 text-success">
-                {safeReferrals.filter(r => r.status === 'DONE').length}
-              </h3>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Đã hoàn thành</div>
+                  <div className="h4 mb-0">{safeReferrals.filter(r => r.status === 'DONE').length}</div>
+                </div>
+                <i className="bi bi-check-circle-fill fs-2 text-success"></i>
+              </div>
             </div>
           </div>
         </div>
         <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-info bg-opacity-10">
+          <div className="card stats-card">
             <div className="card-body">
-              <h6 className="text-muted mb-1">Tổng chỉ định</h6>
-              <h3 className="mb-0 text-info">{safeReferrals.length}</h3>
+              <div className="d-flex align-items-center justify-content-between">
+                <div>
+                  <div className="text-muted">Tổng chỉ định</div>
+                  <div className="h4 mb-0">{safeReferrals.length}</div>
+                </div>
+                <i className="bi bi-clipboard-data fs-2 text-info"></i>
+              </div>
             </div>
           </div>
         </div>
@@ -623,6 +714,47 @@ const DepartmentReferrals = () => {
                 <button type="button" className="btn btn-success" onClick={handleSubmitResult}>
                   <i className="bi bi-check-circle me-2"></i>
                   Lưu kết quả
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Modal */}
+      {showNotificationModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className={`modal-header ${
+                notificationData.type === 'success' ? 'bg-success' :
+                notificationData.type === 'error' ? 'bg-danger' :
+                notificationData.type === 'warning' ? 'bg-warning' :
+                'bg-info'
+              } text-white`}>
+                <h5 className="modal-title">
+                  <i className={`bi ${
+                    notificationData.type === 'success' ? 'bi-check-circle' :
+                    notificationData.type === 'error' ? 'bi-x-circle' :
+                    notificationData.type === 'warning' ? 'bi-exclamation-triangle' :
+                    'bi-info-circle'
+                  } me-2`}></i>
+                  {notificationData.title}
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={closeNotification}></button>
+              </div>
+              <div className="modal-body">
+                <p style={{ whiteSpace: 'pre-wrap' }}>{notificationData.message}</p>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className={`btn ${
+                  notificationData.type === 'success' ? 'btn-success' :
+                  notificationData.type === 'error' ? 'btn-danger' :
+                  notificationData.type === 'warning' ? 'btn-warning' :
+                  'btn-info'
+                }`} onClick={closeNotification}>
+                  <i className="bi bi-check-lg me-2"></i>
+                  Đóng
                 </button>
               </div>
             </div>
