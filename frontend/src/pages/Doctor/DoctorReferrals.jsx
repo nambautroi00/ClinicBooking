@@ -8,6 +8,29 @@ const DoctorReferrals = () => {
   const [filter, setFilter] = useState('ALL');
   const [stats, setStats] = useState({ pendingReferrals: 0, completedToday: 0 });
   const navigate = useNavigate();
+  
+  // Notification Modal State
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationData, setNotificationData] = useState({
+    type: 'success',
+    title: '',
+    message: '',
+    onClose: null
+  });
+  
+  // Show notification modal
+  const showNotification = (type, title, message, onClose = null) => {
+    setNotificationData({ type, title, message, onClose });
+    setShowNotificationModal(true);
+  };
+  
+  // Close notification modal
+  const closeNotification = () => {
+    setShowNotificationModal(false);
+    if (notificationData.onClose) {
+      notificationData.onClose();
+    }
+  };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const doctorId = user.doctorId || localStorage.getItem('doctorId');
@@ -32,7 +55,7 @@ const DoctorReferrals = () => {
     } catch (error) {
       console.error('❌ Error loading referrals:', error);
       console.error('❌ Error response:', error.response);
-      alert('Không thể tải danh sách chỉ định');
+      showNotification('error', 'Lỗi Tải Dữ Liệu', 'Không thể tải danh sách chỉ định: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -376,6 +399,47 @@ const DoctorReferrals = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Notification Modal */}
+      {showNotificationModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className={`modal-header ${
+                notificationData.type === 'success' ? 'bg-success' :
+                notificationData.type === 'error' ? 'bg-danger' :
+                notificationData.type === 'warning' ? 'bg-warning' :
+                'bg-info'
+              } text-white`}>
+                <h5 className="modal-title">
+                  <i className={`bi ${
+                    notificationData.type === 'success' ? 'bi-check-circle' :
+                    notificationData.type === 'error' ? 'bi-x-circle' :
+                    notificationData.type === 'warning' ? 'bi-exclamation-triangle' :
+                    'bi-info-circle'
+                  } me-2`}></i>
+                  {notificationData.title}
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={closeNotification}></button>
+              </div>
+              <div className="modal-body">
+                <p style={{ whiteSpace: 'pre-wrap' }}>{notificationData.message}</p>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className={`btn ${
+                  notificationData.type === 'success' ? 'btn-success' :
+                  notificationData.type === 'error' ? 'btn-danger' :
+                  notificationData.type === 'warning' ? 'btn-warning' :
+                  'btn-info'
+                }`} onClick={closeNotification}>
+                  <i className="bi bi-check-lg me-2"></i>
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
