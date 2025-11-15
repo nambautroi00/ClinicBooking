@@ -70,7 +70,7 @@ cd ClinicBooking
    - Mở SSMS
    - Kết nối với SQL Server (Server name: `localhost` hoặc `localhost\SQLEXPRESS`)
    - Right-click vào "Databases" → "New Database"
-   - Tên database: `CLINIC` (hoặc `ClinicBooking` tùy theo cấu hình)
+   - Tên database: `CLINIC`
    - Click "OK"
 
 ### Bước 3: Cài đặt Backend
