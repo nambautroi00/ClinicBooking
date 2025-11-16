@@ -69,9 +69,6 @@ export default function HeroSection() {
                 Đặt khám ngay
                 <ArrowRight className="ml-3 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </button>
-              <button className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-3 text-slate-700 bg-white hover:bg-slate-50 transition">
-                Tìm hiểu thêm
-              </button>
             </div>
           </div>
 

@@ -906,29 +906,29 @@ export default function PatientBookingDetail() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button 
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+              className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900"
             >
-              <ArrowLeft className="h-5 w-5" />
-              Quay lại
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-xs sm:text-sm">Quay lại</span>
             </button>
-            <div className="text-sm text-gray-500">
+            <div className="text-xs sm:text-sm text-gray-500 hidden sm:block">
               Trang chủ / Bác sĩ
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <div className="max-w-4xl mx-auto">
           {/* Doctor Info */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-            <div className="flex items-start gap-4">
+          <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-3 sm:mb-4">
+            <div className="flex items-start gap-3 sm:gap-4">
               <div className="relative">
-                <div className="w-24 h-24 rounded-full flex items-center justify-center overflow-hidden relative bg-gray-200">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center overflow-hidden relative bg-gray-200 flex-shrink-0">
                   <img
                     src={getFullAvatarUrl(doctor.avatar)}
                     alt={doctor.name}
@@ -954,11 +954,11 @@ export default function PatientBookingDetail() {
                 </button>
               </div>
               
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-gray-900 mb-2">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-base sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 line-clamp-2">
                  {doctor.degree ? `${doctor.degree} ${doctor.name}` : doctor.name}
                 </h1>
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                   {doctor.degree && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                       {doctor.degree}
@@ -1000,67 +1000,67 @@ export default function PatientBookingDetail() {
 
 
           {/* Quick Booking */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Đặt khám nhanh</h2>
-              <div className="flex items-center gap-2">
+          <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-3 sm:mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-3">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">Đặt khám nhanh</h2>
+              <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1">
                 <div className={`flex items-center gap-1 ${bookingStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium flex-shrink-0 ${
                     bookingStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     1
                   </div>
-                  <span className="text-xs font-medium">Chọn ngày giờ</span>
+                  <span className="text-[10px] sm:text-xs font-medium whitespace-nowrap">Chọn ngày giờ</span>
                 </div>
-                <div className="w-4 h-0.5 bg-gray-200"></div>
-                <div className={`flex items-center gap-1 ${bookingStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                <div className="w-3 sm:w-4 h-0.5 bg-gray-200 flex-shrink-0"></div>
+                <div className={`flex items-center gap-1 flex-shrink-0 ${bookingStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium ${
                     bookingStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     2
                   </div>
-                  <span className="text-xs font-medium">Xác nhận</span>
+                  <span className="text-[10px] sm:text-xs font-medium whitespace-nowrap">Xác nhận</span>
                 </div>
-                <div className="w-4 h-0.5 bg-gray-200"></div>
-                <div className={`flex items-center gap-1 ${bookingStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                <div className="w-3 sm:w-4 h-0.5 bg-gray-200 flex-shrink-0"></div>
+                <div className={`flex items-center gap-1 flex-shrink-0 ${bookingStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium ${
                     bookingStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}>
                     3
                   </div>
-                  <span className="text-xs font-medium">Thanh toán</span>
+                  <span className="text-[10px] sm:text-xs font-medium whitespace-nowrap">Thanh toán</span>
                 </div>
               </div>
             </div>
             
             {/* Date Selection - Only show in step 1 */}
             {bookingStep === 1 && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-medium text-gray-900">Chọn ngày</h3>
+              <div className="mb-3 sm:mb-4">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <h3 className="text-sm sm:text-base font-medium text-gray-900">Chọn ngày</h3>
                   <div className="flex items-center gap-1">
                     <button 
                       onClick={() => setCurrentWeek(currentWeek - 1)}
-                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                      className="p-1 sm:p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
                     <button 
                       onClick={() => setCurrentWeek(currentWeek + 1)}
-                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                      className="p-1 sm:p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
                   </div>
                 </div>
                 
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-1 px-1">
                   {weekDates.map((dateInfo) => (
                     <button
                       key={dateInfo.date}
                       onClick={() => handleDateSelect(dateInfo.date)}
                       disabled={dateInfo.availableSlots === 0}
-                      className={`flex-shrink-0 w-20 p-2 rounded-lg border text-center transition-colors ${
+                      className={`flex-shrink-0 w-16 sm:w-20 p-1.5 sm:p-2 rounded-lg border text-center transition-colors ${
                         selectedDate === dateInfo.date
                           ? "border-blue-500 bg-blue-50 text-blue-700"
                           : dateInfo.availableSlots === 0
@@ -1068,9 +1068,9 @@ export default function PatientBookingDetail() {
                           : "border-gray-300 bg-white hover:bg-gray-50"
                       }`}
                     >
-                      <div className="text-xs font-medium">{dateInfo.dayName}</div>
-                      <div className="text-xs text-gray-500">{dateInfo.dayMonth}</div>
-                      <div className="text-xs mt-1">
+                      <div className="text-[10px] sm:text-xs font-medium">{dateInfo.dayName}</div>
+                      <div className="text-[10px] sm:text-xs text-gray-500">{dateInfo.dayMonth}</div>
+                      <div className="text-[10px] sm:text-xs mt-0.5 sm:mt-1">
                         {dateInfo.availableSlots === 0 ? "Chưa lên lịch" : `${dateInfo.availableSlots} khung`}
                       </div>
                     </button>
@@ -1117,13 +1117,13 @@ export default function PatientBookingDetail() {
                             <Sun className="h-4 w-4 text-orange-500" />
                             <h3 className="text-base font-medium text-gray-900">Buổi sáng</h3>
                           </div>
-                          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2">
                             {morningSlots.map((slot) => (
                       <button
                         key={slot.id}
                         onClick={() => handleTimeSlotSelect(slot.time)}
                         disabled={!slot.available}
-                                className={`p-2 rounded-lg border text-xs transition-colors ${
+                                className={`p-1.5 sm:p-2 rounded-lg border text-[10px] sm:text-xs transition-colors ${
                           selectedTimeSlot === slot.time
                             ? "border-blue-500 bg-blue-50 text-blue-700"
                             : slot.available
@@ -1157,13 +1157,13 @@ export default function PatientBookingDetail() {
                             <Sun className="h-4 w-4 text-yellow-500" />
                             <h3 className="text-base font-medium text-gray-900">Buổi chiều</h3>
                           </div>
-                          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2">
                             {afternoonSlots.map((slot) => (
                               <button
                                 key={slot.id}
                                 onClick={() => handleTimeSlotSelect(slot.time)}
                                 disabled={!slot.available}
-                                className={`p-2 rounded-lg border text-xs transition-colors ${
+                                className={`p-1.5 sm:p-2 rounded-lg border text-[10px] sm:text-xs transition-colors ${
                                   selectedTimeSlot === slot.time
                                     ? "border-blue-500 bg-blue-50 text-blue-700"
                                     : slot.available
@@ -1206,19 +1206,19 @@ export default function PatientBookingDetail() {
 
             {/* Step 2: Confirmation */}
             {bookingStep === 2 && selectedAppointment && (
-              <div className="mt-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">✓</div>
-                  Xác nhận thông tin lịch hẹn
+              <div className="mt-4 sm:mt-8 p-4 sm:p-6 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs sm:text-sm flex-shrink-0">✓</div>
+                  <span className="text-sm sm:text-base">Xác nhận thông tin lịch hẹn</span>
                 </h3>
                 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   {/* Doctor Info */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">Thông tin bác sĩ</h4>
-                    <div className="bg-white p-4 rounded-lg border">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200">
+                  <div className="space-y-3 sm:space-y-4">
+                    <h4 className="font-medium text-gray-900 text-sm sm:text-base">Thông tin bác sĩ</h4>
+                    <div className="bg-white p-3 sm:p-4 rounded-lg border">
+                      <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                           <img
                             src={getFullAvatarUrl(doctor.avatar)}
                             alt={doctor.name}
@@ -1256,26 +1256,26 @@ export default function PatientBookingDetail() {
                   </div>
 
                   {/* Appointment Details */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">Chi tiết lịch hẹn</h4>
-                    <div className="bg-white p-4 rounded-lg border">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Ngày khám:</span>
-                          <span className="font-medium">{new Date(selectedDate).toLocaleDateString('vi-VN', {
+                  <div className="space-y-3 sm:space-y-4">
+                    <h4 className="font-medium text-gray-900 text-sm sm:text-base">Chi tiết lịch hẹn</h4>
+                    <div className="bg-white p-3 sm:p-4 rounded-lg border">
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex justify-between items-center flex-wrap gap-1">
+                          <span className="text-gray-600 text-xs sm:text-sm">Ngày khám:</span>
+                          <span className="font-medium text-xs sm:text-sm text-right">{new Date(selectedDate).toLocaleDateString('vi-VN', {
                             weekday: 'long',
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'
                           })}</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Giờ khám:</span>
-                          <span className="font-medium text-blue-600">{selectedTimeSlot}</span>
+                        <div className="flex justify-between items-center flex-wrap gap-1">
+                          <span className="text-gray-600 text-xs sm:text-sm">Giờ khám:</span>
+                          <span className="font-medium text-blue-600 text-xs sm:text-sm">{selectedTimeSlot}</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Phí khám:</span>
-                          <span className="font-medium text-green-600">
+                        <div className="flex justify-between items-center flex-wrap gap-1">
+                          <span className="text-gray-600 text-xs sm:text-sm">Phí khám:</span>
+                          <span className="font-medium text-green-600 text-xs sm:text-sm">
                             {selectedAppointment.fee ? 
                               new Intl.NumberFormat('vi-VN', {
                                 style: 'currency',
@@ -1299,17 +1299,17 @@ export default function PatientBookingDetail() {
                 </div>
 
                 {/* Patient Note Section */}
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                    Ghi chú cho bác sĩ
+                <div className="mt-4 sm:mt-6">
+                  <h4 className="font-medium text-gray-900 mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                    <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                    <span>Ghi chú cho bác sĩ</span>
                   </h4>
-                  <div className="bg-white p-4 rounded-lg border">
+                  <div className="bg-white p-3 sm:p-4 rounded-lg border">
                     <textarea
                       value={patientNote}
                       onChange={(e) => setPatientNote(e.target.value)}
                       placeholder="Mô tả triệu chứng, tình trạng sức khỏe hiện tại, hoặc thông tin cần thiết khác..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="w-full p-2 sm:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
                       rows={4}
                     />
                     <div className="mt-2 flex items-start gap-2 text-sm text-gray-500">
@@ -1323,16 +1323,16 @@ export default function PatientBookingDetail() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 mt-6">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
                   <button
                     onClick={handleBackToStep1}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
                   >
                     Quay lại
                   </button>
                   <button
                     onClick={handleConfirmBooking}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
                     <CreditCard className="h-4 w-4" />
                     Tiến hành thanh toán
@@ -1432,16 +1432,16 @@ export default function PatientBookingDetail() {
           </div>
 
           {/* Doctor Introduction */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Giới thiệu</h2>
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Giới thiệu</h2>
             {doctor.bio && (
               <p className="text-gray-700 leading-relaxed mb-4">{doctor.bio}</p>
             )}
           </div>
 
           {/* Specialties */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Chuyên khám</h2>
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Chuyên khám</h2>
             <div className="flex flex-wrap gap-2">
               {doctor.specialty && (
                 <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
@@ -1452,10 +1452,10 @@ export default function PatientBookingDetail() {
           </div>
 
           {/* Reviews Section */}
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Star className="h-6 w-6 text-yellow-400 fill-current" />
-              Đánh giá từ bệnh nhân ({reviews.length})
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+              <Star className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400 fill-current flex-shrink-0" />
+              <span className="text-sm sm:text-base">Đánh giá từ bệnh nhân ({reviews.length})</span>
             </h2>
             
             {reviews.length === 0 ? (

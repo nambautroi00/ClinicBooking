@@ -287,7 +287,7 @@ const DoctorReferrals = () => {
                     <div className="flex-grow-1">
                       <h6 className="mb-1 fw-bold">
                         <i className={`${getDepartmentIcon(referral.toDepartment?.departmentName)} me-2`}></i>
-                        {referral.toDepartment?.departmentName || 'N/A'}
+                        {referral.toDepartment?.departmentName || 'ClinicBooking'}
                       </h6>
                       <small className="text-muted">
                         <i className="bi bi-calendar3 me-1"></i>

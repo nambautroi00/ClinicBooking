@@ -942,13 +942,13 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 w-full bg-white shadow-sm">
       {/* Top thin info bar */}
-      <div className="bg-[#e9f6ff] border-b">
+      <div className="bg-[#e9f6ff] border-b hidden sm:block">
         <div className="w-full px-2">
           <div className="max-w-full mx-auto flex h-9 items-center justify-between text-sm">
             <div className="flex items-center gap-4 text-[#034ea2]">
-              <a href="tel:19002115" className="flex items-center gap-2">
+              <a href="tel:0906545241" className="flex items-center gap-2">
                 <i className="bi bi-telephone" style={{ fontSize: '16px' }}></i>
-                <span className="font-medium">Hotline: 1900 2115</span>
+                <span className="font-medium">Hotline: 0906 545 241</span>
               </a>
             </div>
             <div className="flex items-center gap-3 text-sm">
@@ -989,13 +989,13 @@ export default function Header() {
 
       {/* Main header */}
       <div className="w-full px-2 sm:px-4">
-        <div className="max-w-full mx-auto flex items-center gap-2 sm:gap-4 md:gap-8 py-4 sm:py-6">
+        <div className="max-w-full mx-auto flex items-center gap-2 sm:gap-4 md:gap-8 py-2 sm:py-4 md:py-6">
           {/* Logo */}
           <Link
             to="/"
             className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0 min-w-0"
           >
-            <div className="flex h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 items-center justify-center rounded-xl overflow-hidden bg-white p-1 flex-shrink-0">
+            <div className="flex h-8 w-8 sm:h-12 sm:w-12 md:h-16 md:w-16 items-center justify-center rounded-xl overflow-hidden bg-white p-1 flex-shrink-0">
               <img
                 src="/images/logo.png"
                 alt="ClinicBooking Logo"
@@ -1004,8 +1004,8 @@ export default function Header() {
                   // Fallback to original design if logo fails to load
                   e.target.style.display = "none";
                   e.target.parentElement.innerHTML = `
-                    <div class="flex h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 items-center justify-center rounded-xl bg-[#0d6efd] text-white">
-                      <svg class="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8" fill="currentColor" viewBox="0 0 20 20">
+                    <div class="flex h-8 w-8 sm:h-12 sm:w-12 md:h-16 md:w-16 items-center justify-center rounded-xl bg-[#0d6efd] text-white">
+                      <svg class="h-4 w-4 sm:h-6 sm:w-6 md:h-8 md:w-8" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path>
                       </svg>
                     </div>
@@ -1014,7 +1014,7 @@ export default function Header() {
               />
             </div>
             <div className="min-w-0">
-              <div className="text-sm sm:text-base md:text-xl font-bold text-[#0d6efd] whitespace-nowrap">
+              <div className="text-xs sm:text-base md:text-xl font-bold text-[#0d6efd] whitespace-nowrap">
                 ClinicBooking
               </div>
               <div className="hidden sm:block text-xs md:text-sm text-gray-500">
@@ -1078,10 +1078,10 @@ export default function Header() {
             {/* Messages Button */}
             <button
               onClick={handleMessagesClick}
-              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
+              className="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
               title="Nhắn tin"
             >
-              <i className="bi bi-chat-dots group-hover:scale-110 transition-transform duration-200" style={{ fontSize: '20px' }}></i>
+              <i className="bi bi-chat-dots group-hover:scale-110 transition-transform duration-200" style={{ fontSize: '18px' }}></i>
               {messageUnreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] px-1 flex items-center justify-center font-semibold">
                   {messageUnreadCount > 9 ? "9+" : messageUnreadCount}
@@ -1093,10 +1093,10 @@ export default function Header() {
             <div className="relative notifications-dropdown">
               <button
                 onClick={handleNotificationsClick}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
+                className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 hover:bg-[#0d6efd] hover:text-white text-gray-600 transition-all duration-200 group"
                 title="Thông báo"
               >
-                <i className="bi bi-bell group-hover:scale-110 transition-transform duration-200" style={{ fontSize: '20px' }}></i>
+                <i className="bi bi-bell group-hover:scale-110 transition-transform duration-200" style={{ fontSize: '18px' }}></i>
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
                     {unreadCount > 9 ? "9+" : unreadCount}
@@ -1270,9 +1270,9 @@ export default function Header() {
               aria-label="Toggle mobile menu"
             >
               {mobileMenuOpen ? (
-                <i className="bi bi-x-lg text-gray-700" style={{ fontSize: '24px' }}></i>
+                <i className="bi bi-x-lg text-gray-700" style={{ fontSize: '20px' }}></i>
               ) : (
-                <i className="bi bi-list text-gray-700" style={{ fontSize: '24px' }}></i>
+                <i className="bi bi-list text-gray-700" style={{ fontSize: '20px' }}></i>
               )}
             </button>
           </div>

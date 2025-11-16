@@ -321,9 +321,10 @@ const buildInsightMarkdown = (payload) => {
     const { name, code, confidence } = payload.recommendedDepartment;
     const percent =
       typeof confidence === 'number' ? ` (độ tin cậy ${Math.round(confidence * 100)}%)` : '';
-    parts.push(
-      `**Khoa gợi ý:** ${name || 'Chưa xác định'}${code ? ` (${code})` : ''}${percent}`
-    );
+      parts.push(
+        `**Khoa gợi ý:** ${name || 'Chưa xác định'}${percent}`
+      );
+      
     if (Array.isArray(payload.recommendedDepartment.alternatives) && payload.recommendedDepartment.alternatives.length > 0) {
       parts.push(
         `**Phương án khác:** ${payload.recommendedDepartment.alternatives
@@ -334,9 +335,9 @@ const buildInsightMarkdown = (payload) => {
     }
   }
 
-  if (payload.nextQuestions.length > 0) {
-    parts.push(`**Câu hỏi tiếp theo:**\n${bulletList(payload.nextQuestions)}`);
-  }
+  // if (payload.nextQuestions.length > 0) {
+  //   parts.push(`**Câu hỏi tiếp theo:**\n${bulletList(payload.nextQuestions)}`);
+  // }
 
 
   if (parts.length === 0) return '';

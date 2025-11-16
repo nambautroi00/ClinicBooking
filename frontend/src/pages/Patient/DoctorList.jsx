@@ -215,42 +215,42 @@ export default function DoctorList() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium">
-                ← Quay về trang chủ
+        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm">
+                ← Quay về
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Danh sách bác sĩ</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Danh sách bác sĩ</h1>
             </div>
-            <div className="text-sm text-gray-600">Tìm thấy {filteredDoctors.length} kết quả</div>
+            <div className="text-xs sm:text-sm text-gray-600">Tìm thấy {filteredDoctors.length} kết quả</div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Search + Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <form onSubmit={(e) => e.preventDefault()} className="mb-4">
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+          <form onSubmit={(e) => e.preventDefault()} className="mb-3 sm:mb-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
               <input
                 type="text"
                 placeholder="Tìm theo triệu chứng, bác sĩ, bệnh viện..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               />
             </div>
           </form>
 
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700">Chuyên khoa:</span>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center">
+            <div className="flex items-center space-x-2 flex-1 sm:flex-initial">
+              <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Chuyên khoa:</span>
               <select
                 value={selectedSpecialty}
                 onChange={(e) => setSelectedSpecialty(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-initial"
               >
                 <option value="">Tất cả chuyên khoa</option>
                 {specialties.map((spec, idx) => (
@@ -259,12 +259,12 @@ export default function DoctorList() {
               </select>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <MapPin className="h-4 w-4 text-gray-500" />
+            <div className="flex items-center space-x-2 flex-1 sm:flex-initial">
+              <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
               <select
                 value={selectedArea}
                 onChange={(e) => setSelectedArea(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-initial"
               >
                 <option value="">Tất cả khu vực</option>
                 {areas.map((a, idx) => (
@@ -273,12 +273,12 @@ export default function DoctorList() {
               </select>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-gray-500" />
+            <div className="flex items-center space-x-2 flex-1 sm:flex-initial">
+              <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-initial"
               >
                 <option value="name">Sắp xếp theo tên</option>
                 <option value="rating">Sắp xếp theo đánh giá</option>
@@ -289,7 +289,7 @@ export default function DoctorList() {
 
             <button
               onClick={clearFilters}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap"
             >
               Xóa bộ lọc
             </button>
@@ -299,22 +299,22 @@ export default function DoctorList() {
         {/* Doctors List */}
         <div className="space-y-4">
           {loading && doctors.length === 0 ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600">Đang tải danh sách bác sĩ...</span>
+            <div className="flex flex-col sm:flex-row justify-center items-center py-8 sm:py-12 gap-3">
+              <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
+              <span className="text-sm sm:text-base text-gray-600">Đang tải danh sách bác sĩ...</span>
             </div>
           ) : filteredDoctors.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-500 text-lg mb-2">Không tìm thấy bác sĩ</div>
-              <div className="text-gray-400">Vui lòng thử lại với từ khóa khác</div>
+            <div className="text-center py-8 sm:py-12">
+              <div className="text-gray-500 text-base sm:text-lg mb-2">Không tìm thấy bác sĩ</div>
+              <div className="text-xs sm:text-sm text-gray-400">Vui lòng thử lại với từ khóa khác</div>
             </div>
           ) : (
             filteredDoctors.map((doctor) => (
-              <div key={doctor.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-start space-x-6">
+              <div key={doctor.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
+                <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-6">
                   {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-full sm:w-auto flex justify-center sm:justify-start">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                       <img
                         src={doctor.avatar}
                         alt={doctor.name}
@@ -325,37 +325,37 @@ export default function DoctorList() {
                   </div>
 
                   {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  <div className="flex-1 min-w-0 w-full">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
                           {doctor.degree ? `${doctor.degree} ${doctor.name}` : doctor.name}
                         </h3>
 
-                        <div className="flex items-center space-x-4 mb-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-2">
                           <div className="flex items-center space-x-1">
-                            <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                            <span className="text-sm font-medium text-gray-700">
+                            <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-400 fill-current flex-shrink-0" />
+                            <span className="text-xs sm:text-sm font-medium text-gray-700">
                               {Number(doctor.rating || 0).toFixed(1)}
                             </span>
                           </div>
                           {doctor.experience ? (
                             <>
-                              <span className="text-sm text-gray-500">•</span>
-                              <span className="text-sm text-gray-600">{doctor.experience} năm kinh nghiệm</span>
+                              <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">•</span>
+                              <span className="text-xs sm:text-sm text-gray-600">{doctor.experience} năm kinh nghiệm</span>
                             </>
                           ) : null}
                         </div>
 
-                        <div className="mb-3">
-                          <div className="flex flex-wrap gap-2">
+                        <div className="mb-2 sm:mb-3">
+                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
                             {(doctor.specialty || "")
                               .split(",")
                               .filter(Boolean)
                               .map((spec, index) => (
                                 <span
                                   key={index}
-                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-blue-100 text-blue-800"
                                 >
                                   {spec.trim()}
                                 </span>
@@ -364,29 +364,33 @@ export default function DoctorList() {
                         </div>
 
                         {doctor.address && (
-                          <div className="flex items-center text-sm text-gray-600 mb-2">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            <span>{doctor.address}</span>
+                          <div className="flex items-start text-xs sm:text-sm text-gray-600 mb-2">
+                            <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 mt-0.5 flex-shrink-0" />
+                            <span className="line-clamp-2">{doctor.address}</span>
                           </div>
                         )}
 
-                        <div className="flex items-center space-x-6 text-sm text-gray-600">
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {doctor.nextAvailable && <span>Có lịch {doctor.nextAvailable}</span>}
-                          </div>
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1" />
-                            {doctor.availableSlots > 0 && <span>{doctor.availableSlots} khung giờ trống</span>}
-                          </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-gray-600">
+                          {doctor.nextAvailable && (
+                            <div className="flex items-center">
+                              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                              <span className="line-clamp-1">Có lịch {doctor.nextAvailable}</span>
+                            </div>
+                          )}
+                          {doctor.availableSlots > 0 && (
+                            <div className="flex items-center">
+                              <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                              <span>{doctor.availableSlots} khung giờ trống</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       {/* Book Button */}
-                      <div className="flex-shrink-0 ml-4">
+                      <div className="flex-shrink-0 w-full sm:w-auto">
                         <Link
                           to={`/patient/booking/${doctor.id}`}
-                          className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                          className="inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 border border-transparent text-sm sm:text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
                         >
                           Đặt khám
                         </Link>
@@ -400,9 +404,9 @@ export default function DoctorList() {
         </div>
 
         {/* Load more */}
-        <div className="text-center mt-8">
+        <div className="text-center mt-6 sm:mt-8">
           <button
-            className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+            className="px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-300 rounded-md text-sm sm:text-base text-gray-700 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
             disabled={!hasMore || loading}
             onClick={() => setPage((p) => p + 1)}
           >
@@ -411,11 +415,11 @@ export default function DoctorList() {
         </div>
 
         {/* footer nhỏ */}
-        <div className="flex items-center justify-between mt-6">
-          <div className="text-sm text-gray-600">Trang {page + 1}/{pages}</div>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-4 sm:mt-6">
+          <div className="text-xs sm:text-sm text-gray-600">Trang {page + 1}/{pages}</div>
           <div className="flex items-center gap-2">
             <select
-              className="border rounded px-2 py-1"
+              className="border rounded px-2 py-1 text-xs sm:text-sm"
               value={size}
               onChange={(e) => {
                 setPage(0);

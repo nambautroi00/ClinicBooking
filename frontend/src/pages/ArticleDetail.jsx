@@ -224,6 +224,13 @@ const ArticleDetail = () => {
                 {article.title}
               </h1>
 
+              {/* Article Content */}
+              <div className="prose prose-lg max-w-none mb-6">
+                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {article.content}
+                </div>
+              </div>
+
               {/* Article Image */}
               {getImageUrl(article.imageUrl) && (
                 <div className="mb-6">
@@ -237,13 +244,6 @@ const ArticleDetail = () => {
                   />
                 </div>
               )}
-
-              {/* Article Content */}
-              <div className="prose prose-lg max-w-none">
-                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {article.content}
-                </div>
-              </div>
             </div>
 
             {/* Article Footer */}

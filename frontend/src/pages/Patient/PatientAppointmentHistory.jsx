@@ -762,7 +762,7 @@ export default function PatientAppointmentHistory() {
                 {appointments.length === 0 && (
                   <button
                     className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold shadow-lg hover:shadow-xl transition-all"
-                    onClick={() => navigate('/doctors')}
+                    onClick={() => navigate('/patient/book-appointment')}
                   >
                     <Calendar className="h-5 w-5 inline mr-2" />
                     Đặt lịch ngay
